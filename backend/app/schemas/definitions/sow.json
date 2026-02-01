@@ -1,0 +1,459 @@
+{
+  "schema_id": "sow_v1",
+  "contract_type": "SOW",
+  "version": "1.0.0",
+  "description": "Statement of Work / Service Order - specific work order under an MSA",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 4000,
+  "required_sections": ["service_order_metadata", "services", "totals"],
+
+  "sections": {
+    "service_order_metadata": {
+      "description": "Service order identification and relationship to master agreement",
+      "priority": 10,
+      "max_context_chars": 5000,
+      "fields": {
+        "service_order_id": {
+          "type": "string",
+          "description": "Unique service order identifier",
+          "required": true,
+          "extraction_hints": ["Service Order No.", "SO#", "Order Number", "SOW ID"]
+        },
+        "msa_id": {
+          "type": "string",
+          "description": "Reference to parent MSA",
+          "extraction_hints": ["pursuant to", "under Agreement", "Master Agreement"]
+        },
+        "msa_contract_no": {
+          "type": "string",
+          "description": "Master contract number if different from MSA ID"
+        },
+        "date": {
+          "type": "date",
+          "description": "Service order date",
+          "required": true,
+          "extraction_hints": ["dated", "as of", "effective"]
+        },
+        "client_name": {
+          "type": "string",
+          "description": "Client/customer name",
+          "required": true
+        },
+        "provider_name": {
+          "type": "string",
+          "description": "Service provider name",
+          "required": true
+        },
+        "co_branding_parties": {
+          "type": "array",
+          "description": "Additional parties for co-branding arrangements",
+          "items_type": "string"
+        },
+        "scope_summary": {
+          "type": "string",
+          "description": "Brief summary of work scope"
+        },
+        "project_name": {
+          "type": "string",
+          "description": "Project or engagement name"
+        },
+        "start_date": {
+          "type": "date",
+          "description": "When work begins"
+        },
+        "end_date": {
+          "type": "date",
+          "description": "Expected completion date"
+        }
+      }
+    },
+
+    "services": {
+      "description": "Line items for services being ordered",
+      "priority": 10,
+      "max_context_chars": 15000,
+      "fields": {
+        "line_items": {
+          "type": "array",
+          "description": "Individual service line items",
+          "items_type": "object",
+          "properties": {
+            "category": {
+              "type": "enum",
+              "description": "Category of charge",
+              "enum_values": ["Base fee", "Additional fee", "Optional", "Recurring", "One-time", "Milestone"]
+            },
+            "name": {
+              "type": "string",
+              "description": "Service name or description"
+            },
+            "line_item_code": {
+              "type": "string",
+              "description": "Internal code for line item"
+            },
+            "description": {
+              "type": "string",
+              "description": "Detailed description of the service"
+            },
+            "quantity": {
+              "type": "number",
+              "description": "Quantity ordered"
+            },
+            "unit": {
+              "type": "string",
+              "description": "Unit of measure (hours, days, units, etc.)"
+            },
+            "unit_price": {
+              "type": "number",
+              "description": "Price per unit"
+            },
+            "currency": {
+              "type": "string",
+              "description": "Currency for this line item",
+              "default": "USD"
+            },
+            "subtotal": {
+              "type": "number",
+              "description": "Line item subtotal"
+            },
+            "notes": {
+              "type": "string",
+              "description": "Any notes or conditions for this line item"
+            }
+          }
+        }
+      }
+    },
+
+    "deliverables": {
+      "description": "Specific deliverables expected from this SOW",
+      "priority": 8,
+      "max_context_chars": 10000,
+      "fields": {
+        "items": {
+          "type": "array",
+          "description": "List of deliverables",
+          "items_type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Deliverable identifier"
+            },
+            "name": {
+              "type": "string",
+              "description": "Deliverable name"
+            },
+            "description": {
+              "type": "string",
+              "description": "Detailed description"
+            },
+            "due_date": {
+              "type": "date",
+              "description": "When deliverable is due"
+            },
+            "acceptance_criteria": {
+              "type": "string",
+              "description": "Criteria for acceptance"
+            },
+            "responsible_party": {
+              "type": "string",
+              "description": "Who is responsible for delivery"
+            }
+          }
+        }
+      }
+    },
+
+    "milestones": {
+      "description": "Project milestones and payment triggers",
+      "priority": 7,
+      "max_context_chars": 8000,
+      "fields": {
+        "items": {
+          "type": "array",
+          "description": "List of milestones",
+          "items_type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Milestone identifier"
+            },
+            "name": {
+              "type": "string",
+              "description": "Milestone name"
+            },
+            "description": {
+              "type": "string",
+              "description": "What constitutes completion"
+            },
+            "target_date": {
+              "type": "date",
+              "description": "Target completion date"
+            },
+            "payment_amount": {
+              "type": "number",
+              "description": "Payment due upon completion"
+            },
+            "payment_percentage": {
+              "type": "number",
+              "description": "Percentage of total if milestone-based"
+            }
+          }
+        }
+      }
+    },
+
+    "penalties": {
+      "description": "Penalties and deductions defined in the SOW",
+      "priority": 6,
+      "max_context_chars": 5000,
+      "fields": {
+        "items": {
+          "type": "array",
+          "description": "List of penalties",
+          "items_type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Penalty name"
+            },
+            "line_item_code": {
+              "type": "string",
+              "description": "Code for tracking"
+            },
+            "amount": {
+              "type": "number",
+              "description": "Penalty amount"
+            },
+            "currency": {
+              "type": "string",
+              "description": "Currency",
+              "default": "USD"
+            },
+            "trigger_condition": {
+              "type": "string",
+              "description": "What triggers this penalty"
+            },
+            "section_reference": {
+              "type": "string",
+              "description": "Where defined in contract"
+            }
+          }
+        }
+      }
+    },
+
+    "totals": {
+      "description": "Financial totals for the service order",
+      "priority": 9,
+      "max_context_chars": 3000,
+      "fields": {
+        "subtotal": {
+          "type": "number",
+          "description": "Sum of all line items before tax",
+          "required": true
+        },
+        "discount": {
+          "type": "number",
+          "description": "Any discount applied"
+        },
+        "discount_description": {
+          "type": "string",
+          "description": "Reason for discount"
+        },
+        "taxes": {
+          "type": "number",
+          "description": "Tax amount"
+        },
+        "tax_rate": {
+          "type": "number",
+          "description": "Tax rate percentage"
+        },
+        "total": {
+          "type": "number",
+          "description": "Final total amount",
+          "required": true
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency for totals",
+          "default": "USD"
+        },
+        "payment_schedule": {
+          "type": "string",
+          "description": "How payment should be made"
+        }
+      }
+    },
+
+    "testing_and_sampling": {
+      "description": "Testing requirements and sample specifications (for applicable SOWs)",
+      "priority": 5,
+      "max_context_chars": 5000,
+      "fields": {
+        "test_plan_reference": {
+          "type": "string",
+          "description": "Reference to test plan document"
+        },
+        "sample_requirements": {
+          "type": "string",
+          "description": "Sample quantity and specifications"
+        },
+        "lab_name": {
+          "type": "string",
+          "description": "Testing laboratory name"
+        },
+        "lab_location": {
+          "type": "string",
+          "description": "Laboratory location"
+        },
+        "client_responsible_for_lab_costs": {
+          "type": "boolean",
+          "description": "Whether client pays lab costs directly"
+        },
+        "testing_standards": {
+          "type": "array",
+          "description": "Standards/protocols for testing",
+          "items_type": "string"
+        },
+        "notes": {
+          "type": "array",
+          "description": "Additional testing notes",
+          "items_type": "string"
+        }
+      }
+    },
+
+    "resources": {
+      "description": "Personnel and resources allocated to this SOW",
+      "priority": 4,
+      "max_context_chars": 5000,
+      "fields": {
+        "personnel": {
+          "type": "array",
+          "description": "Named resources assigned",
+          "items_type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "description": "Role on the project"
+            },
+            "name": {
+              "type": "string",
+              "description": "Person's name if specified"
+            },
+            "hours": {
+              "type": "number",
+              "description": "Hours allocated"
+            },
+            "rate": {
+              "type": "number",
+              "description": "Hourly or daily rate"
+            }
+          }
+        },
+        "client_resources_required": {
+          "type": "array",
+          "description": "Resources client must provide",
+          "items_type": "string"
+        },
+        "facilities_required": {
+          "type": "array",
+          "description": "Facilities or equipment needed",
+          "items_type": "string"
+        }
+      }
+    },
+
+    "notes_and_conditions": {
+      "description": "Additional notes, assumptions, and conditions",
+      "priority": 3,
+      "max_context_chars": 5000,
+      "fields": {
+        "notes": {
+          "type": "array",
+          "description": "General notes",
+          "items_type": "string"
+        },
+        "assumptions": {
+          "type": "array",
+          "description": "Assumptions made in pricing/scope",
+          "items_type": "string"
+        },
+        "exclusions": {
+          "type": "array",
+          "description": "What is explicitly excluded",
+          "items_type": "string"
+        },
+        "special_conditions": {
+          "type": "array",
+          "description": "Special conditions or requirements",
+          "items_type": "string"
+        }
+      }
+    },
+
+    "signatures": {
+      "description": "Signature blocks and authorization",
+      "priority": 2,
+      "max_context_chars": 3000,
+      "fields": {
+        "client_signatory": {
+          "type": "object",
+          "description": "Client signing authority",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Signatory name"
+            },
+            "title": {
+              "type": "string",
+              "description": "Signatory title"
+            },
+            "date": {
+              "type": "date",
+              "description": "Date signed"
+            },
+            "email": {
+              "type": "string",
+              "description": "Contact email"
+            }
+          }
+        },
+        "provider_signatory": {
+          "type": "object",
+          "description": "Provider signing authority",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Signatory name"
+            },
+            "title": {
+              "type": "string",
+              "description": "Signatory title"
+            },
+            "date": {
+              "type": "date",
+              "description": "Date signed"
+            },
+            "email": {
+              "type": "string",
+              "description": "Contact email"
+            }
+          }
+        },
+        "co_branding_signatories": {
+          "type": "array",
+          "description": "Additional signatories for co-branding",
+          "items_type": "object"
+        },
+        "approval_chain": {
+          "type": "array",
+          "description": "Approval workflow if applicable",
+          "items_type": "object"
+        }
+      }
+    }
+  }
+}

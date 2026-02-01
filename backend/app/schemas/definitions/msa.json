@@ -1,0 +1,768 @@
+{
+  "schema_id": "msa_v1",
+  "contract_type": "MSA",
+  "version": "1.0.0",
+  "description": "Master Service Agreement - comprehensive service contract with ongoing terms",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 8000,
+  "required_sections": ["contract_metadata", "obligations", "risk_and_compliance"],
+
+  "sections": {
+    "contract_metadata": {
+      "description": "Basic contract identification and party information",
+      "priority": 10,
+      "max_context_chars": 10000,
+      "fields": {
+        "contract_title": {
+          "type": "string",
+          "description": "Official title of the contract",
+          "required": true,
+          "extraction_hints": ["Agreement", "Contract", "Title at top of document"]
+        },
+        "contract_type": {
+          "type": "enum",
+          "description": "Type of master agreement",
+          "enum_values": ["MSA", "Framework Agreement", "Master Agreement"],
+          "default": "MSA"
+        },
+        "version": {
+          "type": "string",
+          "description": "Contract version or revision number"
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date the contract becomes effective",
+          "required": true,
+          "extraction_hints": ["effective as of", "effective date", "commencing on"]
+        },
+        "signing_date": {
+          "type": "date",
+          "description": "Date the contract was signed",
+          "extraction_hints": ["dated", "executed on", "signed on"]
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern the contract",
+          "extraction_hints": ["governed by the laws of", "governing law"]
+        },
+        "jurisdiction": {
+          "type": "string",
+          "description": "Courts/venue for disputes",
+          "extraction_hints": ["exclusive jurisdiction", "venue shall be"]
+        },
+        "term_description": {
+          "type": "string",
+          "description": "Text describing the contract term"
+        },
+        "initial_term_years": {
+          "type": "integer",
+          "description": "Initial term length in years"
+        },
+        "renewal_terms": {
+          "type": "string",
+          "description": "Description of renewal provisions"
+        },
+        "termination_notice_days": {
+          "type": "integer",
+          "description": "Days notice required for termination",
+          "extraction_hints": ["days prior written notice", "notice of termination"]
+        },
+        "parties": {
+          "type": "array",
+          "description": "Parties to the contract",
+          "items_type": "object",
+          "properties": {
+            "role": {
+              "type": "enum",
+              "description": "Party's role in the contract",
+              "enum_values": ["Provider", "Client", "Vendor", "Customer", "Licensor", "Licensee"]
+            },
+            "legal_name": {
+              "type": "string",
+              "description": "Full legal name of the party",
+              "required": true
+            },
+            "short_name": {
+              "type": "string",
+              "description": "Short name or alias used in contract"
+            },
+            "entity_type": {
+              "type": "string",
+              "description": "Type of entity (corporation, LLC, etc.)"
+            },
+            "jurisdiction": {
+              "type": "string",
+              "description": "State/country of incorporation"
+            },
+            "registered_address": {
+              "type": "string",
+              "description": "Official registered address"
+            }
+          }
+        }
+      }
+    },
+
+    "contract_structure": {
+      "description": "Document structure including articles and exhibits",
+      "priority": 3,
+      "max_context_chars": 20000,
+      "fields": {
+        "articles": {
+          "type": "array",
+          "description": "Main articles/sections of the contract",
+          "items_type": "object",
+          "properties": {
+            "article_number": {
+              "type": "string",
+              "description": "Article number"
+            },
+            "article_title": {
+              "type": "string",
+              "description": "Article title"
+            },
+            "sections": {
+              "type": "array",
+              "description": "Sub-sections within the article"
+            }
+          }
+        },
+        "exhibits": {
+          "type": "array",
+          "description": "Attached exhibits, schedules, or appendices",
+          "items_type": "object",
+          "properties": {
+            "exhibit_id": {
+              "type": "string",
+              "description": "Exhibit identifier (e.g., 'Exhibit A')"
+            },
+            "title": {
+              "type": "string",
+              "description": "Exhibit title"
+            },
+            "description": {
+              "type": "string",
+              "description": "Brief description of exhibit contents"
+            }
+          }
+        }
+      }
+    },
+
+    "scope_and_services": {
+      "description": "Scope of services and deliverables",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "service_categories": {
+          "type": "array",
+          "description": "Categories of services provided",
+          "items_type": "string"
+        },
+        "service_description": {
+          "type": "string",
+          "description": "Overall description of services"
+        },
+        "service_location": {
+          "type": "string",
+          "description": "Where services will be performed"
+        },
+        "service_start_trigger": {
+          "type": "string",
+          "description": "What triggers service commencement",
+          "example_values": ["Per Service Order", "Upon signing", "Upon payment"]
+        },
+        "change_order_process": {
+          "type": "object",
+          "description": "Process for changing scope",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a change order process is defined"
+            },
+            "section_reference": {
+              "type": "string",
+              "description": "Section where process is defined"
+            },
+            "description": {
+              "type": "string",
+              "description": "Description of the process"
+            }
+          }
+        }
+      }
+    },
+
+    "financials": {
+      "description": "Fees, payment terms, and financial provisions",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "fee_model": {
+          "type": "object",
+          "description": "Fee structure and billing model",
+          "properties": {
+            "billing_basis": {
+              "type": "enum",
+              "description": "How fees are calculated",
+              "enum_values": ["fixed", "time_and_materials", "service_order", "milestone", "subscription"]
+            },
+            "currency": {
+              "type": "string",
+              "description": "Currency for fees",
+              "example_values": ["USD", "EUR", "GBP"]
+            },
+            "rate_references": {
+              "type": "array",
+              "description": "References to rate cards or pricing tables",
+              "items_type": "string"
+            },
+            "pricing_table_reference_section": {
+              "type": "string",
+              "description": "Section referencing pricing"
+            },
+            "can_change_unilaterally": {
+              "type": "boolean",
+              "description": "Whether provider can change rates unilaterally"
+            }
+          }
+        },
+        "payment_terms": {
+          "type": "object",
+          "description": "Payment timing and conditions",
+          "properties": {
+            "invoicing_trigger": {
+              "type": "string",
+              "description": "When invoices are issued"
+            },
+            "payment_due_days": {
+              "type": "integer",
+              "description": "Days after invoice for payment"
+            },
+            "late_payment_consequences": {
+              "type": "array",
+              "description": "Consequences of late payment",
+              "items_type": "string"
+            },
+            "tax_responsibility": {
+              "type": "string",
+              "description": "Who is responsible for taxes"
+            }
+          }
+        },
+        "security_instruments": {
+          "type": "array",
+          "description": "Performance bonds, guarantees, etc.",
+          "items_type": "object"
+        },
+        "penalties": {
+          "type": "array",
+          "description": "Financial penalties defined in contract",
+          "items_type": "object"
+        }
+      }
+    },
+
+    "sla_and_performance": {
+      "description": "Service levels and performance requirements",
+      "priority": 7,
+      "max_context_chars": 15000,
+      "fields": {
+        "service_hours": {
+          "type": "object",
+          "description": "Hours of operation",
+          "properties": {
+            "days": {
+              "type": "string",
+              "description": "Days of operation"
+            },
+            "time_window": {
+              "type": "string",
+              "description": "Hours of operation"
+            },
+            "time_zone": {
+              "type": "string",
+              "description": "Applicable time zone"
+            }
+          }
+        },
+        "availability_exceptions": {
+          "type": "array",
+          "description": "Exceptions to availability requirements",
+          "items_type": "string"
+        },
+        "kpis": {
+          "type": "array",
+          "description": "Key performance indicators",
+          "items_type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "KPI name"
+            },
+            "target": {
+              "type": "string",
+              "description": "Target value"
+            },
+            "measurement_method": {
+              "type": "string",
+              "description": "How KPI is measured"
+            },
+            "reporting_frequency": {
+              "type": "string",
+              "description": "How often KPI is reported"
+            }
+          }
+        },
+        "service_levels": {
+          "type": "array",
+          "description": "Defined service level commitments",
+          "items_type": "object"
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "description": "Criteria for accepting deliverables",
+          "items_type": "object"
+        },
+        "escalation_procedures": {
+          "type": "array",
+          "description": "Issue escalation procedures",
+          "items_type": "object"
+        }
+      }
+    },
+
+    "obligations": {
+      "description": "Contractual obligations by party",
+      "priority": 10,
+      "max_context_chars": 25000,
+      "fields": {
+        "provider_obligations": {
+          "type": "array",
+          "description": "Obligations of the service provider",
+          "items_type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique obligation identifier"
+            },
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section reference"
+            },
+            "category": {
+              "type": "enum",
+              "description": "Category of obligation",
+              "enum_values": ["service_provision", "data_protection", "reporting", "compliance", "confidentiality", "performance", "delivery", "other"]
+            },
+            "description": {
+              "type": "string",
+              "description": "Description of the obligation"
+            },
+            "frequency": {
+              "type": "enum",
+              "description": "How often the obligation applies",
+              "enum_values": ["ongoing", "one_time", "per_service_order", "periodic", "as_needed"]
+            },
+            "is_critical": {
+              "type": "boolean",
+              "description": "Whether this is a critical/material obligation"
+            },
+            "deadline_type": {
+              "type": "enum",
+              "description": "Type of deadline",
+              "enum_values": ["fixed_date", "recurring", "relative", "ongoing"]
+            },
+            "deadline_value": {
+              "type": "string",
+              "description": "Specific deadline or schedule"
+            },
+            "trigger_event": {
+              "type": "string",
+              "description": "Event that triggers this obligation"
+            },
+            "consequence_of_breach": {
+              "type": "string",
+              "description": "What happens if obligation is breached"
+            },
+            "source_quote": {
+              "type": "string",
+              "description": "Exact quote from contract"
+            }
+          }
+        },
+        "client_obligations": {
+          "type": "array",
+          "description": "Obligations of the client",
+          "items_type": "object"
+        },
+        "mutual_obligations": {
+          "type": "array",
+          "description": "Obligations applying to both parties",
+          "items_type": "object"
+        }
+      }
+    },
+
+    "risk_and_compliance": {
+      "description": "Risk allocation and compliance provisions",
+      "priority": 9,
+      "max_context_chars": 20000,
+      "fields": {
+        "indemnities": {
+          "type": "array",
+          "description": "Indemnification provisions",
+          "items_type": "object",
+          "properties": {
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section"
+            },
+            "indemnifying_party": {
+              "type": "string",
+              "description": "Party providing indemnification"
+            },
+            "beneficiary": {
+              "type": "string",
+              "description": "Party receiving indemnification"
+            },
+            "scope": {
+              "type": "array",
+              "description": "What is covered by indemnification",
+              "items_type": "string"
+            }
+          }
+        },
+        "warranty_disclaimers": {
+          "type": "array",
+          "description": "Warranty disclaimers",
+          "items_type": "object",
+          "properties": {
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section"
+            },
+            "description": {
+              "type": "string",
+              "description": "Description of disclaimer"
+            }
+          }
+        },
+        "liability_cap": {
+          "type": "object",
+          "description": "Limitation of liability",
+          "properties": {
+            "cap_type": {
+              "type": "enum",
+              "description": "Type of liability cap",
+              "enum_values": ["fees_paid", "fixed_amount", "multiple_of_fees", "unlimited", "insurance_limit"]
+            },
+            "cap_amount": {
+              "type": "number",
+              "description": "Cap amount if fixed"
+            },
+            "cap_multiplier": {
+              "type": "number",
+              "description": "Multiplier if based on fees"
+            },
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section"
+            },
+            "exclusions": {
+              "type": "array",
+              "description": "Types of damages excluded from cap",
+              "items_type": "string"
+            }
+          }
+        },
+        "confidentiality": {
+          "type": "object",
+          "description": "Confidentiality provisions",
+          "properties": {
+            "definition_section": {
+              "type": "string",
+              "description": "Where confidential information is defined"
+            },
+            "obligations_section": {
+              "type": "string",
+              "description": "Where obligations are specified"
+            },
+            "exceptions": {
+              "type": "array",
+              "description": "Exceptions to confidentiality",
+              "items_type": "string"
+            },
+            "survival_period": {
+              "type": "string",
+              "description": "How long confidentiality survives termination"
+            }
+          }
+        },
+        "data_protection": {
+          "type": "object",
+          "description": "Data protection provisions",
+          "properties": {
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section"
+            },
+            "data_types_covered": {
+              "type": "array",
+              "description": "Types of data covered",
+              "items_type": "string"
+            },
+            "compliance_frameworks": {
+              "type": "array",
+              "description": "Required compliance frameworks (GDPR, CCPA, etc.)",
+              "items_type": "string"
+            }
+          }
+        },
+        "compliance_clauses": {
+          "type": "array",
+          "description": "Specific compliance requirements",
+          "items_type": "object",
+          "properties": {
+            "topic": {
+              "type": "string",
+              "description": "Compliance topic"
+            },
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section"
+            },
+            "requirements": {
+              "type": "string",
+              "description": "Specific requirements"
+            }
+          }
+        },
+        "insurance_requirements": {
+          "type": "array",
+          "description": "Required insurance coverage",
+          "items_type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Type of insurance"
+            },
+            "minimum_coverage": {
+              "type": "string",
+              "description": "Minimum coverage amount"
+            },
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section"
+            }
+          }
+        },
+        "risk_assessment": {
+          "type": "object",
+          "description": "AI-generated risk assessment",
+          "properties": {
+            "overall_score": {
+              "type": "integer",
+              "description": "Risk score 0-100"
+            },
+            "risk_level": {
+              "type": "enum",
+              "description": "Risk level",
+              "enum_values": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+            },
+            "key_risks": {
+              "type": "array",
+              "description": "Identified key risks",
+              "items_type": "object"
+            }
+          }
+        }
+      }
+    },
+
+    "termination_and_disputes": {
+      "description": "Termination rights and dispute resolution",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "term": {
+          "type": "object",
+          "description": "Contract term details",
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "Description of the term"
+            },
+            "initial_term": {
+              "type": "string",
+              "description": "Initial term length"
+            },
+            "auto_renewal": {
+              "type": "boolean",
+              "description": "Whether contract auto-renews"
+            },
+            "renewal_term": {
+              "type": "string",
+              "description": "Length of renewal terms"
+            }
+          }
+        },
+        "termination_rights": {
+          "type": "array",
+          "description": "Rights to terminate the contract",
+          "items_type": "object",
+          "properties": {
+            "party": {
+              "type": "enum",
+              "description": "Who has this right",
+              "enum_values": ["provider", "client", "either", "mutual"]
+            },
+            "reason": {
+              "type": "enum",
+              "description": "Reason for termination",
+              "enum_values": ["for_convenience", "for_cause", "material_breach", "insolvency", "change_of_control"]
+            },
+            "notice_days": {
+              "type": "integer",
+              "description": "Days notice required"
+            },
+            "cure_period_days": {
+              "type": "integer",
+              "description": "Days to cure breach"
+            },
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section"
+            }
+          }
+        },
+        "effects_of_termination": {
+          "type": "array",
+          "description": "What happens upon termination",
+          "items_type": "string"
+        },
+        "dispute_resolution": {
+          "type": "object",
+          "description": "How disputes are resolved",
+          "properties": {
+            "escalation_period_days": {
+              "type": "integer",
+              "description": "Days for internal escalation"
+            },
+            "method": {
+              "type": "enum",
+              "description": "Resolution method",
+              "enum_values": ["negotiation", "mediation", "arbitration", "courts", "tiered"]
+            },
+            "arbitration_body": {
+              "type": "string",
+              "description": "Arbitration institution if applicable"
+            },
+            "arbitration_rules": {
+              "type": "string",
+              "description": "Arbitration rules to apply"
+            },
+            "jurisdiction": {
+              "type": "string",
+              "description": "Court jurisdiction if applicable"
+            },
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section"
+            }
+          }
+        }
+      }
+    },
+
+    "branding_and_ip": {
+      "description": "Intellectual property and branding rights",
+      "priority": 6,
+      "max_context_chars": 10000,
+      "fields": {
+        "ip_ownership": {
+          "type": "object",
+          "description": "IP ownership provisions",
+          "properties": {
+            "pre_existing_ip": {
+              "type": "string",
+              "description": "Treatment of pre-existing IP"
+            },
+            "developed_ip": {
+              "type": "string",
+              "description": "Ownership of IP developed under contract"
+            },
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section"
+            }
+          }
+        },
+        "brand_usage_rights": {
+          "type": "array",
+          "description": "Rights to use trademarks/brands",
+          "items_type": "object",
+          "properties": {
+            "brand": {
+              "type": "string",
+              "description": "Brand or trademark"
+            },
+            "type": {
+              "type": "string",
+              "description": "Type of mark"
+            },
+            "permitted_use": {
+              "type": "string",
+              "description": "How the mark may be used"
+            },
+            "restrictions": {
+              "type": "string",
+              "description": "Usage restrictions"
+            },
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section"
+            }
+          }
+        },
+        "license_grants": {
+          "type": "array",
+          "description": "License grants in the contract",
+          "items_type": "object"
+        }
+      }
+    },
+
+    "key_dates": {
+      "description": "Calendar of important dates",
+      "priority": 5,
+      "max_context_chars": 10000,
+      "fields": {
+        "dates": {
+          "type": "array",
+          "description": "Key dates to track",
+          "items_type": "object",
+          "properties": {
+            "event": {
+              "type": "string",
+              "description": "What the date is for"
+            },
+            "date": {
+              "type": "date",
+              "description": "The date"
+            },
+            "notice_required_by": {
+              "type": "date",
+              "description": "If notice is needed, by when"
+            },
+            "action_required": {
+              "type": "string",
+              "description": "What action is needed"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,208 @@
+---
+description: Process and execute tasks from a task list
+globs:
+alwaysApply: false
+---
+# Rule: Processing and Executing a Task List
+
+## Goal
+
+To guide an AI assistant in systematically working through an implementation task list, executing tasks one at a time with proper verification, and maintaining clear progress tracking.
+
+## Core Principles
+
+1. **One sub-task at a time:** Do **NOT** start the next sub-task until you ask the user for permission and they say "yes", "y", or "go"
+2. **Update as you go:** Mark tasks complete immediately after finishing
+3. **Test before committing:** Run tests after completing all sub-tasks of a parent task
+4. **Clean commits:** Use descriptive, conventional commit messages
+
+## Process
+
+1. **Load Task List:** Read the task list file specified by the user.
+2. **Display Progress Overview:** Show current status of all tasks.
+3. **Identify Next Task:** Find the next unblocked, incomplete sub-task.
+4. **Confirm Before Starting:** Present the task and get user approval before implementation.
+5. **Execute Task:** Implement the task following acceptance criteria.
+6. **Verify Completion:** Check acceptance criteria are met.
+7. **Update Status:** Mark sub-task complete with `[x]`.
+8. **Pause:** Wait for user approval before next sub-task.
+9. **Repeat:** Continue until all tasks are complete.
+
+## Task Status Symbols
+
+| Symbol | Meaning |
+|--------|---------|
+| `[ ]` | Pending - Not started |
+| `[x]` | Complete - Done and verified |
+| `[~]` | In Progress - Currently working |
+| `[B]` | Blocked - Waiting on dependency |
+| `[-]` | Skipped - Intentionally deferred |
+| `[!]` | Failed - Needs attention |
+
+## Completion Protocol
+
+### After Completing a Sub-task:
+
+1. Mark the sub-task as completed: `[ ]` → `[x]`
+2. Update any relevant files section
+3. Ask user: "Sub-task [X.Y] complete. Ready for next sub-task? (y/n)"
+
+### After Completing ALL Sub-tasks of a Parent Task:
+
+1. **Run the full test suite:**
+   ```bash
+   # Python: pytest
+   # Node: npm test
+   # Rails: bin/rails test
+   ```
+
+2. **Only if all tests pass:**
+   - Stage changes: `git add .`
+   - Clean up temporary files and debug code
+   - Commit with descriptive message:
+   ```bash
+   git commit -m "feat: [parent task title]" \
+     -m "- [Key change 1]" \
+     -m "- [Key change 2]" \
+     -m "Task [N] from PRD: [prd-name]"
+   ```
+
+3. **Mark the parent task as completed:** `[ ]` → `[x]`
+
+## Progress Commands
+
+The user may request:
+
+| Command | Action |
+|---------|--------|
+| `status` | Show overview of all tasks and completion % |
+| `next` | Show the next available sub-task |
+| `show [N]` | Display details of task N |
+| `start [N.M]` | Begin working on sub-task N.M |
+| `complete [N.M]` | Mark sub-task N.M as complete |
+| `skip [N]` | Skip task N with reason |
+| `block [N]` | Mark task N as blocked |
+
+## Progress Report Format
+
+When showing status:
+
+```markdown
+# Task Progress: [Feature Name]
+
+**Overall Progress:** [X] of [Y] tasks complete ([Z]%)
+
+## By Phase
+
+| Phase | Complete | Total | Status |
+|-------|----------|-------|--------|
+| Phase 0: Setup | 3 | 3 | Done |
+| Phase 1: Core | 2 | 5 | In Progress |
+| Phase 2: Features | 0 | 12 | Pending |
+
+## Current Focus
+
+**Current Task:** Task [N]: [Title]
+**Current Sub-task:** [N.M]: [Description]
+**Blocked Tasks:** [List or "None"]
+
+## Recent Activity
+
+- [x] Task N.1: [Description] - Completed
+- [~] Task N.2: [Description] - In Progress
+```
+
+## Task List Maintenance
+
+### Update the task list as you work:
+
+1. Mark tasks and subtasks as completed (`[x]`) per the protocol
+2. Add new tasks as they emerge during implementation
+3. Note any blockers or dependencies discovered
+
+### Maintain the "Relevant Files" section:
+
+1. List every file created or modified
+2. Give each file a one-line description of its purpose
+3. Include test files alongside implementation files
+
+## Handling Issues
+
+### When Blocked:
+
+1. Document the blocker clearly in the task list
+2. Mark the task as `[B]` blocked
+3. Check if it's a dependency issue or technical issue
+4. Propose solutions or workarounds
+5. Ask user how to proceed
+
+### When Requirements Are Unclear:
+
+1. Reference the original PRD
+2. List specific questions
+3. Propose reasonable defaults
+4. Get user confirmation before proceeding
+
+### When Tests Fail:
+
+1. Do NOT mark task as complete
+2. Document the failure
+3. Attempt to fix within scope
+4. If fix is out of scope, create a new task for it
+
+## Git Workflow (Per Parent Task)
+
+```bash
+# Option A: Feature branches (recommended for larger tasks)
+git checkout -b task-[N]-[short-description]
+# ... implement all sub-tasks ...
+git add .
+git commit -m "feat: [description]"
+git checkout main
+git merge task-[N]-[short-description]
+
+# Option B: Direct to main (for smaller tasks)
+# ... implement all sub-tasks ...
+git add .
+git commit -m "feat: [description]"
+```
+
+## Commit Message Format
+
+Use conventional commits:
+
+```
+<type>: <short description>
+
+- <bullet point of key change>
+- <bullet point of key change>
+
+Task [N] from PRD: [prd-name]
+```
+
+Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `style`
+
+## AI Instructions Summary
+
+When working with task lists, the AI must:
+
+1. **Check which sub-task is next** before starting any work
+2. **Ask for permission** before starting each sub-task
+3. **Mark sub-tasks complete** immediately when done
+4. **Run tests** after all sub-tasks of a parent are complete
+5. **Commit changes** only after tests pass
+6. **Update the task list file** regularly
+7. **Keep "Relevant Files" section** accurate and current
+8. **Pause after each sub-task** for user approval
+9. **Never skip ahead** without explicit user permission
+
+## Final Instructions
+
+1. Always read the full task before starting implementation
+2. Check dependencies are satisfied before beginning
+3. Follow acceptance criteria exactly - they define "done"
+4. Update the task list file after each sub-task completion
+5. If a task takes significantly longer than expected, pause and reassess
+6. Ask clarifying questions rather than making assumptions
+7. Keep the user informed of progress and any issues
+8. **STOP after each sub-task and wait for user go-ahead**

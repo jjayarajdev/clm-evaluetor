@@ -1,0 +1,167 @@
+---
+description: Generate implementation tasks from a PRD
+globs:
+alwaysApply: false
+---
+# Rule: Generating Implementation Tasks from a PRD
+
+## Goal
+
+To guide an AI assistant in breaking down a Product Requirements Document (PRD) into a structured, actionable task list that developers can execute sequentially. Tasks should be atomic, well-scoped, and include clear acceptance criteria.
+
+## Process
+
+1. **Receive PRD Reference:** The user provides a path to an existing PRD file or references it by name.
+2. **Analyze PRD:** Read and understand the PRD thoroughly, identifying:
+   - Functional requirements
+   - Technical architecture decisions
+   - Dependencies between components
+   - User stories and acceptance criteria
+3. **Ask Clarifying Questions:** Before generating tasks, ask questions about:
+   - Implementation priorities
+   - Team structure (solo dev vs team)
+   - Any requirements to skip or defer
+   - Preferred task granularity
+4. **Phase 1: Generate Parent Tasks:** Create high-level tasks (typically 5-10) and present to user.
+5. **Wait for Confirmation:** Pause and wait for the user to respond with "Go".
+6. **Phase 2: Generate Sub-Tasks:** Break down each parent task into detailed sub-tasks.
+7. **Save Task List:** Save as `tasks-[feature-name].md` in the `/tasks` directory.
+
+## Clarifying Questions (Examples)
+
+* **Priority:** "Which features are highest priority for the first working demo?"
+* **Sequence:** "Should we build backend-first, frontend-first, or vertical slices?"
+* **Scope:** "Are there any PRD sections to defer to a later phase?"
+* **Granularity:** "Do you prefer larger epic-style tasks or smaller atomic tasks (2-4 hours each)?"
+* **Dependencies:** "Are there any external dependencies or blockers I should know about?"
+* **Testing:** "What testing strategy? Unit tests, integration tests, both?"
+
+## Task Structure
+
+Each task should follow this format:
+
+```markdown
+- [ ] **Task [NUMBER]: [TITLE]**
+  **Type:** [Setup | Backend | Frontend | AI/ML | Integration | Testing | Documentation]
+  **Priority:** [P0-Critical | P1-High | P2-Medium | P3-Low]
+  **Dependencies:** [Task numbers this depends on, or "None"]
+  **PRD Reference:** [FR-X.X or US-XX]
+
+  **Description:**
+  [2-3 sentences describing what needs to be built]
+
+  **Acceptance Criteria:**
+  - [ ] [Specific, testable criterion 1]
+  - [ ] [Specific, testable criterion 2]
+  - [ ] [Specific, testable criterion 3]
+
+  **Sub-tasks:**
+  - [ ] [NUMBER].1 [Sub-task description]
+  - [ ] [NUMBER].2 [Sub-task description]
+  - [ ] [NUMBER].3 [Sub-task description]
+
+  **Technical Notes:**
+  - [Implementation hints, relevant files, or architectural guidance]
+```
+
+## Task Categories
+
+Organize tasks into logical phases:
+
+### Phase 0: Project Setup
+- Repository initialization
+- Development environment (Docker, dependencies)
+- Database setup and migrations
+- Configuration and environment variables
+
+### Phase 1: Core Infrastructure
+- Authentication and authorization
+- Database models and repositories
+- Base API structure
+- Core utilities and shared components
+
+### Phase 2: Feature Implementation
+- Backend services (organized by domain)
+- Frontend components (organized by feature)
+- AI/ML pipelines
+- Integrations
+
+### Phase 3: Polish & Integration
+- End-to-end testing
+- UI polish and responsiveness
+- Performance optimization
+- Documentation
+
+## Task Sizing Guidelines
+
+| Size | Scope | Example |
+|------|-------|---------|
+| **Small** | Single file or function | "Add password hashing utility" |
+| **Medium** | Single feature or component | "Implement user login API endpoint" |
+| **Large** | Multiple components working together | "Build contract upload flow (API + UI + storage)" |
+
+## Dependency Rules
+
+- Infrastructure tasks (database, auth) come before feature tasks
+- Backend APIs come before frontend components that consume them
+- Data models come before services that use them
+- Core utilities come before features that depend on them
+- Mark circular dependencies as warnings
+
+## Output Format
+
+```markdown
+# Implementation Tasks: [Feature Name]
+
+Generated from: `[PRD filename]`
+Generated on: [Date]
+Total Tasks: [Count]
+
+## Relevant Files
+
+- `path/to/file.ts` - Brief description
+- `path/to/file.test.ts` - Tests for file.ts
+
+### Notes
+- Unit tests should be placed alongside the code files they test
+- Use the project's test runner command to execute tests
+
+## Summary
+
+[2-3 sentence overview of the implementation approach]
+
+## Critical Path
+
+[List the sequence of tasks that must be completed in order]
+
+---
+
+## Phase 0: Project Setup
+
+- [ ] **Task 1: [Title]**
+  ...
+
+## Phase 1: Core Infrastructure
+
+- [ ] **Task N: [Title]**
+  ...
+
+[Continue for all phases]
+
+---
+
+## Implementation Notes
+
+[Any cross-cutting concerns, risks, or recommendations]
+```
+
+## Final Instructions
+
+1. Read the entire PRD before generating tasks
+2. Ensure no requirement is missed - cross-reference task coverage
+3. Keep tasks atomic - one clear deliverable per task
+4. Include specific file paths and function names where helpful
+5. Flag any PRD ambiguities as "Needs Clarification" tasks
+6. Do NOT start implementing - only generate the task list
+7. Ask clarifying questions if the PRD is incomplete or ambiguous
+8. Present parent tasks first, wait for "Go" before generating sub-tasks

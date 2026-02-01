@@ -1,0 +1,312 @@
+{
+  "schema_id": "nda_v1",
+  "contract_type": "NDA",
+  "version": "1.0.0",
+  "description": "Non-Disclosure Agreement - confidentiality protection between parties",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 3000,
+  "required_sections": ["agreement_metadata", "parties", "confidential_information"],
+
+  "sections": {
+    "agreement_metadata": {
+      "description": "Basic agreement identification",
+      "priority": 10,
+      "max_context_chars": 5000,
+      "fields": {
+        "agreement_title": {
+          "type": "string",
+          "description": "Title of the agreement",
+          "extraction_hints": ["Non-Disclosure Agreement", "Confidentiality Agreement", "NDA"]
+        },
+        "agreement_type": {
+          "type": "enum",
+          "description": "Type of NDA",
+          "enum_values": ["mutual", "unilateral", "multilateral"],
+          "extraction_hints": ["mutual", "one-way", "disclosing party", "receiving party"]
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date agreement becomes effective",
+          "required": true,
+          "extraction_hints": ["effective as of", "dated", "entered into"]
+        },
+        "expiration_date": {
+          "type": "date",
+          "description": "Date agreement expires (if any)"
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern",
+          "extraction_hints": ["governed by the laws of", "governing law"]
+        }
+      }
+    },
+
+    "parties": {
+      "description": "Parties to the agreement",
+      "priority": 9,
+      "max_context_chars": 5000,
+      "fields": {
+        "disclosing_party": {
+          "type": "object",
+          "description": "Party disclosing confidential information",
+          "properties": {
+            "legal_name": {
+              "type": "string",
+              "description": "Full legal name",
+              "required": true
+            },
+            "short_name": {
+              "type": "string",
+              "description": "Short name used in agreement"
+            },
+            "address": {
+              "type": "string",
+              "description": "Address"
+            },
+            "contact_person": {
+              "type": "string",
+              "description": "Primary contact"
+            }
+          }
+        },
+        "receiving_party": {
+          "type": "object",
+          "description": "Party receiving confidential information",
+          "properties": {
+            "legal_name": {
+              "type": "string",
+              "description": "Full legal name",
+              "required": true
+            },
+            "short_name": {
+              "type": "string",
+              "description": "Short name used in agreement"
+            },
+            "address": {
+              "type": "string",
+              "description": "Address"
+            },
+            "contact_person": {
+              "type": "string",
+              "description": "Primary contact"
+            }
+          }
+        }
+      }
+    },
+
+    "confidential_information": {
+      "description": "Definition and scope of confidential information",
+      "priority": 10,
+      "max_context_chars": 10000,
+      "fields": {
+        "definition": {
+          "type": "string",
+          "description": "How confidential information is defined",
+          "required": true
+        },
+        "includes": {
+          "type": "array",
+          "description": "Types of information explicitly included",
+          "items_type": "string",
+          "extraction_hints": ["including but not limited to", "shall include"]
+        },
+        "excludes": {
+          "type": "array",
+          "description": "Exclusions from confidential information",
+          "items_type": "string",
+          "extraction_hints": ["shall not include", "does not apply to", "exceptions"]
+        },
+        "marking_required": {
+          "type": "boolean",
+          "description": "Whether information must be marked as confidential"
+        },
+        "oral_disclosure_handling": {
+          "type": "string",
+          "description": "How oral disclosures are handled"
+        }
+      }
+    },
+
+    "obligations": {
+      "description": "Confidentiality obligations",
+      "priority": 9,
+      "max_context_chars": 10000,
+      "fields": {
+        "primary_obligations": {
+          "type": "array",
+          "description": "Main confidentiality obligations",
+          "items_type": "object",
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "Obligation description"
+            },
+            "section_reference": {
+              "type": "string",
+              "description": "Contract section"
+            }
+          }
+        },
+        "standard_of_care": {
+          "type": "string",
+          "description": "Standard of care required",
+          "extraction_hints": ["reasonable care", "same degree of care", "commercially reasonable"]
+        },
+        "permitted_disclosures": {
+          "type": "array",
+          "description": "When disclosure is permitted",
+          "items_type": "string",
+          "extraction_hints": ["may disclose", "permitted to disclose", "authorized recipients"]
+        },
+        "required_disclosures": {
+          "type": "object",
+          "description": "Handling of legally required disclosures",
+          "properties": {
+            "notice_required": {
+              "type": "boolean",
+              "description": "Whether notice must be given"
+            },
+            "procedure": {
+              "type": "string",
+              "description": "Procedure to follow"
+            }
+          }
+        }
+      }
+    },
+
+    "term_and_survival": {
+      "description": "Duration and survival provisions",
+      "priority": 8,
+      "max_context_chars": 5000,
+      "fields": {
+        "term_years": {
+          "type": "integer",
+          "description": "Agreement term in years"
+        },
+        "term_description": {
+          "type": "string",
+          "description": "Description of term"
+        },
+        "survival_period_years": {
+          "type": "integer",
+          "description": "How long obligations survive after termination"
+        },
+        "perpetual_survival": {
+          "type": "boolean",
+          "description": "Whether obligations survive indefinitely for some information"
+        },
+        "return_of_information": {
+          "type": "object",
+          "description": "Requirements for returning/destroying information",
+          "properties": {
+            "required": {
+              "type": "boolean",
+              "description": "Whether return is required"
+            },
+            "timeline_days": {
+              "type": "integer",
+              "description": "Days to return/destroy"
+            },
+            "certification_required": {
+              "type": "boolean",
+              "description": "Whether destruction certification is required"
+            }
+          }
+        }
+      }
+    },
+
+    "remedies": {
+      "description": "Remedies for breach",
+      "priority": 7,
+      "max_context_chars": 5000,
+      "fields": {
+        "injunctive_relief": {
+          "type": "boolean",
+          "description": "Whether injunctive relief is available"
+        },
+        "monetary_damages": {
+          "type": "boolean",
+          "description": "Whether monetary damages are available"
+        },
+        "specific_remedies": {
+          "type": "array",
+          "description": "Specific remedies mentioned",
+          "items_type": "string"
+        },
+        "limitation_of_liability": {
+          "type": "object",
+          "description": "Any liability limitations",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether limitation exists"
+            },
+            "description": {
+              "type": "string",
+              "description": "Description of limitation"
+            }
+          }
+        }
+      }
+    },
+
+    "miscellaneous": {
+      "description": "Other important provisions",
+      "priority": 5,
+      "max_context_chars": 5000,
+      "fields": {
+        "assignment": {
+          "type": "string",
+          "description": "Assignment restrictions"
+        },
+        "amendment": {
+          "type": "string",
+          "description": "How agreement can be amended"
+        },
+        "entire_agreement": {
+          "type": "boolean",
+          "description": "Whether entire agreement clause exists"
+        },
+        "no_license": {
+          "type": "boolean",
+          "description": "Whether no-license clause exists"
+        },
+        "no_obligation_to_proceed": {
+          "type": "boolean",
+          "description": "Whether parties are obligated to proceed with any transaction"
+        }
+      }
+    },
+
+    "signatures": {
+      "description": "Signature information",
+      "priority": 2,
+      "max_context_chars": 3000,
+      "fields": {
+        "disclosing_party_signatory": {
+          "type": "object",
+          "description": "Disclosing party signature",
+          "properties": {
+            "name": {"type": "string", "description": "Name"},
+            "title": {"type": "string", "description": "Title"},
+            "date": {"type": "date", "description": "Date signed"}
+          }
+        },
+        "receiving_party_signatory": {
+          "type": "object",
+          "description": "Receiving party signature",
+          "properties": {
+            "name": {"type": "string", "description": "Name"},
+            "title": {"type": "string", "description": "Title"},
+            "date": {"type": "date", "description": "Date signed"}
+          }
+        }
+      }
+    }
+  }
+}
