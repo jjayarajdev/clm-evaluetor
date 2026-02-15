@@ -266,19 +266,56 @@ class VectorStore:
 
         Returns:
             Number of chunks deleted.
+
+        Raises:
+            Exception: If deletion fails after retrieval.
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Ensure we have fresh collection reference
+        collection = self.collection
+
+        logger.info(f"Attempting to delete chunks for contract_id={contract_id}")
+
         # Get IDs to delete
-        results = self.collection.get(
+        try:
+            results = collection.get(
+                where={"contract_id": contract_id},
+                include=[],
+            )
+        except Exception as e:
+            logger.error(f"Failed to query chunks for contract_id={contract_id}: {e}")
+            raise
+
+        if not results["ids"]:
+            logger.info(f"No chunks found for contract_id={contract_id}")
+            return 0
+
+        ids_to_delete = results["ids"]
+        count = len(ids_to_delete)
+        logger.info(f"Found {count} chunks to delete for contract_id={contract_id}")
+
+        # Delete by IDs
+        try:
+            collection.delete(ids=ids_to_delete)
+            logger.info(f"Deleted {count} chunks for contract_id={contract_id}")
+        except Exception as e:
+            logger.error(f"Failed to delete chunks for contract_id={contract_id}: {e}")
+            raise
+
+        # Verify deletion
+        verify_results = collection.get(
             where={"contract_id": contract_id},
             include=[],
         )
+        if verify_results["ids"]:
+            remaining = len(verify_results["ids"])
+            logger.warning(f"Deletion incomplete: {remaining} chunks still exist for contract_id={contract_id}")
+        else:
+            logger.info(f"Verified: all chunks deleted for contract_id={contract_id}")
 
-        if not results["ids"]:
-            return 0
-
-        # Delete by IDs
-        self.collection.delete(ids=results["ids"])
-        return len(results["ids"])
+        return count
 
     def delete_by_ids(self, ids: list[str]) -> None:
         """Delete documents by their IDs.
@@ -299,6 +336,67 @@ class VectorStore:
             "name": self.COLLECTION_NAME,
             "count": self.collection.count(),
         }
+
+    def cleanup_orphaned_documents(self, valid_contract_ids: set[str]) -> int:
+        """Remove documents belonging to contracts not in the valid set.
+
+        This is useful for cleaning up orphaned vectors when contract
+        deletions fail to clean up ChromaDB properly.
+
+        Args:
+            valid_contract_ids: Set of contract IDs that should exist.
+
+        Returns:
+            Number of orphaned documents deleted.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Get all documents from the collection
+        all_results = self.collection.get(include=["metadatas"])
+
+        if not all_results["ids"]:
+            logger.info("No documents in collection to clean up")
+            return 0
+
+        # Find orphaned document IDs
+        orphaned_ids = []
+        for doc_id, metadata in zip(all_results["ids"], all_results["metadatas"] or []):
+            contract_id = metadata.get("contract_id") if metadata else None
+            if contract_id and contract_id not in valid_contract_ids:
+                orphaned_ids.append(doc_id)
+
+        if not orphaned_ids:
+            logger.info("No orphaned documents found")
+            return 0
+
+        # Delete orphaned documents in batches
+        batch_size = 100
+        total_deleted = 0
+        for i in range(0, len(orphaned_ids), batch_size):
+            batch = orphaned_ids[i:i + batch_size]
+            self.collection.delete(ids=batch)
+            total_deleted += len(batch)
+            logger.info(f"Deleted batch of {len(batch)} orphaned documents")
+
+        logger.info(f"Cleaned up {total_deleted} orphaned documents")
+        return total_deleted
+
+    def get_all_contract_ids(self) -> set[str]:
+        """Get all unique contract IDs in the vector store.
+
+        Returns:
+            Set of contract IDs.
+        """
+        all_results = self.collection.get(include=["metadatas"])
+
+        contract_ids = set()
+        if all_results["metadatas"]:
+            for metadata in all_results["metadatas"]:
+                if metadata and "contract_id" in metadata:
+                    contract_ids.add(metadata["contract_id"])
+
+        return contract_ids
 
     def check_access(
         self,

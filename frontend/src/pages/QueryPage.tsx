@@ -10,7 +10,7 @@ import {
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDate } from '@/lib/utils'
-import type { Contract, QueryResponse } from '@/types'
+import type { QueryResponse } from '@/types'
 
 interface Message {
   id: string

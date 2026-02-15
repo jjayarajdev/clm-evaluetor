@@ -78,22 +78,34 @@ Extract the following fields from the provided contract text:
    - EMPLOYMENT (Employment Contract)
    - OTHER (if none of the above)
 
-2. **counterparty**: The other party to the contract (not your client/company)
+2. **counterparty**: Extract ONLY the legal entity name of the other contracting party.
+   RULES:
+   - Extract ONLY the company/organization name (e.g., "Acme Corporation", "TechServices Inc.")
+   - DO NOT include addresses, city, state, zip codes, or any location information
+   - DO NOT use template placeholders like "the ones in the RFP", "[Company Name]", "Party A/B", "Client", "Vendor"
+   - If the document is a template with placeholders, set counterparty to null with confidence 0.0
+   - Look for legal entity suffixes: Inc., LLC, Ltd., Corp., Corporation, BV, GmbH, LP, LLP, PLC
+   - In "between X and Y" clauses, extract the party that is NOT the document owner/drafter
+   - Extract the SHORT legal name only, not the full address block
 
 3. **effective_date**: When the contract takes effect (ISO format: YYYY-MM-DD)
+   Look for phrases like: "effective as of", "dated", "entered into on", "commences on"
 
 4. **expiration_date**: When the contract expires or terminates (ISO format: YYYY-MM-DD)
+   Look for phrases like: "expires on", "terminates on", "valid until", "end date", "expiration date"
+   Also calculate from term clauses like: "initial term of X years" (add X years to effective date)
+   Look in "Term", "Duration", "Term and Termination" sections
 
 5. **contract_value**: The monetary value of the contract (numeric only)
 
 6. **currency**: The currency of the contract value (USD, EUR, GBP, etc.)
 
-7. **jurisdiction**: The governing law jurisdiction (e.g., "State of Delaware", "England and Wales")
+7. **jurisdiction**: The governing law jurisdiction (e.g., "State of Delaware", "England and Wales", "Netherlands")
 
-8. **parties**: List all parties mentioned in the contract
+8. **parties**: List ALL actual party names mentioned in the contract (not generic terms)
 
 For each field, provide:
-- The extracted value
+- The extracted value (MUST be actual names, not placeholders)
 - A confidence score (0.0 to 1.0) based on how clearly the information was stated
 - The relevant text snippet where you found this information
 
@@ -101,18 +113,69 @@ Respond ONLY with valid JSON in this exact format:
 ```json
 {
   "contract_type": {"value": "NDA", "confidence": 0.95, "raw_text": "Non-Disclosure Agreement"},
-  "counterparty": {"value": "Acme Corp", "confidence": 0.9, "raw_text": "between Company and Acme Corp"},
+  "counterparty": {"value": "Acme Corporation", "confidence": 0.9, "raw_text": "between XYZ Inc. and Acme Corporation"},
   "effective_date": {"value": "2024-01-01", "confidence": 0.85, "raw_text": "effective as of January 1, 2024"},
   "expiration_date": {"value": "2025-01-01", "confidence": 0.8, "raw_text": "expires on the first anniversary"},
   "contract_value": {"value": 50000, "confidence": 0.9, "raw_text": "total amount of $50,000"},
   "currency": {"value": "USD", "confidence": 0.95, "raw_text": "$50,000"},
   "jurisdiction": {"value": "State of Delaware", "confidence": 0.9, "raw_text": "governed by the laws of the State of Delaware"},
-  "parties": ["Company Inc.", "Acme Corp"]
+  "parties": ["XYZ Inc.", "Acme Corporation"]
 }
 ```
 
-If a field cannot be found, set its value to null and confidence to 0.0.
+If a field cannot be found or only has generic placeholder text, set its value to null and confidence to 0.0.
 """
+
+
+def _prepare_metadata_text(contract_text: str, max_length: int = 12000) -> str:
+    """Prepare contract text for metadata extraction.
+
+    Includes the beginning (parties, dates) plus relevant sections
+    like Term, Duration, Termination where expiration dates appear.
+
+    Args:
+        contract_text: Full contract text.
+        max_length: Maximum text length to return.
+
+    Returns:
+        Text sample optimized for metadata extraction.
+    """
+    if len(contract_text) <= max_length:
+        return contract_text
+
+    # Always include first 6000 chars (parties, effective date, preamble)
+    beginning = contract_text[:6000]
+
+    # Search for term/expiration related sections in the rest
+    remaining = contract_text[6000:]
+    term_sections = []
+
+    # Patterns that indicate term/expiration sections
+    section_patterns = [
+        r"(?i)(?:^|\n)\s*\d*\.?\s*(?:TERM|DURATION|EXPIRATION|TERMINATION)[^\n]*\n",
+        r"(?i)(?:^|\n)\s*(?:ARTICLE|SECTION)\s+\d+[.:]\s*(?:TERM|DURATION)[^\n]*\n",
+        r"(?i)initial\s+term",
+        r"(?i)contract\s+(?:term|period|duration)",
+        r"(?i)(?:expires?|terminates?)\s+(?:on|after)",
+        r"(?i)valid\s+(?:until|through|for)",
+    ]
+
+    for pattern in section_patterns:
+        for match in re.finditer(pattern, remaining):
+            # Extract ~1500 chars around the match
+            start = max(0, match.start() - 200)
+            end = min(len(remaining), match.end() + 1300)
+            section = remaining[start:end]
+            if section not in term_sections:
+                term_sections.append(section)
+
+    # Combine beginning with found sections
+    result = beginning
+    for section in term_sections[:3]:  # Limit to 3 sections
+        if len(result) + len(section) < max_length:
+            result += "\n\n[...]\n\n" + section
+
+    return result
 
 
 def get_metadata_extraction_config() -> AgentConfig:
@@ -148,8 +211,8 @@ async def extract_metadata(
     orchestrator = get_orchestrator()
 
     # Prepare the extraction request
-    # Use first ~8000 chars for metadata extraction (usually in first pages)
-    text_sample = contract_text[:8000] if len(contract_text) > 8000 else contract_text
+    # Include beginning (parties, effective date) + search for term/expiration sections
+    text_sample = _prepare_metadata_text(contract_text)
 
     query = f"""Extract metadata from the following contract text:
 
@@ -176,7 +239,24 @@ Respond with the structured JSON as specified."""
         # Parse the JSON response
         json_data = extract_json_from_response(response.response)
         if json_data:
-            return _parse_metadata_response(json_data)
+            metadata = _parse_metadata_response(json_data)
+
+            # Validate/clean counterparty with LLM
+            if metadata.counterparty and metadata.counterparty.value:
+                raw_value = str(metadata.counterparty.value)
+                cleaned = await _clean_counterparty_with_llm(raw_value)
+                if cleaned:
+                    metadata.counterparty = MetadataField(
+                        value=cleaned,
+                        confidence=metadata.counterparty.confidence,
+                        raw_text=metadata.counterparty.raw_text,
+                    )
+                else:
+                    # LLM said it's invalid (template placeholder, generic term, etc.)
+                    logger.info(f"LLM rejected counterparty: {raw_value}")
+                    metadata.counterparty = None
+
+            return metadata
         else:
             logger.warning(f"Could not parse metadata response: {response.response[:200]}")
             return ExtractedMetadata()
@@ -184,6 +264,142 @@ Respond with the structured JSON as specified."""
     except Exception as e:
         logger.exception(f"Error extracting metadata: {e}")
         return ExtractedMetadata()
+
+
+async def _clean_counterparty_with_llm(value: str) -> str | None:
+    """Use LLM to extract clean company name from messy text.
+
+    Args:
+        value: Raw counterparty value (may include address, placeholder text, etc.)
+
+    Returns:
+        Clean company name or None if invalid.
+    """
+    if not value or len(value.strip()) < 3:
+        return None
+
+    # Normalize whitespace
+    value = re.sub(r'\s+', ' ', value).strip()
+
+    # If it looks clean already (short, has legal suffix), return as-is
+    if len(value) < 50 and re.search(r'\b(Inc\.?|LLC|Ltd\.?|Corp\.?|Corporation|GmbH|BV|LP|LLP|PLC)\b', value, re.IGNORECASE):
+        return value
+
+    # Use LLM to extract clean name
+    from openai import AsyncOpenAI
+    from app.config import settings
+
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",  # Fast and cheap for simple extraction
+            messages=[
+                {
+                    "role": "system",
+                    "content": """Extract ONLY the legal company/organization name from the given text.
+
+Rules:
+- Return ONLY the company name (e.g., "Acme Corporation", "TechServices Inc.")
+- Remove any addresses, cities, states, zip codes
+- If the text is a template placeholder (e.g., "[Company Name]", "the ones in the RFP", "Party A"), return: NULL
+- If no valid company name exists, return: NULL
+- Return the name only, nothing else."""
+                },
+                {
+                    "role": "user",
+                    "content": value
+                }
+            ],
+            temperature=0,
+            max_tokens=100,
+        )
+
+        result = response.choices[0].message.content.strip()
+
+        # Check for NULL response
+        if result.upper() == "NULL" or not result:
+            return None
+
+        return result
+
+    except Exception as e:
+        logger.warning(f"LLM counterparty cleaning failed: {e}")
+        return None
+
+
+def _is_generic_counterparty(value: str | None) -> bool:
+    """Quick check if a counterparty value is obviously generic."""
+    if not value:
+        return True
+
+    value_lower = value.lower().strip()
+
+    if len(value_lower) < 3:
+        return True
+
+    # Only check obvious generic terms - let LLM handle the rest
+    generic_terms = [
+        "the parties", "parties", "party a", "party b", "company", "client",
+        "customer", "vendor", "provider", "the company", "the client",
+        "unknown", "n/a", "none", "null", "tbd",
+    ]
+
+    return value_lower in generic_terms
+
+
+def extract_counterparty_from_filename(filename: str) -> str | None:
+    """Extract counterparty names from a contract filename.
+
+    Common patterns:
+    - "NDA_CompanyA_CompanyB.pdf" -> "CompanyA" or "CompanyB"
+    - "MSA CompanyName Template.pdf" -> "CompanyName"
+    - "202401 NDA Company A - Company B.docx" -> "Company A" or "Company B"
+
+    Args:
+        filename: The contract filename.
+
+    Returns:
+        Extracted counterparty name or None.
+    """
+    if not filename:
+        return None
+
+    # Remove extension
+    name = re.sub(r'\.(pdf|docx?)$', '', filename, flags=re.IGNORECASE)
+
+    # Remove common prefixes (dates like 202401, 20240115xx, etc.)
+    name = re.sub(r'^\d{4,8}[xX]*\s*', '', name)
+
+    # Remove common contract type prefixes (including compound ones like "Vendor_Agreement")
+    name = re.sub(r'^(NDA|MSA|SOW|SLA|Amendment|Vendor[_\s]?Agreement|Vendor|Employment[_\s]?Contract|Employment)[_\s-]*', '', name, flags=re.IGNORECASE)
+
+    # Remove common suffixes
+    suffixes = ['_Signed', '_Executed', '_Final', '_Draft', '_Template', '_v1', '_v2', '_signed', '_executed']
+    for suffix in suffixes:
+        name = re.sub(rf'{re.escape(suffix)}$', '', name, flags=re.IGNORECASE)
+
+    # Replace underscores and multiple spaces
+    name = name.replace('_', ' ').strip()
+    name = re.sub(r'\s+', ' ', name)
+
+    # If there's a dash separator (e.g., "Company A - Company B"), split and take parts
+    if ' - ' in name:
+        parts = [p.strip() for p in name.split(' - ') if p.strip()]
+        # Filter out generic parts
+        parts = [p for p in parts if not _is_generic_counterparty(p)]
+        if parts:
+            # Return the one that looks most like a company name
+            for part in parts:
+                if any(suffix in part for suffix in ['Inc', 'LLC', 'Ltd', 'Corp', 'BV', 'GmbH', 'AG', 'SA']):
+                    return part
+            return parts[0]  # Return first non-generic part
+
+    # If name is meaningful (not just contract type), return it
+    if name and len(name) > 3 and not _is_generic_counterparty(name):
+        return name
+
+    return None
 
 
 def _parse_metadata_response(data: dict[str, Any]) -> ExtractedMetadata:
@@ -210,9 +426,16 @@ def _parse_metadata_response(data: dict[str, Any]) -> ExtractedMetadata:
     ]:
         field_data = data.get(field_name)
         if field_data and isinstance(field_data, dict) and field_data.get("value") is not None:
+            value = field_data["value"]
             confidence = field_data.get("confidence", 0.5)
+
+            # Basic validation for counterparty - LLM cleaning happens later in extract_metadata
+            if field_name == "counterparty" and _is_generic_counterparty(str(value)):
+                logger.debug(f"Rejecting obviously generic counterparty: {value}")
+                continue
+
             fields[field_name] = MetadataField(
-                value=field_data["value"],
+                value=value,
                 confidence=confidence,
                 raw_text=field_data.get("raw_text"),
             )
@@ -222,6 +445,8 @@ def _parse_metadata_response(data: dict[str, Any]) -> ExtractedMetadata:
     parties = data.get("parties", [])
     if not isinstance(parties, list):
         parties = []
+    # Filter out generic party names
+    parties = [p for p in parties if not _is_generic_counterparty(p)]
 
     return ExtractedMetadata(
         **fields,
@@ -263,8 +488,26 @@ async def update_contract_metadata(
         contract.contract_type = type_map.get(type_value)
 
     # Update counterparty
+    counterparty_set = False
     if metadata.counterparty and metadata.counterparty.confidence >= confidence_threshold:
-        contract.counterparty = str(metadata.counterparty.value)
+        counterparty_value = str(metadata.counterparty.value)
+        if not _is_generic_counterparty(counterparty_value):
+            contract.counterparty = counterparty_value
+            counterparty_set = True
+
+    # Fallback: try to extract counterparty from filename if not set from metadata
+    if not counterparty_set and (not contract.counterparty or _is_generic_counterparty(contract.counterparty)):
+        filename_counterparty = extract_counterparty_from_filename(contract.filename)
+        if filename_counterparty:
+            logger.info(f"Using filename-derived counterparty: {filename_counterparty}")
+            contract.counterparty = filename_counterparty
+        elif metadata.parties:
+            # Try to use first non-generic party from parties list
+            for party in metadata.parties:
+                if not _is_generic_counterparty(party):
+                    contract.counterparty = party
+                    logger.info(f"Using parties list counterparty: {party}")
+                    break
 
     # Update dates
     if metadata.effective_date and metadata.effective_date.confidence >= confidence_threshold:
@@ -448,6 +691,51 @@ def extract_metadata_regex(text: str) -> ExtractedMetadata:
                     raw_text=match.group(0),
                 )
                 break
+
+    # Expiration date patterns
+    expiration_patterns = [
+        r"(?i)expir(?:es?|ation)\s+(?:date\s*[:\s])?(?:on\s+)?(\w+\s+\d{1,2},?\s+\d{4})",
+        r"(?i)terminat(?:es?|ion)\s+(?:date\s*[:\s])?(?:on\s+)?(\w+\s+\d{1,2},?\s+\d{4})",
+        r"(?i)valid\s+(?:until|through)\s+(\w+\s+\d{1,2},?\s+\d{4})",
+        r"(?i)(?:initial|contract)\s+term\s+(?:ends?|expir(?:es?|ation))\s+(?:on\s+)?(\w+\s+\d{1,2},?\s+\d{4})",
+        r"(?i)end\s+date[:\s]+(\w+\s+\d{1,2},?\s+\d{4})",
+        r"(?i)(?:expir(?:es?|ation)|termination|end)\s+date[:\s]+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
+        r"(?i)until\s+(\w+\s+\d{1,2},?\s+\d{4})",
+        r"(?i)through\s+(\w+\s+\d{1,2},?\s+\d{4})",
+        # Pattern for "X year term" - calculate from effective date if found
+        r"(?i)(?:for\s+)?(?:a\s+)?(?:period\s+of\s+)?(\d+)\s+year[s]?\s+(?:term|period)",
+    ]
+
+    for pattern in expiration_patterns:
+        match = re.search(pattern, text)
+        if match:
+            # Handle "X year term" pattern
+            if "year" in pattern:
+                try:
+                    years = int(match.group(1))
+                    # If we have an effective date, calculate expiration
+                    if "effective_date" in fields:
+                        eff_date = _parse_date(fields["effective_date"].value)
+                        if eff_date:
+                            from datetime import date as dt_date
+                            exp_date = dt_date(eff_date.year + years, eff_date.month, eff_date.day)
+                            fields["expiration_date"] = MetadataField(
+                                value=str(exp_date),
+                                confidence=0.7,
+                                raw_text=match.group(0),
+                            )
+                            break
+                except (ValueError, OverflowError):
+                    pass
+            else:
+                parsed = _parse_date(match.group(1))
+                if parsed:
+                    fields["expiration_date"] = MetadataField(
+                        value=str(parsed),
+                        confidence=0.8,
+                        raw_text=match.group(0),
+                    )
+                    break
 
     # Jurisdiction patterns
     jurisdiction_patterns = [

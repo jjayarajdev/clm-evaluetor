@@ -7,6 +7,13 @@ import {
   UsersIcon,
   Cog6ToothIcon,
   XMarkIcon,
+  ClipboardDocumentCheckIcon,
+  CalendarDaysIcon,
+  BuildingOffice2Icon,
+  DocumentChartBarIcon,
+  CircleStackIcon,
+  ClockIcon,
+  FlagIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
@@ -19,16 +26,30 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, roles: ['admin', 'legal', 'procurement'] },
   { name: 'Contracts', href: '/contracts', icon: DocumentTextIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'Compliance', href: '/compliance', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'Renewals', href: '/renewals', icon: CalendarDaysIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'Vendors', href: '/vendors', icon: BuildingOffice2Icon, roles: ['admin', 'procurement'] },
+  { name: 'Reports', href: '/reports', icon: DocumentChartBarIcon, roles: ['admin', 'legal'] },
   { name: 'Upload', href: '/upload', icon: CloudArrowUpIcon, roles: ['admin', 'legal', 'procurement'] },
   { name: 'Ask AI', href: '/query', icon: ChatBubbleLeftRightIcon, roles: ['admin', 'legal', 'procurement'] },
   { name: 'Users', href: '/users', icon: UsersIcon, roles: ['admin'] },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
 ]
 
+const adminNavigation = [
+  { name: 'SLA Config', href: '/admin/sla-config', icon: CircleStackIcon, roles: ['admin'] },
+  { name: 'Milestones', href: '/admin/milestone-config', icon: FlagIcon, roles: ['admin'] },
+  { name: 'Scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
+]
+
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuth()
 
   const filteredNavigation = navigation.filter(
+    (item) => user && item.roles.includes(user.role)
+  )
+
+  const filteredAdminNavigation = adminNavigation.filter(
     (item) => user && item.roles.includes(user.role)
   )
 
@@ -45,7 +66,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
         {filteredNavigation.map((item) => (
           <NavLink
             key={item.name}
@@ -64,6 +85,35 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             {item.name}
           </NavLink>
         ))}
+
+        {/* Admin Section */}
+        {filteredAdminNavigation.length > 0 && (
+          <>
+            <div className="mt-6 mb-2 px-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Administration
+              </p>
+            </div>
+            {filteredAdminNavigation.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.href}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-primary-50 text-primary-700'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  )
+                }
+              >
+                <item.icon className="h-5 w-5 shrink-0" />
+                {item.name}
+              </NavLink>
+            ))}
+          </>
+        )}
       </nav>
 
       {/* User info */}

@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 # All supported clause types with descriptions
 SUPPORTED_CLAUSE_TYPES = {
+    # Legal/Risk clauses
     "INDEMNIFICATION": "Provisions requiring one party to compensate the other for losses",
     "LIMITATION_OF_LIABILITY": "Caps or limits on liability exposure",
     "TERMINATION": "Conditions and procedures for ending the contract",
@@ -45,8 +46,23 @@ SUPPORTED_CLAUSE_TYPES = {
     "ASSIGNMENT": "Ability to transfer rights or obligations",
     "NOTICE": "Requirements for providing notices between parties",
     "GOVERNING_LAW": "Which jurisdiction's laws apply",
-    "SLA": "Service level agreements and performance metrics",
+    "SLA": "Service level agreements with specific metrics and penalties",
     "AUTO_RENEWAL": "Automatic renewal terms and conditions",
+
+    # IT Service/Outsourcing contract clauses
+    "SERVICE_DESCRIPTION": "Description of services provided, service catalog, bundles",
+    "SERVICE_LEVEL": "Performance metrics, targets, KPIs, response times",
+    "DELIVERABLE": "What must be delivered, milestones, acceptance criteria",
+    "GOVERNANCE": "Management structure, oversight, escalation, reporting",
+    "TRANSITION": "Exit planning, knowledge transfer, handover procedures",
+    "CHANGE_MANAGEMENT": "Change request process, impact assessment, approvals",
+    "SUPPORT": "Helpdesk, incident management, problem resolution, escalation",
+    "SECURITY": "Security requirements, access controls, compliance",
+    "PERSONNEL": "Staffing requirements, roles, responsibilities, key personnel",
+    "PRICING": "Cost structure, rate cards, pricing models, fee schedules",
+    "RISK_MITIGATION": "Risk identification, mitigation strategies, contingency",
+    "SCOPE": "Scope of work, inclusions, exclusions, boundaries",
+    "ACCEPTANCE": "Acceptance criteria, testing procedures, sign-off process",
 }
 
 
@@ -322,6 +338,7 @@ async def store_extracted_clauses(
 
     # Map string types to enum
     type_map = {
+        # Legal/Risk clauses
         "INDEMNIFICATION": ClauseType.INDEMNIFICATION,
         "LIMITATION_OF_LIABILITY": ClauseType.LIMITATION_OF_LIABILITY,
         "TERMINATION": ClauseType.TERMINATION,
@@ -339,6 +356,20 @@ async def store_extracted_clauses(
         "GOVERNING_LAW": ClauseType.GOVERNING_LAW,
         "SLA": ClauseType.SLA,
         "AUTO_RENEWAL": ClauseType.AUTO_RENEWAL,
+        # IT Service/Outsourcing contract clauses
+        "SERVICE_DESCRIPTION": ClauseType.SERVICE_DESCRIPTION,
+        "SERVICE_LEVEL": ClauseType.SERVICE_LEVEL,
+        "DELIVERABLE": ClauseType.DELIVERABLE,
+        "GOVERNANCE": ClauseType.GOVERNANCE,
+        "TRANSITION": ClauseType.TRANSITION,
+        "CHANGE_MANAGEMENT": ClauseType.CHANGE_MANAGEMENT,
+        "SUPPORT": ClauseType.SUPPORT,
+        "SECURITY": ClauseType.SECURITY,
+        "PERSONNEL": ClauseType.PERSONNEL,
+        "PRICING": ClauseType.PRICING,
+        "RISK_MITIGATION": ClauseType.RISK_MITIGATION,
+        "SCOPE": ClauseType.SCOPE,
+        "ACCEPTANCE": ClauseType.ACCEPTANCE,
     }
 
     risk_map = {
@@ -351,11 +382,16 @@ async def store_extracted_clauses(
         clause_type = type_map.get(extracted.clause_type, ClauseType.OTHER)
         risk_level = risk_map.get(extracted.risk_level) if extracted.risk_level else None
 
+        # Truncate section_number to fit database column (255 chars)
+        section_number = extracted.section_number
+        if section_number and len(section_number) > 255:
+            section_number = section_number[:252] + "..."
+
         clause = Clause(
             contract_id=contract_id,
             clause_type=clause_type,
             text=extracted.text,
-            section_number=extracted.section_number,
+            section_number=section_number,
             page_number=extracted.page_number,
             risk_level=risk_level,
             confidence_score=extracted.confidence,

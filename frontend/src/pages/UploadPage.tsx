@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CloudArrowUpIcon,
   DocumentTextIcon,
@@ -10,6 +10,9 @@ import {
   ExclamationCircleIcon,
   ArrowPathIcon,
   SparklesIcon,
+  BuildingOfficeIcon,
+  PlusIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -26,9 +29,23 @@ interface FileUpload {
 }
 
 const ACCEPTED_TYPES = {
+  // Documents - PDF (multiple MIME types for browser compatibility)
   'application/pdf': ['.pdf'],
+  'application/x-pdf': ['.pdf'],
+  'application/acrobat': ['.pdf'],
+  'applications/vnd.pdf': ['.pdf'],
+  'text/pdf': ['.pdf'],
+  'text/x-pdf': ['.pdf'],
+  // Documents - Word
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
   'application/msword': ['.doc'],
+  // Spreadsheets
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+  'application/vnd.ms-excel': ['.xls'],
+  // Presentations
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+  'application/vnd.ms-powerpoint': ['.ppt'],
+  // Images (for scanned contracts)
   'image/png': ['.png'],
   'image/jpeg': ['.jpg', '.jpeg'],
   'image/tiff': ['.tiff', '.tif'],
@@ -38,7 +55,51 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 
 export default function UploadPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [files, setFiles] = useState<FileUpload[]>([])
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [showClientDropdown, setShowClientDropdown] = useState(false)
+  const [showNewClientForm, setShowNewClientForm] = useState(false)
+  const [newClientName, setNewClientName] = useState('')
+  const [newClientCode, setNewClientCode] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowClientDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Fetch clients for dropdown
+  const { data: clients = [], refetch: refetchClients } = useQuery({
+    queryKey: ['clients-summary'],
+    queryFn: () => api.getClientsSummary(),
+  })
+
+  const selectedClient = clients.find(c => c.id === selectedClientId)
+
+  // Create new client mutation
+  const createClientMutation = useMutation({
+    mutationFn: async () => {
+      const client = await api.createClient({
+        name: newClientName,
+        code: newClientCode.toUpperCase(),
+      })
+      return client
+    },
+    onSuccess: (client) => {
+      setSelectedClientId(client.id)
+      setShowNewClientForm(false)
+      setNewClientName('')
+      setNewClientCode('')
+      refetchClients()
+    },
+  })
 
   // Get contract IDs that are still processing
   const processingContractIds = files
@@ -63,6 +124,8 @@ export default function UploadPage() {
   useEffect(() => {
     if (!contractsData) return
 
+    let hasNewlyCompleted = false
+
     setFiles(prev => prev.map(f => {
       if (!f.contractId) return f
 
@@ -70,6 +133,10 @@ export default function UploadPage() {
       if (!contract) return f
 
       if (contract.status === 'completed') {
+        // Check if this is a newly completed contract (was not completed before)
+        if (f.status !== 'completed') {
+          hasNewlyCompleted = true
+        }
         return {
           ...f,
           status: 'completed',
@@ -84,7 +151,27 @@ export default function UploadPage() {
 
       return f
     }))
-  }, [contractsData])
+
+    // Invalidate all relevant caches when contracts complete processing
+    if (hasNewlyCompleted) {
+      // Dashboard components
+      queryClient.invalidateQueries({ queryKey: ['clauses-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['obligations-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['contracts-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['clients-summary'] })
+      // Contract list and details
+      queryClient.invalidateQueries({ queryKey: ['contracts'] })
+      queryClient.invalidateQueries({ queryKey: ['contract-filter-options'] })
+      // Post-signing pages
+      queryClient.invalidateQueries({ queryKey: ['postsigning-dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['renewal-calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['vendors'] })
+      // Reports
+      queryClient.invalidateQueries({ queryKey: ['contract-trend'] })
+      queryClient.invalidateQueries({ queryKey: ['compliance-report'] })
+    }
+  }, [contractsData, queryClient])
 
   const uploadMutation = useMutation({
     mutationFn: async (fileUpload: FileUpload) => {
@@ -115,6 +202,7 @@ export default function UploadPage() {
     accept: ACCEPTED_TYPES,
     maxSize: MAX_FILE_SIZE,
     multiple: true,
+    useFsAccessApi: false, // Disable File System Access API for better compatibility (Safari, older browsers)
   })
 
   const removeFile = (index: number) => {
@@ -159,8 +247,68 @@ export default function UploadPage() {
       .map((f, i) => (f.status === 'pending' ? i : -1))
       .filter((i) => i !== -1)
 
-    for (const index of pendingIndices) {
-      await uploadFile(index)
+    if (pendingIndices.length === 0) return
+
+    // Mark all as uploading
+    setFiles((prev) =>
+      prev.map((f, i) =>
+        pendingIndices.includes(i) ? { ...f, status: 'uploading' as const, progress: 50 } : f
+      )
+    )
+
+    try {
+      // Use batch upload to group files in same folder
+      const pendingFiles = pendingIndices.map((i) => files[i].file)
+      const result = await api.uploadFiles(pendingFiles, selectedClientId || undefined)
+
+      // Update status based on batch response
+      setFiles((prev) =>
+        prev.map((f, i) => {
+          if (!pendingIndices.includes(i)) return f
+
+          // Find matching file in response
+          const fileResult = result.files?.find(
+            (r) => r.filename === f.file.name || r.filename?.includes(f.file.name.substring(0, 20))
+          )
+
+          if (fileResult?.status === 'accepted' && fileResult.id) {
+            return {
+              ...f,
+              status: 'uploaded' as const,
+              progress: 100,
+              contractId: fileResult.id,
+            }
+          } else if (fileResult?.status === 'rejected') {
+            return {
+              ...f,
+              status: 'error' as const,
+              progress: 0,
+              error: fileResult?.message || 'Upload rejected',
+            }
+          } else {
+            return {
+              ...f,
+              status: 'error' as const,
+              progress: 0,
+              error: 'Upload failed - no response',
+            }
+          }
+        })
+      )
+    } catch (error: any) {
+      // If batch fails, mark all as error
+      setFiles((prev) =>
+        prev.map((f, i) =>
+          pendingIndices.includes(i)
+            ? {
+                ...f,
+                status: 'error' as const,
+                progress: 0,
+                error: error.response?.data?.detail || 'Batch upload failed',
+              }
+            : f
+        )
+      )
     }
   }
 
@@ -197,6 +345,147 @@ export default function UploadPage() {
         </div>
       )}
 
+      {/* Client Selector */}
+      <div className="card p-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Select Client (Optional)
+        </label>
+        <div className="relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setShowClientDropdown(!showClientDropdown)}
+            className="w-full flex items-center justify-between px-4 py-2.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <div className="flex items-center gap-2">
+              <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
+              {selectedClient ? (
+                <span className="text-gray-900">
+                  {selectedClient.name} <span className="text-gray-500">({selectedClient.code})</span>
+                </span>
+              ) : (
+                <span className="text-gray-500">No client selected - files will be ungrouped</span>
+              )}
+            </div>
+            <ChevronDownIcon className={cn('h-5 w-5 text-gray-400 transition-transform', showClientDropdown && 'rotate-180')} />
+          </button>
+
+          {showClientDropdown && (
+            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-auto">
+              {/* No client option */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedClientId(null)
+                  setShowClientDropdown(false)
+                }}
+                className={cn(
+                  'w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2',
+                  !selectedClientId && 'bg-primary-50'
+                )}
+              >
+                <span className="text-gray-600">No client (ungrouped)</span>
+              </button>
+
+              {/* Existing clients */}
+              {clients.map((client) => (
+                <button
+                  key={client.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedClientId(client.id)
+                    setShowClientDropdown(false)
+                  }}
+                  className={cn(
+                    'w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center justify-between',
+                    selectedClientId === client.id && 'bg-primary-50'
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <BuildingOfficeIcon className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-900">{client.name}</span>
+                    <span className="text-gray-500 text-sm">({client.code})</span>
+                  </div>
+                  <span className="text-xs text-gray-400">{client.contract_count} contracts</span>
+                </button>
+              ))}
+
+              {/* Create new client option */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewClientForm(true)
+                  setShowClientDropdown(false)
+                }}
+                className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2 border-t border-gray-200"
+              >
+                <PlusIcon className="h-4 w-4 text-primary-600" />
+                <span className="text-primary-600 font-medium">Create New Client</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* New Client Form */}
+        {showNewClientForm && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Create New Client</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Client Name *
+                </label>
+                <input
+                  type="text"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder="e.g., ING Bank N.V."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Client Code *
+                </label>
+                <input
+                  type="text"
+                  value={newClientCode}
+                  onChange={(e) => setNewClientCode(e.target.value.toUpperCase())}
+                  placeholder="e.g., ING"
+                  maxLength={50}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => createClientMutation.mutate()}
+                disabled={!newClientName.trim() || !newClientCode.trim() || createClientMutation.isPending}
+                className="btn-primary text-sm py-1.5 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createClientMutation.isPending ? 'Creating...' : 'Create Client'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewClientForm(false)
+                  setNewClientName('')
+                  setNewClientCode('')
+                }}
+                className="btn-secondary text-sm py-1.5 px-4"
+              >
+                Cancel
+              </button>
+            </div>
+            {createClientMutation.isError && (
+              <p className="mt-2 text-xs text-red-600">
+                {(createClientMutation.error as any)?.response?.data?.detail || 'Failed to create client'}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Dropzone */}
       <div
         {...getRootProps()}
@@ -216,7 +505,7 @@ export default function UploadPage() {
           or <span className="text-primary-600 font-medium">browse</span> to select files
         </p>
         <p className="mt-4 text-xs text-gray-400">
-          Supported formats: PDF, DOCX, DOC, PNG, JPEG, TIFF (max 50MB)
+          Supported formats: PDF, Word (.docx, .doc), Excel (.xlsx, .xls), PowerPoint (.pptx, .ppt), Images (max 50MB)
         </p>
       </div>
 

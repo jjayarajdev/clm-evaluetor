@@ -9,8 +9,11 @@ import './index.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 30 * 1000, // 30 seconds - data considered fresh
+      gcTime: 5 * 60 * 1000, // 5 minutes - keep in cache for background refetch
       retry: 1,
+      refetchOnWindowFocus: true, // Refetch when user returns to tab
+      refetchOnMount: true, // Refetch when component mounts if data is stale
     },
   },
 })

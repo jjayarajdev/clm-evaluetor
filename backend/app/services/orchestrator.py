@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.config import settings
+from app.services.langfuse_service import get_langfuse, get_prompt_manager, set_user_context
 
 
 class AgentRequest(BaseModel):
@@ -70,9 +71,17 @@ class OrchestratorService:
 
     @property
     def async_client(self) -> AsyncOpenAI:
-        """Get async OpenAI client."""
+        """Get async OpenAI client (with Langfuse tracing if available)."""
         if self._async_client is None:
-            self._async_client = AsyncOpenAI(api_key=settings.openai_api_key)
+            # Try to use Langfuse-wrapped client for automatic tracing
+            if settings.langfuse_public_key and settings.langfuse_secret_key:
+                try:
+                    from langfuse.openai import AsyncOpenAI as LangfuseAsyncOpenAI
+                    self._async_client = LangfuseAsyncOpenAI(api_key=settings.openai_api_key)
+                except ImportError:
+                    self._async_client = AsyncOpenAI(api_key=settings.openai_api_key)
+            else:
+                self._async_client = AsyncOpenAI(api_key=settings.openai_api_key)
         return self._async_client
 
     @property
@@ -260,6 +269,8 @@ If unsure, respond with: {self._default_agent}"""
         prompt: str,
         context: dict[str, Any] | None = None,
         user_id: str = "system",
+        session_id: str | None = None,
+        contract_id: str | None = None,
     ) -> str:
         """Directly invoke a specific agent.
 
@@ -268,6 +279,8 @@ If unsure, respond with: {self._default_agent}"""
             prompt: The prompt to send.
             context: Optional context dict.
             user_id: User ID for tracing.
+            session_id: Session ID for conversation grouping.
+            contract_id: Contract ID for metadata.
 
         Returns:
             The agent's response text.
@@ -275,6 +288,22 @@ If unsure, respond with: {self._default_agent}"""
         agent = self._agents.get(agent_name)
         if not agent:
             raise ValueError(f"Agent not found: {agent_name}")
+
+        # Create Langfuse trace for user tracking
+        trace = None
+        if self.langfuse:
+            try:
+                trace = self.langfuse.trace(
+                    name=f"invoke_{agent_name}",
+                    user_id=user_id,
+                    session_id=session_id,
+                    metadata={
+                        "agent_name": agent_name,
+                        "contract_id": contract_id,
+                    },
+                )
+            except Exception:
+                pass
 
         messages = [{"role": "system", "content": agent.system_prompt}]
 
@@ -294,7 +323,19 @@ If unsure, respond with: {self._default_agent}"""
             max_tokens=agent.max_tokens,
         )
 
-        return response.choices[0].message.content or ""
+        result = response.choices[0].message.content or ""
+
+        # Update trace with output
+        if trace:
+            try:
+                trace.update(
+                    output=result[:500],
+                    metadata={"agent": agent_name, "success": True},
+                )
+            except Exception:
+                pass
+
+        return result
 
     async def health_check(self) -> dict[str, Any]:
         """Check health of OpenAI and Langfuse connections.

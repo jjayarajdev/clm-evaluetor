@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   DocumentTextIcon,
-  ExclamationTriangleIcon,
   ClipboardDocumentListIcon,
   ArrowPathIcon,
   CheckCircleIcon,
@@ -14,7 +13,6 @@ import {
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDate, formatCurrency } from '@/lib/utils'
-import type { ContractIntelligence as ContractIntelligenceType } from '@/types'
 
 interface Props {
   contractId: string
@@ -65,6 +63,9 @@ export default function ContractIntelligence({ contractId }: Props) {
       // Refetch after a delay to allow analysis to complete
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['contract-intelligence', contractId] })
+        queryClient.invalidateQueries({ queryKey: ['clauses-summary'] })
+        queryClient.invalidateQueries({ queryKey: ['obligations-summary'] })
+        queryClient.invalidateQueries({ queryKey: ['contracts-summary'] })
       }, 5000)
     },
   })

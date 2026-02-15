@@ -9,17 +9,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:$PATH"
+ENV PATH="/root/.local/bin:$PATH"
 
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml ./
+# Copy dependency files and source for install
+COPY pyproject.toml README.md ./
+COPY app/ ./app/
 
 # Create virtual environment and install dependencies
 RUN uv venv /app/.venv && \
     . /app/.venv/bin/activate && \
-    uv pip install -e .
+    uv pip install .
 
 # Production stage
 FROM python:3.11-slim
@@ -42,6 +43,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
+COPY scripts/ ./scripts/
 
 # Create directories for file storage
 RUN mkdir -p /app/storage/uploads /app/storage/processed

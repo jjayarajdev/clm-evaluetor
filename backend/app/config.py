@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     app_name: str = "Contract Intelligence MVP"
     debug: bool = False
     log_level: str = "INFO"
+    log_json: bool = True  # Use JSON format for logs (set False for plain text)
 
     # Database
     database_url: str = Field(

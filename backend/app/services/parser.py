@@ -7,8 +7,13 @@ from pathlib import Path
 from typing import BinaryIO
 
 import fitz  # PyMuPDF
+import xlrd
 from docx import Document
 from docx.opc.exceptions import PackageNotFoundError
+from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
+from pptx import Presentation
+from pptx.exc import PackageNotFoundError as PptxPackageNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +131,19 @@ class DocumentParser:
                 return self.parse_pdf(f, path.name)
             elif ext == ".docx":
                 return self.parse_docx(f, path.name)
+            elif ext == ".doc":
+                # Older Word format - try to extract with limited support
+                return self._parse_doc_legacy(path, path.name)
+            elif ext == ".xlsx":
+                return self.parse_excel(f, path.name)
+            elif ext == ".xls":
+                # Legacy Excel format - use xlrd
+                return self._parse_xls_legacy(path, path.name)
+            elif ext == ".pptx":
+                return self.parse_powerpoint(f, path.name)
+            elif ext == ".ppt":
+                # Legacy PowerPoint format - binary extraction
+                return self._parse_ppt_legacy(path, path.name)
             else:
                 return ParsedDocument(
                     filename=path.name,
@@ -313,6 +331,476 @@ class DocumentParser:
                 success=False,
                 error=str(e),
             )
+
+    def parse_excel(self, file: BinaryIO, filename: str = "document.xlsx") -> ParsedDocument:
+        """Parse an Excel document.
+
+        Args:
+            file: File-like object containing Excel data.
+            filename: Original filename for reference.
+
+        Returns:
+            ParsedDocument with extracted content.
+        """
+        try:
+            wb = load_workbook(file, read_only=True, data_only=True)
+
+            pages: list[PageContent] = []
+            all_text_parts: list[str] = []
+
+            # Each sheet becomes a "page"
+            for sheet_num, sheet_name in enumerate(wb.sheetnames, 1):
+                ws = wb[sheet_name]
+                sheet_text_parts = [f"## Sheet: {sheet_name}\n"]
+
+                # Extract data from cells
+                rows_data = []
+                for row in ws.iter_rows(values_only=True):
+                    # Filter out completely empty rows
+                    if any(cell is not None for cell in row):
+                        row_text = []
+                        for cell in row:
+                            if cell is not None:
+                                row_text.append(str(cell).strip())
+                            else:
+                                row_text.append("")
+                        rows_data.append(row_text)
+
+                # Format as table
+                if rows_data:
+                    # Use first row as headers if it looks like headers
+                    if len(rows_data) > 1:
+                        headers = rows_data[0]
+                        sheet_text_parts.append(" | ".join(headers))
+                        sheet_text_parts.append("-" * 50)
+                        for row in rows_data[1:]:
+                            # Pad row to match header length
+                            while len(row) < len(headers):
+                                row.append("")
+                            sheet_text_parts.append(" | ".join(row[:len(headers)]))
+                    else:
+                        for row in rows_data:
+                            sheet_text_parts.append(" | ".join(row))
+
+                sheet_text = "\n".join(sheet_text_parts)
+                pages.append(
+                    PageContent(
+                        page_number=sheet_num,
+                        text=sheet_text,
+                    )
+                )
+                all_text_parts.append(f"[Sheet {sheet_num}: {sheet_name}]\n{sheet_text}")
+
+            wb.close()
+
+            # Combine all text
+            full_text = "\n\n".join(all_text_parts)
+
+            metadata = DocumentMetadata(
+                title=filename,
+                page_count=len(pages),
+                word_count=len(full_text.split()),
+            )
+
+            return ParsedDocument(
+                filename=filename,
+                file_type="xlsx",
+                pages=pages,
+                full_text=full_text,
+                metadata=metadata,
+                ocr_used=False,
+                success=True,
+            )
+
+        except InvalidFileException:
+            return ParsedDocument(
+                filename=filename,
+                file_type="xlsx",
+                success=False,
+                error="Invalid or corrupted Excel file",
+            )
+        except Exception as e:
+            logger.exception(f"Error parsing Excel {filename}")
+            return ParsedDocument(
+                filename=filename,
+                file_type="xlsx",
+                success=False,
+                error=str(e),
+            )
+
+    def parse_powerpoint(self, file: BinaryIO, filename: str = "document.pptx") -> ParsedDocument:
+        """Parse a PowerPoint document.
+
+        Args:
+            file: File-like object containing PowerPoint data.
+            filename: Original filename for reference.
+
+        Returns:
+            ParsedDocument with extracted content.
+        """
+        try:
+            prs = Presentation(file)
+
+            pages: list[PageContent] = []
+            all_text_parts: list[str] = []
+
+            # Each slide becomes a "page"
+            for slide_num, slide in enumerate(prs.slides, 1):
+                slide_text_parts = [f"## Slide {slide_num}\n"]
+
+                # Extract text from all shapes
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text:
+                        text = shape.text.strip()
+                        if text:
+                            slide_text_parts.append(text)
+
+                    # Extract text from tables
+                    if shape.has_table:
+                        table_text = self._extract_pptx_table(shape.table)
+                        if table_text:
+                            slide_text_parts.append(table_text)
+
+                slide_text = "\n".join(slide_text_parts)
+                if slide_text.strip():
+                    pages.append(
+                        PageContent(
+                            page_number=slide_num,
+                            text=slide_text,
+                        )
+                    )
+                    all_text_parts.append(f"[Slide {slide_num}]\n{slide_text}")
+
+            # Combine all text
+            full_text = "\n\n".join(all_text_parts)
+
+            metadata = DocumentMetadata(
+                title=filename,
+                page_count=len(pages),
+                word_count=len(full_text.split()),
+            )
+
+            return ParsedDocument(
+                filename=filename,
+                file_type="pptx",
+                pages=pages,
+                full_text=full_text,
+                metadata=metadata,
+                ocr_used=False,
+                success=True,
+            )
+
+        except PptxPackageNotFoundError:
+            return ParsedDocument(
+                filename=filename,
+                file_type="pptx",
+                success=False,
+                error="Invalid or corrupted PowerPoint file",
+            )
+        except Exception as e:
+            logger.exception(f"Error parsing PowerPoint {filename}")
+            return ParsedDocument(
+                filename=filename,
+                file_type="pptx",
+                success=False,
+                error=str(e),
+            )
+
+    def _extract_pptx_table(self, table) -> str:
+        """Extract text from a PowerPoint table."""
+        rows = []
+        for row in table.rows:
+            cells = []
+            for cell in row.cells:
+                cells.append(cell.text.strip())
+            rows.append(" | ".join(cells))
+        return "\n".join(rows)
+
+    def _parse_doc_legacy(self, file_path: Path, filename: str) -> ParsedDocument:
+        """Parse older .doc Word format using textract or fallback.
+
+        Args:
+            file_path: Path to the .doc file.
+            filename: Original filename for reference.
+
+        Returns:
+            ParsedDocument with extracted content.
+        """
+        try:
+            # Try using antiword if available
+            import subprocess
+            result = subprocess.run(
+                ["antiword", str(file_path)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode == 0 and result.stdout:
+                full_text = result.stdout.strip()
+
+                # Create a single page with all content
+                pages = [PageContent(page_number=1, text=full_text)]
+
+                metadata = DocumentMetadata(
+                    title=filename,
+                    page_count=1,
+                    word_count=len(full_text.split()),
+                )
+
+                return ParsedDocument(
+                    filename=filename,
+                    file_type="doc",
+                    pages=pages,
+                    full_text=full_text,
+                    metadata=metadata,
+                    ocr_used=False,
+                    success=True,
+                )
+        except FileNotFoundError:
+            logger.warning("antiword not installed - .doc files may not be fully supported")
+        except subprocess.TimeoutExpired:
+            logger.warning(f"Timeout parsing .doc file: {filename}")
+        except Exception as e:
+            logger.warning(f"Error with antiword for {filename}: {e}")
+
+        # Fallback: try to read as binary and extract text
+        try:
+            with open(file_path, "rb") as f:
+                content = f.read()
+                # Simple extraction of readable text from binary
+                text_parts = []
+                current_text = []
+                for byte in content:
+                    if 32 <= byte <= 126:  # Printable ASCII
+                        current_text.append(chr(byte))
+                    else:
+                        if len(current_text) > 10:  # Only keep meaningful strings
+                            text_parts.append("".join(current_text))
+                        current_text = []
+                if current_text and len(current_text) > 10:
+                    text_parts.append("".join(current_text))
+
+                full_text = " ".join(text_parts)
+
+                if len(full_text) > 100:  # Only if we got meaningful content
+                    pages = [PageContent(page_number=1, text=full_text)]
+                    metadata = DocumentMetadata(
+                        title=filename,
+                        page_count=1,
+                        word_count=len(full_text.split()),
+                    )
+
+                    return ParsedDocument(
+                        filename=filename,
+                        file_type="doc",
+                        pages=pages,
+                        full_text=full_text,
+                        metadata=metadata,
+                        ocr_used=False,
+                        success=True,
+                    )
+        except Exception as e:
+            logger.warning(f"Fallback extraction failed for {filename}: {e}")
+
+        return ParsedDocument(
+            filename=filename,
+            file_type="doc",
+            success=False,
+            error="Unable to parse .doc file. Please convert to .docx format for better results.",
+        )
+
+    def _parse_xls_legacy(self, file_path: Path, filename: str) -> ParsedDocument:
+        """Parse older .xls Excel format using xlrd.
+
+        Args:
+            file_path: Path to the .xls file.
+            filename: Original filename for reference.
+
+        Returns:
+            ParsedDocument with extracted content.
+        """
+        try:
+            wb = xlrd.open_workbook(str(file_path))
+
+            pages: list[PageContent] = []
+            all_text_parts: list[str] = []
+
+            # Each sheet becomes a "page"
+            for sheet_num, sheet_name in enumerate(wb.sheet_names(), 1):
+                ws = wb.sheet_by_name(sheet_name)
+                sheet_text_parts = [f"## Sheet: {sheet_name}\n"]
+
+                rows_data = []
+                for row_idx in range(ws.nrows):
+                    row = ws.row_values(row_idx)
+                    # Filter out completely empty rows
+                    if any(cell for cell in row):
+                        row_text = []
+                        for cell in row:
+                            if cell:
+                                row_text.append(str(cell).strip())
+                            else:
+                                row_text.append("")
+                        rows_data.append(row_text)
+
+                # Format as table
+                if rows_data:
+                    if len(rows_data) > 1:
+                        headers = rows_data[0]
+                        sheet_text_parts.append(" | ".join(str(h) for h in headers))
+                        sheet_text_parts.append("-" * 50)
+                        for row in rows_data[1:]:
+                            while len(row) < len(headers):
+                                row.append("")
+                            sheet_text_parts.append(" | ".join(str(c) for c in row[:len(headers)]))
+                    else:
+                        for row in rows_data:
+                            sheet_text_parts.append(" | ".join(str(c) for c in row))
+
+                sheet_text = "\n".join(sheet_text_parts)
+                pages.append(
+                    PageContent(
+                        page_number=sheet_num,
+                        text=sheet_text,
+                    )
+                )
+                all_text_parts.append(f"[Sheet {sheet_num}: {sheet_name}]\n{sheet_text}")
+
+            # Combine all text
+            full_text = "\n\n".join(all_text_parts)
+
+            metadata = DocumentMetadata(
+                title=filename,
+                page_count=len(pages),
+                word_count=len(full_text.split()),
+            )
+
+            return ParsedDocument(
+                filename=filename,
+                file_type="xls",
+                pages=pages,
+                full_text=full_text,
+                metadata=metadata,
+                ocr_used=False,
+                success=True,
+            )
+
+        except xlrd.biffh.XLRDError as e:
+            logger.exception(f"Error parsing legacy Excel {filename}")
+            return ParsedDocument(
+                filename=filename,
+                file_type="xls",
+                success=False,
+                error=f"Invalid or corrupted .xls file: {e}",
+            )
+        except Exception as e:
+            logger.exception(f"Error parsing legacy Excel {filename}")
+            return ParsedDocument(
+                filename=filename,
+                file_type="xls",
+                success=False,
+                error=str(e),
+            )
+
+    def _parse_ppt_legacy(self, file_path: Path, filename: str) -> ParsedDocument:
+        """Parse older .ppt PowerPoint format using binary extraction.
+
+        Args:
+            file_path: Path to the .ppt file.
+            filename: Original filename for reference.
+
+        Returns:
+            ParsedDocument with extracted content.
+        """
+        try:
+            with open(file_path, "rb") as f:
+                content = f.read()
+
+            # Extract readable text from the binary OLE format
+            # PPT files contain text in various places, we'll extract printable strings
+            text_parts = []
+            current_text = []
+
+            for byte in content:
+                if 32 <= byte <= 126:  # Printable ASCII
+                    current_text.append(chr(byte))
+                elif byte in (9, 10, 13):  # Tab, newline, carriage return
+                    current_text.append(' ')
+                else:
+                    if len(current_text) > 5:  # Keep meaningful strings
+                        text = "".join(current_text).strip()
+                        # Filter out common binary garbage patterns
+                        if text and not self._is_binary_garbage(text):
+                            text_parts.append(text)
+                    current_text = []
+
+            if current_text and len(current_text) > 5:
+                text = "".join(current_text).strip()
+                if text and not self._is_binary_garbage(text):
+                    text_parts.append(text)
+
+            # Deduplicate while preserving order and filter very short fragments
+            seen = set()
+            unique_parts = []
+            for part in text_parts:
+                if len(part) > 10 and part not in seen:
+                    seen.add(part)
+                    unique_parts.append(part)
+
+            full_text = "\n".join(unique_parts)
+
+            if len(full_text) > 50:  # Only if we got meaningful content
+                pages = [PageContent(page_number=1, text=full_text)]
+                metadata = DocumentMetadata(
+                    title=filename,
+                    page_count=1,
+                    word_count=len(full_text.split()),
+                )
+
+                return ParsedDocument(
+                    filename=filename,
+                    file_type="ppt",
+                    pages=pages,
+                    full_text=full_text,
+                    metadata=metadata,
+                    ocr_used=False,
+                    success=True,
+                )
+
+            return ParsedDocument(
+                filename=filename,
+                file_type="ppt",
+                success=False,
+                error="Could not extract text from .ppt file. Please convert to .pptx format for better results.",
+            )
+
+        except Exception as e:
+            logger.exception(f"Error parsing legacy PowerPoint {filename}")
+            return ParsedDocument(
+                filename=filename,
+                file_type="ppt",
+                success=False,
+                error=str(e),
+            )
+
+    def _is_binary_garbage(self, text: str) -> bool:
+        """Check if extracted text looks like binary garbage."""
+        if not text:
+            return True
+
+        # Count alphanumeric vs special characters
+        alpha_count = sum(1 for c in text if c.isalnum() or c.isspace())
+        total = len(text)
+
+        # If less than 50% alphanumeric, probably garbage
+        if total > 0 and alpha_count / total < 0.5:
+            return True
+
+        # Check for repetitive patterns that indicate binary data
+        if len(set(text)) < len(text) * 0.1:  # Very few unique chars
+            return True
+
+        return False
 
     def _extract_pdf_metadata(self, doc: fitz.Document) -> DocumentMetadata:
         """Extract metadata from PDF document."""

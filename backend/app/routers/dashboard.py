@@ -60,12 +60,14 @@ class ContractsSummaryResponse(BaseModel):
 async def get_contracts_summary(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
+    client_id: str | None = None,
 ) -> ContractsSummaryResponse:
     """Get summary of all contracts for dashboard cards."""
+    import uuid as uuid_lib
     today = date.today()
 
-    # Get contracts with clause and obligation counts
-    result = await db.execute(
+    # Build query
+    query = (
         select(
             Contract,
             func.count(Clause.id.distinct()).label("clause_count"),
@@ -73,9 +75,16 @@ async def get_contracts_summary(
         )
         .outerjoin(Clause, Contract.id == Clause.contract_id)
         .outerjoin(Obligation, Contract.id == Obligation.contract_id)
-        .group_by(Contract.id)
-        .order_by(Contract.created_at.desc())
     )
+
+    # Filter by client if specified
+    if client_id:
+        query = query.where(Contract.client_id == uuid_lib.UUID(client_id))
+
+    query = query.group_by(Contract.id).order_by(Contract.created_at.desc())
+
+    # Get contracts with clause and obligation counts
+    result = await db.execute(query)
 
     cards = []
     by_status: dict[str, int] = {}
@@ -863,14 +872,23 @@ async def get_obligations_summary(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
     contract_id: str | None = None,
+    client_id: str | None = None,
 ) -> ObligationsSummaryResponse:
-    """Get summary of obligations, optionally filtered by contract."""
+    """Get summary of obligations, optionally filtered by contract or client."""
     import uuid as uuid_mod
 
-    # Build base query with optional contract filter
+    # Build base query with optional contract/client filter
     base_filter = []
     if contract_id:
         base_filter.append(Obligation.contract_id == uuid_mod.UUID(contract_id))
+    elif client_id:
+        # Get contracts for this client and filter obligations
+        from sqlalchemy import exists
+        base_filter.append(
+            Obligation.contract_id.in_(
+                select(Contract.id).where(Contract.client_id == uuid_mod.UUID(client_id))
+            )
+        )
 
     # By type with party breakdown
     type_query = select(
@@ -957,15 +975,23 @@ async def get_clauses_summary(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
     contract_id: str | None = None,
+    client_id: str | None = None,
 ) -> ClausesSummaryResponse:
-    """Get summary of clauses, optionally filtered by contract."""
+    """Get summary of clauses, optionally filtered by contract or client."""
     import uuid as uuid_mod
     from app.models.clause import Clause, ClauseType
 
-    # Build base query with optional contract filter
+    # Build base query with optional contract/client filter
     base_filter = []
     if contract_id:
         base_filter.append(Clause.contract_id == uuid_mod.UUID(contract_id))
+    elif client_id:
+        # Get contracts for this client and filter clauses
+        base_filter.append(
+            Clause.contract_id.in_(
+                select(Contract.id).where(Contract.client_id == uuid_mod.UUID(client_id))
+            )
+        )
 
     # By type with high risk count
     type_query = select(
@@ -2061,7 +2087,7 @@ async def get_obligations_compliance_dashboard(
     rag_counts = {"green": 0, "amber": 0, "red": 0, "not_assessed": 0}
     status_counts: dict[str, int] = {}
     category_stats: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "green": 0, "amber": 0, "red": 0, "not_assessed": 0})
-    owner_stats: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "green": 0, "amber": 0, "red": 0, "overdue": 0})
+    owner_stats: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "green": 0, "amber": 0, "red": 0, "not_assessed": 0, "overdue": 0})
     frequency_counts: dict[str, int] = defaultdict(int)
     calendar_data: dict[date, list[ComplianceObligationItem]] = defaultdict(list)
     contracts_rag: dict[str, set[str]] = defaultdict(set)  # contract_id -> set of rag statuses

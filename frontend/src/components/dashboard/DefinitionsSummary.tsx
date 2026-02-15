@@ -5,9 +5,7 @@ import {
   ChevronRightIcon,
   MagnifyingGlassIcon,
   TagIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline'
-import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn } from '@/lib/utils'
 

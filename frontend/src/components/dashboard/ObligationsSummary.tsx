@@ -3,18 +3,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
   ClipboardDocumentListIcon,
-  ChevronRightIcon,
   XMarkIcon,
   CalendarIcon,
   BuildingOfficeIcon,
-  UserIcon,
-  UsersIcon,
-  BriefcaseIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDate } from '@/lib/utils'
-import type { ObligationsByTypeResponse } from '@/types'
 
 const OBLIGATION_TYPE_COLORS: Record<string, { bg: string; bar: string; text: string }> = {
   payment: { bg: 'bg-green-50', bar: 'bg-green-500', text: 'text-green-700' },
@@ -36,18 +31,6 @@ const OBLIGATION_TYPE_LABELS: Record<string, string> = {
   other: 'Other',
 }
 
-const PARTY_ICONS: Record<string, React.ElementType> = {
-  client: UserIcon,
-  provider: BriefcaseIcon,
-  mutual: UsersIcon,
-}
-
-const PARTY_COLORS: Record<string, string> = {
-  client: 'text-amber-600 bg-amber-100',
-  provider: 'text-blue-600 bg-blue-100',
-  mutual: 'text-purple-600 bg-purple-100',
-}
-
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
   in_progress: 'bg-blue-100 text-blue-800',
@@ -57,14 +40,15 @@ const STATUS_COLORS: Record<string, string> = {
 
 interface Props {
   contractId?: string | null
+  clientId?: string | null
 }
 
-export default function ObligationsSummary({ contractId }: Props) {
+export default function ObligationsSummary({ contractId, clientId }: Props) {
   const [selectedType, setSelectedType] = useState<string | null>(null)
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['obligations-summary', contractId],
-    queryFn: () => api.getObligationsSummary(contractId || undefined),
+    queryKey: ['obligations-summary', contractId, clientId],
+    queryFn: () => api.getObligationsSummary(contractId || undefined, clientId || undefined),
   })
 
   const { data: drillDownData, isLoading: drillDownLoading } = useQuery({
@@ -87,103 +71,79 @@ export default function ObligationsSummary({ contractId }: Props) {
 
   const maxCount = Math.max(...data.by_type.map(t => t.count), 1)
 
-  // Get party summary counts
-  const partySummary = data.by_party
+  // Get top 3 parties for summary
+  const topParties = Object.entries(data.by_party)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Main Obligations Card */}
       <div className="card">
-        <div className="card-header flex items-center justify-between">
-          <div>
+        <div className="card-header">
+          <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <ClipboardDocumentListIcon className="h-6 w-6 text-primary-600" />
-              Contract Obligations ({data.total} total)
+              Contract Obligations
+              <span className="text-sm font-normal text-gray-500">({data.total} total)</span>
             </h3>
-            <p className="text-sm text-gray-500 mt-1">Click on any obligation type to see details</p>
+            {/* Show only top 3 parties as summary */}
+            <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
+              <span>Top parties:</span>
+              {topParties.map(([party, count]) => (
+                <span key={party} className="bg-gray-100 px-2 py-0.5 rounded text-xs">
+                  {party.length > 15 ? party.substring(0, 15) + '...' : party}: {count}
+                </span>
+              ))}
+              {Object.keys(data.by_party).length > 3 && (
+                <span className="text-gray-400">+{Object.keys(data.by_party).length - 3} more</span>
+              )}
+            </div>
           </div>
-          {/* Party Summary Badges */}
-          <div className="flex items-center gap-2">
-            {Object.entries(partySummary).map(([party, count]) => {
-              const partyKey = party.toLowerCase()
-              const Icon = PARTY_ICONS[partyKey] || UserIcon
-              const colorClass = PARTY_COLORS[partyKey] || 'text-gray-600 bg-gray-100'
-
-              return (
-                <div
-                  key={party}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium",
-                    colorClass
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{party}</span>
-                  <span className="font-bold">{count}</span>
-                </div>
-              )
-            })}
-          </div>
+          <p className="text-sm text-gray-500 mt-1">Click on any category to see details</p>
         </div>
+
         <div className="card-body">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {/* Category Cards - Clean Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {data.by_type.map((item) => {
               const colors = OBLIGATION_TYPE_COLORS[item.obligation_type] || OBLIGATION_TYPE_COLORS.other
               const isSelected = selectedType === item.obligation_type
+              const partyCount = Object.keys(item.by_party).length
 
               return (
                 <button
                   key={item.obligation_type}
                   onClick={() => setSelectedType(isSelected ? null : item.obligation_type)}
                   className={cn(
-                    "p-3 rounded-lg border-2 transition-all text-left hover:shadow-md",
+                    "p-4 rounded-lg border-2 transition-all text-left hover:shadow-md",
                     isSelected
                       ? `${colors.bg} border-current ${colors.text} shadow-md`
                       : `${colors.bg} border-transparent hover:border-gray-200`
                   )}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={cn("text-sm font-medium", colors.text)}>
-                      {OBLIGATION_TYPE_LABELS[item.obligation_type] || item.obligation_type}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <span className={cn("text-xl font-bold", colors.text)}>
-                        {item.count}
-                      </span>
-                      <ChevronRightIcon className={cn(
-                        "h-4 w-4 transition-transform",
-                        isSelected ? `${colors.text} rotate-90` : "text-gray-400"
-                      )} />
-                    </div>
-                  </div>
+                  {/* Type label */}
+                  <p className={cn("text-sm font-medium mb-1", colors.text)}>
+                    {OBLIGATION_TYPE_LABELS[item.obligation_type] || item.obligation_type}
+                  </p>
+
+                  {/* Count */}
+                  <p className={cn("text-2xl font-bold", colors.text)}>
+                    {item.count}
+                  </p>
 
                   {/* Progress bar */}
-                  <div className="h-1.5 bg-white/50 rounded-full overflow-hidden mb-2">
+                  <div className="h-1 bg-white/50 rounded-full overflow-hidden mt-2">
                     <div
                       className={cn("h-full rounded-full transition-all", colors.bar)}
                       style={{ width: `${(item.count / maxCount) * 100}%` }}
                     />
                   </div>
 
-                  {/* Party breakdown - compact badges */}
-                  <div className="flex flex-wrap gap-1">
-                    {Object.entries(item.by_party).map(([party, count]) => {
-                      const partyKey = party.toLowerCase()
-                      const colorClass = PARTY_COLORS[partyKey] || 'text-gray-600 bg-gray-100'
-
-                      return (
-                        <span
-                          key={party}
-                          className={cn(
-                            "text-xs px-1.5 py-0.5 rounded-full font-medium",
-                            colorClass
-                          )}
-                        >
-                          {party}: {count}
-                        </span>
-                      )
-                    })}
-                  </div>
+                  {/* Subtle party count */}
+                  <p className="text-xs text-gray-500 mt-2">
+                    {partyCount} {partyCount === 1 ? 'party' : 'parties'}
+                  </p>
                 </button>
               )
             })}
@@ -220,7 +180,7 @@ export default function ObligationsSummary({ contractId }: Props) {
               </div>
             ) : drillDownData ? (
               <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-                {drillDownData.obligations.map((obl) => (
+                {drillDownData.obligations.slice(0, 20).map((obl) => (
                   <Link
                     key={obl.id}
                     to={`/obligations/${obl.id}`}
@@ -228,17 +188,14 @@ export default function ObligationsSummary({ contractId }: Props) {
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 mb-1">
+                        <p className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
                           {obl.description}
                         </p>
                         <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <BuildingOfficeIcon className="h-3.5 w-3.5" />
+                          <span className="flex items-center gap-1 truncate max-w-[200px]">
+                            <BuildingOfficeIcon className="h-3.5 w-3.5 flex-shrink-0" />
                             {obl.contract_filename}
                           </span>
-                          {obl.counterparty && (
-                            <span>{obl.counterparty}</span>
-                          )}
                           {obl.deadline && (
                             <span className="flex items-center gap-1">
                               <CalendarIcon className="h-3.5 w-3.5" />
@@ -246,11 +203,6 @@ export default function ObligationsSummary({ contractId }: Props) {
                             </span>
                           )}
                         </div>
-                        {obl.source_clause_text && (
-                          <p className="text-xs text-gray-400 mt-2 line-clamp-2 italic">
-                            "{obl.source_clause_text}"
-                          </p>
-                        )}
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <span className={cn(
@@ -259,13 +211,21 @@ export default function ObligationsSummary({ contractId }: Props) {
                         )}>
                           {obl.status}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 truncate max-w-[100px]">
                           {obl.obligated_party}
                         </span>
                       </div>
                     </div>
                   </Link>
                 ))}
+                {drillDownData.obligations.length > 20 && (
+                  <div className="p-4 text-center text-sm text-gray-500 bg-gray-50">
+                    Showing 20 of {drillDownData.total} obligations.{' '}
+                    <Link to="/compliance" className="text-primary-600 hover:underline">
+                      View all →
+                    </Link>
+                  </div>
+                )}
               </div>
             ) : null}
           </div>

@@ -69,6 +69,14 @@ from app.agents.contract_qa import (
     register_contract_qa_agent,
 )
 
+from app.agents.sla_extraction import (
+    ExtractedSLA,
+    SLAExtractionResult,
+    extract_slas,
+    store_extracted_slas,
+    register_sla_extraction_agent,
+)
+
 
 def register_all_agents() -> None:
     """Register all agents with the orchestrator.
@@ -81,6 +89,7 @@ def register_all_agents() -> None:
     register_risk_detection_agent()
     register_renewal_monitoring_agent()
     register_contract_qa_agent()
+    register_sla_extraction_agent()
 
 
 __all__ = [
@@ -130,6 +139,12 @@ __all__ = [
     "ask_question",
     "suggest_questions",
     "register_contract_qa_agent",
+    # SLA extraction
+    "ExtractedSLA",
+    "SLAExtractionResult",
+    "extract_slas",
+    "store_extracted_slas",
+    "register_sla_extraction_agent",
     # Registration
     "register_all_agents",
 ]

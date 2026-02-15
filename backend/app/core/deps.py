@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_token
+from app.core.logging import user_id_var
 from app.database import get_db
 from app.models.user import Role, User
 
@@ -58,6 +59,9 @@ async def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is deactivated",
         )
+
+    # Set user context for logging
+    user_id_var.set(str(user.id))
 
     return user
 

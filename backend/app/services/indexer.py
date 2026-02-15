@@ -96,6 +96,7 @@ class IndexingService:
 
             # Extract metadata using AI agent with regex fallback
             logger.info(f"Extracting metadata for contract {contract.id}")
+            print(f"[METADATA] Starting extraction for {contract.id}")
             full_text = parsed.full_text or ""
             try:
                 metadata = await extract_metadata_with_fallback(
@@ -104,9 +105,17 @@ class IndexingService:
                     user_id=user_id,
                     user_role=user_role,
                 )
+                print(f"[METADATA] Extracted - confidence: {metadata.overall_confidence:.2f}")
+                print(f"[METADATA]   counterparty: {metadata.counterparty.value if metadata.counterparty else 'None'} (conf: {metadata.counterparty.confidence if metadata.counterparty else 0})")
+                print(f"[METADATA]   contract_type: {metadata.contract_type.value if metadata.contract_type else 'None'}")
+                print(f"[METADATA]   effective_date: {metadata.effective_date.value if metadata.effective_date else 'None'}")
+                print(f"[METADATA]   expiration_date: {metadata.expiration_date.value if metadata.expiration_date else 'None'}")
+                print(f"[METADATA]   parties: {metadata.parties}")
                 await update_contract_metadata(self.db, contract, metadata)
                 logger.info(f"Metadata extracted for contract {contract.id} (confidence: {metadata.overall_confidence:.2f})")
+                print(f"[METADATA] Contract updated - counterparty is now: {contract.counterparty}")
             except Exception as e:
+                print(f"[METADATA] FAILED: {e}")
                 logger.warning(f"Metadata extraction failed for {contract.id}: {e}")
 
             # Assess risk using AI agent

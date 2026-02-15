@@ -10,8 +10,26 @@ from langfuse.openai import AsyncOpenAI as LangfuseAsyncOpenAI
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
+# Try to import decorators (available in newer versions)
+try:
+    from langfuse.decorators import observe, langfuse_context
+    LANGFUSE_DECORATORS_AVAILABLE = True
+except ImportError:
+    LANGFUSE_DECORATORS_AVAILABLE = False
+    # Create a no-op decorator
+    def observe(name: str = None, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    langfuse_context = None
+
 from app.config import settings
 from app.services.vector_store import get_vector_store, QueryResult
+from app.services.langfuse_service import (
+    get_langfuse,
+    get_prompt_manager,
+    set_user_context,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -196,10 +214,14 @@ class AgentOutput(BaseModel):
     metadata: dict[str, Any] = {}
 
 
+@observe(name="run_agent")
 async def run_agent(
     config: AgentConfig,
     user_message: str,
     context: str | None = None,
+    user_id: str | None = None,
+    session_id: str | None = None,
+    contract_id: str | None = None,
 ) -> str:
     """Run an agent with the given configuration and message.
 
@@ -207,12 +229,39 @@ async def run_agent(
         config: Agent configuration.
         user_message: User's message/question.
         context: Optional context to include.
+        user_id: User ID for Langfuse tracking.
+        session_id: Session ID for conversation grouping.
+        contract_id: Contract ID for metadata.
 
     Returns:
         Agent's response text.
     """
+    # Set user context for Langfuse tracking
+    if user_id and LANGFUSE_DECORATORS_AVAILABLE and langfuse_context:
+        try:
+            langfuse_context.update_current_observation(
+                user_id=user_id,
+                session_id=session_id,
+                metadata={
+                    "agent_name": config.name,
+                    "contract_id": contract_id,
+                },
+            )
+        except Exception:
+            pass  # Langfuse context may not be available
+
+    # Try to get prompt from Langfuse, fall back to config
+    system_prompt = config.system_prompt
+    try:
+        prompt_manager = get_prompt_manager()
+        managed_prompt = prompt_manager.get_prompt(config.name)
+        if managed_prompt:
+            system_prompt = managed_prompt
+    except Exception:
+        pass  # Use config prompt as fallback
+
     messages = [
-        {"role": "system", "content": config.system_prompt},
+        {"role": "system", "content": system_prompt},
     ]
 
     if context:

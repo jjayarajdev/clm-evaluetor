@@ -8,10 +8,13 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.logging import get_logger
 from app.models.clause import Clause
 from app.models.contract import Contract, ContractStatus, ContractType, RiskLevel
 from app.models.obligation import Obligation
 from app.services.vector_store import get_vector_store
+
+logger = get_logger(__name__)
 
 
 class ContractService:
@@ -59,6 +62,7 @@ class ContractService:
         expiration_before: date | None = None,
         expiration_after: date | None = None,
         search: str | None = None,
+        client_id: str | None = None,
         sort_by: str = "created_at",
         sort_desc: bool = True,
     ) -> tuple[list[Contract], int]:
@@ -74,6 +78,7 @@ class ContractService:
             expiration_before: Filter by expiration date (before).
             expiration_after: Filter by expiration date (after).
             search: Search in filename and counterparty.
+            client_id: Filter by client ID.
             sort_by: Field to sort by.
             sort_desc: Sort descending if True.
 
@@ -102,6 +107,9 @@ class ContractService:
                 Contract.counterparty.ilike(f"%{search}%")
             )
             query = query.where(search_filter)
+        if client_id:
+            import uuid
+            query = query.where(Contract.client_id == uuid.UUID(client_id))
 
         # Get total count
         count_query = select(func.count()).select_from(query.subquery())
@@ -179,36 +187,136 @@ class ContractService:
     async def delete_contract(self, contract_id: str) -> bool:
         """Delete a contract and all associated data.
 
+        Cleans up:
+        - Vector store (ChromaDB)
+        - All related database records (clauses, obligations, SLAs, etc.)
+        - Physical file from disk
+
         Args:
             contract_id: Contract ID to delete.
 
         Returns:
             True if deleted, False if not found.
         """
+        from pathlib import Path
+        from app.models.sla import ContractSLA
+        from app.models.definition import ContractDefinition
+        from app.models.exhibit import ContractExhibit
+        from app.models.preamble import ContractPreamble
+        from app.models.process_step import ContractProcessStep
+        from app.models.key_date import ContractKeyDate
+        from app.models.party import ContractParty
+        from app.models.financial import ContractFinancial
+
         contract = await self.get_contract(
             contract_id, include_clauses=False, include_obligations=False
         )
         if not contract:
             return False
 
-        # Delete from vector store
+        contract_uuid = contract.id
+        file_path = contract.file_path
+        filename = contract.filename
+
+        logger.info(
+            "Deleting contract and all associated data",
+            contract_id=contract_id,
+            filename=filename,
+        )
+
+        # 1. Delete from vector store (ChromaDB)
         try:
-            self.vector_store.delete_by_contract_id(contract_id)
-        except Exception:
-            pass  # Best effort
+            deleted_chunks = self.vector_store.delete_by_contract_id(contract_id)
+            logger.info(
+                "Deleted chunks from vector store",
+                contract_id=contract_id,
+                chunks_deleted=deleted_chunks,
+            )
+        except Exception as e:
+            # Log full exception details for debugging
+            logger.error(
+                "Vector store cleanup failed - this may leave orphaned data",
+                contract_id=contract_id,
+                error=str(e),
+                exc_info=True,
+            )
+            # Continue with database deletion even if vector store fails
+            # The orphaned vectors can be cleaned up later
 
-        # Delete related records
-        await self.db.execute(
-            delete(Clause).where(Clause.contract_id == contract.id)
-        )
-        await self.db.execute(
-            delete(Obligation).where(Obligation.contract_id == contract.id)
-        )
+        # 2. Delete all related database records
+        related_tables = [
+            (Clause, "clauses"),
+            (Obligation, "obligations"),
+            (ContractSLA, "SLAs"),
+            (ContractDefinition, "definitions"),
+            (ContractExhibit, "exhibits"),
+            (ContractPreamble, "preambles"),
+            (ContractProcessStep, "process steps"),
+            (ContractKeyDate, "key dates"),
+            (ContractParty, "parties"),
+            (ContractFinancial, "financial terms"),
+        ]
 
-        # Delete contract
+        deleted_records = {}
+        for model, name in related_tables:
+            try:
+                result = await self.db.execute(
+                    delete(model).where(model.contract_id == contract_uuid)
+                )
+                if result.rowcount:
+                    deleted_records[name] = result.rowcount
+            except Exception as e:
+                logger.warning(
+                    f"Failed to delete {name}",
+                    contract_id=contract_id,
+                    table=name,
+                    error=str(e),
+                )
+
+        if deleted_records:
+            logger.info(
+                "Deleted related database records",
+                contract_id=contract_id,
+                records=deleted_records,
+            )
+
+        # 3. Delete the contract record
         await self.db.delete(contract)
         await self.db.flush()
 
+        # 4. Delete physical file and folder from disk
+        if file_path:
+            try:
+                path = Path(file_path)
+                if path.exists():
+                    path.unlink()
+                    logger.info(
+                        "Deleted physical file",
+                        contract_id=contract_id,
+                        file=path.name,
+                    )
+
+                    # Delete parent folder if empty
+                    parent = path.parent
+                    if parent.exists() and not any(parent.iterdir()):
+                        parent.rmdir()
+                        logger.info(
+                            "Deleted empty folder",
+                            contract_id=contract_id,
+                            folder=parent.name,
+                        )
+            except Exception as e:
+                logger.warning(
+                    "File cleanup failed",
+                    contract_id=contract_id,
+                    error=str(e),
+                )
+
+        logger.info(
+            "Contract deleted successfully",
+            contract_id=contract_id,
+            filename=filename,
+        )
         return True
 
     async def get_contract_stats(self) -> dict[str, Any]:

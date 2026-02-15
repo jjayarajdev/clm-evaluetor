@@ -4,12 +4,24 @@ AI-powered Contract Lifecycle Management platform that extracts insights, identi
 
 ## Features
 
+### Core Capabilities
 - **Document Ingestion:** Upload PDF and DOCX contracts with automatic text extraction and OCR
 - **Metadata Extraction:** Automatically extract contract type, parties, dates, values, and jurisdiction
 - **Risk Detection:** Identify high-risk clauses and calculate contract risk scores
 - **Obligation Tracking:** Extract and monitor contractual obligations with deadlines
 - **Natural Language Q&A:** Ask questions about your contracts using RAG-powered AI
 - **Role-Based Dashboards:** Tailored views for Admin, Legal, and Procurement users
+
+### SLA Management
+- **SLA Comparison Engine:** Compare contracted SLAs against actual performance metrics
+- **Automated Monitoring:** Scheduled SLA comparisons every 15 minutes (configurable)
+- **Breach Detection:** Automatic alerts for SLA breaches with severity levels
+- **External Connectors:** ServiceNow and Milestone tracking integration (stub/real)
+
+### Administration
+- **Master Data Management:** Database-backed SLA and Milestone configurations
+- **Scheduler Dashboard:** Background job monitoring and control
+- **Admin UI:** Full CRUD interfaces for system configuration
 
 ## Tech Stack
 
@@ -118,6 +130,18 @@ clm/
 ├── .env.example            # Environment variables template
 └── README.md               # This file
 ```
+
+## Documentation
+
+| Document | Location | Description |
+|----------|----------|-------------|
+| Architecture Diagrams | [`docs/ARCHITECTURE_DIAGRAMS.md`](docs/ARCHITECTURE_DIAGRAMS.md) | System architecture, sequence diagrams, data flows (Mermaid) |
+| Architecture Overview | [`backend/docs/ARCHITECTURE_OVERVIEW.md`](backend/docs/ARCHITECTURE_OVERVIEW.md) | ASCII diagrams, directory structure, quick reference |
+| Implementation Matrix | [`docs/implementation-matrix.md`](docs/implementation-matrix.md) | Feature completion tracking (72% complete) |
+| Data Model | [`backend/tasks/DATA_MODEL.md`](backend/tasks/DATA_MODEL.md) | Database schema documentation |
+| Completed Tasks | [`backend/tasks/COMPLETED.md`](backend/tasks/COMPLETED.md) | Implementation history (11 phases) |
+| Future Tasks | [`backend/tasks/TODO.md`](backend/tasks/TODO.md) | Planned features and technical debt |
+| Product Vision | [`docs/PRODUCT_VISION_AND_ROADMAP.md`](docs/PRODUCT_VISION_AND_ROADMAP.md) | Product roadmap and vision |
 
 ## Development
 

@@ -38,6 +38,21 @@ class ClauseType(str, enum.Enum):
     PROCEDURAL = "procedural"  # Process steps, SLAs, workflows
     EXHIBIT = "exhibit"  # Schedules, attachments, price tables
 
+    # IT Service/Outsourcing contract clauses
+    SERVICE_DESCRIPTION = "service_description"  # What services are provided
+    SERVICE_LEVEL = "service_level"  # Performance metrics and targets
+    DELIVERABLE = "deliverable"  # What must be delivered, milestones
+    GOVERNANCE = "governance"  # Management, oversight, reporting structure
+    TRANSITION = "transition"  # Exit planning, knowledge transfer
+    CHANGE_MANAGEMENT = "change_management"  # How changes are handled
+    SUPPORT = "support"  # Helpdesk, escalation, incident management
+    SECURITY = "security"  # Security requirements and controls
+    PERSONNEL = "personnel"  # Staffing, roles, responsibilities
+    PRICING = "pricing"  # Cost structure, fees, rate cards
+    RISK_MITIGATION = "risk_mitigation"  # Risk management provisions
+    SCOPE = "scope"  # Scope of work, inclusions/exclusions
+    ACCEPTANCE = "acceptance"  # Acceptance criteria and testing
+
     OTHER = "other"
 
 
@@ -76,7 +91,7 @@ class Clause(Base, UUIDMixin, TimestampMixin):
 
     # Location in document
     section_number: Mapped[str | None] = mapped_column(
-        String(50),
+        String(255),
         nullable=True,
     )
     page_number: Mapped[int | None] = mapped_column(

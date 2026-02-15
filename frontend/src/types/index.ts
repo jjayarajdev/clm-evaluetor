@@ -5,6 +5,7 @@ export interface User {
   id: string
   username: string
   email: string
+  full_name?: string | null
   role: Role
   is_active: boolean
   created_at: string
@@ -20,6 +21,48 @@ export interface TokenResponse {
   access_token: string
   token_type: string
   user: User
+}
+
+// Client types
+export interface Client {
+  id: string
+  name: string
+  code: string
+  industry: string | null
+  website: string | null
+  address: string | null
+  city: string | null
+  country: string | null
+  contact_name: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  contact_title: string | null
+  notes: string | null
+  contract_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ClientSummary {
+  id: string
+  name: string
+  code: string
+  contract_count: number
+}
+
+export interface ClientCreate {
+  name: string
+  code: string
+  industry?: string
+  website?: string
+  address?: string
+  city?: string
+  country?: string
+  contact_name?: string
+  contact_email?: string
+  contact_phone?: string
+  contact_title?: string
+  notes?: string
 }
 
 // Contract types
@@ -54,6 +97,7 @@ export interface Contract extends ContractSummary {
   uploaded_by: string
   clause_count: number
   obligation_count: number
+  sla_count: number
   created_at: string
   updated_at: string
 }

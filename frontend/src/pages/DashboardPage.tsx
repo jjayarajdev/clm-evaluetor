@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import { ChevronDownIcon, ChevronRightIcon, BuildingOfficeIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -15,14 +15,36 @@ import { cn } from '@/lib/utils'
 export default function DashboardPage() {
   const { user, isAdmin, isLegal, isProcurement } = useAuth()
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false)
   const [showAdminSection, setShowAdminSection] = useState(false)
   const [showLegalSection, setShowLegalSection] = useState(false)
   const [showProcurementSection, setShowProcurementSection] = useState(false)
+  const clientDropdownRef = useRef<HTMLDivElement>(null)
 
-  // Fetch contracts summary for cards
+  // Fetch clients for filter dropdown
+  const { data: clientsData } = useQuery({
+    queryKey: ['clients-summary'],
+    queryFn: () => api.getClientsSummary(),
+  })
+
+  const selectedClient = clientsData?.find(c => c.id === selectedClientId)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (clientDropdownRef.current && !clientDropdownRef.current.contains(event.target as Node)) {
+        setClientDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Fetch contracts summary for cards (filtered by client if selected)
   const { data: contractsSummary, isLoading: contractsLoading } = useQuery({
-    queryKey: ['contracts-summary'],
-    queryFn: () => api.getContractsSummary(),
+    queryKey: ['contracts-summary', selectedClientId],
+    queryFn: () => api.getContractsSummary(selectedClientId || undefined),
   })
 
   // Fetch appropriate dashboard data based on role
@@ -64,14 +86,92 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Welcome back, {user?.full_name || user?.username}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {getRoleGreeting()}
-        </p>
+      {/* Page header with client filter */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Welcome back, {user?.full_name || user?.username}
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {getRoleGreeting()}
+          </p>
+        </div>
+
+        {/* Client Filter */}
+        <div className="relative" ref={clientDropdownRef}>
+          <button
+            onClick={() => setClientDropdownOpen(!clientDropdownOpen)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors",
+              selectedClientId
+                ? "bg-green-50 border-green-300 text-green-700"
+                : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+            )}
+          >
+            <BuildingOfficeIcon className="h-4 w-4" />
+            {selectedClient ? (
+              <>
+                <span className="font-medium">{selectedClient.name}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedClientId(null)
+                    setSelectedContractId(null)
+                  }}
+                  className="p-0.5 hover:bg-green-100 rounded"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              </>
+            ) : (
+              <span>Filter by Client</span>
+            )}
+            <ChevronDownIcon className={cn(
+              "h-4 w-4 transition-transform",
+              clientDropdownOpen && "rotate-180"
+            )} />
+          </button>
+
+          {clientDropdownOpen && (
+            <div className="absolute right-0 z-50 mt-1 w-64 bg-white rounded-lg border border-gray-200 shadow-lg max-h-64 overflow-auto">
+              <button
+                onClick={() => {
+                  setSelectedClientId(null)
+                  setSelectedContractId(null)
+                  setClientDropdownOpen(false)
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50",
+                  !selectedClientId && "bg-primary-50"
+                )}
+              >
+                <span className="font-medium text-gray-700">All Clients</span>
+              </button>
+              {clientsData?.map((client) => (
+                <button
+                  key={client.id}
+                  onClick={() => {
+                    setSelectedClientId(client.id)
+                    setSelectedContractId(null)
+                    setClientDropdownOpen(false)
+                  }}
+                  className={cn(
+                    "w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50",
+                    selectedClientId === client.id && "bg-primary-50"
+                  )}
+                >
+                  <span className={cn(
+                    "truncate",
+                    selectedClientId === client.id ? "text-primary-700 font-medium" : "text-gray-700"
+                  )}>
+                    {client.name} <span className="text-gray-400">({client.code})</span>
+                  </span>
+                  <span className="text-gray-400 text-xs ml-2">{client.contract_count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Contract Summary Cards - shown to all users */}
@@ -87,11 +187,11 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* Obligations Summary - filtered by selected contract */}
-      <ObligationsSummary contractId={selectedContractId} />
+      {/* Obligations Summary - filtered by selected contract or client */}
+      <ObligationsSummary contractId={selectedContractId} clientId={selectedClientId} />
 
-      {/* Clauses Summary - filtered by selected contract */}
-      <ClausesSummary contractId={selectedContractId} />
+      {/* Clauses Summary - filtered by selected contract or client */}
+      <ClausesSummary contractId={selectedContractId} clientId={selectedClientId} />
 
       {/* Role-specific detailed sections */}
       <div className="space-y-4 pt-4 border-t border-gray-200">

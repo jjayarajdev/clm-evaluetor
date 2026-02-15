@@ -309,8 +309,11 @@ async def store_extracted_obligations(
 
         db.add(obligation)
         created.append(obligation)
+        print(f"  [OBLIGATION] Added: {extracted.description[:50]}...")
 
+    print(f"[OBLIGATION] Flushing {len(created)} obligations...")
     await db.flush()
+    print(f"[OBLIGATION] Flush complete")
     return created
 
 

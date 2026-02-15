@@ -177,6 +177,30 @@ class Contract(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
 
+    # Client association
+    client_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("clients.id"),
+        nullable=True,
+        index=True,
+    )
+
+    # Business relationship association (Evaluetor feature)
+    business_relationship_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("business_relationships.id"),
+        nullable=True,
+        index=True,
+    )
+
+    # Versioning
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        default=1,
+    )
+    previous_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("contracts.id"),
+        nullable=True,
+    )
+
     # Relationships
     uploaded_by: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id"),
@@ -185,6 +209,19 @@ class Contract(Base, UUIDMixin, TimestampMixin):
     uploaded_by_user: Mapped["User"] = relationship(
         "User",
         back_populates="contracts",
+    )
+    client: Mapped["Client | None"] = relationship(
+        "Client",
+        back_populates="contracts",
+    )
+    business_relationship: Mapped["BusinessRelationship | None"] = relationship(
+        "BusinessRelationship",
+        back_populates="contracts",
+    )
+    previous_version: Mapped["Contract | None"] = relationship(
+        "Contract",
+        remote_side="Contract.id",
+        foreign_keys="Contract.previous_version_id",
     )
     clauses: Mapped[list["Clause"]] = relationship(
         "Clause",
@@ -284,6 +321,22 @@ class Contract(Base, UUIDMixin, TimestampMixin):
     # Exhibits/Schedules
     exhibits: Mapped[list["ContractExhibit"]] = relationship(
         "ContractExhibit",
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    # SLAs
+    slas: Mapped[list["ContractSLA"]] = relationship(
+        "ContractSLA",
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    # SLA Alerts
+    sla_alerts: Mapped[list["SLAAlert"]] = relationship(
+        "SLAAlert",
         back_populates="contract",
         cascade="all, delete-orphan",
         lazy="selectin",

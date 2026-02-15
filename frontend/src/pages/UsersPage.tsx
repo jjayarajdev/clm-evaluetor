@@ -57,7 +57,12 @@ export default function UsersPage() {
   }
 
   const createMutation = useMutation({
-    mutationFn: (data: UserFormData) => api.createUser(data),
+    mutationFn: (data: UserFormData) => api.createUser({
+      username: data.username,
+      email: data.email,
+      password: data.password || '',
+      role: data.role,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       closeModal()

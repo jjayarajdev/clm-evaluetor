@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,7 @@ from app.schemas.contract import (
     ContractListResponse,
     ContractResponse,
     ContractSummary,
+    ContractUpdate,
     ContractUploadResponse,
     UploadStatusResponse,
 )
@@ -171,30 +172,37 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
     from app.services.parser import get_parser
     from app.agents.clause_extraction import extract_clauses, store_extracted_clauses
     from app.agents.obligation_tracking import extract_obligations, store_extracted_obligations
+    from app.agents.sla_extraction import extract_slas, store_extracted_slas
     from app.agents import register_all_agents
     from app.services.orchestrator import initialize_default_agents
     from app.database import async_session_maker
     from app.models.contract import Contract
     from app.models.clause import Clause, ClauseType
     from app.models.obligation import Obligation
+    from app.models.sla import ContractSLA
     from app.schemas import get_schema_registry, extract_with_schema
     from sqlalchemy import delete, select
     import uuid as uuid_mod
 
     try:
+        print(f"[DEEP ANALYSIS] Starting for contract {contract_id}")
+
         # Ensure agents are registered
         initialize_default_agents()
         register_all_agents()
+        print(f"[DEEP ANALYSIS] Agents registered")
 
         # Parse the document
         parser = get_parser()
         parsed = parser.parse_file(file_path)
 
         if not parsed.success:
+            print(f"[DEEP ANALYSIS] Parse failed: {parsed.error}")
             logging.error(f"Parse failed for deep analysis: {parsed.error}")
             return
 
         full_text = parsed.full_text
+        print(f"[DEEP ANALYSIS] Parsed {len(full_text)} chars")
         logging.info(f"Running deep analysis on {len(full_text)} chars for {contract_id}")
 
         # Store extracted text on contract
@@ -209,22 +217,37 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                 logging.info(f"Stored extracted text ({len(full_text)} chars) for {contract_id}")
 
         # Extract clauses
+        print(f"[DEEP ANALYSIS] Extracting clauses...")
         clause_result = await extract_clauses(
             contract_text=full_text,
             contract_id=contract_id,
             user_id=user_id,
         )
+        print(f"[DEEP ANALYSIS] Extracted {len(clause_result.extracted_clauses) if clause_result else 0} clauses")
         logging.info(f"Extracted {len(clause_result.extracted_clauses) if clause_result else 0} clauses")
 
         # Extract obligations
+        print(f"[DEEP ANALYSIS] Extracting obligations...")
         obligation_result = await extract_obligations(
             contract_text=full_text,
             contract_id=contract_id,
             user_id=user_id,
         )
+        print(f"[DEEP ANALYSIS] Extracted {len(obligation_result.obligations) if obligation_result else 0} obligations")
         logging.info(f"Extracted {len(obligation_result.obligations) if obligation_result else 0} obligations")
 
+        # Extract SLAs
+        print(f"[DEEP ANALYSIS] Extracting SLAs...")
+        sla_result = await extract_slas(
+            contract_text=full_text,
+            contract_id=contract_id,
+            user_id=user_id,
+        )
+        print(f"[DEEP ANALYSIS] Extracted {len(sla_result.slas) if sla_result else 0} SLAs")
+        logging.info(f"Extracted {len(sla_result.slas) if sla_result else 0} SLAs")
+
         # Store results
+        print(f"[DEEP ANALYSIS] Storing results...")
         async with async_session_maker() as session:
             # Clean up existing
             await session.execute(
@@ -236,24 +259,55 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                 delete(Obligation)
                 .where(Obligation.contract_id == uuid_mod.UUID(contract_id))
             )
+            await session.execute(
+                delete(ContractSLA)
+                .where(ContractSLA.contract_id == uuid_mod.UUID(contract_id))
+            )
+            print(f"[DEEP ANALYSIS] Cleaned up existing records")
+
+            # For Excel files, try structured SLA extraction first
+            if file_path.lower().endswith(('.xlsx', '.xls')):
+                from app.services.sla_benchmark_service import extract_and_store_excel_slas
+                excel_sla_count = await extract_and_store_excel_slas(
+                    db=session,
+                    contract_id=uuid_mod.UUID(contract_id),
+                    file_path=file_path,
+                )
+                if excel_sla_count > 0:
+                    print(f"[DEEP ANALYSIS] Extracted {excel_sla_count} structured SLAs from Excel")
+                    logging.info(f"Extracted {excel_sla_count} structured SLAs from Excel for {contract_id}")
 
             # Store new
             if clause_result and clause_result.extracted_clauses:
+                print(f"[DEEP ANALYSIS] Storing {len(clause_result.extracted_clauses)} clauses...")
                 await store_extracted_clauses(
                     db=session,
                     contract_id=uuid_mod.UUID(contract_id),
                     result=clause_result,
                 )
+                print(f"[DEEP ANALYSIS] Clauses stored")
 
             if obligation_result and obligation_result.obligations:
+                print(f"[DEEP ANALYSIS] Storing {len(obligation_result.obligations)} obligations...")
                 await store_extracted_obligations(
                     db=session,
                     contract_id=uuid_mod.UUID(contract_id),
                     result=obligation_result,
                 )
+                print(f"[DEEP ANALYSIS] Obligations stored")
+
+            if sla_result and sla_result.slas:
+                print(f"[DEEP ANALYSIS] Storing {len(sla_result.slas)} SLAs...")
+                await store_extracted_slas(
+                    db=session,
+                    contract_id=uuid_mod.UUID(contract_id),
+                    result=sla_result,
+                )
+                print(f"[DEEP ANALYSIS] SLAs stored")
 
             await session.commit()
-            logging.info(f"Clause/obligation extraction completed for {contract_id}")
+            print(f"[DEEP ANALYSIS] Committed to database")
+            logging.info(f"Clause/obligation/SLA extraction completed for {contract_id}")
 
         # Run schema-based extraction if a schema is available
         async with async_session_maker() as session:
@@ -292,9 +346,11 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                 else:
                     logging.info(f"No schema available for contract type: {contract.contract_type.value}")
 
+        print(f"[DEEP ANALYSIS] Completed for {contract_id}")
         logging.info(f"Deep analysis completed for {contract_id}")
 
     except Exception as e:
+        print(f"[DEEP ANALYSIS] FAILED for {contract_id}: {e}")
         logging.exception(f"Deep analysis failed for {contract_id}: {e}")
 
 
@@ -303,15 +359,28 @@ async def upload_batch_files(
     current_user: CurrentUser,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(..., description="Multiple PDF or DOCX files"),
+    folder_name: str | None = None,
+    client_id: str | None = Form(None, description="Optional client ID to associate files with"),
 ) -> BatchUploadResponse:
-    """Upload multiple contract files.
+    """Upload multiple related contract files.
+
+    If client_id is provided, files are stored in client folder with versioning:
+    - storage/uploads/{client_code}/{YYYYMMDD}/
+    - Duplicate hash = reject
+    - Same filename, different hash = create new version
+
+    Otherwise, files are grouped in a shared folder.
 
     Args:
         current_user: Authenticated user.
         request: FastAPI request for audit logging.
         db: Database session.
+        background_tasks: Background task runner.
         files: List of uploaded files.
+        folder_name: Optional name for the folder (e.g., counterparty name).
+        client_id: Optional client ID to associate files with.
 
     Returns:
         Batch upload response with status for each file.
@@ -329,10 +398,34 @@ async def upload_batch_files(
         )
 
     service = UploadService(db)
-    batch_id, successful, failed = await service.upload_batch(files, str(current_user.id))
+
+    # Use client-based upload if client_id provided
+    if client_id:
+        batch_id, successful, failed = await service.upload_for_client(
+            files,
+            str(current_user.id),
+            client_id,
+        )
+    else:
+        # Legacy: Group all files into one folder
+        batch_id, successful, failed = await service.upload_batch(
+            files,
+            str(current_user.id),
+            group_in_folder=True,
+            folder_name=folder_name,
+        )
 
     # Store batch for status tracking
     _batch_contracts[batch_id] = [str(c.id) for c in successful]
+
+    # Auto-trigger processing and analysis for each uploaded contract
+    for contract in successful:
+        background_tasks.add_task(
+            _auto_process_contract,
+            str(contract.id),
+            str(current_user.id),
+            contract.file_path,
+        )
 
     # Build response
     file_responses = []
@@ -342,8 +435,8 @@ async def upload_batch_files(
             ContractUploadResponse(
                 id=str(contract.id),
                 filename=contract.filename,
-                status=contract.status.value,
-                message="Uploaded successfully",
+                status="accepted",
+                message="Uploaded successfully, analysis queued",
             )
         )
 
@@ -388,6 +481,7 @@ async def upload_zip_archive(
     current_user: CurrentUser,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="ZIP archive containing PDF/DOCX files"),
 ) -> BatchUploadResponse:
     """Upload a ZIP archive containing contract files.
@@ -413,6 +507,15 @@ async def upload_zip_archive(
     # Store batch for status tracking
     _batch_contracts[batch_id] = [str(c.id) for c in successful]
 
+    # Auto-trigger processing and analysis for each uploaded contract
+    for contract in successful:
+        background_tasks.add_task(
+            _auto_process_contract,
+            str(contract.id),
+            str(current_user.id),
+            contract.file_path,
+        )
+
     # Build response
     file_responses = []
 
@@ -422,7 +525,7 @@ async def upload_zip_archive(
                 id=str(contract.id),
                 filename=contract.filename,
                 status=contract.status.value,
-                message="Extracted and uploaded successfully",
+                message="Extracted and uploaded, analysis queued",
             )
         )
 
@@ -577,8 +680,8 @@ async def process_contracts(
         action=AuditAction.CONTRACT_PROCESS,
         user_id=str(current_user.id),
         resource_type="batch",
-        resource_id=",".join(contract_ids[:5]),
-        details={"contract_count": len(contract_ids)},
+        resource_id=contract_ids[0] if contract_ids else "none",
+        details={"contract_count": len(contract_ids), "contract_ids": contract_ids},
         request=request,
     )
 
@@ -675,9 +778,85 @@ def contract_to_response(contract) -> ContractResponse:
         uploaded_by=str(contract.uploaded_by),
         clause_count=len(contract.clauses) if contract.clauses else 0,
         obligation_count=len(contract.obligations) if contract.obligations else 0,
+        sla_count=len(contract.slas) if contract.slas else 0,
         created_at=contract.created_at,
         updated_at=contract.updated_at,
     )
+
+
+@router.get("/filter-options")
+async def get_filter_options(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Get available filter options for contracts.
+
+    Returns unique values for counterparties, contract types, and risk levels
+    to populate filter dropdowns.
+
+    Args:
+        current_user: Authenticated user.
+        db: Database session.
+
+    Returns:
+        Dictionary with available filter options.
+    """
+    from sqlalchemy import select, func, distinct
+    from app.models.contract import Contract
+
+    # Get unique counterparties (non-null, non-empty)
+    counterparty_result = await db.execute(
+        select(distinct(Contract.counterparty))
+        .where(Contract.counterparty.isnot(None))
+        .where(Contract.counterparty != "")
+        .order_by(Contract.counterparty)
+    )
+    counterparties = [r[0] for r in counterparty_result.fetchall() if r[0]]
+
+    # Get unique contract types
+    type_result = await db.execute(
+        select(distinct(Contract.contract_type))
+        .where(Contract.contract_type.isnot(None))
+    )
+    contract_types = [r[0].value for r in type_result.fetchall() if r[0]]
+
+    # Get unique risk levels
+    risk_result = await db.execute(
+        select(distinct(Contract.risk_level))
+        .where(Contract.risk_level.isnot(None))
+    )
+    risk_levels = [r[0].value for r in risk_result.fetchall() if r[0]]
+
+    # Get counts per counterparty
+    count_result = await db.execute(
+        select(Contract.counterparty, func.count(Contract.id))
+        .where(Contract.counterparty.isnot(None))
+        .where(Contract.counterparty != "")
+        .group_by(Contract.counterparty)
+        .order_by(func.count(Contract.id).desc())
+    )
+    counterparty_counts = {r[0]: r[1] for r in count_result.fetchall() if r[0]}
+
+    # Get clients with contract counts
+    from app.models.client import Client
+    client_result = await db.execute(
+        select(Client.id, Client.name, Client.code, func.count(Contract.id))
+        .outerjoin(Contract, Contract.client_id == Client.id)
+        .group_by(Client.id, Client.name, Client.code)
+        .order_by(Client.name)
+    )
+    clients = [
+        {"id": str(r[0]), "name": r[1], "code": r[2], "contract_count": r[3]}
+        for r in client_result.fetchall()
+    ]
+
+    return {
+        "counterparties": counterparties,
+        "counterparty_counts": counterparty_counts,
+        "contract_types": sorted(contract_types),
+        "risk_levels": risk_levels,
+        "clients": clients,
+    }
 
 
 @router.get("", response_model=ContractListResponse)
@@ -691,6 +870,7 @@ async def list_contracts(
     risk_level: str | None = None,
     status_filter: str | None = None,
     search: str | None = None,
+    client_id: str | None = None,
     sort_by: str = "created_at",
     sort_desc: bool = True,
 ) -> ContractListResponse:
@@ -706,6 +886,7 @@ async def list_contracts(
         risk_level: Filter by risk level.
         status_filter: Filter by status.
         search: Search in filename and counterparty.
+        client_id: Filter by client ID.
         sort_by: Sort field (created_at, expiration_date, risk_score).
         sort_desc: Sort descending.
 
@@ -749,6 +930,7 @@ async def list_contracts(
         risk_level=risk_enum,
         status=status_enum,
         search=search,
+        client_id=client_id,
         sort_by=sort_by,
         sort_desc=sort_desc,
     )
@@ -906,6 +1088,199 @@ async def delete_contract(
     return {"message": "Contract deleted successfully", "contract_id": contract_id}
 
 
+class BatchDeleteRequest(BaseModel):
+    """Request for batch deletion of contracts."""
+    contract_ids: list[str]
+
+
+class BatchDeleteResponse(BaseModel):
+    """Response for batch deletion."""
+    deleted: list[str]
+    failed: list[dict]
+    total_deleted: int
+    total_failed: int
+
+
+@router.post("/batch-delete", response_model=BatchDeleteResponse)
+async def batch_delete_contracts(
+    request_body: BatchDeleteRequest,
+    current_user: CurrentUser,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> BatchDeleteResponse:
+    """Delete multiple contracts and all associated data.
+
+    Deletes files, ChromaDB records, and database records for each contract.
+
+    Args:
+        request_body: List of contract IDs to delete.
+        current_user: Authenticated user.
+        request: FastAPI request for audit logging.
+        db: Database session.
+
+    Returns:
+        Summary of deleted and failed contracts.
+    """
+    from app.services.contracts import ContractService
+
+    service = ContractService(db)
+    deleted: list[str] = []
+    failed: list[dict] = []
+
+    for contract_id in request_body.contract_ids:
+        try:
+            success = await service.delete_contract(contract_id)
+            if success:
+                deleted.append(contract_id)
+                # Audit log for each deletion
+                await log_audit(
+                    db=db,
+                    action=AuditAction.CONTRACT_DELETE,
+                    user_id=str(current_user.id),
+                    resource_type="contract",
+                    resource_id=contract_id,
+                    details={"batch_delete": True},
+                    request=request,
+                )
+            else:
+                failed.append({"contract_id": contract_id, "error": "Contract not found"})
+        except Exception as e:
+            failed.append({"contract_id": contract_id, "error": str(e)})
+
+    await db.commit()
+
+    return BatchDeleteResponse(
+        deleted=deleted,
+        failed=failed,
+        total_deleted=len(deleted),
+        total_failed=len(failed),
+    )
+
+
+@router.get("/{contract_id}/files")
+async def list_contract_files(
+    contract_id: str,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """List all files in a contract's folder.
+
+    Args:
+        contract_id: Contract ID.
+        current_user: Authenticated user.
+        db: Database session.
+
+    Returns:
+        List of files in the contract folder.
+    """
+    from sqlalchemy import select
+    from app.models.contract import Contract
+    from app.services.upload import UploadService
+    from pathlib import Path
+
+    # Get contract
+    result = await db.execute(
+        select(Contract).where(Contract.id == contract_id)
+    )
+    contract = result.scalar_one_or_none()
+
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
+    # Get folder path
+    folder_path = Path(contract.file_path).parent
+
+    # List files
+    service = UploadService(db)
+    files = service.list_folder_files(folder_path)
+
+    return {
+        "contract_id": contract_id,
+        "folder": str(folder_path),
+        "files": files,
+        "total": len(files),
+    }
+
+
+@router.post("/{contract_id}/files")
+async def add_file_to_contract(
+    contract_id: str,
+    current_user: CurrentUser,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    file: UploadFile = File(..., description="Additional file to add to contract folder"),
+) -> dict:
+    """Add an additional file to a contract's folder (e.g., attachments, exhibits).
+
+    Args:
+        contract_id: Contract ID.
+        current_user: Authenticated user.
+        request: FastAPI request for audit logging.
+        db: Database session.
+        file: The file to add.
+
+    Returns:
+        Info about the added file.
+    """
+    from sqlalchemy import select
+    from app.models.contract import Contract
+    from app.services.upload import UploadService
+    from pathlib import Path
+
+    # Get contract
+    result = await db.execute(
+        select(Contract).where(Contract.id == contract_id)
+    )
+    contract = result.scalar_one_or_none()
+
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
+    # Get folder path
+    folder_path = Path(contract.file_path).parent
+
+    # Save file to folder
+    service = UploadService(db)
+    is_valid, error = service.validate_file(file)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error,
+        )
+
+    content = await file.read()
+    filename, file_path, file_size, content_hash = await service.save_file(
+        file, content, folder_path=folder_path, preserve_filename=True
+    )
+
+    # Audit log
+    await log_audit(
+        db=db,
+        action=AuditAction.CONTRACT_UPLOAD,
+        user_id=str(current_user.id),
+        resource_type="contract_attachment",
+        resource_id=contract_id,
+        details={"filename": filename, "size": file_size},
+        request=request,
+    )
+
+    await db.commit()
+
+    return {
+        "message": "File added successfully",
+        "contract_id": contract_id,
+        "filename": filename,
+        "file_path": file_path,
+        "file_size": file_size,
+    }
+
+
 @router.post("/{contract_id}/analyze")
 async def analyze_contract(
     contract_id: str,
@@ -951,9 +1326,11 @@ async def analyze_contract(
         from app.services.parser import get_parser
         from app.agents.clause_extraction import extract_clauses, store_extracted_clauses
         from app.agents.obligation_tracking import extract_obligations, store_extracted_obligations
+        from app.agents.sla_extraction import extract_slas, store_extracted_slas
         from app.agents import register_all_agents
         from app.services.orchestrator import initialize_default_agents
         from app.database import async_session_maker
+        from app.models.sla import ContractSLA
         import uuid as uuid_mod
 
         try:
@@ -990,6 +1367,14 @@ async def analyze_contract(
             )
             logging.info(f"Extracted {len(obligation_result.obligations) if obligation_result else 0} obligations")
 
+            # Run SLA extraction (AI call)
+            sla_result = await extract_slas(
+                contract_text=full_text,
+                contract_id=contract_id,
+                user_id=str(current_user.id),
+            )
+            logging.info(f"Extracted {len(sla_result.slas) if sla_result else 0} SLAs")
+
             # Store results in database (new session for background task)
             async with async_session_maker() as session:
                 from sqlalchemy import delete, text
@@ -1012,6 +1397,13 @@ async def analyze_contract(
                 )
                 logging.info(f"Cleaned up existing obligations for {contract_id}")
 
+                # Clean up existing SLAs
+                await session.execute(
+                    delete(ContractSLA)
+                    .where(ContractSLA.contract_id == uuid_mod.UUID(contract_id))
+                )
+                logging.info(f"Cleaned up existing SLAs for {contract_id}")
+
                 # Store clauses
                 if clause_result and clause_result.extracted_clauses:
                     await store_extracted_clauses(
@@ -1030,8 +1422,17 @@ async def analyze_contract(
                     )
                     logging.info(f"Stored {len(obligation_result.obligations)} obligations")
 
+                # Store SLAs
+                if sla_result and sla_result.slas:
+                    await store_extracted_slas(
+                        db=session,
+                        contract_id=uuid_mod.UUID(contract_id),
+                        result=sla_result,
+                    )
+                    logging.info(f"Stored {len(sla_result.slas)} SLAs")
+
                 await session.commit()
-                logging.info(f"Clause/obligation extraction completed for {contract_id}")
+                logging.info(f"Clause/obligation/SLA extraction completed for {contract_id}")
 
             # Extract definitions from DEFINITIONS type clauses
             async with async_session_maker() as session:
@@ -1140,5 +1541,75 @@ async def analyze_contract(
     return {
         "message": "Deep analysis queued successfully",
         "contract_id": contract_id,
-        "analyses": ["clause_extraction", "obligation_tracking"],
+        "analyses": ["clause_extraction", "obligation_tracking", "sla_extraction"],
     }
+
+
+@router.patch("/{contract_id}", response_model=ContractResponse)
+async def update_contract_metadata(
+    contract_id: str,
+    update_data: "ContractUpdate",
+    current_user: CurrentUser,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ContractResponse:
+    """Update contract metadata.
+
+    Allows updating extracted metadata fields like counterparty, dates, etc.
+    """
+    from sqlalchemy import select
+    from app.models.contract import Contract
+    from app.schemas.contract import ContractUpdate
+    import uuid
+
+    # Get contract
+    result = await db.execute(
+        select(Contract).where(Contract.id == uuid.UUID(contract_id))
+    )
+    contract = result.scalar_one_or_none()
+
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract {contract_id} not found"
+        )
+
+    # Update fields that were provided
+    update_dict = update_data.model_dump(exclude_unset=True)
+    for field, value in update_dict.items():
+        if hasattr(contract, field):
+            setattr(contract, field, value)
+
+    await db.commit()
+    await db.refresh(contract)
+
+    # Return response
+    return ContractResponse(
+        id=str(contract.id),
+        filename=contract.filename,
+        file_path=contract.file_path,
+        file_size=contract.file_size,
+        mime_type=contract.mime_type,
+        contract_type=contract.contract_type.value if contract.contract_type else None,
+        counterparty=contract.counterparty,
+        effective_date=contract.effective_date,
+        expiration_date=contract.expiration_date,
+        contract_value=contract.contract_value,
+        currency=contract.currency,
+        jurisdiction=contract.jurisdiction,
+        risk_score=contract.risk_score,
+        risk_level=contract.risk_level.value if contract.risk_level else None,
+        auto_renewal=contract.auto_renewal,
+        notice_period_days=contract.notice_period_days,
+        renewal_term_months=contract.renewal_term_months,
+        status=contract.status.value,
+        processing_error=contract.processing_error,
+        schema_id=str(contract.schema_id) if contract.schema_id else None,
+        schema_data=contract.schema_data,
+        uploaded_by=str(contract.uploaded_by),
+        clause_count=len(contract.clauses) if contract.clauses else 0,
+        obligation_count=len(contract.obligations) if contract.obligations else 0,
+        sla_count=len(contract.slas) if contract.slas else 0,
+        created_at=contract.created_at,
+        updated_at=contract.updated_at,
+    )

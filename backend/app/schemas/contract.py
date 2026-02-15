@@ -93,6 +93,7 @@ class ContractResponse(BaseModel):
     uploaded_by: str
     clause_count: int = 0
     obligation_count: int = 0
+    sla_count: int = 0
 
     # Timestamps
     created_at: datetime
@@ -121,6 +122,22 @@ class ContractFilter(BaseModel):
     expiration_before: date | None = None
     expiration_after: date | None = None
     search: str | None = None
+
+
+class ContractUpdate(BaseModel):
+    """Schema for updating contract metadata."""
+
+    counterparty: str | None = None
+    effective_date: date | None = None
+    expiration_date: date | None = None
+    contract_value: Decimal | None = None
+    currency: str | None = None
+    jurisdiction: str | None = None
+    auto_renewal: bool | None = None
+    notice_period_days: int | None = None
+    renewal_term_months: int | None = None
+    contract_type: ContractType | None = None
+    risk_level: RiskLevel | None = None
 
 
 # Update forward references

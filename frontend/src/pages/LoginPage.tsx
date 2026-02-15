@@ -127,9 +127,9 @@ export default function LoginPage() {
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-blue-800 font-medium mb-2">Demo Credentials:</p>
           <div className="text-xs text-blue-700 space-y-1">
-            <p><strong>Admin:</strong> admin / admin123</p>
-            <p><strong>Legal:</strong> legal / legal123</p>
-            <p><strong>Procurement:</strong> procurement / proc123</p>
+            <p><strong>Admin:</strong> admin / Admin123!</p>
+            <p><strong>Legal:</strong> legal / Legal123!</p>
+            <p><strong>Procurement:</strong> procurement / Procure123!</p>
           </div>
         </div>
       </div>

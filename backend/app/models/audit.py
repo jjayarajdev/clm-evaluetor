@@ -26,6 +26,7 @@ class AuditAction(str, enum.Enum):
     CONTRACT_UPLOAD = "contract_upload"
     CONTRACT_PROCESS = "contract_process"
     CONTRACT_VIEW = "contract_view"
+    CONTRACT_UPDATE = "contract_update"
     CONTRACT_DELETE = "contract_delete"
     CONTRACT_DOWNLOAD = "contract_download"
 

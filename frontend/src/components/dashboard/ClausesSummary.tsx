@@ -16,6 +16,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn } from '@/lib/utils'
 
 const CLAUSE_TYPE_COLORS: Record<string, { bg: string; bar: string; text: string }> = {
+  // Legal/Risk clauses
   confidentiality: { bg: 'bg-purple-50', bar: 'bg-purple-500', text: 'text-purple-700' },
   indemnification: { bg: 'bg-red-50', bar: 'bg-red-500', text: 'text-red-700' },
   limitation_of_liability: { bg: 'bg-orange-50', bar: 'bg-orange-500', text: 'text-orange-700' },
@@ -28,10 +29,25 @@ const CLAUSE_TYPE_COLORS: Record<string, { bg: string; bar: string; text: string
   intellectual_property: { bg: 'bg-pink-50', bar: 'bg-pink-500', text: 'text-pink-700' },
   data_protection: { bg: 'bg-teal-50', bar: 'bg-teal-500', text: 'text-teal-700' },
   non_compete: { bg: 'bg-rose-50', bar: 'bg-rose-500', text: 'text-rose-700' },
+  // IT Service/Outsourcing clauses
+  service_description: { bg: 'bg-sky-50', bar: 'bg-sky-500', text: 'text-sky-700' },
+  service_level: { bg: 'bg-emerald-50', bar: 'bg-emerald-500', text: 'text-emerald-700' },
+  deliverable: { bg: 'bg-lime-50', bar: 'bg-lime-500', text: 'text-lime-700' },
+  governance: { bg: 'bg-violet-50', bar: 'bg-violet-500', text: 'text-violet-700' },
+  transition: { bg: 'bg-fuchsia-50', bar: 'bg-fuchsia-500', text: 'text-fuchsia-700' },
+  change_management: { bg: 'bg-slate-50', bar: 'bg-slate-500', text: 'text-slate-700' },
+  support: { bg: 'bg-blue-50', bar: 'bg-blue-400', text: 'text-blue-600' },
+  security: { bg: 'bg-red-50', bar: 'bg-red-400', text: 'text-red-600' },
+  personnel: { bg: 'bg-amber-50', bar: 'bg-amber-400', text: 'text-amber-600' },
+  pricing: { bg: 'bg-green-50', bar: 'bg-green-400', text: 'text-green-600' },
+  risk_mitigation: { bg: 'bg-orange-50', bar: 'bg-orange-400', text: 'text-orange-600' },
+  scope: { bg: 'bg-indigo-50', bar: 'bg-indigo-400', text: 'text-indigo-600' },
+  acceptance: { bg: 'bg-teal-50', bar: 'bg-teal-400', text: 'text-teal-600' },
   other: { bg: 'bg-gray-50', bar: 'bg-gray-400', text: 'text-gray-600' },
 }
 
 const CLAUSE_TYPE_LABELS: Record<string, string> = {
+  // Legal/Risk clauses
   confidentiality: 'Confidentiality',
   indemnification: 'Indemnification',
   limitation_of_liability: 'Limitation of Liability',
@@ -49,6 +65,20 @@ const CLAUSE_TYPE_LABELS: Record<string, string> = {
   notice: 'Notice',
   sla: 'SLA',
   auto_renewal: 'Auto-Renewal',
+  // IT Service/Outsourcing clauses
+  service_description: 'Service Description',
+  service_level: 'Service Level',
+  deliverable: 'Deliverable',
+  governance: 'Governance',
+  transition: 'Transition',
+  change_management: 'Change Management',
+  support: 'Support',
+  security: 'Security',
+  personnel: 'Personnel',
+  pricing: 'Pricing',
+  risk_mitigation: 'Risk Mitigation',
+  scope: 'Scope',
+  acceptance: 'Acceptance',
   other: 'Other',
 }
 
@@ -60,14 +90,15 @@ const RISK_COLORS: Record<string, string> = {
 
 interface Props {
   contractId?: string | null
+  clientId?: string | null
 }
 
-export default function ClausesSummary({ contractId }: Props) {
+export default function ClausesSummary({ contractId, clientId }: Props) {
   const [selectedType, setSelectedType] = useState<string | null>(null)
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['clauses-summary', contractId],
-    queryFn: () => api.getClausesSummary(contractId || undefined),
+    queryKey: ['clauses-summary', contractId, clientId],
+    queryFn: () => api.getClausesSummary(contractId || undefined, clientId || undefined),
   })
 
   const { data: drillDownData, isLoading: drillDownLoading } = useQuery({

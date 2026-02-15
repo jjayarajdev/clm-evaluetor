@@ -11,6 +11,13 @@ import UploadPage from './pages/UploadPage'
 import QueryPage from './pages/QueryPage'
 import UsersPage from './pages/UsersPage'
 import SettingsPage from './pages/SettingsPage'
+import PostSigningPage from './pages/PostSigningPage'
+import SLAConfigPage from './pages/admin/SLAConfigPage'
+import MilestoneConfigPage from './pages/admin/MilestoneConfigPage'
+import SchedulerPage from './pages/admin/SchedulerPage'
+import RenewalsPage from './pages/RenewalsPage'
+import VendorsPage from './pages/VendorsPage'
+import ReportsPage from './pages/ReportsPage'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -50,10 +57,17 @@ function App() {
         <Route path="contracts/:id" element={<ContractViewPage />} />
         <Route path="obligations/:id" element={<ObligationDetailPage />} />
         <Route path="clauses/:id" element={<ClauseDetailPage />} />
+        <Route path="compliance" element={<PostSigningPage />} />
+        <Route path="renewals" element={<RenewalsPage />} />
+        <Route path="vendors" element={<VendorsPage />} />
+        <Route path="reports" element={<ReportsPage />} />
         <Route path="upload" element={<UploadPage />} />
         <Route path="query" element={<QueryPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="admin/sla-config" element={<SLAConfigPage />} />
+        <Route path="admin/milestone-config" element={<MilestoneConfigPage />} />
+        <Route path="admin/scheduler" element={<SchedulerPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

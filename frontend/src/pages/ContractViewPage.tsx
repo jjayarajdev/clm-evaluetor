@@ -4,9 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftIcon,
   DocumentTextIcon,
-  CalendarIcon,
-  CurrencyDollarIcon,
-  MapPinIcon,
   ShieldExclamationIcon,
   ArrowPathIcon,
   TrashIcon,
@@ -17,6 +14,7 @@ import ContractIntelligence from '@/components/dashboard/ContractIntelligence'
 import DefinitionsSummary from '@/components/dashboard/DefinitionsSummary'
 import FinancialsSummary from '@/components/dashboard/FinancialsSummary'
 import ProcessSummary from '@/components/dashboard/ProcessSummary'
+import SLASummary from '@/components/dashboard/SLASummary'
 import { cn, formatDate, formatCurrency, formatFileSize, getRiskColor, getStatusColor } from '@/lib/utils'
 
 export default function ContractViewPage() {
@@ -264,6 +262,10 @@ export default function ContractViewPage() {
                   <span className="text-gray-500">Obligations</span>
                   <span className="text-gray-900">{contract.obligation_count}</span>
                 </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">SLAs</span>
+                  <span className="text-gray-900">{contract.sla_count || 0}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -342,6 +344,14 @@ export default function ContractViewPage() {
         <div className="mt-8 pt-8 border-t border-gray-200">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Process & Workflow</h2>
           <ProcessSummary contractId={id} />
+        </div>
+      )}
+
+      {/* SLA Section */}
+      {contract.status === 'completed' && id && (
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Service Level Agreements</h2>
+          <SLASummary contractId={id} />
         </div>
       )}
     </div>

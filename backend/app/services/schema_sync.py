@@ -75,6 +75,22 @@ def parse_int(value: Any) -> int | None:
         return None
 
 
+def safe_lower(value: Any, default: str = "") -> str:
+    """Safely convert value to lowercase string."""
+    if value is None:
+        return default.lower()
+    return str(value).lower()
+
+
+def safe_currency(value: Any, default: str = "USD") -> str:
+    """Extract and validate currency code (3 chars max)."""
+    if value is None:
+        return default[:3]
+    currency = str(value).upper().strip()
+    # Extract first 3 chars (standard currency code)
+    return currency[:3] if currency else default[:3]
+
+
 class SchemaSyncService:
     """Syncs schema-extracted data to relational structure."""
 
@@ -138,7 +154,7 @@ class SchemaSyncService:
         # Counterparty from parties list
         parties = metadata.get("parties", [])
         for party in parties:
-            role = party.get("role", "").lower()
+            role = safe_lower(party.get("role"), "")
             if role in ("client", "customer", "licensee", "receiving_party"):
                 if not contract.counterparty:
                     contract.counterparty = party.get("legal_name")
@@ -192,7 +208,7 @@ class SchemaSyncService:
         fee_model = financials.get("fee_model", {})
         if fee_model:
             if not contract.currency:
-                contract.currency = fee_model.get("currency", "USD")
+                contract.currency = safe_currency(fee_model.get("currency"))
 
         logger.debug(f"Synced promoted columns for {contract.id}")
 
@@ -224,7 +240,7 @@ class SchemaSyncService:
         }
 
         for i, party_data in enumerate(parties_data):
-            role_str = party_data.get("role", "other").lower().replace(" ", "_")
+            role_str = safe_lower(party_data.get("role"), "other").replace(" ", "_")
             role = role_map.get(role_str, PartyRole.OTHER)
 
             legal_name = party_data.get("legal_name")
@@ -430,10 +446,10 @@ class SchemaSyncService:
 
         # Extract main fee
         if fee_model:
-            fee_type_str = fee_model.get("fee_type", "other").lower().replace(" ", "_")
+            fee_type_str = safe_lower(fee_model.get("fee_type"), "other").replace(" ", "_")
             fee_type = fee_type_map.get(fee_type_str, FeeType.OTHER)
 
-            payment_str = payment_terms_data.get("payment_terms", "").lower().replace(" ", "_")
+            payment_str = safe_lower(payment_terms_data.get("payment_terms"), "").replace(" ", "_")
             payment_terms = payment_terms_map.get(payment_str)
 
             financial = ContractFinancial(
@@ -441,7 +457,7 @@ class SchemaSyncService:
                 fee_type=fee_type,
                 fee_description=fee_model.get("description"),
                 fee_amount=parse_decimal(fee_model.get("base_amount")),
-                currency=fee_model.get("currency", "USD"),
+                currency=safe_currency(fee_model.get("currency")),
                 invoicing_frequency=fee_model.get("billing_frequency"),
                 payment_terms=payment_terms,
                 payment_terms_days=parse_int(payment_terms_data.get("payment_due_days")),
@@ -459,7 +475,7 @@ class SchemaSyncService:
                 fee_type=FeeType.PER_HOUR,
                 fee_description=rate.get("role") or rate.get("description"),
                 fee_amount=parse_decimal(rate.get("rate")),
-                currency=fee_model.get("currency", "USD") if fee_model else "USD",
+                currency=safe_currency(fee_model.get("currency") if fee_model else None),
                 invoicing_frequency=rate.get("frequency", "hourly"),
                 is_penalty=False,
             )
@@ -468,7 +484,7 @@ class SchemaSyncService:
 
         # Extract penalties
         for penalty in penalties_data:
-            penalty_type_str = penalty.get("type", "other").lower().replace(" ", "_")
+            penalty_type_str = safe_lower(penalty.get("type"), "other").replace(" ", "_")
             penalty_type = penalty_type_map.get(penalty_type_str, PenaltyType.OTHER)
 
             financial = ContractFinancial(
@@ -477,7 +493,7 @@ class SchemaSyncService:
                 fee_description=penalty.get("description"),
                 penalty_amount=parse_decimal(penalty.get("amount")),
                 penalty_percentage=parse_decimal(penalty.get("percentage")),
-                currency=penalty.get("currency", "USD"),
+                currency=safe_currency(penalty.get("currency")),
                 is_penalty=True,
                 penalty_type=penalty_type,
                 penalty_trigger=penalty.get("trigger"),
@@ -516,7 +532,7 @@ class SchemaSyncService:
 
         # Liability cap
         if liability_cap:
-            cap_type_str = liability_cap.get("cap_type", "custom").lower().replace(" ", "_")
+            cap_type_str = safe_lower(liability_cap.get("cap_type"), "custom").replace(" ", "_")
             cap_type = cap_type_map.get(cap_type_str, LiabilityCapType.CUSTOM)
 
             # Check for exclusions
@@ -526,7 +542,7 @@ class SchemaSyncService:
                 contract_id=contract.id,
                 liability_cap_type=cap_type,
                 liability_cap_amount=parse_decimal(liability_cap.get("cap_amount")),
-                liability_cap_currency=liability_cap.get("currency", "USD"),
+                liability_cap_currency=safe_currency(liability_cap.get("currency")),
                 liability_cap_multiplier=parse_decimal(liability_cap.get("multiplier")),
                 liability_cap_description=liability_cap.get("description"),
                 mutual_indemnification=liability_cap.get("is_mutual", False),
@@ -704,7 +720,7 @@ class SchemaSyncService:
         termination_rights = term_data.get("termination_rights", [])
         for right in termination_rights:
             if isinstance(right, dict):
-                reason = right.get("reason", "").lower()
+                reason = safe_lower(right.get("reason"), "")
                 if "cause" in reason or "breach" in reason or "default" in reason:
                     return True
             elif isinstance(right, str):
@@ -716,21 +732,37 @@ class SchemaSyncService:
     def _check_for_arbitration(self, term_data: dict) -> bool:
         """Check if dispute resolution involves arbitration."""
         dispute = term_data.get("dispute_resolution", {})
-        method = dispute.get("method", "").lower()
+        method = safe_lower(dispute.get("method"), "")
         return "arbitration" in method
 
     def _check_for_late_payment_penalty(self, data: dict) -> bool:
         """Check if there's a late payment penalty."""
         penalties = data.get("financials", {}).get("penalties", [])
         for penalty in penalties:
-            if "late" in penalty.get("type", "").lower():
+            if "late" in safe_lower(penalty.get("type"), ""):
                 return True
-            if "late" in penalty.get("description", "").lower():
+            if "late" in safe_lower(penalty.get("description"), ""):
                 return True
         return False
 
     async def _sync_obligations(self, contract: Contract, data: dict) -> None:
-        """Sync enhanced obligation fields from schema data."""
+        """Sync enhanced obligation fields from schema data.
+
+        Note: If obligations already exist (from AI extraction), we skip recreation
+        to avoid deleting obligations that were extracted by the obligation_tracking agent.
+        """
+        from sqlalchemy import select, func
+
+        # Check if obligations already exist for this contract
+        existing_count = await self.db.scalar(
+            select(func.count()).select_from(Obligation).where(
+                Obligation.contract_id == contract.id
+            )
+        )
+
+        if existing_count and existing_count > 0:
+            logger.debug(f"Skipping obligation sync - {existing_count} obligations already exist for {contract.id}")
+            return
 
         # Get existing obligations for this contract
         obligations_data = data.get("obligations", {})
@@ -805,15 +837,15 @@ class SchemaSyncService:
                     continue
 
                 # Map category
-                category_str = obl.get("category", "other").lower().replace(" ", "_")
+                category_str = safe_lower(obl.get("category"), "other").replace(" ", "_")
                 category = category_map.get(category_str, ObligationCategory.OTHER)
 
                 # Map frequency
-                frequency_str = obl.get("frequency", "").lower().replace(" ", "_")
+                frequency_str = safe_lower(obl.get("frequency"), "").replace(" ", "_")
                 frequency = frequency_map.get(frequency_str, ObligationFrequency.ONE_TIME)
 
                 # Determine obligation type
-                obl_type_str = obl.get("type", "other").lower()
+                obl_type_str = safe_lower(obl.get("type"), "other")
                 type_map = {
                     "payment": ObligationType.PAYMENT,
                     "delivery": ObligationType.DELIVERY,
@@ -825,7 +857,7 @@ class SchemaSyncService:
                 obl_type = type_map.get(obl_type_str, ObligationType.OTHER)
 
                 # Determine deadline type
-                deadline_type_str = obl.get("deadline_type", "").lower()
+                deadline_type_str = safe_lower(obl.get("deadline_type"), "")
                 deadline_type_map = {
                     "fixed_date": DeadlineType.FIXED_DATE,
                     "recurring": DeadlineType.RECURRING,
@@ -835,7 +867,7 @@ class SchemaSyncService:
                 deadline_type = deadline_type_map.get(deadline_type_str, DeadlineType.RELATIVE)
 
                 # Determine owner and map to legacy obligated_party field
-                owner_str = obl.get("owner", "").lower()
+                owner_str = safe_lower(obl.get("owner"), "")
                 owner_enum = owner_map.get(owner_str, default_owner)
 
                 # Map owner_type enum to legacy obligated_party string for dashboard compatibility

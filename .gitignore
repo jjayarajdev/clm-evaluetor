@@ -107,6 +107,15 @@ data/processed/*
 !data/uploads/.gitkeep
 !data/processed/.gitkeep
 
+# Backend storage and data
+backend/storage/uploads/
+backend/data/chroma/
+backend/chroma_data/
+*.sqlite3
+
+# Sample contracts (large files)
+backend/data/sample_contracts/ing_anonymized/
+
 # =============================================================================
 # Logs & Temp Files
 # =============================================================================
