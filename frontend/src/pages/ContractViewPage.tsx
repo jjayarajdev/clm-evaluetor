@@ -11,9 +11,6 @@ import {
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ContractIntelligence from '@/components/dashboard/ContractIntelligence'
-import DefinitionsSummary from '@/components/dashboard/DefinitionsSummary'
-import FinancialsSummary from '@/components/dashboard/FinancialsSummary'
-import ProcessSummary from '@/components/dashboard/ProcessSummary'
 import SLASummary from '@/components/dashboard/SLASummary'
 import { cn, formatDate, formatCurrency, formatFileSize, getRiskColor, getStatusColor } from '@/lib/utils'
 
@@ -320,30 +317,6 @@ export default function ContractViewPage() {
         <div className="mt-8 pt-8 border-t border-gray-200">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Contract Intelligence</h2>
           <ContractIntelligence contractId={id} />
-        </div>
-      )}
-
-      {/* Definitions Section */}
-      {contract.status === 'completed' && id && (
-        <div className="mt-8 pt-8 border-t border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Contract Definitions</h2>
-          <DefinitionsSummary contractId={id} />
-        </div>
-      )}
-
-      {/* Financials Section */}
-      {contract.status === 'completed' && id && (
-        <div className="mt-8 pt-8 border-t border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Financial Terms</h2>
-          <FinancialsSummary contractId={id} />
-        </div>
-      )}
-
-      {/* Process Steps Section */}
-      {contract.status === 'completed' && id && (
-        <div className="mt-8 pt-8 border-t border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Process & Workflow</h2>
-          <ProcessSummary contractId={id} />
         </div>
       )}
 
