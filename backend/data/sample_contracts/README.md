@@ -51,17 +51,62 @@ All contracts are from public domain sources:
 - **SDLC Forms** - SOW/SLA project template
 - **Pace University** - Procurement vendor agreement
 
-## Usage
+## Quick Start
 
-Upload these contracts via the API to populate test data:
-
+### Option 1: Demo Setup Script (Recommended)
 ```bash
-# Upload all sample contracts
-for f in /path/to/sample_contracts/*.pdf; do
+cd backend
+./scripts/setup_demo.sh
+```
+
+### Option 2: Manual Setup
+```bash
+# 1. Seed demo data (users, clients, sample contracts)
+cd backend
+uv run python -m scripts.seed_demo
+
+# 2. Start backend
+uv run uvicorn app.main:app --reload
+
+# 3. Upload real contracts for AI extraction
+uv run python -m scripts.upload_sample_contracts
+```
+
+### Option 3: Manual Upload via API
+```bash
+# Get auth token
+TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "password": "admin123"}' | jq -r '.access_token')
+
+# Upload contracts
+for f in data/sample_contracts/*.pdf; do
   curl -X POST "http://localhost:8000/api/contracts/upload" \
     -H "Authorization: Bearer $TOKEN" \
     -F "file=@$f"
 done
 ```
 
-Or use the batch upload endpoint with a ZIP file.
+## Test Contracts (`/test_contracts/`)
+
+Synthetic contracts designed for testing contract families:
+
+| File | Type | Relationship |
+|------|------|--------------|
+| MSA_TechServices_Acme.pdf | MSA | Parent |
+| NDA_TechServices_Acme.pdf | NDA | Related |
+| SLA_ITServices_Acme.pdf | SLA | Child of MSA |
+| SOW_InfraManagement_Acme.pdf | SOW | Child of MSA |
+| Amendment_001_MSA_TechServices.pdf | Amendment | Amendment to MSA |
+
+## Demo Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@example.com | admin123 |
+| Legal | sarah@example.com | legal123 |
+| Procurement | mike@example.com | proc123 |
+
+## View Results
+
+After upload, view at http://localhost:3000/contracts
