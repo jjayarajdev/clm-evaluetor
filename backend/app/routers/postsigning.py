@@ -118,7 +118,7 @@ async def get_postsigning_dashboard(
                            if s.consecutive_breaches > 0
                            and s.severity and s.severity.value == "critical")
 
-    compliance_rates = [float(s.current_compliance_rate) for s in slas if s.current_compliance_rate]
+    compliance_rates = [float(s.current_compliance_rate) for s in slas if s.current_compliance_rate is not None]
     sla_compliance = sum(compliance_rates) / len(compliance_rates) if compliance_rates else 100.0
 
     # Get MTD penalties
@@ -244,7 +244,7 @@ async def get_postsigning_dashboard(
 
         # Get SLAs for this vendor
         cp_slas = [s for s in slas if s.contract_id in cp_contract_ids]
-        cp_sla_rates = [float(s.current_compliance_rate) for s in cp_slas if s.current_compliance_rate]
+        cp_sla_rates = [float(s.current_compliance_rate) for s in cp_slas if s.current_compliance_rate is not None]
         sla_rate = sum(cp_sla_rates) / len(cp_sla_rates) if cp_sla_rates else 100
 
         # Simple score calculation

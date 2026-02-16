@@ -242,7 +242,7 @@ async def get_at_risk_contracts(
         sla_compliance = None
         active_breaches = 0
         if slas:
-            compliance_rates = [float(s.current_compliance_rate) for s in slas if s.current_compliance_rate]
+            compliance_rates = [float(s.current_compliance_rate) for s in slas if s.current_compliance_rate is not None]
             sla_compliance = sum(compliance_rates) / len(compliance_rates) if compliance_rates else None
             active_breaches = sum(s.consecutive_breaches for s in slas)
 
@@ -391,7 +391,7 @@ async def get_portfolio_compliance(
     total_slas = len(slas)
     slas_breached = sum(1 for s in slas if s.consecutive_breaches > 0)
 
-    compliance_rates = [float(s.current_compliance_rate) for s in slas if s.current_compliance_rate]
+    compliance_rates = [float(s.current_compliance_rate) for s in slas if s.current_compliance_rate is not None]
     sla_compliance = sum(compliance_rates) / len(compliance_rates) if compliance_rates else 100.0
 
     # Overall compliance (weighted)
