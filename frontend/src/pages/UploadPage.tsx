@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import PageHeader from '@/components/ui/PageHeader'
 import { cn, formatFileSize } from '@/lib/utils'
 
 interface FileUpload {
@@ -319,12 +320,12 @@ export default function UploadPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Upload Contracts</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Upload contract documents for AI-powered analysis
-        </p>
-      </div>
+      <PageHeader
+        title="Upload Contracts"
+        description="Upload contract documents for AI-powered analysis"
+        icon={CloudArrowUpIcon}
+        variant="bordered"
+      />
 
       {/* Processing indicator */}
       {processingCount > 0 && (
@@ -346,7 +347,7 @@ export default function UploadPage() {
       )}
 
       {/* Client Selector */}
-      <div className="card p-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Select Client (Optional)
         </label>
@@ -511,9 +512,9 @@ export default function UploadPage() {
 
       {/* File list */}
       {files.length > 0 && (
-        <div className="card">
-          <div className="card-header flex items-center justify-between">
-            <h2 className="text-sm font-medium text-gray-900">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900">
               Files ({files.length})
             </h2>
             {pendingCount > 0 && (

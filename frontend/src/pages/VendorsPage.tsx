@@ -6,9 +6,12 @@ import {
   ChartBarIcon,
   ArrowUpIcon,
   ArrowDownIcon,
+  BuildingOffice2Icon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import PageHeader from '@/components/ui/PageHeader'
+import StatCard from '@/components/ui/StatCard'
 import { cn } from '@/lib/utils'
 import type { VendorListItem } from '@/types/postsigning'
 
@@ -294,69 +297,45 @@ export default function VendorsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Vendor Performance</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Track and compare vendor performance across your contracts
-        </p>
-      </div>
+      <PageHeader
+        title="Vendor Performance"
+        description="Track and compare vendor performance across your contracts"
+        icon={BuildingOffice2Icon}
+        variant="bordered"
+      />
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <BuildingOfficeIcon className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{data.total_vendors}</p>
-              <p className="text-sm text-gray-500">Total Vendors</p>
-            </div>
-          </div>
-        </div>
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{data.at_risk_count}</p>
-              <p className="text-sm text-gray-500">At Risk</p>
-            </div>
-          </div>
-        </div>
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <ChartBarIcon className="h-5 w-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                ${(data.total_exposure / 1000000).toFixed(1)}M
-              </p>
-              <p className="text-sm text-gray-500">Total Exposure</p>
-            </div>
-          </div>
-        </div>
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <ChartBarIcon className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {data.vendors.length > 0
-                  ? (data.vendors.reduce((sum, v) => sum + v.performance_score, 0) / data.vendors.length).toFixed(1)
-                  : '-'}
-              </p>
-              <p className="text-sm text-gray-500">Avg Score</p>
-            </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Vendors"
+          value={data.total_vendors}
+          icon={BuildingOfficeIcon}
+          color="primary"
+        />
+        <StatCard
+          title="At Risk"
+          value={data.at_risk_count}
+          icon={ExclamationTriangleIcon}
+          color="danger"
+        />
+        <StatCard
+          title="Total Exposure"
+          value={`$${(data.total_exposure / 1000000).toFixed(1)}M`}
+          icon={ChartBarIcon}
+          color="warning"
+        />
+        <StatCard
+          title="Avg Score"
+          value={data.vendors.length > 0
+            ? (data.vendors.reduce((sum, v) => sum + v.performance_score, 0) / data.vendors.length).toFixed(1)
+            : '-'}
+          icon={ChartBarIcon}
+          color="success"
+        />
       </div>
 
       {/* Vendors Table */}
-      <div className="card overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>

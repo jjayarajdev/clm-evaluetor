@@ -9,9 +9,13 @@ import {
   BuildingOfficeIcon,
   TrashIcon,
   ExclamationTriangleIcon,
+  DocumentTextIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import PageHeader from '@/components/ui/PageHeader'
+import StatCard from '@/components/ui/StatCard'
 import { cn, formatDate, getRiskColor, getStatusColor } from '@/lib/utils'
 
 export default function ContractsPage() {
@@ -207,28 +211,69 @@ export default function ContractsPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Contracts</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Browse and manage your contract documents
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {selectedContracts.size > 0 && (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="btn-secondary text-red-600 border-red-300 hover:bg-red-50 flex items-center gap-2"
+      <PageHeader
+        title="Contracts"
+        description="Browse and manage your contract documents"
+        icon={DocumentTextIcon}
+        variant="bordered"
+        actions={
+          <div className="flex items-center gap-3">
+            {selectedContracts.size > 0 && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                <TrashIcon className="h-4 w-4" />
+                Delete ({selectedContracts.size})
+              </button>
+            )}
+            <Link
+              to="/upload"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
             >
-              <TrashIcon className="h-4 w-4" />
-              Delete ({selectedContracts.size})
-            </button>
-          )}
-          <Link to="/upload" className="btn-primary">
-            Upload Contract
-          </Link>
+              <PlusIcon className="h-4 w-4" />
+              Upload Contract
+            </Link>
+          </div>
+        }
+      />
+
+      {/* Quick Stats - Personio-style filled widgets */}
+      {data && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Contracts"
+            value={data.total}
+            icon={DocumentTextIcon}
+            color="primary"
+            variant="filled"
+            chart={[5, 8, 6, 9, 7, 11, 10, 12]}
+          />
+          <StatCard
+            title="High Risk"
+            value={data.contracts.filter(c => c.risk_level === 'high' || c.risk_level === 'critical').length}
+            icon={ExclamationTriangleIcon}
+            color="danger"
+            variant="filled"
+            chart={[6, 5, 4, 5, 3, 2, 3, 2]}
+          />
+          <StatCard
+            title="Processing"
+            value={data.contracts.filter(c => c.status === 'processing').length}
+            icon={DocumentTextIcon}
+            color="warning"
+            variant="filled"
+          />
+          <StatCard
+            title="Completed"
+            value={data.contracts.filter(c => c.status === 'completed').length}
+            icon={DocumentTextIcon}
+            color="success"
+            variant="filled"
+            chart={[8, 10, 12, 15, 14, 18, 20, 22]}
+          />
         </div>
-      </div>
+      )}
 
       {/* Search and filters */}
       <div className="space-y-4">
@@ -607,9 +652,9 @@ export default function ContractsPage() {
           <LoadingSpinner size="lg" />
         </div>
       ) : (
-        <div className="card overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50/80">
               <tr>
                 <th className="px-4 py-3 w-10">
                   <input

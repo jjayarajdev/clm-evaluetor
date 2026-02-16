@@ -5,18 +5,17 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ClockIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
   ChartBarIcon,
   CalendarIcon,
   BuildingOfficeIcon,
   FlagIcon,
   DocumentChartBarIcon,
   XMarkIcon,
-  ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import PageHeader from '@/components/ui/PageHeader'
+import StatCard from '@/components/ui/StatCard'
 import { cn } from '@/lib/utils'
 
 interface SLABreachDetail {
@@ -32,61 +31,6 @@ interface SLABreachDetail {
   measured_at: string
   penalty_amount: number | null
   consecutive_breaches: number
-}
-
-function StatCard({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  trend,
-  trendValue,
-  color = 'blue',
-}: {
-  title: string
-  value: string | number
-  subtitle?: string
-  icon: React.ElementType
-  trend?: 'up' | 'down' | 'neutral'
-  trendValue?: string
-  color?: 'blue' | 'green' | 'red' | 'amber' | 'purple'
-}) {
-  const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    red: 'bg-red-50 text-red-600',
-    amber: 'bg-amber-50 text-amber-600',
-    purple: 'bg-purple-50 text-purple-600',
-  }
-
-  return (
-    <div className="card p-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="mt-1 text-2xl font-semibold text-gray-900">{value}</p>
-          {subtitle && <p className="mt-1 text-xs text-gray-500">{subtitle}</p>}
-        </div>
-        <div className={cn('p-2 rounded-lg', colorClasses[color])}>
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-      {trend && trendValue && (
-        <div className="mt-2 flex items-center text-sm">
-          {trend === 'up' ? (
-            <ArrowTrendingUpIcon className="h-4 w-4 text-green-500 mr-1" />
-          ) : trend === 'down' ? (
-            <ArrowTrendingDownIcon className="h-4 w-4 text-red-500 mr-1" />
-          ) : null}
-          <span className={cn(
-            trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-500'
-          )}>
-            {trendValue}
-          </span>
-        </div>
-      )}
-    </div>
-  )
 }
 
 function RAGBadge({ status }: { status: string | null }) {
@@ -316,57 +260,64 @@ export default function PostSigningPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Contract Management</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Monitor compliance, SLAs, renewals, and vendor performance
-          </p>
-        </div>
-        <Link
-          to="/reports"
-          className="btn btn-secondary flex items-center gap-2"
-        >
-          <DocumentChartBarIcon className="h-4 w-4" />
-          Generate Report
-        </Link>
-      </div>
+      <PageHeader
+        title="Contract Management"
+        description="Monitor compliance, SLAs, renewals, and vendor performance"
+        icon={DocumentChartBarIcon}
+        variant="bordered"
+        actions={
+          <Link
+            to="/reports"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            <DocumentChartBarIcon className="h-4 w-4" />
+            Generate Report
+          </Link>
+        }
+      />
 
-      {/* Summary Stats */}
+      {/* Summary Stats - Personio-style filled widgets */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Overall Compliance"
           value={`${dashboard.compliance.overall_compliance_rate.toFixed(1)}%`}
           subtitle={dashboard.compliance.trend ? `Trend: ${dashboard.compliance.trend}` : undefined}
           icon={CheckCircleIcon}
-          color={dashboard.compliance.overall_compliance_rate >= 90 ? 'green' : dashboard.compliance.overall_compliance_rate >= 70 ? 'amber' : 'red'}
+          color={dashboard.compliance.overall_compliance_rate >= 90 ? 'success' : dashboard.compliance.overall_compliance_rate >= 70 ? 'warning' : 'danger'}
+          variant="filled"
+          chart={[82, 85, 87, 88, 90, 91, 93, 92, 94]}
         />
         <StatCard
           title="Contracts At Risk"
           value={dashboard.contracts_needing_attention}
           subtitle={`${dashboard.compliance.high_priority_actions} priority actions`}
           icon={ExclamationTriangleIcon}
-          color={dashboard.contracts_needing_attention > 0 ? 'red' : 'green'}
+          color={dashboard.contracts_needing_attention > 0 ? 'danger' : 'success'}
+          variant="filled"
+          chart={[5, 4, 6, 5, 3, 4, 2, 3, 2]}
         />
         <StatCard
           title="Active Contracts"
           value={dashboard.total_contracts}
           subtitle={`$${(dashboard.total_value / 1000000).toFixed(1)}M total value`}
           icon={ChartBarIcon}
-          color="blue"
+          color="primary"
+          variant="filled"
+          chart={[45, 48, 52, 55, 58, 62, 65, 68, 72]}
         />
         <StatCard
           title="Renewals (90 days)"
           value={dashboard.renewals.expiring_90_days}
           subtitle={`${dashboard.renewals.past_notice_deadline} past notice deadline`}
           icon={CalendarIcon}
-          color={dashboard.renewals.past_notice_deadline > 0 ? 'amber' : 'blue'}
+          color={dashboard.renewals.past_notice_deadline > 0 ? 'warning' : 'default'}
+          variant="filled"
         />
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="flex space-x-8">
+      <div className="border-b border-gray-200 bg-white rounded-t-xl px-4">
+        <nav className="flex space-x-6">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -604,14 +555,15 @@ export default function PostSigningPage() {
       {activeTab === 'renewals' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard title="30 Days" value={dashboard.renewals.expiring_30_days} icon={ClockIcon} color="red" />
-            <StatCard title="60 Days" value={dashboard.renewals.expiring_60_days} icon={ClockIcon} color="amber" />
-            <StatCard title="90 Days" value={dashboard.renewals.expiring_90_days} icon={ClockIcon} color="blue" />
+            <StatCard title="30 Days" value={dashboard.renewals.expiring_30_days} icon={ClockIcon} color="danger" variant="filled" />
+            <StatCard title="60 Days" value={dashboard.renewals.expiring_60_days} icon={ClockIcon} color="warning" variant="filled" />
+            <StatCard title="90 Days" value={dashboard.renewals.expiring_90_days} icon={ClockIcon} color="blue" variant="filled" />
             <StatCard
               title="Value at Risk"
               value={`$${(dashboard.renewals.total_value_at_risk / 1000000).toFixed(1)}M`}
               icon={ExclamationTriangleIcon}
-              color="purple"
+              color="primary"
+              variant="filled"
             />
           </div>
 
@@ -664,13 +616,15 @@ export default function PostSigningPage() {
       {activeTab === 'vendors' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard title="Total Vendors" value={dashboard.vendors.total_vendors} icon={BuildingOfficeIcon} color="blue" />
-            <StatCard title="At Risk" value={dashboard.vendors.at_risk_vendors} icon={ExclamationTriangleIcon} color="red" />
+            <StatCard title="Total Vendors" value={dashboard.vendors.total_vendors} icon={BuildingOfficeIcon} color="primary" variant="filled" chart={[12, 14, 15, 16, 18, 20, 22]} />
+            <StatCard title="At Risk" value={dashboard.vendors.at_risk_vendors} icon={ExclamationTriangleIcon} color="danger" variant="filled" chart={[5, 4, 3, 4, 2, 2, 1]} />
             <StatCard
               title="Avg Score"
               value={dashboard.vendors.avg_performance_score.toFixed(1)}
               icon={ChartBarIcon}
-              color={dashboard.vendors.avg_performance_score >= 70 ? 'green' : 'amber'}
+              color={dashboard.vendors.avg_performance_score >= 70 ? 'success' : 'warning'}
+              variant="filled"
+              chart={[65, 68, 70, 72, 75, 78, 80]}
             />
           </div>
 

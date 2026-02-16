@@ -5,9 +5,11 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   CalendarIcon,
+  ChartBarSquareIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import PageHeader from '@/components/ui/PageHeader'
 import { cn } from '@/lib/utils'
 
 function TrendChart({ data }: { data: { period_label: string; overall_compliance_rate: number }[] }) {
@@ -87,25 +89,25 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Compliance Reports</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Generate and export compliance reports with trend analysis
-          </p>
-        </div>
-        <button
-          onClick={handleExport}
-          disabled={isExporting || !report}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <DocumentArrowDownIcon className="h-4 w-4" />
-          {isExporting ? 'Exporting...' : 'Export CSV'}
-        </button>
-      </div>
+      <PageHeader
+        title="Compliance Reports"
+        description="Generate and export compliance reports with trend analysis"
+        icon={ChartBarSquareIcon}
+        variant="bordered"
+        actions={
+          <button
+            onClick={handleExport}
+            disabled={isExporting || !report}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <DocumentArrowDownIcon className="h-4 w-4" />
+            {isExporting ? 'Exporting...' : 'Export CSV'}
+          </button>
+        }
+      />
 
       {/* Date Range Selector */}
-      <div className="card p-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <CalendarIcon className="h-5 w-5 text-gray-400" />
@@ -128,9 +130,9 @@ export default function ReportsPage() {
       </div>
 
       {/* Trend Analysis */}
-      <div className="card">
-        <div className="card-header flex items-center justify-between">
-          <h3 className="font-medium text-gray-900">Compliance Trend</h3>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900">Compliance Trend</h3>
           <div className="flex gap-2">
             <button
               onClick={() => setTrendPeriod('weekly')}
@@ -212,15 +214,15 @@ export default function ReportsPage() {
 
       {/* Report Summary */}
       {reportLoading ? (
-        <div className="card p-8 flex items-center justify-center">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 flex items-center justify-center">
           <LoadingSpinner size="lg" />
         </div>
       ) : report ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Summary Stats */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="font-medium text-gray-900">Report Summary</h3>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-900">Report Summary</h3>
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -289,9 +291,9 @@ export default function ReportsPage() {
           </div>
 
           {/* By Contract */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="font-medium text-gray-900">By Contract</h3>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-900">By Contract</h3>
             </div>
             <div className="overflow-auto max-h-80">
               <table className="min-w-full divide-y divide-gray-200">

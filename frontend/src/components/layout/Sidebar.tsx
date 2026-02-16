@@ -54,19 +54,19 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   )
 
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-white border-r border-gray-200">
-      {/* Logo */}
-      <div className="flex h-16 shrink-0 items-center px-6 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary-600 flex items-center justify-center">
+    <div className="flex h-full flex-col bg-white border-r border-gray-100">
+      {/* Logo - Personio style */}
+      <div className="flex h-16 shrink-0 items-center px-5 border-b border-gray-100">
+        <div className="flex items-center gap-2.5">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-sm">
             <DocumentTextIcon className="h-5 w-5 text-white" />
           </div>
-          <span className="text-lg font-semibold text-gray-900">ContractIQ</span>
+          <span className="text-lg font-semibold tracking-tight text-gray-900">ContractIQ</span>
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
+      {/* Navigation - Personio minimal style */}
+      <nav className="flex-1 space-y-0.5 px-3 py-4 overflow-y-auto">
         {filteredNavigation.map((item) => (
           <NavLink
             key={item.name}
@@ -74,23 +74,30 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             onClick={onClose}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
                 isActive
-                  ? 'bg-primary-50 text-primary-700'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-violet-50 text-violet-700 border-l-2 border-violet-500 -ml-0.5 pl-3.5'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               )
             }
           >
-            <item.icon className="h-5 w-5 shrink-0" />
-            {item.name}
+            {({ isActive }) => (
+              <>
+                <item.icon className={cn(
+                  'h-5 w-5 shrink-0 transition-colors',
+                  isActive ? 'text-violet-600' : 'text-gray-400 group-hover:text-gray-600'
+                )} />
+                {item.name}
+              </>
+            )}
           </NavLink>
         ))}
 
-        {/* Admin Section */}
+        {/* Admin Section - Personio style divider */}
         {filteredAdminNavigation.length > 0 && (
           <>
-            <div className="mt-6 mb-2 px-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <div className="mt-6 mb-3 px-3">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
                 Administration
               </p>
             </div>
@@ -101,27 +108,34 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 onClick={onClose}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
                     isActive
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-violet-50 text-violet-700 border-l-2 border-violet-500 -ml-0.5 pl-3.5'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   )
                 }
               >
-                <item.icon className="h-5 w-5 shrink-0" />
-                {item.name}
+                {({ isActive }) => (
+                  <>
+                    <item.icon className={cn(
+                      'h-5 w-5 shrink-0 transition-colors',
+                      isActive ? 'text-violet-600' : 'text-gray-400 group-hover:text-gray-600'
+                    )} />
+                    {item.name}
+                  </>
+                )}
               </NavLink>
             ))}
           </>
         )}
       </nav>
 
-      {/* User info */}
+      {/* User info - Personio style */}
       {user && (
-        <div className="border-t border-gray-200 p-4">
+        <div className="border-t border-gray-100 p-4">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-primary-100 flex items-center justify-center">
-              <span className="text-sm font-medium text-primary-700">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-violet-100 to-violet-200 flex items-center justify-center ring-2 ring-white shadow-sm">
+              <span className="text-sm font-semibold text-violet-700">
                 {user.username.charAt(0).toUpperCase()}
               </span>
             </div>

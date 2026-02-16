@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import MainLayout from './components/layout/MainLayout'
 import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
+import ModernDashboardPage from './pages/ModernDashboardPage'
 import ContractsPage from './pages/ContractsPage'
 import ContractViewPage from './pages/ContractViewPage'
 import ObligationDetailPage from './pages/ObligationDetailPage'
@@ -52,7 +52,7 @@ function App() {
         }
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="dashboard" element={<ModernDashboardPage />} />
         <Route path="contracts" element={<ContractsPage />} />
         <Route path="contracts/:id" element={<ContractViewPage />} />
         <Route path="obligations/:id" element={<ObligationDetailPage />} />
