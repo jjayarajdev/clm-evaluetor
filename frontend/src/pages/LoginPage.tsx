@@ -55,7 +55,7 @@ export default function LoginPage() {
             <DocumentTextIcon className="h-10 w-10 text-white" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Contract Intelligence
+            Evaluetor
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Sign in to access your contracts

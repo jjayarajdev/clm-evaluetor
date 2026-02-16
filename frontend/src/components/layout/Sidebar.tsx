@@ -61,7 +61,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-sm">
             <DocumentTextIcon className="h-5 w-5 text-white" />
           </div>
-          <span className="text-lg font-semibold tracking-tight text-gray-900">ContractIQ</span>
+          <span className="text-lg font-semibold tracking-tight text-gray-900">Evaluetor</span>
         </div>
       </div>
 
