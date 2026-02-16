@@ -167,6 +167,12 @@ export default function ModernDashboardPage() {
     queryFn: () => api.getPostSigningDashboard(),
   })
 
+  // Fetch trend data for sparklines
+  const { data: trendData } = useQuery({
+    queryKey: ['dashboard-trends'],
+    queryFn: () => api.getDashboardTrends(9), // 9 days for sparklines
+  })
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -195,17 +201,23 @@ export default function ModernDashboardPage() {
           icon={DocumentTextIcon}
           color="primary"
           variant="filled"
-          trend={{ value: 12, label: 'vs last month' }}
-          chart={[4, 7, 5, 8, 6, 9, 11, 8, 12]}
+          trend={trendData?.total_contracts && trendData.total_contracts.length >= 2 ? {
+            value: Math.round(((trendData.total_contracts[trendData.total_contracts.length - 1] - trendData.total_contracts[0]) / Math.max(trendData.total_contracts[0], 1)) * 100),
+            label: 'vs last week'
+          } : undefined}
+          chart={trendData?.total_contracts || undefined}
         />
         <StatCard
           title="At Risk"
-          value={summaryData?.by_risk?.high || 0}
+          value={complianceData?.compliance?.contracts_at_risk || summaryData?.by_risk?.high || 0}
           icon={ExclamationTriangleIcon}
           color="danger"
           variant="filled"
-          trend={{ value: -5, label: 'vs last month' }}
-          chart={[8, 6, 7, 5, 4, 3, 2, 3, 2]}
+          trend={trendData?.contracts_at_risk && trendData.contracts_at_risk.length >= 2 ? {
+            value: Math.round(((trendData.contracts_at_risk[trendData.contracts_at_risk.length - 1] - trendData.contracts_at_risk[0]) / Math.max(trendData.contracts_at_risk[0], 1)) * 100),
+            label: 'vs last week'
+          } : undefined}
+          chart={trendData?.contracts_at_risk || undefined}
         />
         <StatCard
           title="Compliance"
@@ -213,7 +225,11 @@ export default function ModernDashboardPage() {
           icon={CheckCircleIcon}
           color="success"
           variant="filled"
-          chart={[85, 87, 88, 90, 89, 92, 91, 93, 94]}
+          trend={trendData?.compliance_rate && trendData.compliance_rate.length >= 2 ? {
+            value: Math.round(trendData.compliance_rate[trendData.compliance_rate.length - 1] - trendData.compliance_rate[0]),
+            label: 'vs last week'
+          } : undefined}
+          chart={trendData?.compliance_rate || undefined}
         />
         <StatCard
           title="Contract Value"
@@ -221,7 +237,11 @@ export default function ModernDashboardPage() {
           icon={CurrencyDollarIcon}
           color="blue"
           variant="filled"
-          chart={[3, 5, 4, 7, 6, 8, 9, 7, 10]}
+          trend={trendData?.total_contract_value && trendData.total_contract_value.length >= 2 ? {
+            value: Math.round(((trendData.total_contract_value[trendData.total_contract_value.length - 1] - trendData.total_contract_value[0]) / Math.max(trendData.total_contract_value[0], 1)) * 100),
+            label: 'vs last week'
+          } : undefined}
+          chart={trendData?.total_contract_value || undefined}
         />
       </div>
 

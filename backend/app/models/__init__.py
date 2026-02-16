@@ -126,6 +126,7 @@ from app.models.external_access import (
     ExternalAccessToken,
     TokenType,
 )
+from app.models.metric_snapshot import MetricSnapshot
 
 __all__ = [
     # Base
@@ -279,4 +280,6 @@ __all__ = [
     # External Access (Evaluetor)
     "ExternalAccessToken",
     "TokenType",
+    # Metric Snapshots
+    "MetricSnapshot",
 ]

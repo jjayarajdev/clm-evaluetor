@@ -472,3 +472,13 @@ export interface ObligationFullDetail {
   clause_section_number: string | null
   clause_risk_level: string | null
 }
+
+// Dashboard Trends for sparklines
+export interface DashboardTrends {
+  total_contracts: number[]
+  contracts_at_risk: number[]
+  compliance_rate: number[]
+  total_contract_value: number[]
+  sla_compliance_rate: number[]
+  obligations_overdue: number[]
+}
