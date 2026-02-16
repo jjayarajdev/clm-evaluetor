@@ -20,7 +20,7 @@ export default function MainLayout() {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-[60px]">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="py-6">
