@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
+import { SidebarProvider } from './contexts/SidebarContext'
 import MainLayout from './components/layout/MainLayout'
 import LoginPage from './pages/LoginPage'
 import ModernDashboardPage from './pages/ModernDashboardPage'
@@ -47,7 +48,9 @@ function App() {
         path="/"
         element={
           <ProtectedRoute>
-            <MainLayout />
+            <SidebarProvider>
+              <MainLayout />
+            </SidebarProvider>
           </ProtectedRoute>
         }
       >

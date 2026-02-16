@@ -2,25 +2,23 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
+import { useSidebar } from '@/contexts/SidebarContext'
+import { cn } from '@/lib/utils'
 
 export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { collapsed } = useSidebar()
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-gray-600 bg-opacity-75 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
       {/* Sidebar */}
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main content */}
-      <div className="lg:pl-[60px]">
+      <div className={cn(
+        'transition-all duration-200',
+        collapsed ? 'lg:pl-[60px]' : 'lg:pl-[220px]'
+      )}>
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="py-6">
