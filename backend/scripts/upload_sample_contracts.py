@@ -53,7 +53,7 @@ async def get_auth_token(client: httpx.AsyncClient) -> str:
 
     response = await client.post(
         f"{API_BASE}/api/auth/login",
-        json={"email": DEFAULT_EMAIL, "password": DEFAULT_PASSWORD}
+        json={"username": "admin", "password": DEFAULT_PASSWORD}
     )
 
     if response.status_code != 200:
