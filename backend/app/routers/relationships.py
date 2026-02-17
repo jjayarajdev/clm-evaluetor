@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role
+from app.core.deps import get_current_user, require_role, CurrentTenantId, RequiredTenantId
 from app.models import (
     User,
     Organization,
@@ -35,8 +35,16 @@ from app.schemas.relationship import (
 router = APIRouter(prefix="/relationships", tags=["Relationships"])
 
 
+def apply_tenant_filter(query, tenant_id):
+    """Apply tenant filter to BusinessRelationship query if tenant_id is set."""
+    if tenant_id is not None:
+        return query.where(BusinessRelationship.tenant_id == tenant_id)
+    return query
+
+
 @router.get("", response_model=RelationshipListResponse)
 async def list_relationships(
+    tenant_id: CurrentTenantId,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
@@ -52,6 +60,7 @@ async def list_relationships(
         selectinload(BusinessRelationship.org_a),
         selectinload(BusinessRelationship.org_b),
     )
+    query = apply_tenant_filter(query, tenant_id)
 
     # Filter by organization
     if org_id:
@@ -107,6 +116,7 @@ async def list_relationships(
 @router.post("", response_model=RelationshipResponse, status_code=status.HTTP_201_CREATED)
 async def create_relationship(
     data: RelationshipCreate,
+    tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
@@ -132,7 +142,7 @@ async def create_relationship(
             detail="Cannot create relationship between same organization",
         )
 
-    relationship = BusinessRelationship(**data.model_dump())
+    relationship = BusinessRelationship(tenant_id=tenant_id, **data.model_dump())
     relationship.status = RelationshipStatus.ACTIVE
 
     db.add(relationship)
@@ -156,11 +166,12 @@ async def create_relationship(
 @router.get("/{rel_id}", response_model=RelationshipResponse)
 async def get_relationship(
     rel_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get relationship by ID."""
-    result = await db.execute(
+    query = (
         select(BusinessRelationship)
         .where(BusinessRelationship.id == rel_id)
         .options(
@@ -169,6 +180,8 @@ async def get_relationship(
             selectinload(BusinessRelationship.team_members).selectinload(RelationshipTeam.user),
         )
     )
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     relationship = result.scalar_one_or_none()
 
     if not relationship:
@@ -184,11 +197,12 @@ async def get_relationship(
 async def update_relationship(
     rel_id: UUID,
     data: RelationshipUpdate,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
     """Update a relationship."""
-    result = await db.execute(
+    query = (
         select(BusinessRelationship)
         .where(BusinessRelationship.id == rel_id)
         .options(
@@ -196,6 +210,8 @@ async def update_relationship(
             selectinload(BusinessRelationship.org_b),
         )
     )
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     relationship = result.scalar_one_or_none()
 
     if not relationship:

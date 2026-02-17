@@ -8,7 +8,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role
+from app.core.deps import get_current_user, require_role, CurrentTenantId, RequiredTenantId
 from app.models import User, Organization, OrganizationType, OrganizationSize
 from app.schemas.organization import (
     OrganizationCreate,
@@ -20,8 +20,16 @@ from app.schemas.organization import (
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
 
 
+def apply_tenant_filter(query, tenant_id):
+    """Apply tenant filter to Organization query if tenant_id is set."""
+    if tenant_id is not None:
+        return query.where(Organization.tenant_id == tenant_id)
+    return query
+
+
 @router.get("", response_model=OrganizationListResponse)
 async def list_organizations(
+    tenant_id: CurrentTenantId,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
@@ -34,6 +42,7 @@ async def list_organizations(
 ):
     """List organizations with filtering and pagination."""
     query = select(Organization)
+    query = apply_tenant_filter(query, tenant_id)
 
     # Apply filters
     if search:
@@ -80,21 +89,24 @@ async def list_organizations(
 @router.post("", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED)
 async def create_organization(
     data: OrganizationCreate,
+    tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
     """Create a new organization."""
-    # Check for duplicate code
-    existing = await db.execute(
-        select(Organization).where(Organization.code == data.code)
+    # Check for duplicate code within tenant
+    existing_query = select(Organization).where(
+        Organization.tenant_id == tenant_id,
+        Organization.code == data.code
     )
+    existing = await db.execute(existing_query)
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Organization with code '{data.code}' already exists",
         )
 
-    org = Organization(**data.model_dump())
+    org = Organization(tenant_id=tenant_id, **data.model_dump())
     db.add(org)
     await db.commit()
     await db.refresh(org)
@@ -105,13 +117,14 @@ async def create_organization(
 @router.get("/{org_id}", response_model=OrganizationResponse)
 async def get_organization(
     org_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get organization by ID."""
-    result = await db.execute(
-        select(Organization).where(Organization.id == org_id)
-    )
+    query = select(Organization).where(Organization.id == org_id)
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     org = result.scalar_one_or_none()
 
     if not org:
@@ -127,13 +140,14 @@ async def get_organization(
 async def update_organization(
     org_id: UUID,
     data: OrganizationUpdate,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
     """Update an organization."""
-    result = await db.execute(
-        select(Organization).where(Organization.id == org_id)
-    )
+    query = select(Organization).where(Organization.id == org_id)
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     org = result.scalar_one_or_none()
 
     if not org:
@@ -142,14 +156,14 @@ async def update_organization(
             detail="Organization not found",
         )
 
-    # Check for duplicate code if changing
+    # Check for duplicate code if changing within same tenant
     if data.code and data.code != org.code:
-        existing = await db.execute(
-            select(Organization).where(
-                Organization.code == data.code,
-                Organization.id != org_id,
-            )
+        conflict_query = select(Organization).where(
+            Organization.code == data.code,
+            Organization.id != org_id,
         )
+        conflict_query = apply_tenant_filter(conflict_query, tenant_id)
+        existing = await db.execute(conflict_query)
         if existing.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -170,14 +184,15 @@ async def update_organization(
 @router.delete("/{org_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_organization(
     org_id: UUID,
+    tenant_id: CurrentTenantId,
     hard_delete: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin"])),
 ):
     """Delete or deactivate an organization."""
-    result = await db.execute(
-        select(Organization).where(Organization.id == org_id)
-    )
+    query = select(Organization).where(Organization.id == org_id)
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     org = result.scalar_one_or_none()
 
     if not org:
