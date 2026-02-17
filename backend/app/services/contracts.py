@@ -1,6 +1,6 @@
 """Contract service for CRUD operations and search."""
 
-import uuid
+import uuid as uuid_module
 from datetime import date
 from typing import Any
 
@@ -20,10 +20,23 @@ logger = get_logger(__name__)
 class ContractService:
     """Service for contract CRUD operations."""
 
-    def __init__(self, db: AsyncSession) -> None:
-        """Initialize with database session."""
+    def __init__(self, db: AsyncSession, tenant_id: uuid_module.UUID | None = None) -> None:
+        """Initialize with database session and optional tenant filter.
+
+        Args:
+            db: Database session.
+            tenant_id: Tenant ID to filter by. If None, no tenant filtering is applied
+                      (used by super-admin or system operations).
+        """
         self.db = db
+        self.tenant_id = tenant_id
         self.vector_store = get_vector_store()
+
+    def _apply_tenant_filter(self, query):
+        """Apply tenant filter to a query if tenant_id is set."""
+        if self.tenant_id is not None:
+            return query.where(Contract.tenant_id == self.tenant_id)
+        return query
 
     async def get_contract(
         self,
@@ -39,9 +52,12 @@ class ContractService:
             include_obligations: Whether to load obligations.
 
         Returns:
-            Contract or None if not found.
+            Contract or None if not found (or not accessible by tenant).
         """
-        query = select(Contract).where(Contract.id == uuid.UUID(contract_id))
+        query = select(Contract).where(Contract.id == uuid_module.UUID(contract_id))
+
+        # Apply tenant filter
+        query = self._apply_tenant_filter(query)
 
         if include_clauses:
             query = query.options(selectinload(Contract.clauses))
@@ -85,8 +101,9 @@ class ContractService:
         Returns:
             Tuple of (contracts, total_count).
         """
-        # Base query
+        # Base query with tenant filter
         query = select(Contract)
+        query = self._apply_tenant_filter(query)
 
         # Apply filters
         if contract_type:
@@ -108,8 +125,7 @@ class ContractService:
             )
             query = query.where(search_filter)
         if client_id:
-            import uuid
-            query = query.where(Contract.client_id == uuid.UUID(client_id))
+            query = query.where(Contract.client_id == uuid_module.UUID(client_id))
 
         # Get total count
         count_query = select(func.count()).select_from(query.subquery())
@@ -327,39 +343,48 @@ class ContractService:
         """
         stats = {}
 
+        # Build base filters based on tenant
+        base_filter = []
+        if self.tenant_id is not None:
+            base_filter.append(Contract.tenant_id == self.tenant_id)
+
         # Count by type
-        type_result = await self.db.execute(
-            select(Contract.contract_type, func.count(Contract.id))
-            .group_by(Contract.contract_type)
-        )
+        type_query = select(Contract.contract_type, func.count(Contract.id)).group_by(Contract.contract_type)
+        for f in base_filter:
+            type_query = type_query.where(f)
+        type_result = await self.db.execute(type_query)
         stats["by_type"] = {
             (t.value if t else "unknown"): c
             for t, c in type_result.all()
         }
 
         # Count by status
-        status_result = await self.db.execute(
-            select(Contract.status, func.count(Contract.id))
-            .group_by(Contract.status)
-        )
+        status_query = select(Contract.status, func.count(Contract.id)).group_by(Contract.status)
+        for f in base_filter:
+            status_query = status_query.where(f)
+        status_result = await self.db.execute(status_query)
         stats["by_status"] = {
             s.value: c for s, c in status_result.all()
         }
 
         # Count by risk level
-        risk_result = await self.db.execute(
+        risk_query = (
             select(Contract.risk_level, func.count(Contract.id))
             .where(Contract.risk_level.isnot(None))
             .group_by(Contract.risk_level)
         )
+        for f in base_filter:
+            risk_query = risk_query.where(f)
+        risk_result = await self.db.execute(risk_query)
         stats["by_risk"] = {
             r.value: c for r, c in risk_result.all()
         }
 
         # Total counts
-        total_result = await self.db.execute(
-            select(func.count(Contract.id))
-        )
+        total_query = select(func.count(Contract.id))
+        for f in base_filter:
+            total_query = total_query.where(f)
+        total_result = await self.db.execute(total_query)
         stats["total"] = total_result.scalar() or 0
 
         return stats

@@ -111,9 +111,16 @@ class UploadError(Exception):
 class UploadService:
     """Service for handling file uploads."""
 
-    def __init__(self, db: AsyncSession) -> None:
-        """Initialize with database session."""
+    def __init__(self, db: AsyncSession, tenant_id: uuid.UUID | None = None) -> None:
+        """Initialize with database session and tenant context.
+
+        Args:
+            db: Database session.
+            tenant_id: Tenant ID to assign to uploaded contracts.
+                      Required for all uploads except by super-admin.
+        """
         self.db = db
+        self.tenant_id = tenant_id
         self.upload_dir = Path(settings.upload_dir)
         self.processed_dir = Path(settings.processed_dir)
 
@@ -491,6 +498,7 @@ class UploadService:
             content_hash=content_hash,
             status=ContractStatus.PENDING,
             uploaded_by=uuid.UUID(user_id),
+            tenant_id=self.tenant_id,
         )
 
         self.db.add(contract)
@@ -643,6 +651,7 @@ class UploadService:
                     status=ContractStatus.PENDING,
                     uploaded_by=uuid.UUID(user_id),
                     client_id=uuid.UUID(client_id),
+                    tenant_id=self.tenant_id,
                     version=version,
                     previous_version_id=previous_version_id,
                 )
@@ -766,6 +775,7 @@ class UploadService:
                             content_hash=content_hash,
                             status=ContractStatus.PENDING,
                             uploaded_by=uuid.UUID(user_id),
+                            tenant_id=self.tenant_id,
                         )
 
                         self.db.add(contract)

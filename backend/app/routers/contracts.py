@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_audit
-from app.core.deps import CurrentUser
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models.audit import AuditAction
 from app.models.contract import ContractStatus, ContractType, RiskLevel
@@ -109,6 +109,7 @@ async def _auto_process_contract(contract_id: str, user_id: str, file_path: str)
 @router.post("/upload", response_model=ContractUploadResponse)
 async def upload_single_file(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
@@ -126,7 +127,14 @@ async def upload_single_file(
     Returns:
         Upload response with contract ID and status.
     """
-    service = UploadService(db)
+    # Require tenant for uploads (super-admin must specify context)
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant context required for upload. Super-admin must specify tenant.",
+        )
+
+    service = UploadService(db, tenant_id=tenant_id)
 
     try:
         contract = await service.upload_single(file, str(current_user.id))
@@ -357,6 +365,7 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
 @router.post("/upload/batch", response_model=BatchUploadResponse)
 async def upload_batch_files(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
@@ -397,7 +406,14 @@ async def upload_batch_files(
             detail="Maximum 50 files per batch",
         )
 
-    service = UploadService(db)
+    # Require tenant for uploads
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant context required for upload. Super-admin must specify tenant.",
+        )
+
+    service = UploadService(db, tenant_id=tenant_id)
 
     # Use client-based upload if client_id provided
     if client_id:
@@ -479,6 +495,7 @@ async def upload_batch_files(
 @router.post("/upload/zip", response_model=BatchUploadResponse)
 async def upload_zip_archive(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
@@ -501,7 +518,14 @@ async def upload_zip_archive(
             detail="File must be a ZIP archive",
         )
 
-    service = UploadService(db)
+    # Require tenant for uploads
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant context required for upload. Super-admin must specify tenant.",
+        )
+
+    service = UploadService(db, tenant_id=tenant_id)
     batch_id, successful, failed = await service.extract_zip(file, str(current_user.id))
 
     # Store batch for status tracking
@@ -862,6 +886,7 @@ async def get_filter_options(
 @router.get("", response_model=ContractListResponse)
 async def list_contracts(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     page: int = 1,
     page_size: int = 20,
@@ -921,7 +946,7 @@ async def list_contracts(
         except ValueError:
             pass
 
-    service = ContractService(db)
+    service = ContractService(db, tenant_id=tenant_id)
     contracts, total = await service.list_contracts(
         page=page,
         page_size=page_size,
@@ -950,6 +975,7 @@ async def list_contracts(
 async def search_contracts(
     query: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     limit: int = 20,
@@ -959,6 +985,7 @@ async def search_contracts(
     Args:
         query: Search query text.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID (None for super-admin).
         request: FastAPI request for audit logging.
         db: Database session.
         limit: Maximum results.
@@ -968,7 +995,7 @@ async def search_contracts(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(db)
+    service = ContractService(db, tenant_id=tenant_id)
     results = await service.search_contracts(
         query_text=query,
         user_id=str(current_user.id),
@@ -1002,6 +1029,7 @@ async def search_contracts(
 async def get_contract(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ContractResponse:
@@ -1010,6 +1038,7 @@ async def get_contract(
     Args:
         contract_id: Contract ID.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID (None for super-admin).
         request: FastAPI request for audit logging.
         db: Database session.
 
@@ -1018,7 +1047,7 @@ async def get_contract(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(db)
+    service = ContractService(db, tenant_id=tenant_id)
     contract = await service.get_contract(contract_id)
 
     if not contract:
@@ -1047,6 +1076,7 @@ async def get_contract(
 async def delete_contract(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
@@ -1055,6 +1085,7 @@ async def delete_contract(
     Args:
         contract_id: Contract ID to delete.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID (None for super-admin).
         request: FastAPI request for audit logging.
         db: Database session.
 
@@ -1063,7 +1094,7 @@ async def delete_contract(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(db)
+    service = ContractService(db, tenant_id=tenant_id)
     deleted = await service.delete_contract(contract_id)
 
     if not deleted:
@@ -1105,6 +1136,7 @@ class BatchDeleteResponse(BaseModel):
 async def batch_delete_contracts(
     request_body: BatchDeleteRequest,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> BatchDeleteResponse:
@@ -1115,6 +1147,7 @@ async def batch_delete_contracts(
     Args:
         request_body: List of contract IDs to delete.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID (None for super-admin).
         request: FastAPI request for audit logging.
         db: Database session.
 
@@ -1123,7 +1156,7 @@ async def batch_delete_contracts(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(db)
+    service = ContractService(db, tenant_id=tenant_id)
     deleted: list[str] = []
     failed: list[dict] = []
 
