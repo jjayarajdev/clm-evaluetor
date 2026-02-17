@@ -2058,6 +2058,7 @@ class ObligationsComplianceResponse(BaseModel):
 @router.get("/obligations-compliance", response_model=ObligationsComplianceResponse)
 async def get_obligations_compliance_dashboard(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     contract_id: str | None = None,
     owner_filter: str | None = None,
@@ -2078,12 +2079,13 @@ async def get_obligations_compliance_dashboard(
 
     today = date.today()
 
-    # Build base query
+    # Build base query with tenant filter
     base_query = select(
         Obligation,
         Contract.filename,
         Contract.counterparty,
     ).join(Contract, Obligation.contract_id == Contract.id)
+    base_query = apply_tenant_filter(base_query, tenant_id)
 
     if contract_id:
         base_query = base_query.where(Obligation.contract_id == uuid_mod.UUID(contract_id))
@@ -2388,6 +2390,7 @@ class PortfolioDashboardResponse(BaseModel):
 @router.get("/portfolio", response_model=PortfolioDashboardResponse)
 async def get_portfolio_dashboard(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PortfolioDashboardResponse:
     """Get Portfolio Dashboard with cross-contract analytics.
@@ -2405,7 +2408,7 @@ async def get_portfolio_dashboard(
     today = date.today()
 
     # Get all contracts with obligation counts
-    contracts_result = await db.execute(
+    contracts_query = (
         select(
             Contract,
             func.count(Obligation.id.distinct()).label("obl_count"),
@@ -2415,6 +2418,8 @@ async def get_portfolio_dashboard(
         .group_by(Contract.id)
         .order_by(Contract.created_at.desc())
     )
+    contracts_query = apply_tenant_filter(contracts_query, tenant_id)
+    contracts_result = await db.execute(contracts_query)
 
     contracts_data = []
     total_value = Decimal(0)
