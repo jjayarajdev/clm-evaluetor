@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select, Integer, cast, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import CurrentUser, require_role
+from app.core.deps import CurrentUser, CurrentTenantId, require_role
 from app.database import get_db
 from app.models.audit import AuditLog, AuditAction
 from app.models.clause import Clause, ClauseType, RiskLevel
@@ -25,6 +25,13 @@ from app.models.exhibit import ContractExhibit, ExhibitFeeItem, ExhibitType
 from app.models.user import Role, User
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
+
+
+def apply_tenant_filter(query, tenant_id):
+    """Apply tenant filter to a Contract query if tenant_id is set."""
+    if tenant_id is not None:
+        return query.where(Contract.tenant_id == tenant_id)
+    return query
 
 
 # ============== Contract Summary for Dashboard ==============
@@ -59,6 +66,7 @@ class ContractsSummaryResponse(BaseModel):
 @router.get("/contracts-summary", response_model=ContractsSummaryResponse)
 async def get_contracts_summary(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     client_id: str | None = None,
 ) -> ContractsSummaryResponse:
@@ -76,6 +84,9 @@ async def get_contracts_summary(
         .outerjoin(Clause, Contract.id == Clause.contract_id)
         .outerjoin(Obligation, Contract.id == Obligation.contract_id)
     )
+
+    # Apply tenant filter
+    query = apply_tenant_filter(query, tenant_id)
 
     # Filter by client if specified
     if client_id:
@@ -185,6 +196,7 @@ class AdminDashboardResponse(BaseModel):
 @router.get("/admin", response_model=AdminDashboardResponse)
 async def get_admin_dashboard(
     current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AdminDashboardResponse:
     """Get admin dashboard data.
@@ -197,17 +209,15 @@ async def get_admin_dashboard(
     month_ago = today - timedelta(days=30)
 
     # Contract stats by type
-    type_result = await db.execute(
-        select(Contract.contract_type, func.count(Contract.id))
-        .group_by(Contract.contract_type)
-    )
+    type_query = select(Contract.contract_type, func.count(Contract.id)).group_by(Contract.contract_type)
+    type_query = apply_tenant_filter(type_query, tenant_id)
+    type_result = await db.execute(type_query)
     by_type = {(t.value if t else "unknown"): c for t, c in type_result.all()}
 
     # Contract stats by status
-    status_result = await db.execute(
-        select(Contract.status, func.count(Contract.id))
-        .group_by(Contract.status)
-    )
+    status_query = select(Contract.status, func.count(Contract.id)).group_by(Contract.status)
+    status_query = apply_tenant_filter(status_query, tenant_id)
+    status_result = await db.execute(status_query)
     by_status = {s.value: c for s, c in status_result.all()}
 
     # Total contracts
@@ -352,6 +362,7 @@ class LegalDashboardResponse(BaseModel):
 @router.get("/legal", response_model=LegalDashboardResponse)
 async def get_legal_dashboard(
     current_user: Annotated[User, Depends(require_role(Role.ADMIN, Role.LEGAL))],
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LegalDashboardResponse:
     """Get legal dashboard data.
@@ -362,11 +373,13 @@ async def get_legal_dashboard(
     today = date.today()
 
     # Risk distribution
-    risk_result = await db.execute(
+    risk_query = (
         select(Contract.risk_level, func.count(Contract.id))
         .where(Contract.risk_level.isnot(None))
         .group_by(Contract.risk_level)
     )
+    risk_query = apply_tenant_filter(risk_query, tenant_id)
+    risk_result = await db.execute(risk_query)
     by_level = {r.value: c for r, c in risk_result.all()}
 
     # High risk contracts - include contracts with HIGH/CRITICAL risk level
@@ -377,7 +390,7 @@ async def get_legal_dashboard(
         .distinct()
     )
 
-    high_risk_result = await db.execute(
+    high_risk_query = (
         select(Contract)
         .where(
             (Contract.risk_level.in_([RiskLevel.HIGH, RiskLevel.CRITICAL])) |
@@ -386,6 +399,8 @@ async def get_legal_dashboard(
         .order_by(Contract.risk_score.desc().nulls_last())
         .limit(10)
     )
+    high_risk_query = apply_tenant_filter(high_risk_query, tenant_id)
+    high_risk_result = await db.execute(high_risk_query)
 
     high_risk_contracts = [
         {
@@ -400,12 +415,14 @@ async def get_legal_dashboard(
 
     # Expiration timeline
     async def get_expirations(start: date, end: date) -> list[ExpirationItem]:
-        result = await db.execute(
+        exp_query = (
             select(Contract)
             .where(Contract.expiration_date >= start)
             .where(Contract.expiration_date <= end)
             .order_by(Contract.expiration_date.asc())
         )
+        exp_query = apply_tenant_filter(exp_query, tenant_id)
+        result = await db.execute(exp_query)
         return [
             ExpirationItem(
                 contract_id=str(c.id),
@@ -422,13 +439,15 @@ async def get_legal_dashboard(
     next_90 = await get_expirations(today + timedelta(days=61), today + timedelta(days=90))
 
     # High risk clauses
-    clauses_result = await db.execute(
+    clause_query = (
         select(Clause, Contract.filename)
         .join(Contract, Clause.contract_id == Contract.id)
         .where(Clause.risk_level == RiskLevel.HIGH)
         .order_by(Clause.created_at.desc())
         .limit(20)
     )
+    clause_query = apply_tenant_filter(clause_query, tenant_id)
+    clauses_result = await db.execute(clause_query)
     high_risk_clauses = [
         HighRiskClause(
             clause_id=str(clause.id),
@@ -524,6 +543,7 @@ class ProcurementDashboardResponse(BaseModel):
 @router.get("/procurement", response_model=ProcurementDashboardResponse)
 async def get_procurement_dashboard(
     current_user: Annotated[User, Depends(require_role(Role.ADMIN, Role.PROCUREMENT))],
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ProcurementDashboardResponse:
     """Get procurement dashboard data.
@@ -534,7 +554,7 @@ async def get_procurement_dashboard(
     today = date.today()
 
     # Spend commitments by vendor
-    spend_result = await db.execute(
+    spend_query = (
         select(
             Contract.counterparty,
             func.sum(Contract.contract_value),
@@ -547,6 +567,8 @@ async def get_procurement_dashboard(
         .order_by(func.sum(Contract.contract_value).desc())
         .limit(20)
     )
+    spend_query = apply_tenant_filter(spend_query, tenant_id)
+    spend_result = await db.execute(spend_query)
     spend_commitments = [
         SpendCommitment(
             counterparty=row[0] or "Unknown",
@@ -558,7 +580,7 @@ async def get_procurement_dashboard(
     ]
 
     # Upcoming obligations (next 30 days)
-    obligations_result = await db.execute(
+    obl_query = (
         select(Obligation, Contract.filename, Contract.counterparty)
         .join(Contract, Obligation.contract_id == Contract.id)
         .where(Obligation.status == ObligationStatus.PENDING)
@@ -567,6 +589,8 @@ async def get_procurement_dashboard(
         .order_by(Obligation.deadline.asc())
         .limit(20)
     )
+    obl_query = apply_tenant_filter(obl_query, tenant_id)
+    obligations_result = await db.execute(obl_query)
     upcoming_obligations = [
         VendorObligation(
             obligation_id=str(obl.id),
@@ -582,13 +606,15 @@ async def get_procurement_dashboard(
     ]
 
     # Auto-renewal risks
-    renewal_result = await db.execute(
+    renewal_query = (
         select(Contract)
         .where(Contract.auto_renewal == True)
         .where(Contract.expiration_date.isnot(None))
         .order_by(Contract.expiration_date.asc())
         .limit(20)
     )
+    renewal_query = apply_tenant_filter(renewal_query, tenant_id)
+    renewal_result = await db.execute(renewal_query)
 
     auto_renewal_risks = []
     for contract in renewal_result.scalars().all():

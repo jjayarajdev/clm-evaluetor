@@ -10,9 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Client, Contract
-from app.routers.auth import CurrentUser
+from app.core.deps import CurrentUser, CurrentTenantId, RequiredTenantId
 
 router = APIRouter(prefix="/api/clients", tags=["Clients"])
+
+
+def apply_tenant_filter(query, tenant_id):
+    """Apply tenant filter to a Client query if tenant_id is set."""
+    if tenant_id is not None:
+        return query.where(Client.tenant_id == tenant_id)
+    return query
 
 
 # ============ Pydantic Schemas ============
@@ -129,6 +136,7 @@ def client_to_response(client: Client, contract_count: int = 0) -> ClientRespons
 async def create_client(
     data: ClientCreate,
     current_user: CurrentUser,
+    tenant_id: RequiredTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ClientResponse:
     """Create a new client.
@@ -136,15 +144,18 @@ async def create_client(
     Args:
         data: Client data.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID.
         db: Database session.
 
     Returns:
         Created client.
     """
-    # Check if code already exists
-    existing = await db.execute(
-        select(Client).where(func.lower(Client.code) == data.code.lower())
+    # Check if code already exists within this tenant
+    existing_query = select(Client).where(
+        Client.tenant_id == tenant_id,
+        func.lower(Client.code) == data.code.lower()
     )
+    existing = await db.execute(existing_query)
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -153,6 +164,7 @@ async def create_client(
 
     # Create client
     client = Client(
+        tenant_id=tenant_id,
         name=data.name,
         code=data.code.upper(),  # Normalize code to uppercase
         industry=data.industry,
@@ -177,6 +189,7 @@ async def create_client(
 @router.get("", response_model=ClientListResponse)
 async def list_clients(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -186,6 +199,7 @@ async def list_clients(
 
     Args:
         current_user: Authenticated user.
+        tenant_id: Current tenant ID.
         db: Database session.
         page: Page number (1-indexed).
         page_size: Items per page.
@@ -194,8 +208,9 @@ async def list_clients(
     Returns:
         Paginated list of clients.
     """
-    # Base query
+    # Base query with tenant filter
     query = select(Client)
+    query = apply_tenant_filter(query, tenant_id)
 
     # Apply search filter
     if search:
@@ -239,12 +254,14 @@ async def list_clients(
 @router.get("/summary", response_model=list[ClientSummary])
 async def list_clients_summary(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[ClientSummary]:
     """Get a brief list of all clients for dropdowns.
 
     Args:
         current_user: Authenticated user.
+        tenant_id: Current tenant ID.
         db: Database session.
 
     Returns:
@@ -262,6 +279,7 @@ async def list_clients_summary(
         .group_by(Client.id)
         .order_by(Client.name)
     )
+    query = apply_tenant_filter(query, tenant_id)
 
     result = await db.execute(query)
     rows = result.all()
@@ -281,6 +299,7 @@ async def list_clients_summary(
 async def get_client(
     client_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ClientResponse:
     """Get a client by ID.
@@ -288,14 +307,15 @@ async def get_client(
     Args:
         client_id: Client ID.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID.
         db: Database session.
 
     Returns:
         Client details.
     """
-    result = await db.execute(
-        select(Client).where(Client.id == uuid.UUID(client_id))
-    )
+    query = select(Client).where(Client.id == uuid.UUID(client_id))
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     client = result.scalar_one_or_none()
 
     if not client:
@@ -318,6 +338,7 @@ async def update_client(
     client_id: str,
     data: ClientUpdate,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ClientResponse:
     """Update a client.
@@ -326,14 +347,15 @@ async def update_client(
         client_id: Client ID.
         data: Updated client data.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID.
         db: Database session.
 
     Returns:
         Updated client.
     """
-    result = await db.execute(
-        select(Client).where(Client.id == uuid.UUID(client_id))
-    )
+    query = select(Client).where(Client.id == uuid.UUID(client_id))
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     client = result.scalar_one_or_none()
 
     if not client:
@@ -342,14 +364,14 @@ async def update_client(
             detail=f"Client not found: {client_id}",
         )
 
-    # Check if new code conflicts with existing
+    # Check if new code conflicts with existing in the same tenant
     if data.code and data.code.upper() != client.code:
-        existing = await db.execute(
-            select(Client).where(
-                func.lower(Client.code) == data.code.lower(),
-                Client.id != client.id,
-            )
+        conflict_query = select(Client).where(
+            func.lower(Client.code) == data.code.lower(),
+            Client.id != client.id,
         )
+        conflict_query = apply_tenant_filter(conflict_query, tenant_id)
+        existing = await db.execute(conflict_query)
         if existing.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -379,6 +401,7 @@ async def update_client(
 async def delete_client(
     client_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     force: bool = Query(False, description="Force delete even if client has contracts"),
 ) -> dict:
@@ -387,15 +410,16 @@ async def delete_client(
     Args:
         client_id: Client ID.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID.
         db: Database session.
         force: If True, unlink contracts before deleting.
 
     Returns:
         Confirmation message.
     """
-    result = await db.execute(
-        select(Client).where(Client.id == uuid.UUID(client_id))
-    )
+    query = select(Client).where(Client.id == uuid.UUID(client_id))
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     client = result.scalar_one_or_none()
 
     if not client:

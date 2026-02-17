@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, s
 from sqlalchemy import func, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import CurrentUser
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models.obligation import (
     Obligation,
@@ -31,6 +31,14 @@ from app.schemas.obligation import (
 )
 
 router = APIRouter(prefix="/api/obligations", tags=["Obligations"])
+
+
+def apply_tenant_filter(query, tenant_id):
+    """Apply tenant filter to an Obligation query through its parent Contract."""
+    if tenant_id is not None:
+        # Filter by joining with Contract and checking tenant_id
+        return query.join(Contract, Obligation.contract_id == Contract.id).where(Contract.tenant_id == tenant_id)
+    return query
 
 
 def obligation_to_response(obl: Obligation) -> ObligationResponse:
@@ -65,12 +73,13 @@ def obligation_to_response(obl: Obligation) -> ObligationResponse:
 async def get_obligation(
     obligation_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ObligationResponse:
     """Get a single obligation by ID."""
-    result = await db.execute(
-        select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
-    )
+    query = select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     obligation = result.scalar_one_or_none()
 
     if not obligation:
@@ -84,12 +93,13 @@ async def update_obligation_status(
     obligation_id: str,
     update: ObligationStatusUpdate,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ObligationResponse:
     """Update the status of an obligation."""
-    result = await db.execute(
-        select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
-    )
+    query = select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     obligation = result.scalar_one_or_none()
 
     if not obligation:
@@ -124,12 +134,13 @@ async def update_obligation_rag(
     obligation_id: str,
     update: ObligationRAGUpdate,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ObligationResponse:
     """Update the RAG status of an obligation with compliance notes."""
-    result = await db.execute(
-        select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
-    )
+    query = select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     obligation = result.scalar_one_or_none()
 
     if not obligation:
@@ -162,12 +173,13 @@ async def update_obligation_owner(
     obligation_id: str,
     update: ObligationOwnerUpdate,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ObligationResponse:
     """Assign an owner to an obligation."""
-    result = await db.execute(
-        select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
-    )
+    query = select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     obligation = result.scalar_one_or_none()
 
     if not obligation:
@@ -197,15 +209,16 @@ async def update_obligation_owner(
 async def upload_obligation_evidence(
     obligation_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     evidence_description: str = Form(...),
     evidence_date: date | None = Form(None),
     file: UploadFile | None = File(None),
 ) -> ObligationResponse:
     """Upload compliance evidence for an obligation."""
-    result = await db.execute(
-        select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
-    )
+    query = select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
     obligation = result.scalar_one_or_none()
 
     if not obligation:
@@ -250,6 +263,7 @@ async def upload_obligation_evidence(
 @router.get("/compliance/rates", response_model=ComplianceRatesResponse)
 async def get_compliance_rates(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     contract_id: str | None = None,
 ) -> ComplianceRatesResponse:
@@ -260,8 +274,9 @@ async def get_compliance_rates(
     today = date.today()
     seven_days = today + timedelta(days=7)
 
-    # Base query
+    # Base query with tenant filter
     base_query = select(Obligation)
+    base_query = apply_tenant_filter(base_query, tenant_id)
     if contract_id:
         base_query = base_query.where(Obligation.contract_id == uuid_mod.UUID(contract_id))
 
@@ -428,6 +443,7 @@ async def get_compliance_rates(
 @router.get("/", response_model=list[ObligationResponse])
 async def list_obligations(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     contract_id: str | None = None,
     status: str | None = None,
@@ -440,6 +456,7 @@ async def list_obligations(
 ) -> list[ObligationResponse]:
     """List obligations with optional filters."""
     query = select(Obligation)
+    query = apply_tenant_filter(query, tenant_id)
 
     if contract_id:
         query = query.where(Obligation.contract_id == uuid_mod.UUID(contract_id))
