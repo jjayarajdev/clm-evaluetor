@@ -16,6 +16,7 @@ class TokenData(BaseModel):
     user_id: str
     username: str
     role: str
+    tenant_id: str | None  # None for super_admin
     exp: datetime
 
 
@@ -25,6 +26,7 @@ class TokenPayload(BaseModel):
     sub: str  # user_id
     username: str
     role: str
+    tenant_id: str | None = None  # None for super_admin
     exp: int
 
 
@@ -71,6 +73,7 @@ def create_access_token(
     user_id: str,
     username: str,
     role: str,
+    tenant_id: str | None = None,
     expires_delta: timedelta | None = None,
 ) -> str:
     """Create a JWT access token.
@@ -78,7 +81,8 @@ def create_access_token(
     Args:
         user_id: User's unique identifier.
         username: User's username.
-        role: User's role (admin, legal, procurement).
+        role: User's role (super_admin, admin, legal, procurement, viewer).
+        tenant_id: User's tenant ID (None for super_admin).
         expires_delta: Optional custom expiration time.
 
     Returns:
@@ -95,6 +99,7 @@ def create_access_token(
         "sub": str(user_id),
         "username": username,
         "role": role,
+        "tenant_id": tenant_id,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
         "type": "access",
@@ -126,6 +131,7 @@ def decode_token(token: str) -> TokenPayload | None:
             sub=payload["sub"],
             username=payload["username"],
             role=payload["role"],
+            tenant_id=payload.get("tenant_id"),
             exp=payload["exp"],
         )
     except JWTError:

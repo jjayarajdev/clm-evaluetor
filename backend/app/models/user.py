@@ -1,7 +1,7 @@
 import enum
 import uuid
 
-from sqlalchemy import Boolean, Enum, String
+from sqlalchemy import Boolean, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -11,7 +11,8 @@ from app.models.base import TimestampMixin, UUIDMixin
 class Role(str, enum.Enum):
     """User roles for RBAC."""
 
-    ADMIN = "admin"
+    SUPER_ADMIN = "super_admin"  # Can see all tenants
+    ADMIN = "admin"  # Tenant admin
     LEGAL = "legal"
     PROCUREMENT = "procurement"
     VIEWER = "viewer"
@@ -34,6 +35,10 @@ class User(Base, UUIDMixin, TimestampMixin):
         nullable=False,
         index=True,
     )
+    full_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
     password_hash: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -49,7 +54,19 @@ class User(Base, UUIDMixin, TimestampMixin):
         default=True,
     )
 
+    # Tenant association (nullable for super_admin who can access all)
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tenants.id"),
+        nullable=True,
+        index=True,
+    )
+
     # Relationships
+    tenant: Mapped["Tenant | None"] = relationship(
+        "Tenant",
+        back_populates="users",
+        lazy="selectin",  # Eager load tenant with user
+    )
     contracts: Mapped[list["Contract"]] = relationship(
         "Contract",
         back_populates="uploaded_by_user",
@@ -66,5 +83,16 @@ class User(Base, UUIDMixin, TimestampMixin):
         lazy="selectin",
     )
 
+    @property
+    def is_super_admin(self) -> bool:
+        """Check if user is a super admin."""
+        return self.role == Role.SUPER_ADMIN
+
+    @property
+    def is_tenant_admin(self) -> bool:
+        """Check if user is a tenant admin."""
+        return self.role == Role.ADMIN
+
     def __repr__(self) -> str:
-        return f"<User {self.username} ({self.role.value})>"
+        tenant_info = f" tenant={self.tenant_id}" if self.tenant_id else " (super)"
+        return f"<User {self.username} ({self.role.value}){tenant_info}>"

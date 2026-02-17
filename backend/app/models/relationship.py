@@ -49,6 +49,9 @@ class BusinessRelationship(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
+    # Tenant (multi-tenancy)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False, index=True)
+
     # The two parties in the relationship
     org_a_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
     org_b_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)

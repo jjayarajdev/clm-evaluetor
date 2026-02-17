@@ -1,7 +1,8 @@
 # SQLAlchemy Models
 from app.models.alert import AlertConfig, AlertType
 from app.models.audit import AuditAction, AuditLog
-from app.models.base import TimestampMixin, UUIDMixin
+from app.models.base import TenantMixin, TimestampMixin, UUIDMixin
+from app.models.tenant import Tenant, TenantPlan, PLAN_CONTRACT_LIMITS
 from app.models.clause import Clause, ClauseType
 from app.models.clause_indicator import ContractClauseIndicator
 from app.models.client import Client
@@ -132,6 +133,11 @@ __all__ = [
     # Base
     "TimestampMixin",
     "UUIDMixin",
+    "TenantMixin",
+    # Tenant
+    "Tenant",
+    "TenantPlan",
+    "PLAN_CONTRACT_LIMITS",
     # User
     "User",
     "Role",

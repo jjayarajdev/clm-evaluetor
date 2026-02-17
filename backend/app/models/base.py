@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, ForeignKey, func
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 
 
 class TimestampMixin:
@@ -28,3 +28,20 @@ class UUIDMixin:
         primary_key=True,
         default=uuid.uuid4,
     )
+
+
+class TenantMixin:
+    """
+    Mixin that adds tenant_id for multi-tenancy support.
+
+    All tenant-scoped models should inherit from this mixin.
+    The tenant_id is required and indexed for efficient filtering.
+    """
+
+    @declared_attr
+    def tenant_id(cls) -> Mapped[uuid.UUID]:
+        return mapped_column(
+            ForeignKey("tenants.id"),
+            nullable=False,
+            index=True,
+        )

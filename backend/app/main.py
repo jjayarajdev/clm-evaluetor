@@ -9,7 +9,7 @@ from app.core.middleware import RequestLoggingMiddleware
 from app.routers import (
     admin_settings, alerts, amendments, auth, audit, clients, connectors, contracts, dashboard,
     master_data_admin, metrics, milestones, monitor, notifications, obligations, postsigning, query,
-    renewals, reports, scheduler_admin, schemas, sla, users, vendors, workflow_admin,
+    renewals, reports, scheduler_admin, schemas, sla, tenants, users, vendors, workflow_admin,
     # Relationship Governance (Evaluetor features)
     organizations, relationships, kpis, improvements, surveys,
 )
@@ -128,6 +128,7 @@ async def root():
 
 # Include routers
 app.include_router(auth.router)
+app.include_router(tenants.router)
 app.include_router(users.router)
 app.include_router(audit.router)
 app.include_router(clients.router)

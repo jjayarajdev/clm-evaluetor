@@ -25,7 +25,10 @@ class UserInfo(BaseModel):
     id: str
     username: str
     email: str
+    full_name: str | None = None
     role: str
+    tenant_id: str | None = None
+    tenant_name: str | None = None
 
 
 class RefreshTokenRequest(BaseModel):

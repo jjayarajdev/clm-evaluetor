@@ -93,7 +93,13 @@ async def login(
         user_id=str(user.id),
         username=user.username,
         role=user.role.value,
+        tenant_id=str(user.tenant_id) if user.tenant_id else None,
     )
+
+    # Get tenant name if user has a tenant
+    tenant_name = None
+    if user.tenant_id and user.tenant:
+        tenant_name = user.tenant.name
 
     return TokenResponse(
         access_token=access_token,
@@ -103,7 +109,10 @@ async def login(
             id=str(user.id),
             username=user.username,
             email=user.email,
+            full_name=user.full_name,
             role=user.role.value,
+            tenant_id=str(user.tenant_id) if user.tenant_id else None,
+            tenant_name=tenant_name,
         ),
     )
 
@@ -120,11 +129,18 @@ async def get_current_user_info(
     Returns:
         UserInfo with user details.
     """
+    tenant_name = None
+    if current_user.tenant_id and current_user.tenant:
+        tenant_name = current_user.tenant.name
+
     return UserInfo(
         id=str(current_user.id),
         username=current_user.username,
         email=current_user.email,
+        full_name=current_user.full_name,
         role=current_user.role.value,
+        tenant_id=str(current_user.tenant_id) if current_user.tenant_id else None,
+        tenant_name=tenant_name,
     )
 
 
