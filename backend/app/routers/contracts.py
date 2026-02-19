@@ -1,6 +1,6 @@
 """Contracts router for upload and management."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel
@@ -799,6 +799,7 @@ def contract_to_response(contract) -> ContractResponse:
         processing_error=contract.processing_error,
         schema_id=contract.schema_id,
         schema_data=contract.schema_data,
+        custom_fields=contract.custom_fields or {},
         uploaded_by=str(contract.uploaded_by),
         clause_count=len(contract.clauses) if contract.clauses else 0,
         obligation_count=len(contract.obligations) if contract.obligations else 0,
@@ -1639,6 +1640,7 @@ async def update_contract_metadata(
         processing_error=contract.processing_error,
         schema_id=str(contract.schema_id) if contract.schema_id else None,
         schema_data=contract.schema_data,
+        custom_fields=contract.custom_fields or {},
         uploaded_by=str(contract.uploaded_by),
         clause_count=len(contract.clauses) if contract.clauses else 0,
         obligation_count=len(contract.obligations) if contract.obligations else 0,
@@ -1646,3 +1648,83 @@ async def update_contract_metadata(
         created_at=contract.created_at,
         updated_at=contract.updated_at,
     )
+
+
+@router.put("/{contract_id}/custom-fields", response_model=ContractResponse)
+async def update_contract_custom_fields(
+    contract_id: str,
+    custom_fields: dict[str, Any],
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ContractResponse:
+    """Update custom fields for a contract.
+
+    Custom fields are validated against the tenant's field definitions.
+    Invalid fields are rejected with an error.
+
+    Args:
+        contract_id: Contract ID.
+        custom_fields: Dictionary of custom field values.
+        current_user: Authenticated user.
+        tenant_id: Current tenant ID.
+        db: Database session.
+
+    Returns:
+        Updated contract.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models.contract import Contract
+    from app.models.tenant import Tenant
+    from app.services.custom_field_validator import CustomFieldValidator
+    import uuid
+
+    # Get contract with tenant filter
+    query = select(Contract).where(Contract.id == uuid.UUID(contract_id))
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    query = query.options(
+        selectinload(Contract.clauses),
+        selectinload(Contract.obligations),
+        selectinload(Contract.slas),
+    )
+
+    result = await db.execute(query)
+    contract = result.scalar_one_or_none()
+
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract {contract_id} not found"
+        )
+
+    # Get tenant for validation
+    tenant = await db.get(Tenant, contract.tenant_id)
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Tenant not found for contract"
+        )
+
+    # Validate custom fields
+    validator = CustomFieldValidator(tenant, "contract")
+    validation_result = validator.validate(custom_fields)
+
+    if not validation_result.is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Custom field validation failed",
+                "errors": validation_result.errors,
+            }
+        )
+
+    # Normalize and save
+    normalized = validator.normalize_values(custom_fields)
+    contract.custom_fields = normalized
+
+    await db.commit()
+    await db.refresh(contract)
+
+    return contract_to_response(contract)

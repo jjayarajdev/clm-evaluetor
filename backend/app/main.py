@@ -7,9 +7,10 @@ from app.config import settings
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import RequestLoggingMiddleware
 from app.routers import (
-    admin_settings, alerts, amendments, auth, audit, clients, connectors, contracts, dashboard,
-    master_data_admin, metrics, milestones, monitor, notifications, obligations, postsigning, query,
-    renewals, reports, scheduler_admin, schemas, sla, tenants, users, vendors, workflow_admin,
+    admin_settings, alerts, amendments, auth, audit, clients, connectors, contracts, custom_fields,
+    dashboard, master_data_admin, metrics, milestones, monitor, notifications, obligations,
+    postsigning, query, renewals, reports, scheduler_admin, schemas, sla, tenants, users, vendors,
+    workflow_admin,
     # Relationship Governance (Evaluetor features)
     organizations, relationships, kpis, improvements, surveys,
 )
@@ -145,6 +146,7 @@ app.include_router(query.router)
 app.include_router(dashboard.router)
 app.include_router(schemas.router)
 app.include_router(admin_settings.router)
+app.include_router(custom_fields.router)
 app.include_router(monitor.router)
 app.include_router(notifications.router)
 app.include_router(workflow_admin.router)

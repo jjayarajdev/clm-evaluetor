@@ -2,6 +2,7 @@ import enum
 import uuid
 
 from sqlalchemy import Enum, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -128,6 +129,14 @@ class Clause(Base, UUIDMixin, TimestampMixin):
     extracted_value: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+
+    # Tenant-defined custom fields
+    custom_fields: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default='{}',
     )
 
     # Relationship to obligations

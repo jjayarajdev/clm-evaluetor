@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -39,6 +39,9 @@ class Client(Base):
 
     # Notes and metadata
     notes = Column(Text, nullable=True)
+
+    # Tenant-defined custom fields
+    custom_fields = Column(JSONB, nullable=False, default=dict, server_default='{}')
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

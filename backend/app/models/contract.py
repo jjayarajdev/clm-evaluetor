@@ -177,6 +177,14 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         nullable=True,
     )
 
+    # Tenant-defined custom fields (flexible metadata)
+    custom_fields: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default='{}',
+    )
+
     # Client association
     client_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("clients.id"),

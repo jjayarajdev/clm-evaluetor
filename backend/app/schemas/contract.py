@@ -89,6 +89,9 @@ class ContractResponse(BaseModel):
     schema_id: str | None = None
     schema_data: dict[str, Any] | None = None
 
+    # Custom fields (tenant-defined)
+    custom_fields: dict[str, Any] = {}
+
     # Relationships
     uploaded_by: str
     clause_count: int = 0

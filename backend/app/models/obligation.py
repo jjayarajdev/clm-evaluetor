@@ -3,6 +3,7 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, String, Text, Boolean
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -271,6 +272,14 @@ class Obligation(Base, UUIDMixin, TimestampMixin):
     source_text: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+
+    # Tenant-defined custom fields
+    custom_fields: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default='{}',
     )
 
     # Indexes for common queries

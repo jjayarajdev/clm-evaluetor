@@ -3,6 +3,7 @@ import enum
 import uuid
 
 from sqlalchemy import Boolean, Enum, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -75,6 +76,15 @@ class Tenant(Base, UUIDMixin, TimestampMixin):
     settings: Mapped[str | None] = mapped_column(
         Text,  # JSON string for tenant-specific settings
         nullable=True,
+    )
+
+    # Custom field definitions for dynamic fields
+    # Schema: {entity_type: [{name, label, field_type, required, options, extraction_hints, ...}]}
+    custom_field_definitions: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default='{}',
     )
 
     # Status

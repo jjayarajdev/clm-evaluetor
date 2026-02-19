@@ -16,6 +16,8 @@ from app.services.vector_store import ChunkMetadata, VectorStore, get_vector_sto
 # Import agents for metadata and risk extraction
 from app.agents.metadata_extraction import extract_metadata_with_fallback, update_contract_metadata
 from app.agents.risk_detection import assess_risk, update_contract_risk
+from app.services.custom_field_extraction import extract_custom_fields
+from app.models.tenant import Tenant
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +119,26 @@ class IndexingService:
             except Exception as e:
                 print(f"[METADATA] FAILED: {e}")
                 logger.warning(f"Metadata extraction failed for {contract.id}: {e}")
+
+            # Extract custom fields if tenant has them defined
+            if contract.tenant_id:
+                try:
+                    tenant = await self.db.get(Tenant, contract.tenant_id)
+                    if tenant and tenant.custom_field_definitions:
+                        logger.info(f"Extracting custom fields for contract {contract.id}")
+                        custom_fields = await extract_custom_fields(
+                            tenant=tenant,
+                            contract_text=full_text,
+                            contract_id=str(contract.id),
+                            entity_type="contract",
+                        )
+                        if custom_fields:
+                            contract.custom_fields = custom_fields
+                            logger.info(
+                                f"Custom fields extracted for contract {contract.id}: {list(custom_fields.keys())}"
+                            )
+                except Exception as e:
+                    logger.warning(f"Custom field extraction failed for {contract.id}: {e}")
 
             # Assess risk using AI agent
             logger.info(f"Assessing risk for contract {contract.id}")
