@@ -1728,3 +1728,257 @@ async def update_contract_custom_fields(
     await db.refresh(contract)
 
     return contract_to_response(contract)
+
+
+class CustomFieldExtractionResult(BaseModel):
+    """Result of custom field extraction for a contract."""
+    contract_id: str
+    success: bool
+    fields_extracted: int = 0
+    custom_fields: dict[str, Any] = {}
+    error: str | None = None
+
+
+class BatchCustomFieldExtractionRequest(BaseModel):
+    """Request for batch custom field extraction."""
+    contract_ids: list[str] | None = None  # None = all contracts
+    overwrite_existing: bool = False  # If True, replace existing custom_fields
+
+
+class BatchCustomFieldExtractionResponse(BaseModel):
+    """Response for batch custom field extraction."""
+    total: int
+    successful: int
+    failed: int
+    results: list[CustomFieldExtractionResult]
+
+
+@router.post("/{contract_id}/extract-custom-fields", response_model=CustomFieldExtractionResult)
+async def extract_contract_custom_fields(
+    contract_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    overwrite: bool = False,
+) -> CustomFieldExtractionResult:
+    """Re-extract custom fields for a single contract.
+
+    This is a lightweight operation that only extracts custom fields
+    without full reprocessing (no re-parsing, re-indexing, etc.).
+
+    Args:
+        contract_id: Contract ID.
+        current_user: Authenticated user.
+        tenant_id: Current tenant ID.
+        db: Database session.
+        overwrite: If True, replace existing custom fields. If False, merge.
+
+    Returns:
+        Extraction result with extracted fields.
+    """
+    from sqlalchemy import select
+    from app.models.contract import Contract
+    from app.models.tenant import Tenant
+    from app.services.custom_field_extraction import extract_custom_fields
+    import uuid
+
+    # Get contract with tenant filter
+    query = select(Contract).where(Contract.id == uuid.UUID(contract_id))
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+
+    result = await db.execute(query)
+    contract = result.scalar_one_or_none()
+
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract {contract_id} not found"
+        )
+
+    # Get tenant
+    tenant = await db.get(Tenant, contract.tenant_id)
+    if not tenant:
+        return CustomFieldExtractionResult(
+            contract_id=contract_id,
+            success=False,
+            error="Tenant not found"
+        )
+
+    # Check if tenant has custom fields defined
+    if not tenant.custom_field_definitions or not tenant.custom_field_definitions.get("contract"):
+        return CustomFieldExtractionResult(
+            contract_id=contract_id,
+            success=True,
+            fields_extracted=0,
+            custom_fields={},
+            error="No custom fields defined for contracts"
+        )
+
+    # Get contract text
+    contract_text = contract.extracted_text
+    if not contract_text:
+        return CustomFieldExtractionResult(
+            contract_id=contract_id,
+            success=False,
+            error="No extracted text available. Run full processing first."
+        )
+
+    try:
+        # Extract custom fields
+        extracted = await extract_custom_fields(
+            tenant=tenant,
+            contract_text=contract_text,
+            contract_id=contract_id,
+            entity_type="contract",
+        )
+
+        # Update contract
+        if overwrite:
+            contract.custom_fields = extracted
+        else:
+            # Merge with existing
+            existing = contract.custom_fields or {}
+            existing.update(extracted)
+            contract.custom_fields = existing
+
+        await db.commit()
+
+        return CustomFieldExtractionResult(
+            contract_id=contract_id,
+            success=True,
+            fields_extracted=len(extracted),
+            custom_fields=extracted,
+        )
+
+    except Exception as e:
+        return CustomFieldExtractionResult(
+            contract_id=contract_id,
+            success=False,
+            error=str(e)
+        )
+
+
+@router.post("/batch/extract-custom-fields", response_model=BatchCustomFieldExtractionResponse)
+async def batch_extract_custom_fields(
+    request_data: BatchCustomFieldExtractionRequest,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> BatchCustomFieldExtractionResponse:
+    """Re-extract custom fields for multiple contracts.
+
+    This is a lightweight batch operation that only extracts custom fields
+    without full reprocessing.
+
+    Args:
+        request_data: Batch extraction request with contract IDs.
+        current_user: Authenticated user.
+        tenant_id: Current tenant ID.
+        db: Database session.
+
+    Returns:
+        Batch extraction results.
+    """
+    from sqlalchemy import select
+    from app.models.contract import Contract, ContractStatus
+    from app.models.tenant import Tenant
+    from app.services.custom_field_extraction import extract_custom_fields
+    import uuid
+
+    # Get tenant first to check custom fields
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant context required for batch extraction"
+        )
+
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tenant not found"
+        )
+
+    # Check if tenant has custom fields defined
+    if not tenant.custom_field_definitions or not tenant.custom_field_definitions.get("contract"):
+        return BatchCustomFieldExtractionResponse(
+            total=0,
+            successful=0,
+            failed=0,
+            results=[],
+        )
+
+    # Build query for contracts
+    query = select(Contract).where(Contract.tenant_id == tenant_id)
+
+    if request_data.contract_ids:
+        # Specific contracts
+        contract_uuids = [uuid.UUID(cid) for cid in request_data.contract_ids]
+        query = query.where(Contract.id.in_(contract_uuids))
+    else:
+        # All completed contracts with extracted text
+        query = query.where(
+            Contract.status == ContractStatus.COMPLETED,
+            Contract.extracted_text.isnot(None),
+        )
+
+    result = await db.execute(query)
+    contracts = result.scalars().all()
+
+    results: list[CustomFieldExtractionResult] = []
+    successful = 0
+    failed = 0
+
+    for contract in contracts:
+        contract_text = contract.extracted_text
+        if not contract_text:
+            results.append(CustomFieldExtractionResult(
+                contract_id=str(contract.id),
+                success=False,
+                error="No extracted text available"
+            ))
+            failed += 1
+            continue
+
+        try:
+            extracted = await extract_custom_fields(
+                tenant=tenant,
+                contract_text=contract_text,
+                contract_id=str(contract.id),
+                entity_type="contract",
+            )
+
+            # Update contract
+            if request_data.overwrite_existing:
+                contract.custom_fields = extracted
+            else:
+                existing = contract.custom_fields or {}
+                existing.update(extracted)
+                contract.custom_fields = existing
+
+            results.append(CustomFieldExtractionResult(
+                contract_id=str(contract.id),
+                success=True,
+                fields_extracted=len(extracted),
+                custom_fields=extracted,
+            ))
+            successful += 1
+
+        except Exception as e:
+            results.append(CustomFieldExtractionResult(
+                contract_id=str(contract.id),
+                success=False,
+                error=str(e)
+            ))
+            failed += 1
+
+    # Commit all updates
+    await db.commit()
+
+    return BatchCustomFieldExtractionResponse(
+        total=len(contracts),
+        successful=successful,
+        failed=failed,
+        results=results,
+    )
