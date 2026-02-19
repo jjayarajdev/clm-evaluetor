@@ -125,11 +125,44 @@ export default function LoginPage() {
 
         {/* Demo credentials */}
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-800 font-medium mb-2">Demo Credentials:</p>
-          <div className="text-xs text-blue-700 space-y-1">
-            <p><strong>Admin:</strong> admin / Admin123!</p>
-            <p><strong>Legal:</strong> legal / Legal123!</p>
-            <p><strong>Procurement:</strong> procurement / Procure123!</p>
+          <p className="text-sm text-blue-800 font-medium mb-3">Demo Credentials:</p>
+          <div className="text-xs text-blue-700">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-blue-200">
+                  <th className="text-left py-1 font-semibold">Tenant</th>
+                  <th className="text-left py-1 font-semibold">Username</th>
+                  <th className="text-left py-1 font-semibold">Password</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-blue-100">
+                <tr>
+                  <td className="py-1">Acme Corp</td>
+                  <td className="py-1 font-mono">admin</td>
+                  <td className="py-1 font-mono">admin123</td>
+                </tr>
+                <tr>
+                  <td className="py-1">Acme Corp</td>
+                  <td className="py-1 font-mono">legal</td>
+                  <td className="py-1 font-mono">legal123</td>
+                </tr>
+                <tr>
+                  <td className="py-1">TechStart</td>
+                  <td className="py-1 font-mono">techstart_admin</td>
+                  <td className="py-1 font-mono">admin123</td>
+                </tr>
+                <tr>
+                  <td className="py-1">LegalCo</td>
+                  <td className="py-1 font-mono">legalco_admin</td>
+                  <td className="py-1 font-mono">admin123</td>
+                </tr>
+                <tr>
+                  <td className="py-1 text-blue-600">(Super Admin)</td>
+                  <td className="py-1 font-mono">superadmin</td>
+                  <td className="py-1 font-mono">admin123</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
