@@ -41,12 +41,12 @@ CLM (Contract Lifecycle Management) is a strategic initiative to build an AI-nat
 ## Common Commands
 
 ```bash
-# Backend
-cd backend && uv sync          # Install dependencies
-cd backend && uv run pytest    # Run tests
-cd backend && uv run uvicorn app.main:app --reload  # Run dev server
+# Backend (Local Development - no Docker)
+cd backend && uv sync                                    # Install dependencies
+cd backend && uv run pytest                              # Run tests
+cd backend && uv run uvicorn app.main:app --reload       # Run dev server
 
-# Frontend
+# Frontend (Local Development - no Docker)
 cd frontend && npm install     # Install dependencies
 cd frontend && npm test        # Run tests
 cd frontend && npm run dev     # Run dev server
@@ -55,10 +55,92 @@ cd frontend && npm run dev     # Run dev server
 cd backend && python -m scripts.seed_data                        # Seed core data (users, contracts)
 cd backend && python -m scripts.seed_relationship_governance     # Seed relationship governance data
 
-# Docker
-docker-compose up              # Start all services
-docker-compose down            # Stop all services
+# Docker (Local)
+docker-compose up -d                                     # Start all services
+docker-compose --profile setup up migrations             # Run migrations (first time)
+docker-compose exec backend python -m scripts.seed_data # Seed demo data
+docker-compose down                                      # Stop all services
+
+# Docker (Production/AWS)
+cd deploy
+docker-compose -f docker-compose.prod.yml up -d          # Start all services
+docker-compose -f docker-compose.prod.yml exec backend alembic upgrade head  # Run migrations
+docker-compose -f docker-compose.prod.yml exec backend python -m scripts.seed_data  # Seed data
+docker-compose -f docker-compose.prod.yml logs -f        # View logs
 ```
+
+## Deployment
+
+### Local Docker Deployment
+
+```bash
+# 1. Set environment variables
+export OPENAI_API_KEY=your-openai-key
+
+# 2. Start services
+docker-compose up -d
+
+# 3. Run migrations (first time only)
+docker-compose --profile setup up migrations
+
+# 4. Seed demo data
+docker-compose exec backend python -m scripts.seed_data
+
+# 5. Access application
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000
+```
+
+### AWS/Production Docker Deployment
+
+See `deploy/AWS_DEPLOYMENT.md` for full instructions.
+
+```bash
+# On EC2 instance
+cd ~/clm/deploy
+
+# Create .env file
+cat > .env << EOF
+POSTGRES_PASSWORD=your-secure-password
+OPENAI_API_KEY=your-openai-key
+SECRET_KEY=$(openssl rand -hex 32)
+EOF
+
+# Start services
+docker-compose -f docker-compose.prod.yml up -d
+
+# Run migrations
+docker-compose -f docker-compose.prod.yml exec backend alembic upgrade head
+
+# Seed demo data
+docker-compose -f docker-compose.prod.yml exec backend python -m scripts.seed_data
+```
+
+## Demo Credentials
+
+After running `seed_data`, the following users are available:
+
+| Tenant | Username | Password | Role |
+|--------|----------|----------|------|
+| Acme Corp | admin | admin123 | Admin |
+| Acme Corp | legal | legal123 | Legal |
+| TechStart | techstart_admin | admin123 | Admin |
+| LegalCo | legalco_admin | admin123 | Admin |
+| (System) | superadmin | admin123 | Super Admin |
+
+Each tenant has isolated contracts and data. The admin user at Acme Corp can see 4 contracts with extracted clauses and risk analysis.
+
+## Important: Database Enum Sync
+
+PostgreSQL enums are immutable. When adding values to Python enums, you MUST create a migration:
+
+```python
+# In alembic/versions/xxx_add_new_enum_value.py
+def upgrade() -> None:
+    op.execute("ALTER TYPE your_enum ADD VALUE IF NOT EXISTS 'new_value'")
+```
+
+This ensures local dev (which auto-creates enums) and Docker (which uses migrations) stay in sync.
 
 ## Architecture Principles
 
