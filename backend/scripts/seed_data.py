@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Seed script to populate the database with sample data for development and testing.
+Seed script to populate the database with multi-tenant demo data.
 Run with: python -m scripts.seed_data
 """
 
@@ -18,8 +18,13 @@ import bcrypt
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
+from sqlalchemy import text
+
 from app.database import Base
-from app.models import User, Contract, Clause, Obligation
+from app.models import User, Contract, Clause
+from app.models.tenant import Tenant
+from app.models.clause import ClauseType
+from app.models.contract import RiskLevel, ContractType, ContractStatus
 from app.config import settings
 
 
@@ -30,213 +35,135 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
 
-# Sample users - use enum values directly (lowercase strings) for PostgreSQL compatibility
-SAMPLE_USERS = [
+# Multi-tenant structure
+TENANTS = [
     {
-        "username": "admin",
-        "email": "admin@example.com",
-        "password": "admin123",
-        "role": "admin",
+        "name": "Acme Corp",
+        "slug": "acme",
+        "contact_email": "admin@acme.com",
+        "plan": "enterprise",
+        "users": [
+            {"username": "admin", "email": "admin@acme.com", "password": "admin123", "role": "admin"},
+            {"username": "legal", "email": "legal@acme.com", "password": "legal123", "role": "legal"},
+        ],
+        "contracts": [
+            {
+                "filename": "MSA-TechServices-2024.pdf",
+                "contract_type": "msa",
+                "counterparty": "TechServices Inc",
+                "contract_value": Decimal("500000.00"),
+                "risk_level": "medium",
+                "risk_score": 45,
+                "status": "completed",
+            },
+            {
+                "filename": "NDA-Strategic-Partner.pdf",
+                "contract_type": "nda",
+                "counterparty": "Strategic Partners LLC",
+                "contract_value": None,
+                "risk_level": "low",
+                "risk_score": 15,
+                "status": "completed",
+            },
+            {
+                "filename": "Vendor-Agreement-GlobalSupply.pdf",
+                "contract_type": "vendor_agreement",
+                "counterparty": "GlobalSupply International",
+                "contract_value": Decimal("1250000.00"),
+                "risk_level": "high",
+                "risk_score": 72,
+                "status": "completed",
+            },
+            {
+                "filename": "Amendment-to-MSA.pdf",
+                "contract_type": "amendment",
+                "counterparty": "TechServices Inc",
+                "contract_value": Decimal("150000.00"),
+                "risk_level": "critical",
+                "risk_score": 85,
+                "status": "completed",
+            },
+        ],
     },
     {
-        "username": "legal",
-        "email": "legal@example.com",
-        "password": "legal123",
-        "role": "legal",
+        "name": "TechStart",
+        "slug": "techstart",
+        "contact_email": "admin@techstart.io",
+        "plan": "professional",
+        "users": [
+            {"username": "techstart_admin", "email": "admin@techstart.io", "password": "admin123", "role": "admin"},
+        ],
+        "contracts": [
+            {
+                "filename": "SaaS-Agreement-CloudProvider.pdf",
+                "contract_type": "sow",
+                "counterparty": "CloudProvider Inc",
+                "contract_value": Decimal("75000.00"),
+                "risk_level": "low",
+                "risk_score": 22,
+                "status": "completed",
+            },
+            {
+                "filename": "Consulting-Agreement.docx",
+                "contract_type": "sow",
+                "counterparty": "Expert Consultants",
+                "contract_value": Decimal("50000.00"),
+                "risk_level": "medium",
+                "risk_score": 35,
+                "status": "processing",
+            },
+        ],
     },
     {
-        "username": "procurement",
-        "email": "procurement@example.com",
-        "password": "proc123",
-        "role": "procurement",
-    },
-    {
-        "username": "viewer",
-        "email": "viewer@example.com",
-        "password": "viewer123",
-        "role": "viewer",
+        "name": "LegalCo",
+        "slug": "legalco",
+        "contact_email": "admin@legalco.com",
+        "plan": "enterprise",
+        "users": [
+            {"username": "legalco_admin", "email": "admin@legalco.com", "password": "admin123", "role": "admin"},
+        ],
+        "contracts": [
+            {
+                "filename": "Partnership-Agreement-JointVenture.pdf",
+                "contract_type": "msa",
+                "counterparty": "JointVenture Partners",
+                "contract_value": Decimal("2000000.00"),
+                "risk_level": "high",
+                "risk_score": 68,
+                "status": "completed",
+            },
+            {
+                "filename": "Employment-Contract-Senior-Counsel.pdf",
+                "contract_type": "employment_contract",
+                "counterparty": "Jane Doe",
+                "contract_value": Decimal("250000.00"),
+                "risk_level": "low",
+                "risk_score": 18,
+                "status": "completed",
+            },
+        ],
     },
 ]
 
-
-# Sample contracts - use string values for PostgreSQL enum compatibility
-def generate_sample_contracts(user_id) -> list[dict]:
-    today = date.today()
-    contracts = [
-        {
-            "id": uuid4(),
-            "filename": "Master-Services-Agreement-Acme-Corp.pdf",
-            "file_path": "/storage/uploads/sample1.pdf",
-            "file_size": 245678,
-            "mime_type": "application/pdf",
-            "status": "completed",
-            "contract_type": "msa",
-            "counterparty": "Acme Corporation",
-            "effective_date": today - timedelta(days=180),
-            "expiration_date": today + timedelta(days=185),
-            "contract_value": Decimal("500000.00"),
-            "currency": "USD",
-            "jurisdiction": "Delaware, USA",
-            "auto_renewal": True,
-            "notice_period_days": 60,
-            "risk_level": "medium",
-            "risk_score": 45,
-            "uploaded_by": user_id,
-        },
-        {
-            "id": uuid4(),
-            "filename": "Software-License-Agreement-TechCo.docx",
-            "file_path": "/storage/uploads/sample2.docx",
-            "file_size": 189432,
-            "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "status": "completed",
-            "contract_type": "sow",
-            "counterparty": "TechCo Inc.",
-            "effective_date": today - timedelta(days=90),
-            "expiration_date": today + timedelta(days=275),
-            "contract_value": Decimal("75000.00"),
-            "currency": "USD",
-            "jurisdiction": "California, USA",
-            "auto_renewal": False,
-            "notice_period_days": None,
-            "risk_level": "low",
-            "risk_score": 22,
-            "uploaded_by": user_id,
-        },
-        {
-            "id": uuid4(),
-            "filename": "NDA-Strategic-Partner.pdf",
-            "file_path": "/storage/uploads/sample3.pdf",
-            "file_size": 98765,
-            "mime_type": "application/pdf",
-            "status": "completed",
-            "contract_type": "nda",
-            "counterparty": "Strategic Partners LLC",
-            "effective_date": today - timedelta(days=30),
-            "expiration_date": today + timedelta(days=335),
-            "contract_value": None,
-            "currency": None,
-            "jurisdiction": "New York, USA",
-            "auto_renewal": True,
-            "notice_period_days": 30,
-            "risk_level": "low",
-            "risk_score": 15,
-            "uploaded_by": user_id,
-        },
-        {
-            "id": uuid4(),
-            "filename": "Vendor-Agreement-GlobalSupply.pdf",
-            "file_path": "/storage/uploads/sample4.pdf",
-            "file_size": 312456,
-            "mime_type": "application/pdf",
-            "status": "completed",
-            "contract_type": "vendor_agreement",
-            "counterparty": "GlobalSupply International",
-            "effective_date": today - timedelta(days=365),
-            "expiration_date": today + timedelta(days=15),
-            "contract_value": Decimal("1250000.00"),
-            "currency": "USD",
-            "jurisdiction": "Texas, USA",
-            "auto_renewal": True,
-            "notice_period_days": 90,
-            "risk_level": "high",
-            "risk_score": 72,
-            "uploaded_by": user_id,
-        },
-        {
-            "id": uuid4(),
-            "filename": "Employment-Contract-Senior-Engineer.pdf",
-            "file_path": "/storage/uploads/sample5.pdf",
-            "file_size": 156789,
-            "mime_type": "application/pdf",
-            "status": "completed",
-            "contract_type": "employment_contract",
-            "counterparty": "John Smith",
-            "effective_date": today - timedelta(days=60),
-            "expiration_date": None,
-            "contract_value": Decimal("180000.00"),
-            "currency": "USD",
-            "jurisdiction": "California, USA",
-            "auto_renewal": False,
-            "notice_period_days": None,
-            "risk_level": "low",
-            "risk_score": 18,
-            "uploaded_by": user_id,
-        },
-        {
-            "id": uuid4(),
-            "filename": "Amendment-to-MSA-Acme.pdf",
-            "file_path": "/storage/uploads/sample6.pdf",
-            "file_size": 287654,
-            "mime_type": "application/pdf",
-            "status": "completed",
-            "contract_type": "amendment",
-            "counterparty": "Acme Corporation",
-            "effective_date": today - timedelta(days=30),
-            "expiration_date": today + timedelta(days=380),
-            "contract_value": Decimal("150000.00"),
-            "currency": "USD",
-            "jurisdiction": "Delaware, USA",
-            "auto_renewal": False,
-            "notice_period_days": None,
-            "risk_level": "critical",
-            "risk_score": 85,
-            "uploaded_by": user_id,
-        },
-        {
-            "id": uuid4(),
-            "filename": "Consulting-Agreement-Expert-Services.docx",
-            "file_path": "/storage/uploads/sample7.docx",
-            "file_size": 134567,
-            "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "status": "processing",
-            "contract_type": None,
-            "counterparty": None,
-            "effective_date": None,
-            "expiration_date": None,
-            "contract_value": None,
-            "currency": None,
-            "jurisdiction": None,
-            "auto_renewal": None,
-            "notice_period_days": None,
-            "risk_level": None,
-            "risk_score": None,
-            "uploaded_by": user_id,
-        },
-        {
-            "id": uuid4(),
-            "filename": "Partnership-Agreement-JointVenture.pdf",
-            "file_path": "/storage/uploads/sample8.pdf",
-            "file_size": 445678,
-            "mime_type": "application/pdf",
-            "status": "pending",
-            "contract_type": None,
-            "counterparty": None,
-            "effective_date": None,
-            "expiration_date": None,
-            "contract_value": None,
-            "currency": None,
-            "jurisdiction": None,
-            "auto_renewal": None,
-            "notice_period_days": None,
-            "risk_level": None,
-            "risk_score": None,
-            "uploaded_by": user_id,
-        },
-    ]
-    return contracts
+# Super admin (system-level user)
+SUPER_ADMIN = {
+    "username": "superadmin",
+    "email": "superadmin@system.local",
+    "password": "admin123",
+    "role": "super_admin",
+}
 
 
-# Sample clauses for a contract - use string values for PostgreSQL enum compatibility
 def generate_sample_clauses(contract_id) -> list[dict]:
+    """Generate sample clauses for a contract."""
     return [
         {
             "id": uuid4(),
             "contract_id": contract_id,
-            "clause_type": "limitation_of_liability",
-            "text": "Neither party shall be liable for any indirect, incidental, special, consequential, or punitive damages, regardless of the cause of action or the nature of the claim.",
+            "clause_type": ClauseType.LIMITATION_OF_LIABILITY,
+            "text": "Neither party shall be liable for any indirect, incidental, special, consequential, or punitive damages.",
             "summary": "Limitation of Liability - excludes consequential damages",
-            "risk_level": "high",
+            "risk_level": RiskLevel.HIGH,
             "risk_reason": "Broad limitation excludes consequential damages",
             "page_number": 8,
             "section_number": "12.1",
@@ -245,11 +172,11 @@ def generate_sample_clauses(contract_id) -> list[dict]:
         {
             "id": uuid4(),
             "contract_id": contract_id,
-            "clause_type": "indemnification",
-            "text": "Customer shall indemnify, defend, and hold harmless Provider from any claims, damages, losses, and expenses arising from Customer's use of the Services.",
-            "summary": "Indemnification - one-sided obligation on customer",
-            "risk_level": "medium",
-            "risk_reason": "One-sided indemnification favors provider",
+            "clause_type": ClauseType.INDEMNIFICATION,
+            "text": "Customer shall indemnify and hold harmless Provider from any claims arising from Customer's use of the Services.",
+            "summary": "Indemnification - customer obligation",
+            "risk_level": RiskLevel.MEDIUM,
+            "risk_reason": "One-sided indemnification",
             "page_number": 9,
             "section_number": "13.1",
             "confidence_score": 0.88,
@@ -257,11 +184,10 @@ def generate_sample_clauses(contract_id) -> list[dict]:
         {
             "id": uuid4(),
             "contract_id": contract_id,
-            "clause_type": "termination",
-            "text": "Either party may terminate this Agreement for any reason upon 30 days written notice to the other party.",
-            "summary": "Termination for convenience with 30 days notice",
-            "risk_level": "low",
-            "risk_reason": None,
+            "clause_type": ClauseType.TERMINATION,
+            "text": "Either party may terminate this Agreement upon 30 days written notice.",
+            "summary": "Termination for convenience",
+            "risk_level": RiskLevel.LOW,
             "page_number": 11,
             "section_number": "15.2",
             "confidence_score": 0.95,
@@ -269,157 +195,138 @@ def generate_sample_clauses(contract_id) -> list[dict]:
         {
             "id": uuid4(),
             "contract_id": contract_id,
-            "clause_type": "confidentiality",
-            "text": "Each party agrees to maintain the confidentiality of all proprietary information received from the other party for a period of 5 years following disclosure.",
+            "clause_type": ClauseType.CONFIDENTIALITY,
+            "text": "Each party agrees to maintain confidentiality for 5 years following disclosure.",
             "summary": "Mutual confidentiality for 5 years",
-            "risk_level": "low",
-            "risk_reason": None,
+            "risk_level": RiskLevel.LOW,
             "page_number": 6,
             "section_number": "8.1",
             "confidence_score": 0.91,
-        },
-        {
-            "id": uuid4(),
-            "contract_id": contract_id,
-            "clause_type": "intellectual_property",
-            "text": "All intellectual property developed by Provider in the performance of Services shall be the exclusive property of Provider.",
-            "summary": "IP ownership retained by provider",
-            "risk_level": "high",
-            "risk_reason": "Provider retains all IP, no work-for-hire",
-            "page_number": 7,
-            "section_number": "10.1",
-            "confidence_score": 0.87,
-        },
-    ]
-
-
-# Sample obligations for a contract - use string values for PostgreSQL enum compatibility
-def generate_sample_obligations(contract_id) -> list[dict]:
-    today = date.today()
-    return [
-        {
-            "id": uuid4(),
-            "contract_id": contract_id,
-            "obligation_type": "payment",
-            "description": "Quarterly payment of license fees due within 30 days of quarter end",
-            "obligated_party": "Customer",
-            "beneficiary_party": "Provider",
-            "deadline_type": "recurring",
-            "deadline": today + timedelta(days=30),
-            "recurrence_pattern": "quarterly",
-            "status": "pending",
-        },
-        {
-            "id": uuid4(),
-            "contract_id": contract_id,
-            "obligation_type": "reporting",
-            "description": "Monthly usage report submission to customer",
-            "obligated_party": "Provider",
-            "beneficiary_party": "Customer",
-            "deadline_type": "recurring",
-            "deadline": today + timedelta(days=7),
-            "recurrence_pattern": "monthly",
-            "status": "pending",
-        },
-        {
-            "id": uuid4(),
-            "contract_id": contract_id,
-            "obligation_type": "compliance",
-            "description": "Annual security audit completion and certification",
-            "obligated_party": "Both Parties",
-            "beneficiary_party": "Both Parties",
-            "deadline_type": "recurring",
-            "deadline": today + timedelta(days=90),
-            "recurrence_pattern": "annually",
-            "status": "pending",
-        },
-        {
-            "id": uuid4(),
-            "contract_id": contract_id,
-            "obligation_type": "notification",
-            "description": "Renewal notice deadline - must notify 60 days before expiration",
-            "obligated_party": "Customer",
-            "beneficiary_party": "Provider",
-            "deadline_type": "fixed_date",
-            "deadline": today + timedelta(days=125),
-            "recurrence_pattern": None,
-            "status": "pending",
         },
     ]
 
 
 async def seed_database():
-    """Seed the database with sample data."""
-    print("Starting database seeding...")
+    """Seed the database with multi-tenant demo data."""
+    print("Starting multi-tenant database seeding...")
 
-    # Create async engine
     engine = create_async_engine(settings.database_url, echo=False)
-
-    # Create session factory
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as session:
-        # Create users
-        print("Creating sample users...")
-        users = []
-        for user_data in SAMPLE_USERS:
-            user = User(
+        today = date.today()
+        all_users = []
+
+        # Create tenants with their users and contracts
+        for tenant_data in TENANTS:
+            print(f"\n{'='*50}")
+            print(f"Creating tenant: {tenant_data['name']}")
+            print('='*50)
+
+            # Create tenant
+            tenant = Tenant(
                 id=uuid4(),
-                username=user_data["username"],
-                email=user_data["email"],
-                password_hash=hash_password(user_data["password"]),
-                role=user_data["role"],
+                name=tenant_data["name"],
+                slug=tenant_data["slug"],
+                contact_email=tenant_data["contact_email"],
+                plan=tenant_data["plan"],
                 is_active=True,
             )
-            session.add(user)
-            users.append(user)
-            print(f"  Created user: {user.email} ({user.role})")
+            session.add(tenant)
+            await session.flush()
+            print(f"  ✓ Tenant: {tenant.name} ({tenant.slug})")
 
-        await session.flush()
+            # Create users for this tenant
+            tenant_admin = None
+            for user_data in tenant_data["users"]:
+                user = User(
+                    id=uuid4(),
+                    username=user_data["username"],
+                    email=user_data["email"],
+                    password_hash=hash_password(user_data["password"]),
+                    role=user_data["role"],
+                    is_active=True,
+                    tenant_id=tenant.id,
+                )
+                session.add(user)
+                all_users.append((tenant_data["name"], user_data))
+                if tenant_admin is None:
+                    tenant_admin = user
+                print(f"  ✓ User: {user.username} ({user.role})")
 
-        # Create contracts (using admin user)
-        admin_user = users[0]
-        print("\nCreating sample contracts...")
-        sample_contracts = generate_sample_contracts(admin_user.id)
-        contracts = []
+            await session.flush()
 
-        for contract_data in sample_contracts:
-            contract = Contract(**contract_data)
-            session.add(contract)
-            contracts.append(contract)
-            print(f"  Created contract: {contract.filename} ({contract.status})")
+            # Create contracts for this tenant
+            for contract_data in tenant_data["contracts"]:
+                contract = Contract(
+                    id=uuid4(),
+                    filename=contract_data["filename"],
+                    file_path=f"/storage/uploads/{contract_data['filename']}",
+                    file_size=245678,
+                    mime_type="application/pdf",
+                    status=contract_data["status"],
+                    contract_type=contract_data["contract_type"],
+                    counterparty=contract_data["counterparty"],
+                    effective_date=today - timedelta(days=180),
+                    expiration_date=today + timedelta(days=185),
+                    contract_value=contract_data["contract_value"],
+                    currency="USD" if contract_data["contract_value"] else None,
+                    jurisdiction="Delaware, USA",
+                    auto_renewal=True,
+                    notice_period_days=60,
+                    risk_level=contract_data["risk_level"],
+                    risk_score=contract_data["risk_score"],
+                    uploaded_by=tenant_admin.id,
+                    tenant_id=tenant.id,
+                )
+                session.add(contract)
+                print(f"  ✓ Contract: {contract.filename}")
 
-        await session.flush()
+                # Add clauses for completed contracts
+                if contract.status == "completed":
+                    await session.flush()
+                    for clause_data in generate_sample_clauses(contract.id):
+                        clause = Clause(**clause_data)
+                        session.add(clause)
 
-        # Create clauses and obligations for completed contracts
-        print("\nCreating sample clauses and obligations...")
-        for contract in contracts:
-            if contract.status == "completed":
-                # Add clauses
-                clauses = generate_sample_clauses(contract.id)
-                for clause_data in clauses:
-                    clause = Clause(**clause_data)
-                    session.add(clause)
+        # Create super admin (assign to first tenant for now)
+        print(f"\n{'='*50}")
+        print("Creating Super Admin")
+        print('='*50)
 
-                # Add obligations
-                obligations = generate_sample_obligations(contract.id)
-                for obligation_data in obligations:
-                    obligation = Obligation(**obligation_data)
-                    session.add(obligation)
+        # Get first tenant for super admin
+        first_tenant_id = (await session.execute(
+            text("SELECT id FROM tenants LIMIT 1")
+        )).scalar()
 
-                print(f"  Added {len(clauses)} clauses and {len(obligations)} obligations to: {contract.filename}")
+        superadmin = User(
+            id=uuid4(),
+            username=SUPER_ADMIN["username"],
+            email=SUPER_ADMIN["email"],
+            password_hash=hash_password(SUPER_ADMIN["password"]),
+            role=SUPER_ADMIN["role"],
+            is_active=True,
+            tenant_id=first_tenant_id,
+        )
+        session.add(superadmin)
+        print(f"  ✓ Super Admin: {superadmin.username}")
 
         # Commit all changes
         await session.commit()
 
     await engine.dispose()
 
-    print("\n✅ Database seeding completed successfully!")
-    print("\nSample credentials (username / password):")
-    print("-" * 50)
-    for user_data in SAMPLE_USERS:
-        print(f"  {user_data['role']:12} | {user_data['username']:15} | {user_data['password']}")
-    print("-" * 50)
+    print("\n" + "="*60)
+    print("✅ Database seeding completed successfully!")
+    print("="*60)
+    print("\nDemo Credentials:")
+    print("-" * 60)
+    print(f"{'Tenant':<15} {'Username':<20} {'Password':<15}")
+    print("-" * 60)
+    for tenant_name, user_data in all_users:
+        print(f"{tenant_name:<15} {user_data['username']:<20} {user_data['password']:<15}")
+    print(f"{'(Super Admin)':<15} {SUPER_ADMIN['username']:<20} {SUPER_ADMIN['password']:<15}")
+    print("-" * 60)
 
 
 if __name__ == "__main__":
