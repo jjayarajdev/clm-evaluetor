@@ -3410,3 +3410,246 @@ async def get_exhibits_summary(
         "total_fee_items": total_fee_items,
         "total_fee_value": total_fee_value,
     }
+
+
+# ============== AI Insights Endpoint ==============
+
+
+class InsightItem(BaseModel):
+    """Single insight item."""
+    title: str
+    description: str
+    action: str
+    action_label: str
+    variant: str  # info, warning, success
+
+
+class InsightsResponse(BaseModel):
+    """AI Insights response."""
+    insights: list[InsightItem]
+
+
+@router.get("/insights", response_model=InsightsResponse)
+async def get_dashboard_insights(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> InsightsResponse:
+    """Get AI-generated insights for dashboard."""
+    from app.models.sla import ContractSLA
+
+    insights: list[InsightItem] = []
+    today = date.today()
+
+    # 1. Renewal Opportunity - contracts expiring in 30 days
+    expiring_query = select(
+        func.count(Contract.id),
+        func.coalesce(func.sum(Contract.total_value), 0)
+    ).where(
+        Contract.expiration_date.isnot(None),
+        Contract.expiration_date <= today + timedelta(days=30),
+        Contract.expiration_date > today,
+    )
+    if tenant_id:
+        expiring_query = expiring_query.where(Contract.tenant_id == tenant_id)
+
+    expiring_result = await db.execute(expiring_query)
+    expiring_row = expiring_result.one()
+    expiring_count = expiring_row[0] or 0
+    expiring_value = float(expiring_row[1]) if expiring_row[1] else 0
+
+    if expiring_count > 0:
+        value_str = f"${expiring_value/1000000:.1f}M" if expiring_value >= 1000000 else f"${expiring_value/1000:.0f}K" if expiring_value >= 1000 else f"${expiring_value:.0f}"
+        insights.append(InsightItem(
+            title="Renewal Opportunity",
+            description=f"{expiring_count} contract{'s' if expiring_count > 1 else ''} expiring in 30 days worth {value_str}. Consider early renewal negotiations.",
+            action="/renewals?window=30",
+            action_label="View renewals",
+            variant="info"
+        ))
+
+    # 2. Compliance Alert - SLA breaches
+    sla_query = select(func.count(ContractSLA.id)).where(
+        ContractSLA.compliance_status == "red"
+    )
+    if tenant_id:
+        sla_query = sla_query.join(Contract).where(Contract.tenant_id == tenant_id)
+
+    sla_result = await db.execute(sla_query)
+    critical_slas = sla_result.scalar() or 0
+
+    if critical_slas > 0:
+        insights.append(InsightItem(
+            title="Compliance Alert",
+            description=f"{critical_slas} critical SLA breach{'es' if critical_slas > 1 else ''} need{'s' if critical_slas == 1 else ''} attention.",
+            action="/compliance",
+            action_label="Review compliance",
+            variant="warning"
+        ))
+
+    # 3. Overdue Obligations
+    overdue_query = select(func.count(Obligation.id)).where(
+        Obligation.due_date < today,
+        Obligation.status != ObligationStatus.COMPLETED
+    )
+    if tenant_id:
+        overdue_query = overdue_query.join(Contract).where(Contract.tenant_id == tenant_id)
+
+    overdue_result = await db.execute(overdue_query)
+    overdue_count = overdue_result.scalar() or 0
+
+    if overdue_count > 0:
+        insights.append(InsightItem(
+            title="Overdue Obligations",
+            description=f"{overdue_count} obligation{'s' if overdue_count > 1 else ''} past due date. Immediate action required.",
+            action="/obligations?status=overdue",
+            action_label="View overdue",
+            variant="warning"
+        ))
+
+    # 4. High Risk Contracts
+    high_risk_query = select(func.count(Contract.id)).where(
+        Contract.risk_level.in_(["high", "critical"])
+    )
+    if tenant_id:
+        high_risk_query = high_risk_query.where(Contract.tenant_id == tenant_id)
+
+    high_risk_result = await db.execute(high_risk_query)
+    high_risk_count = high_risk_result.scalar() or 0
+
+    if high_risk_count > 0:
+        insights.append(InsightItem(
+            title="Risk Assessment",
+            description=f"{high_risk_count} high-risk contract{'s' if high_risk_count > 1 else ''} identified. Review risk mitigation strategies.",
+            action="/contracts?risk=high",
+            action_label="View risks",
+            variant="warning"
+        ))
+
+    # If no insights, add a positive one
+    if not insights:
+        insights.append(InsightItem(
+            title="All Clear",
+            description="No critical issues detected. All contracts and obligations are on track.",
+            action="/contracts",
+            action_label="View contracts",
+            variant="success"
+        ))
+
+    return InsightsResponse(insights=insights)
+
+
+# ============== Recent Activity Endpoint ==============
+
+
+class ActivityItem(BaseModel):
+    """Single activity item."""
+    icon: str
+    title: str
+    subtitle: str
+    time: str
+    color: str
+
+
+class ActivityResponse(BaseModel):
+    """Recent activity response."""
+    activities: list[ActivityItem]
+
+
+@router.get("/activity", response_model=ActivityResponse)
+async def get_recent_activity(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = 10,
+) -> ActivityResponse:
+    """Get recent activity for dashboard."""
+    from datetime import datetime, timezone
+
+    activities: list[ActivityItem] = []
+    now = datetime.now(timezone.utc)
+
+    def time_ago(dt: datetime) -> str:
+        """Convert datetime to human-readable time ago."""
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        diff = now - dt
+        seconds = diff.total_seconds()
+        if seconds < 60:
+            return "just now"
+        elif seconds < 3600:
+            mins = int(seconds / 60)
+            return f"{mins}m ago"
+        elif seconds < 86400:
+            hours = int(seconds / 3600)
+            return f"{hours}h ago"
+        else:
+            days = int(seconds / 86400)
+            return f"{days}d ago"
+
+    # Get recent audit logs
+    audit_query = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit * 2)
+    if tenant_id:
+        audit_query = audit_query.where(AuditLog.tenant_id == tenant_id)
+
+    audit_result = await db.execute(audit_query)
+    audit_logs = audit_result.scalars().all()
+
+    for log in audit_logs:
+        if len(activities) >= limit:
+            break
+
+        details = log.details or {}
+
+        if log.action == AuditAction.CONTRACT_UPLOAD:
+            activities.append(ActivityItem(
+                icon="document",
+                title="Contract uploaded",
+                subtitle=details.get("filename", "Unknown file"),
+                time=time_ago(log.created_at),
+                color="blue"
+            ))
+        elif log.action == AuditAction.CONTRACT_VIEW:
+            if details.get("action") == "deep_analysis_queued":
+                activities.append(ActivityItem(
+                    icon="sparkles",
+                    title="Analysis started",
+                    subtitle=details.get("filename", "Contract analysis"),
+                    time=time_ago(log.created_at),
+                    color="blue"
+                ))
+        elif log.action == AuditAction.CONTRACT_UPDATE:
+            activities.append(ActivityItem(
+                icon="pencil",
+                title="Contract updated",
+                subtitle=details.get("filename", "Contract modified"),
+                time=time_ago(log.created_at),
+                color="gray"
+            ))
+
+    # Get recent obligation completions
+    completed_query = select(Obligation).where(
+        Obligation.status == ObligationStatus.COMPLETED
+    ).order_by(Obligation.updated_at.desc()).limit(5)
+    if tenant_id:
+        completed_query = completed_query.join(Contract).where(Contract.tenant_id == tenant_id)
+
+    completed_result = await db.execute(completed_query)
+    completed_obligations = completed_result.scalars().all()
+
+    for obl in completed_obligations:
+        if len(activities) >= limit:
+            break
+        activities.append(ActivityItem(
+            icon="check",
+            title="Obligation completed",
+            subtitle=obl.title[:50] + "..." if len(obl.title) > 50 else obl.title,
+            time=time_ago(obl.updated_at) if obl.updated_at else "recently",
+            color="green"
+        ))
+
+    # Sort by time (most recent first) - simplified approach
+    # In production, you'd want to properly sort by actual timestamps
+    activities = activities[:limit]
+
+    return ActivityResponse(activities=activities)

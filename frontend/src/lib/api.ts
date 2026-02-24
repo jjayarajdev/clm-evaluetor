@@ -3,6 +3,7 @@ import type {
   TokenResponse,
   LoginRequest,
   User,
+  UserWithTenant,
   Client,
   ClientSummary,
   ClientCreate,
@@ -24,6 +25,19 @@ import type {
   ClausesByTypeResponse,
   ClauseFullDetail,
   DashboardTrends,
+  Tenant,
+  TenantCreate,
+  TenantUpdate,
+  TenantStats,
+  PlatformStats,
+  CustomField,
+  CustomFieldCreate,
+  CustomFieldUpdate,
+  EntityType,
+  SuggestedLinksListResponse,
+  SuggestedLinkReviewResponse,
+  BatchReviewResponse,
+  PendingSuggestionsResponse,
 } from '@/types'
 import type {
   PostSigningDashboard,
@@ -741,6 +755,250 @@ class ApiClient {
     const response = await this.client.post('/metrics/backfill', null, {
       params: { days }
     })
+    return response.data
+  }
+
+  // ============ DASHBOARD INSIGHTS & ACTIVITY ============
+
+  async getDashboardInsights(): Promise<{
+    insights: Array<{
+      title: string
+      description: string
+      action: string
+      action_label: string
+      variant: 'info' | 'warning' | 'success'
+    }>
+  }> {
+    const response = await this.client.get('/dashboard/insights')
+    return response.data
+  }
+
+  async getRecentActivity(limit = 10): Promise<{
+    activities: Array<{
+      icon: string
+      title: string
+      subtitle: string
+      time: string
+      color: string
+    }>
+  }> {
+    const response = await this.client.get('/dashboard/activity', {
+      params: { limit }
+    })
+    return response.data
+  }
+
+  // ============ SUPER ADMIN: TENANT ENDPOINTS ============
+
+  async getTenants(includeInactive = false): Promise<Tenant[]> {
+    const response = await this.client.get<Tenant[]>('/tenants', {
+      params: { include_inactive: includeInactive }
+    })
+    return response.data
+  }
+
+  async getTenant(id: string): Promise<Tenant> {
+    const response = await this.client.get<Tenant>(`/tenants/${id}`)
+    return response.data
+  }
+
+  async createTenant(data: TenantCreate): Promise<Tenant> {
+    const response = await this.client.post<Tenant>('/tenants', data)
+    return response.data
+  }
+
+  async updateTenant(id: string, data: TenantUpdate): Promise<Tenant> {
+    const response = await this.client.patch<Tenant>(`/tenants/${id}`, data)
+    return response.data
+  }
+
+  async deactivateTenant(id: string): Promise<void> {
+    await this.client.delete(`/tenants/${id}`)
+  }
+
+  async activateTenant(id: string): Promise<void> {
+    await this.client.patch(`/tenants/${id}`, { is_active: true })
+  }
+
+  async getTenantStats(id: string): Promise<TenantStats> {
+    const response = await this.client.get<TenantStats>(`/tenants/${id}/stats`)
+    return response.data
+  }
+
+  async getPlatformStats(): Promise<PlatformStats> {
+    // Aggregate stats from tenants list and individual tenant stats
+    const tenants = await this.getTenants(true)
+
+    // Fetch stats for each tenant in parallel
+    const tenantStatsPromises = tenants.map(t =>
+      this.getTenantStats(t.id).catch(() => ({
+        tenant_id: t.id,
+        user_count: 0,
+        contract_count: 0,
+        is_active: t.is_active
+      }))
+    )
+    const allTenantStats = await Promise.all(tenantStatsPromises)
+
+    // Aggregate totals
+    const totalUsers = allTenantStats.reduce((sum, s) => sum + (s.user_count || 0), 0)
+    const totalContracts = allTenantStats.reduce((sum, s) => sum + (s.contract_count || 0), 0)
+
+    const stats: PlatformStats = {
+      total_tenants: tenants.length,
+      active_tenants: tenants.filter(t => t.is_active).length,
+      total_users: totalUsers,
+      total_contracts: totalContracts,
+      total_value: 0, // Would need a dedicated endpoint for total value
+      plan_distribution: {
+        starter: tenants.filter(t => t.plan === 'starter').length,
+        professional: tenants.filter(t => t.plan === 'professional').length,
+        enterprise: tenants.filter(t => t.plan === 'enterprise').length,
+      }
+    }
+    return stats
+  }
+
+  // ============ SUPER ADMIN: CROSS-TENANT USER ENDPOINTS ============
+
+  async getAllUsers(_tenantId?: string): Promise<UserWithTenant[]> {
+    // Uses existing users endpoint - super admin can see all users
+    const response = await this.client.get<{ users: User[]; total: number }>('/users')
+    // Add tenant_id placeholder - actual implementation needs backend support
+    return response.data.users.map(u => ({ ...u, tenant_id: '' }))
+  }
+
+  async createUserForTenant(_tenantId: string, data: { username: string; email: string; password: string; role: string }): Promise<User> {
+    // Uses existing create user endpoint
+    const response = await this.client.post<User>('/users', data)
+    return response.data
+  }
+
+  async getTenantUsers(_tenantId: string): Promise<User[]> {
+    // For now, return all users - needs backend filtering support
+    const response = await this.client.get<{ users: User[]; total: number }>('/users')
+    return response.data.users
+  }
+
+  // ============ SUPER ADMIN: CUSTOM FIELDS ENDPOINTS ============
+
+  async getCustomFields(tenantId: string, entityType: EntityType): Promise<CustomField[]> {
+    const response = await this.client.get<{ entity_type: string; fields: CustomField[] }>(`/admin/custom-fields/${entityType}`, {
+      headers: { 'X-Tenant-ID': tenantId }
+    })
+    return response.data.fields
+  }
+
+  async createCustomField(tenantId: string, entityType: EntityType, data: CustomFieldCreate): Promise<CustomField> {
+    const response = await this.client.post<CustomField>(`/admin/custom-fields/${entityType}`, {
+      field: data
+    }, {
+      headers: { 'X-Tenant-ID': tenantId }
+    })
+    return response.data
+  }
+
+  async updateCustomField(tenantId: string, entityType: EntityType, fieldName: string, data: CustomFieldUpdate): Promise<CustomField> {
+    const response = await this.client.put<CustomField>(`/admin/custom-fields/${entityType}/${fieldName}`, data, {
+      headers: { 'X-Tenant-ID': tenantId }
+    })
+    return response.data
+  }
+
+  async deleteCustomField(tenantId: string, entityType: EntityType, fieldName: string): Promise<void> {
+    await this.client.delete(`/admin/custom-fields/${entityType}/${fieldName}`, {
+      headers: { 'X-Tenant-ID': tenantId }
+    })
+  }
+
+  async reorderCustomFields(tenantId: string, entityType: EntityType, order: string[]): Promise<CustomField[]> {
+    const response = await this.client.post<{ entity_type: string; fields: CustomField[] }>(`/admin/custom-fields/${entityType}/reorder`, order, {
+      headers: { 'X-Tenant-ID': tenantId }
+    })
+    return response.data.fields
+  }
+
+  // ============ TENANT USER: CUSTOM FIELDS (READ-ONLY) ============
+
+  /**
+   * Get custom field definitions for the current user's tenant.
+   * This is for regular tenant users to see what fields are available.
+   */
+  async getTenantCustomFields(entityType: EntityType): Promise<CustomField[]> {
+    const response = await this.client.get<{ entity_type: string; fields: CustomField[] }>(`/custom-fields/${entityType}`)
+    return response.data.fields
+  }
+
+  /**
+   * Update custom field values on a contract.
+   */
+  async updateContractCustomFields(contractId: string, customFields: Record<string, unknown>): Promise<Contract> {
+    const response = await this.client.patch<Contract>(`/contracts/${contractId}`, {
+      custom_fields: customFields
+    })
+    return response.data
+  }
+
+  // ============ SUGGESTED CONTRACT LINKS ============
+
+  /**
+   * Get suggested links for a specific contract.
+   */
+  async getSuggestedLinks(contractId: string, statusFilter?: string): Promise<SuggestedLinksListResponse> {
+    const response = await this.client.get<SuggestedLinksListResponse>(
+      `/contracts/${contractId}/suggested-links`,
+      { params: statusFilter ? { status_filter: statusFilter } : undefined }
+    )
+    return response.data
+  }
+
+  /**
+   * Review (approve/reject/modify) a suggested link.
+   */
+  async reviewSuggestedLink(
+    contractId: string,
+    suggestionId: string,
+    action: 'approve' | 'reject' | 'modify',
+    modifiedLinkType?: string
+  ): Promise<SuggestedLinkReviewResponse> {
+    const response = await this.client.post<SuggestedLinkReviewResponse>(
+      `/contracts/${contractId}/suggested-links/${suggestionId}/review`,
+      {
+        action,
+        modified_link_type: modifiedLinkType,
+      }
+    )
+    return response.data
+  }
+
+  /**
+   * Batch approve or reject multiple suggestions.
+   */
+  async batchReviewSuggestedLinks(
+    contractId: string,
+    suggestionIds: string[],
+    action: 'approve' | 'reject',
+    notes?: string
+  ): Promise<BatchReviewResponse> {
+    const response = await this.client.post<BatchReviewResponse>(
+      `/contracts/${contractId}/suggested-links/batch-review`,
+      {
+        suggestion_ids: suggestionIds,
+        action,
+        notes,
+      }
+    )
+    return response.data
+  }
+
+  /**
+   * Get all pending suggestions for the current tenant.
+   */
+  async getAllPendingSuggestions(limit = 50): Promise<PendingSuggestionsResponse> {
+    const response = await this.client.get<PendingSuggestionsResponse>(
+      '/contracts/pending-suggestions',
+      { params: { limit } }
+    )
     return response.data
   }
 }

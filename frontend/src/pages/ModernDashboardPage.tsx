@@ -173,6 +173,18 @@ export default function ModernDashboardPage() {
     queryFn: () => api.getDashboardTrends(9), // 9 days for sparklines
   })
 
+  // Fetch AI insights
+  const { data: insightsData } = useQuery({
+    queryKey: ['dashboard-insights'],
+    queryFn: () => api.getDashboardInsights(),
+  })
+
+  // Fetch recent activity
+  const { data: activityData } = useQuery({
+    queryKey: ['recent-activity'],
+    queryFn: () => api.getRecentActivity(10),
+  })
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -337,20 +349,25 @@ export default function ModernDashboardPage() {
               <SparklesIcon className="w-5 h-5 text-primary-500" />
               AI Insights
             </h2>
-            <InsightCard
-              title="Renewal Opportunity"
-              description="3 contracts expiring in 30 days worth $1.2M. Consider early renewal negotiations."
-              action="/renewals?window=30"
-              actionLabel="View renewals"
-              variant="info"
-            />
-            <InsightCard
-              title="Compliance Alert"
-              description="SLA compliance dropped 5% this month. 2 critical breaches need attention."
-              action="/compliance"
-              actionLabel="Review compliance"
-              variant="warning"
-            />
+            {insightsData?.insights?.map((insight, idx) => (
+              <InsightCard
+                key={idx}
+                title={insight.title}
+                description={insight.description}
+                action={insight.action}
+                actionLabel={insight.action_label}
+                variant={insight.variant as 'info' | 'warning' | 'success'}
+              />
+            ))}
+            {!insightsData?.insights?.length && (
+              <InsightCard
+                title="All Clear"
+                description="No critical issues detected. All contracts and obligations are on track."
+                action="/contracts"
+                actionLabel="View contracts"
+                variant="success"
+              />
+            )}
           </div>
 
           {/* Activity Feed */}
@@ -359,34 +376,32 @@ export default function ModernDashboardPage() {
               <h2 className="font-semibold text-gray-900">Recent Activity</h2>
             </div>
             <div className="px-5 divide-y divide-gray-50">
-              <ActivityItem
-                icon={DocumentTextIcon}
-                title="Contract uploaded"
-                subtitle="MSA_TechServices_2024.pdf"
-                time="2m ago"
-                color="blue"
-              />
-              <ActivityItem
-                icon={CheckCircleIcon}
-                title="Obligation completed"
-                subtitle="Annual audit submission"
-                time="1h ago"
-                color="green"
-              />
-              <ActivityItem
-                icon={ExclamationTriangleIcon}
-                title="SLA breach detected"
-                subtitle="Response Time - Priority 1"
-                time="3h ago"
-                color="red"
-              />
-              <ActivityItem
-                icon={ClockIcon}
-                title="Renewal reminder"
-                subtitle="Vendor Agreement expires in 30 days"
-                time="5h ago"
-                color="amber"
-              />
+              {activityData?.activities?.map((activity, idx) => {
+                const iconMap: Record<string, React.ElementType> = {
+                  document: DocumentTextIcon,
+                  check: CheckCircleIcon,
+                  warning: ExclamationTriangleIcon,
+                  clock: ClockIcon,
+                  sparkles: SparklesIcon,
+                  pencil: DocumentTextIcon,
+                }
+                const Icon = iconMap[activity.icon] || DocumentTextIcon
+                return (
+                  <ActivityItem
+                    key={idx}
+                    icon={Icon}
+                    title={activity.title}
+                    subtitle={activity.subtitle}
+                    time={activity.time}
+                    color={activity.color as 'gray' | 'green' | 'red' | 'amber' | 'blue'}
+                  />
+                )
+              })}
+              {!activityData?.activities?.length && (
+                <div className="py-4 text-center text-sm text-gray-500">
+                  No recent activity
+                </div>
+              )}
             </div>
             <Link
               to="/activity"
@@ -404,7 +419,7 @@ export default function ModernDashboardPage() {
               color={(complianceData?.obligations?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.obligations?.compliance_rate || 0) >= 70 ? 'warning' : 'danger'}
               variant="filled"
               size="sm"
-              chart={[75, 78, 82, 85, 83, 88, 90]}
+              chart={trendData?.compliance_rate || undefined}
             />
             <StatCard
               title="SLA Performance"
@@ -412,7 +427,7 @@ export default function ModernDashboardPage() {
               color={(complianceData?.slas?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.slas?.compliance_rate || 0) >= 70 ? 'warning' : 'danger'}
               variant="filled"
               size="sm"
-              chart={[88, 90, 89, 92, 91, 93, 95]}
+              chart={trendData?.sla_compliance_rate || undefined}
             />
           </div>
         </div>
