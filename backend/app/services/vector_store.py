@@ -68,8 +68,6 @@ class VectorStore:
                     host=settings.chroma_host,
                     port=settings.chroma_port,
                     settings=Settings(
-                        chroma_client_auth_provider="chromadb.auth.token.TokenAuthClientProvider",
-                        chroma_client_auth_credentials=settings.chroma_auth_token,
                         anonymized_telemetry=False,
                     ),
                 )
