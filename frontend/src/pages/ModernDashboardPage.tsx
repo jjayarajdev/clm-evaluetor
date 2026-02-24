@@ -14,6 +14,8 @@ import {
   BellAlertIcon,
   ArrowRightIcon,
   SparklesIcon,
+  ChartBarIcon,
+  Cog6ToothIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
 import api from '@/lib/api'
@@ -193,6 +195,46 @@ export default function ModernDashboardPage() {
     )
   }
 
+  // Build dynamic quick actions based on real data
+  const getQuickActions = () => {
+    const highRiskCount = summaryData?.by_risk?.high || 0
+    const pendingCount = summaryData?.by_status?.pending || 0
+    const expiringCount = complianceData?.renewals?.expiring_30_days || 0
+    const alertsCount = complianceData?.slas?.breached || 0
+
+    const actionsByRole: Record<RoleType, Array<{
+      label: string
+      description: string
+      href: string
+      icon: React.ElementType
+      badge?: number
+      badgeColor?: 'red' | 'amber' | 'blue'
+    }>> = {
+      legal: [
+        { label: 'High Risk', description: 'Review contracts', href: '/contracts?risk=high', icon: ExclamationTriangleIcon, badge: highRiskCount || undefined, badgeColor: 'red' },
+        { label: 'Pending Review', description: 'Awaiting approval', href: '/contracts?status=pending', icon: ClockIcon, badge: pendingCount || undefined, badgeColor: 'amber' },
+        { label: 'Ask AI', description: 'Query contracts', href: '/query', icon: SparklesIcon },
+      ],
+      procurement: [
+        { label: 'Expiring Soon', description: 'Next 30 days', href: '/renewals?window=30', icon: ClockIcon, badge: expiringCount || undefined, badgeColor: 'amber' },
+        { label: 'Vendors', description: 'Performance scores', href: '/vendors', icon: ChartBarIcon },
+        { label: 'New Contract', description: 'Upload & analyze', href: '/upload', icon: SparklesIcon },
+      ],
+      admin: [
+        { label: 'System Health', description: 'Monitor services', href: '/admin/scheduler', icon: ChartBarIcon },
+        { label: 'Alerts', description: 'Active issues', href: '/admin/alerts', icon: BellAlertIcon, badge: alertsCount || undefined, badgeColor: 'red' },
+        { label: 'Users', description: 'Manage access', href: '/users', icon: Cog6ToothIcon },
+      ],
+      viewer: [
+        { label: 'Browse', description: 'All contracts', href: '/contracts', icon: ChartBarIcon },
+        { label: 'Ask AI', description: 'Query contracts', href: '/query', icon: SparklesIcon },
+        { label: 'Reports', description: 'View analytics', href: '/reports', icon: ChartBarIcon },
+      ],
+    }
+
+    return actionsByRole[userRole]
+  }
+
   return (
     <div className="space-y-6 pb-8">
       {/* Welcome Banner */}
@@ -203,6 +245,7 @@ export default function ModernDashboardPage() {
           critical: complianceData?.slas?.critical_breaches || 0,
           warning: complianceData?.obligations?.overdue || 0,
         }}
+        quickActions={getQuickActions()}
       />
 
       {/* Stats Grid - Personio-style colorful widgets */}
