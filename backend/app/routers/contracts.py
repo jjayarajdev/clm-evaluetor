@@ -317,6 +317,35 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             print(f"[DEEP ANALYSIS] Committed to database")
             logging.info(f"Clause/obligation/SLA extraction completed for {contract_id}")
 
+        # Extract renewal terms
+        print(f"[DEEP ANALYSIS] Extracting renewal terms...")
+        try:
+            from app.agents.renewal_monitoring import analyze_renewal_terms, update_contract_renewal
+
+            renewal_result = await analyze_renewal_terms(
+                contract_text=full_text,
+                contract_id=contract_id,
+                user_id=user_id,
+            )
+
+            if renewal_result and renewal_result.terms:
+                async with async_session_maker() as session:
+                    result = await session.execute(
+                        select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+                    )
+                    contract = result.scalar_one_or_none()
+                    if contract:
+                        await update_contract_renewal(session, contract, renewal_result)
+                        await session.commit()
+                        print(f"[DEEP ANALYSIS] Renewal terms stored - auto_renewal={renewal_result.terms.has_auto_renewal}, "
+                              f"expiration={renewal_result.terms.expiration_date}, notice_days={renewal_result.terms.notice_period_days}")
+                        logging.info(f"Renewal terms extracted for {contract_id}: "
+                                   f"auto_renewal={renewal_result.terms.has_auto_renewal}, "
+                                   f"expiration={renewal_result.terms.expiration_date}")
+        except Exception as e:
+            print(f"[DEEP ANALYSIS] Renewal extraction failed: {e}")
+            logging.warning(f"Renewal extraction failed for {contract_id}: {e}")
+
         # Run schema-based extraction if a schema is available
         async with async_session_maker() as session:
             result = await session.execute(
@@ -353,6 +382,127 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                         logging.warning(f"Schema extraction failed for {contract_id}: {e}")
                 else:
                     logging.info(f"No schema available for contract type: {contract.contract_type.value}")
+
+        # Run auto-link detection to suggest related contracts
+        print(f"[DEEP ANALYSIS] Running auto-link detection...")
+        try:
+            from app.services.auto_link_detector import AutoLinkDetector
+            from app.models.suggested_link import SuggestedContractLink
+
+            async with async_session_maker() as session:
+                # Get the contract with all its data
+                result = await session.execute(
+                    select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+                )
+                contract = result.scalar_one_or_none()
+
+                if contract:
+                    detector = AutoLinkDetector(
+                        db=session,
+                        tenant_id=contract.tenant_id,
+                    )
+
+                    # Get batch contract IDs if available
+                    batch_ids = _batch_contracts.get(contract_id, [])
+
+                    suggestions = await detector.detect_links(
+                        contract=contract,
+                        batch_contract_ids=batch_ids,
+                        min_confidence=0.2,  # Lowered to capture type hierarchy matches
+                        max_suggestions=5,
+                    )
+
+                    if suggestions:
+                        for suggestion in suggestions:
+                            session.add(suggestion)
+                        await session.commit()
+                        print(f"[DEEP ANALYSIS] Created {len(suggestions)} link suggestions")
+                        logging.info(f"Created {len(suggestions)} link suggestions for {contract_id}")
+                    else:
+                        print(f"[DEEP ANALYSIS] No link suggestions found")
+        except Exception as e:
+            print(f"[DEEP ANALYSIS] Auto-link detection failed: {e}")
+            logging.warning(f"Auto-link detection failed for {contract_id}: {e}")
+
+        # Run industry detection and compliance check
+        print(f"[DEEP ANALYSIS] Running compliance analysis...")
+        try:
+            from app.services.industry_detector import IndustryDetector
+            from app.services.compliance_gap_detector import ComplianceGapDetector
+            from app.services.compliance_alert_service import create_compliance_alerts_for_gaps
+            from app.agents.regulatory_extraction import (
+                extract_regulatory_obligations,
+                store_regulatory_obligations,
+            )
+            from app.models.industry import REGULATED_INDUSTRIES
+            from datetime import datetime
+
+            async with async_session_maker() as session:
+                # Get the contract
+                result = await session.execute(
+                    select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+                )
+                contract = result.scalar_one_or_none()
+
+                if contract:
+                    # 1. Detect industry
+                    industry_detector = IndustryDetector(session)
+                    industry_result = await industry_detector.detect_industry(contract)
+                    contract.detected_industry = industry_result.industry
+                    contract.industry_confidence = industry_result.confidence
+                    print(f"[DEEP ANALYSIS] Detected industry: {industry_result.industry.value} "
+                          f"(confidence: {industry_result.confidence:.2f})")
+                    logging.info(f"Detected industry {industry_result.industry.value} for {contract_id}")
+
+                    # 2. Check compliance gaps
+                    gap_detector = ComplianceGapDetector(session, contract.tenant_id)
+                    check_result = await gap_detector.check_compliance(
+                        contract=contract,
+                        industry=industry_result.industry,
+                        create_gaps=True,
+                    )
+                    contract.compliance_score = check_result.compliance_score
+                    contract.last_compliance_check = datetime.utcnow()
+                    print(f"[DEEP ANALYSIS] Compliance score: {check_result.compliance_score}, "
+                          f"gaps: {len(check_result.gaps_found)}")
+                    logging.info(f"Compliance check: score={check_result.compliance_score}, "
+                               f"gaps={len(check_result.gaps_found)} for {contract_id}")
+
+                    # 3. Create alerts for critical/high gaps
+                    if check_result.gaps_found:
+                        alerts = await create_compliance_alerts_for_gaps(
+                            session, contract.id, check_result.gaps_found
+                        )
+                        if alerts:
+                            print(f"[DEEP ANALYSIS] Created {len(alerts)} compliance alerts")
+                            logging.info(f"Created {len(alerts)} compliance alerts for {contract_id}")
+
+                    # 4. Extract regulatory obligations for regulated industries
+                    if industry_result.industry in REGULATED_INDUSTRIES and full_text:
+                        reg_result = await extract_regulatory_obligations(
+                            contract_text=full_text,
+                            industry=industry_result.industry,
+                            contract_id=contract_id,
+                            user_id=user_id,
+                        )
+                        if reg_result.obligations:
+                            await store_regulatory_obligations(
+                                db=session,
+                                contract_id=uuid_mod.UUID(contract_id),
+                                industry=industry_result.industry,
+                                result=reg_result,
+                            )
+                            print(f"[DEEP ANALYSIS] Extracted {len(reg_result.obligations)} "
+                                  f"regulatory obligations")
+                            logging.info(f"Extracted {len(reg_result.obligations)} "
+                                       f"regulatory obligations for {contract_id}")
+
+                    await session.commit()
+                    print(f"[DEEP ANALYSIS] Compliance analysis committed")
+
+        except Exception as e:
+            print(f"[DEEP ANALYSIS] Compliance analysis failed: {e}")
+            logging.warning(f"Compliance analysis failed for {contract_id}: {e}")
 
         print(f"[DEEP ANALYSIS] Completed for {contract_id}")
         logging.info(f"Deep analysis completed for {contract_id}")
@@ -1507,6 +1657,31 @@ async def analyze_contract(
                     logging.info(f"Extracted {exhibit_count} exhibit records for {contract_id}")
                 except Exception as e:
                     logging.warning(f"Exhibit extraction failed for {contract_id}: {e}")
+
+            # Extract renewal terms
+            try:
+                from app.agents.renewal_monitoring import analyze_renewal_terms, update_contract_renewal
+
+                renewal_result = await analyze_renewal_terms(
+                    contract_text=full_text,
+                    contract_id=contract_id,
+                    user_id=str(current_user.id),
+                )
+
+                if renewal_result and renewal_result.terms:
+                    async with async_session_maker() as session:
+                        result = await session.execute(
+                            select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+                        )
+                        contract_obj = result.scalar_one_or_none()
+                        if contract_obj:
+                            await update_contract_renewal(session, contract_obj, renewal_result)
+                            await session.commit()
+                            logging.info(f"Renewal terms extracted for {contract_id}: "
+                                       f"auto_renewal={renewal_result.terms.has_auto_renewal}, "
+                                       f"expiration={renewal_result.terms.expiration_date}")
+            except Exception as e:
+                logging.warning(f"Renewal extraction failed for {contract_id}: {e}")
 
             # Run schema-based extraction if a schema is available for this contract type
             async with async_session_maker() as session:
