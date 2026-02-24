@@ -159,3 +159,50 @@ export interface SchedulerRunResponse {
   message: string
   execution_id: string | null
 }
+
+// System Health types
+export interface SystemHealthService {
+  status: 'healthy' | 'unhealthy' | 'not_configured'
+  type: string
+  contracts?: number
+  database_size_mb?: number
+  collection?: string
+  document_count?: number
+  error?: string
+}
+
+export interface SystemHealthResponse {
+  status: 'healthy' | 'degraded'
+  timestamp: string
+  version: string
+  environment: string
+  services: {
+    database: SystemHealthService
+    chromadb: SystemHealthService
+    openai: SystemHealthService
+    langfuse: SystemHealthService
+  }
+  agents: {
+    registered: number
+  }
+  system: {
+    cpu_percent: number
+    memory: {
+      total_gb: number
+      used_gb: number
+      available_gb: number
+      percent: number
+    }
+    disk: {
+      total_gb: number
+      used_gb: number
+      free_gb: number
+      percent: number
+    }
+    uptime_hours: number
+  }
+  process: {
+    memory_mb: number
+    cpu_percent: number
+  }
+}

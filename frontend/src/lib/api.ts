@@ -65,6 +65,7 @@ import type {
   SchedulerJobHistoryListResponse,
   SchedulerStatus,
   SchedulerRunResponse,
+  SystemHealthResponse,
 } from '@/types/admin'
 
 // When VITE_API_URL is set (e.g., http://localhost:8000), append /api
@@ -687,6 +688,15 @@ class ApiClient {
     message: string
   }> {
     const response = await this.client.post('/admin/master-data/seed-all')
+    return response.data
+  }
+
+  // ============================================================================
+  // System Health endpoints
+  // ============================================================================
+
+  async getSystemHealth(): Promise<SystemHealthResponse> {
+    const response = await this.client.get<SystemHealthResponse>('/system-health')
     return response.data
   }
 

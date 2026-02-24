@@ -7,10 +7,10 @@ from app.config import settings
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import RequestLoggingMiddleware
 from app.routers import (
-    admin_settings, alerts, amendments, auth, audit, clients, connectors, contracts, custom_fields,
-    dashboard, master_data_admin, metrics, milestones, monitor, notifications, obligations,
-    postsigning, query, renewals, reports, scheduler_admin, schemas, sla, tenants, users, vendors,
-    workflow_admin,
+    admin_settings, alerts, amendments, auth, audit, clients, compliance, connectors, contracts,
+    custom_fields, dashboard, master_data_admin, metrics, milestones, monitor, notifications,
+    obligations, postsigning, query, renewals, reports, scheduler_admin, schemas, sla,
+    suggested_links, tenants, users, vendors, workflow_admin,
     # Relationship Governance (Evaluetor features)
     organizations, relationships, kpis, improvements, surveys,
 )
@@ -121,6 +121,116 @@ async def health_check():
     }
 
 
+@app.get("/api/system-health")
+async def system_health():
+    """Comprehensive system health with infrastructure metrics."""
+    import psutil
+    import os
+    from datetime import datetime
+
+    vector_store = get_vector_store()
+    orchestrator = get_orchestrator()
+
+    # Service health checks
+    chroma_healthy = vector_store.health_check()
+    ai_health = await orchestrator.health_check()
+
+    # System metrics
+    cpu_percent = psutil.cpu_percent(interval=0.1)
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+
+    # Process info
+    process = psutil.Process()
+    process_memory = process.memory_info()
+
+    # Database connection check
+    db_healthy = True
+    db_stats = {}
+    try:
+        from app.database import engine
+        from sqlalchemy import text
+        async with engine.connect() as conn:
+            result = await conn.execute(text("SELECT count(*) FROM contracts"))
+            contract_count = result.scalar()
+            result = await conn.execute(text("SELECT pg_database_size(current_database())"))
+            db_size = result.scalar()
+            db_stats = {
+                "contracts": contract_count,
+                "database_size_mb": round(db_size / (1024 * 1024), 2) if db_size else 0,
+            }
+    except Exception as e:
+        db_healthy = False
+        db_stats = {"error": str(e)}
+
+    # Vector store stats
+    vector_stats = {}
+    try:
+        stats = vector_store.get_collection_stats()
+        vector_stats = {
+            "collection": stats.get("name", "unknown"),
+            "document_count": stats.get("count", 0),
+        }
+    except Exception:
+        vector_stats = {"error": "Failed to get vector store stats"}
+
+    # Uptime
+    boot_time = datetime.fromtimestamp(psutil.boot_time())
+    uptime_seconds = (datetime.now() - boot_time).total_seconds()
+
+    all_healthy = chroma_healthy and ai_health.get("openai", False) and db_healthy
+
+    return {
+        "status": "healthy" if all_healthy else "degraded",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "0.1.0",
+        "environment": os.environ.get("ENVIRONMENT", "production"),
+        "services": {
+            "database": {
+                "status": "healthy" if db_healthy else "unhealthy",
+                "type": "PostgreSQL",
+                **db_stats,
+            },
+            "chromadb": {
+                "status": "healthy" if chroma_healthy else "unhealthy",
+                "type": "Vector Store",
+                **vector_stats,
+            },
+            "openai": {
+                "status": "healthy" if ai_health.get("openai") else "unhealthy",
+                "type": "LLM Provider",
+            },
+            "langfuse": {
+                "status": "healthy" if ai_health.get("langfuse") else ("not_configured" if ai_health.get("langfuse") is None else "unhealthy"),
+                "type": "Observability",
+            },
+        },
+        "agents": {
+            "registered": ai_health.get("agents_registered", 0),
+        },
+        "system": {
+            "cpu_percent": cpu_percent,
+            "memory": {
+                "total_gb": round(memory.total / (1024**3), 2),
+                "used_gb": round(memory.used / (1024**3), 2),
+                "available_gb": round(memory.available / (1024**3), 2),
+                "percent": memory.percent,
+            },
+            "disk": {
+                "total_gb": round(disk.total / (1024**3), 2),
+                "used_gb": round(disk.used / (1024**3), 2),
+                "free_gb": round(disk.free / (1024**3), 2),
+                "percent": disk.percent,
+            },
+            "uptime_hours": round(uptime_seconds / 3600, 1),
+        },
+        "process": {
+            "memory_mb": round(process_memory.rss / (1024**2), 2),
+            "cpu_percent": process.cpu_percent(),
+        },
+    }
+
+
 @app.get("/")
 async def root():
     """Root endpoint."""
@@ -134,6 +244,7 @@ app.include_router(users.router)
 app.include_router(audit.router)
 app.include_router(clients.router)
 app.include_router(contracts.router)
+app.include_router(suggested_links.router)
 app.include_router(amendments.router)
 app.include_router(obligations.router)
 app.include_router(sla.router)
@@ -147,11 +258,13 @@ app.include_router(dashboard.router)
 app.include_router(schemas.router)
 app.include_router(admin_settings.router)
 app.include_router(custom_fields.router)
+app.include_router(custom_fields.public_router)
 app.include_router(monitor.router)
 app.include_router(notifications.router)
 app.include_router(workflow_admin.router)
 app.include_router(connectors.router)
 app.include_router(alerts.router)
+app.include_router(compliance.router)
 app.include_router(master_data_admin.router)
 app.include_router(scheduler_admin.router)
 app.include_router(metrics.router)

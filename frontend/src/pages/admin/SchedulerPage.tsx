@@ -10,11 +10,15 @@ import {
   ExclamationTriangleIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  CpuChipIcon,
+  CircleStackIcon,
+  ServerIcon,
+  SignalIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDateTime } from '@/lib/utils'
-import type { SchedulerJob, SchedulerJobHistory, SchedulerJobUpdate } from '@/types/admin'
+import type { SchedulerJob, SchedulerJobHistory, SchedulerJobUpdate, SystemHealthService } from '@/types/admin'
 
 const STATUS_COLORS = {
   success: 'bg-green-100 text-green-700',
@@ -53,6 +57,13 @@ export default function SchedulerPage() {
     queryKey: ['scheduler-job-history', expandedJob],
     queryFn: () => (expandedJob ? api.getSchedulerJobHistory(expandedJob) : null),
     enabled: !!expandedJob,
+  })
+
+  // System Health query
+  const { data: systemHealth, isLoading: healthLoading } = useQuery({
+    queryKey: ['system-health'],
+    queryFn: () => api.getSystemHealth(),
+    refetchInterval: 30000, // Refresh every 30 seconds
   })
 
   // Mutations
@@ -237,6 +248,177 @@ export default function SchedulerPage() {
           </div>
         </div>
       )}
+
+      {/* System Health Section */}
+      <div className="card overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+          <h3 className="text-sm font-medium text-gray-900">System Health</h3>
+          {systemHealth && (
+            <span className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium',
+              systemHealth.status === 'healthy' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+            )}>
+              <SignalIcon className="h-3 w-3" />
+              {systemHealth.status === 'healthy' ? 'All Systems Operational' : 'Degraded'}
+            </span>
+          )}
+        </div>
+
+        {healthLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : systemHealth ? (
+          <div className="p-4 space-y-6">
+            {/* Services Status */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Services</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {(Object.entries(systemHealth.services) as [string, SystemHealthService][]).map(([name, service]) => (
+                  <div key={name} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <div className={cn(
+                      'h-2.5 w-2.5 rounded-full',
+                      service.status === 'healthy' ? 'bg-green-500' :
+                      service.status === 'not_configured' ? 'bg-gray-400' : 'bg-red-500'
+                    )} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 capitalize">{name}</p>
+                      <p className="text-xs text-gray-500 truncate">{service.type}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Infrastructure Metrics */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Infrastructure</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* CPU */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3 mb-3">
+                    <CpuChipIcon className="h-5 w-5 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-900">CPU Usage</span>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <span className="text-2xl font-bold text-gray-900">
+                      {systemHealth.system.cpu_percent.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-all',
+                        systemHealth.system.cpu_percent > 80 ? 'bg-red-500' :
+                        systemHealth.system.cpu_percent > 50 ? 'bg-yellow-500' : 'bg-blue-500'
+                      )}
+                      style={{ width: `${Math.min(systemHealth.system.cpu_percent, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Memory */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3 mb-3">
+                    <ServerIcon className="h-5 w-5 text-purple-600" />
+                    <span className="text-sm font-medium text-gray-900">Memory</span>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <span className="text-2xl font-bold text-gray-900">
+                      {systemHealth.system.memory.percent.toFixed(1)}%
+                    </span>
+                    <span className="text-sm text-gray-500 mb-0.5">
+                      {systemHealth.system.memory.used_gb.toFixed(1)} / {systemHealth.system.memory.total_gb.toFixed(1)} GB
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-all',
+                        systemHealth.system.memory.percent > 85 ? 'bg-red-500' :
+                        systemHealth.system.memory.percent > 70 ? 'bg-yellow-500' : 'bg-purple-500'
+                      )}
+                      style={{ width: `${Math.min(systemHealth.system.memory.percent, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Disk */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3 mb-3">
+                    <CircleStackIcon className="h-5 w-5 text-green-600" />
+                    <span className="text-sm font-medium text-gray-900">Disk</span>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <span className="text-2xl font-bold text-gray-900">
+                      {systemHealth.system.disk.percent.toFixed(1)}%
+                    </span>
+                    <span className="text-sm text-gray-500 mb-0.5">
+                      {systemHealth.system.disk.used_gb.toFixed(1)} / {systemHealth.system.disk.total_gb.toFixed(1)} GB
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-all',
+                        systemHealth.system.disk.percent > 90 ? 'bg-red-500' :
+                        systemHealth.system.disk.percent > 75 ? 'bg-yellow-500' : 'bg-green-500'
+                      )}
+                      style={{ width: `${Math.min(systemHealth.system.disk.percent, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Info */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
+              <div>
+                <p className="text-xs text-gray-500">Version</p>
+                <p className="text-sm font-medium text-gray-900">{systemHealth.version}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Environment</p>
+                <p className="text-sm font-medium text-gray-900 capitalize">{systemHealth.environment}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">System Uptime</p>
+                <p className="text-sm font-medium text-gray-900">{systemHealth.system.uptime_hours.toFixed(1)} hours</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Process Memory</p>
+                <p className="text-sm font-medium text-gray-900">{systemHealth.process.memory_mb.toFixed(1)} MB</p>
+              </div>
+              {systemHealth.services.database.contracts !== undefined && (
+                <div>
+                  <p className="text-xs text-gray-500">Contracts in DB</p>
+                  <p className="text-sm font-medium text-gray-900">{systemHealth.services.database.contracts}</p>
+                </div>
+              )}
+              {systemHealth.services.database.database_size_mb !== undefined && (
+                <div>
+                  <p className="text-xs text-gray-500">Database Size</p>
+                  <p className="text-sm font-medium text-gray-900">{systemHealth.services.database.database_size_mb} MB</p>
+                </div>
+              )}
+              {systemHealth.services.chromadb.document_count !== undefined && (
+                <div>
+                  <p className="text-xs text-gray-500">Vector Documents</p>
+                  <p className="text-sm font-medium text-gray-900">{systemHealth.services.chromadb.document_count}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-gray-500">AI Agents</p>
+                <p className="text-sm font-medium text-gray-900">{systemHealth.agents.registered} registered</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 text-center text-gray-500">
+            Unable to load system health data
+          </div>
+        )}
+      </div>
 
       {/* Jobs List */}
       <div className="card overflow-hidden">
