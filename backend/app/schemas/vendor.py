@@ -1,8 +1,16 @@
 """Pydantic schemas for Vendor Performance Scoring."""
 
 from datetime import date, datetime
+from enum import Enum
 from pydantic import BaseModel, Field
 from typing import Literal
+
+
+class CounterpartyType(str, Enum):
+    """Type of counterparty relationship."""
+    VENDOR = "vendor"      # You buy from them
+    CLIENT = "client"      # You deliver to them
+    UNKNOWN = "unknown"    # Not determined
 
 
 class VendorScoreBreakdown(BaseModel):
@@ -65,6 +73,7 @@ class VendorListItem(BaseModel):
 
     vendor_name: str
     normalized_name: str  # Lowercase, trimmed for matching
+    party_type: CounterpartyType = CounterpartyType.UNKNOWN  # vendor or client
     performance_score: float  # 0-100 composite score
     risk_level: Literal["low", "medium", "high", "critical"]
     is_at_risk: bool  # Score < 60

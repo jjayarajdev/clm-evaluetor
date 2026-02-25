@@ -414,8 +414,12 @@ class ApiClient {
     return response.data
   }
 
-  // Vendor endpoints
-  async getVendors(params?: { sort_by?: string; sort_order?: string }): Promise<{
+  // Vendor/Counterparty endpoints
+  async getVendors(params?: {
+    sort_by?: string
+    sort_order?: string
+    party_type?: 'all' | 'vendor' | 'client'
+  }): Promise<{
     total_vendors: number
     at_risk_count: number
     total_exposure: number

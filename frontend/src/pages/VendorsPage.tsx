@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   BuildingOfficeIcon,
@@ -7,13 +7,18 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
   BuildingOffice2Icon,
+  UserGroupIcon,
+  TruckIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import PageHeader from '@/components/ui/PageHeader'
 import StatCard from '@/components/ui/StatCard'
 import { cn } from '@/lib/utils'
-import type { VendorListItem } from '@/types/postsigning'
+import type { VendorListItem, CounterpartyType } from '@/types/postsigning'
+
+type PartyFilter = 'all' | 'vendor' | 'client'
 
 function ScoreGauge({ score, size = 'md' }: { score: number; size?: 'sm' | 'md' | 'lg' }) {
   const getColor = () => {
@@ -52,7 +57,31 @@ function ScoreGauge({ score, size = 'md' }: { score: number; size?: 'sm' | 'md' 
   )
 }
 
-function VendorRow({ vendor, onClick }: { vendor: VendorListItem; onClick: () => void }) {
+function PartyTypeBadge({ type }: { type: CounterpartyType }) {
+  if (type === 'vendor') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+        <TruckIcon className="h-3 w-3" />
+        Vendor
+      </span>
+    )
+  }
+  if (type === 'client') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+        <UserGroupIcon className="h-3 w-3" />
+        Client
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+      Unknown
+    </span>
+  )
+}
+
+function VendorRow({ vendor, onClick, showType }: { vendor: VendorListItem; onClick: () => void; showType: boolean }) {
   return (
     <tr
       className="hover:bg-gray-50 cursor-pointer"
@@ -62,7 +91,10 @@ function VendorRow({ vendor, onClick }: { vendor: VendorListItem; onClick: () =>
         <div className="flex items-center gap-3">
           <ScoreGauge score={vendor.performance_score} size="sm" />
           <div>
-            <p className="font-medium text-gray-900">{vendor.vendor_name}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-gray-900">{vendor.vendor_name}</p>
+              {showType && <PartyTypeBadge type={vendor.party_type} />}
+            </div>
             <p className="text-xs text-gray-500">{vendor.contract_count} contracts</p>
           </div>
         </div>
@@ -251,14 +283,33 @@ function VendorDetailModal({
 }
 
 export default function VendorsPage() {
+  const { isProcurement, isLegal, isAdmin, isSuperAdmin } = useAuth()
+
+  // Role-based default filter
+  const defaultFilter = useMemo((): PartyFilter => {
+    if (isProcurement) return 'vendor'  // Procurement sees vendors by default
+    if (isLegal || isAdmin || isSuperAdmin) return 'all'  // Legal/Admin sees all
+    return 'all'
+  }, [isProcurement, isLegal, isAdmin, isSuperAdmin])
+
+  const [partyFilter, setPartyFilter] = useState<PartyFilter>(defaultFilter)
   const [sortBy, setSortBy] = useState('score')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [selectedVendor, setSelectedVendor] = useState<string | null>(null)
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['vendors', sortBy, sortOrder],
-    queryFn: () => api.getVendors({ sort_by: sortBy, sort_order: sortOrder }),
+    queryKey: ['vendors', sortBy, sortOrder, partyFilter],
+    queryFn: () => api.getVendors({ sort_by: sortBy, sort_order: sortOrder, party_type: partyFilter }),
   })
+
+  // Dynamic page title based on filter
+  const pageTitle = partyFilter === 'vendor' ? 'Vendor Performance' :
+                    partyFilter === 'client' ? 'Client Relationships' :
+                    'Counterparty Performance'
+
+  const pageDescription = partyFilter === 'vendor' ? 'Track and compare vendor performance across your contracts' :
+                          partyFilter === 'client' ? 'Monitor client relationships and contract health' :
+                          'View all counterparties - vendors and clients'
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -296,18 +347,39 @@ export default function VendorsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <PageHeader
-        title="Vendor Performance"
-        description="Track and compare vendor performance across your contracts"
-        icon={BuildingOffice2Icon}
-        variant="bordered"
-      />
+      {/* Header with Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <PageHeader
+          title={pageTitle}
+          description={pageDescription}
+          icon={BuildingOffice2Icon}
+          variant="bordered"
+        />
+
+        {/* Party Type Filter */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="party-filter" className="text-sm font-medium text-gray-700">
+            Show:
+          </label>
+          <select
+            id="party-filter"
+            value={partyFilter}
+            onChange={(e) => setPartyFilter(e.target.value as PartyFilter)}
+            className="rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500"
+          >
+            <option value="all">All Counterparties</option>
+            <option value="vendor">Vendors Only</option>
+            <option value="client">Clients Only</option>
+          </select>
+        </div>
+      </div>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Total Vendors"
+          title={partyFilter === 'vendor' ? 'Total Vendors' :
+                 partyFilter === 'client' ? 'Total Clients' :
+                 'Total Counterparties'}
           value={data.total_vendors}
           icon={BuildingOfficeIcon}
           color="primary"
@@ -377,6 +449,7 @@ export default function VendorsPage() {
                 key={vendor.normalized_name}
                 vendor={vendor}
                 onClick={() => setSelectedVendor(vendor.vendor_name)}
+                showType={partyFilter === 'all'}
               />
             ))}
           </tbody>

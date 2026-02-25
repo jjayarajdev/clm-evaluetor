@@ -12,7 +12,9 @@ from app.models import (
     Contract, ContractStatus, ContractSLA, SLAPerformance,
     Obligation, ObligationStatus, RAGStatus,
 )
+from app.models.party import ContractParty, PartyRole
 from app.schemas.vendor import (
+    CounterpartyType,
     VendorScoreBreakdown,
     VendorContractSummary,
     VendorObligationSummary,
@@ -26,6 +28,11 @@ from app.schemas.vendor import (
     AtRiskVendorsResponse,
     VendorScorecard,
 )
+
+# Party roles that indicate VENDOR (you buy from them)
+VENDOR_ROLES = {PartyRole.PROVIDER, PartyRole.VENDOR}
+# Party roles that indicate CLIENT (you deliver to them)
+CLIENT_ROLES = {PartyRole.CLIENT, PartyRole.CUSTOMER}
 
 router = APIRouter(prefix="/api/vendors", tags=["vendors"])
 
@@ -51,6 +58,62 @@ def normalize_vendor_name(name: str | None) -> str:
         if normalized.endswith(suffix):
             normalized = normalized[:-len(suffix)]
     return normalized
+
+
+async def determine_counterparty_type(
+    db: AsyncSession,
+    counterparty_name: str,
+    contract_ids: list[UUID],
+) -> CounterpartyType:
+    """
+    Determine if a counterparty is a vendor (you buy from) or client (you deliver to).
+
+    Logic:
+    1. Check ContractParty records for this counterparty
+    2. If is_primary=False (they are the counterparty), check their role
+    3. PROVIDER/VENDOR roles → they are a vendor (you buy from them)
+    4. CLIENT/CUSTOMER roles → they are a client (you deliver to them)
+    5. If no party data, return UNKNOWN
+    """
+    if not contract_ids:
+        return CounterpartyType.UNKNOWN
+
+    # Query party records for these contracts where party is NOT primary (i.e., counterparty)
+    normalized = normalize_vendor_name(counterparty_name)
+    query = select(ContractParty).where(
+        and_(
+            ContractParty.contract_id.in_(contract_ids),
+            ContractParty.is_primary == False,
+            func.lower(ContractParty.legal_name).ilike(f"%{normalized}%"),
+        )
+    )
+    result = await db.execute(query)
+    parties = list(result.scalars().all())
+
+    if not parties:
+        # Try matching without name filter - just get non-primary parties
+        query = select(ContractParty).where(
+            and_(
+                ContractParty.contract_id.in_(contract_ids),
+                ContractParty.is_primary == False,
+            )
+        )
+        result = await db.execute(query)
+        parties = list(result.scalars().all())
+
+    if not parties:
+        return CounterpartyType.UNKNOWN
+
+    # Count roles
+    vendor_count = sum(1 for p in parties if p.role in VENDOR_ROLES)
+    client_count = sum(1 for p in parties if p.role in CLIENT_ROLES)
+
+    if vendor_count > client_count:
+        return CounterpartyType.VENDOR
+    elif client_count > vendor_count:
+        return CounterpartyType.CLIENT
+    else:
+        return CounterpartyType.UNKNOWN
 
 
 def determine_risk_level(score: float) -> str:
@@ -285,13 +348,19 @@ async def build_vendor_metrics(db: AsyncSession, vendor_name: str, contracts: li
 async def list_vendors(
     sort_by: str = Query("score", pattern="^(score|name|exposure|contracts)$"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    party_type: str = Query("all", pattern="^(all|vendor|client)$", description="Filter by counterparty type"),
     include_inactive: bool = False,
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List all vendors with performance scores.
+    List all counterparties with performance scores.
 
     Aggregates data from all contracts by counterparty name.
+
+    - **party_type**: Filter by type - 'vendor' (you buy from), 'client' (you deliver to), or 'all'
+    - **sort_by**: Sort field - score, name, exposure, contracts
+    - **sort_order**: asc or desc
+    - **include_inactive**: Include counterparties with only expired contracts
     """
     # Get all unique counterparties
     query = select(Contract.counterparty).where(
@@ -319,6 +388,21 @@ async def list_vendors(
             if not active:
                 continue
 
+        # Determine counterparty type
+        contract_ids = [c.id for c in contracts]
+        cp_type = await determine_counterparty_type(db, counterparty, contract_ids)
+
+        # Filter by party_type if specified
+        if party_type == "vendor" and cp_type != CounterpartyType.VENDOR:
+            # Skip if filtering for vendors and this isn't a vendor
+            # But include UNKNOWN in vendor view (legacy behavior)
+            if cp_type == CounterpartyType.CLIENT:
+                continue
+        elif party_type == "client" and cp_type != CounterpartyType.CLIENT:
+            # Skip if filtering for clients and this isn't a client
+            if cp_type == CounterpartyType.VENDOR:
+                continue
+
         metrics = await build_vendor_metrics(db, counterparty, contracts)
 
         score = metrics["score_breakdown"].weighted_total
@@ -332,6 +416,7 @@ async def list_vendors(
         vendor_item = VendorListItem(
             vendor_name=counterparty,
             normalized_name=normalize_vendor_name(counterparty),
+            party_type=cp_type,
             performance_score=score,
             risk_level=determine_risk_level(score),
             is_at_risk=is_at_risk,
