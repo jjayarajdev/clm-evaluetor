@@ -1,275 +1,1112 @@
 # CLM Platform Data Model
 
-## Multi-Tenancy Architecture
+Comprehensive data model documentation with Mermaid diagrams for the Contract Lifecycle Management platform.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              PLATFORM                                        │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  Super Admin Users (tenant_id = NULL)                                │   │
-│  │  - Can access all tenants                                            │   │
-│  │  - Platform-wide administration                                      │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  Survey Templates (platform-wide, reusable across tenants)           │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │                         TENANT (Acme Corp)                             │ │
-│  │  ┌─────────────────────────────────────────────────────────────────┐  │ │
-│  │  │  Custom Field Definitions (JSONB schema for this tenant)        │  │ │
-│  │  └─────────────────────────────────────────────────────────────────┘  │ │
-│  │                                                                        │ │
-│  │  ┌─────────────┐    ┌─────────────────┐    ┌────────────────────┐    │ │
-│  │  │   Users     │    │  Organisations  │    │    Contracts       │    │ │
-│  │  │  (N per     │    │  (counterparties│    │  (with files)      │    │ │
-│  │  │   tenant)   │    │   & self)       │    │                    │    │ │
-│  │  └─────────────┘    └─────────────────┘    └────────────────────┘    │ │
-│  │         │                   │                       │                 │ │
-│  │         │                   │                       │                 │ │
-│  │         ▼                   ▼                       ▼                 │ │
-│  │  ┌──────────────────────────────────────────────────────────────┐    │ │
-│  │  │              Business Relationships                          │    │ │
-│  │  │  (links Org A ↔ Org B with KPIs, Surveys, Contracts)        │    │ │
-│  │  └──────────────────────────────────────────────────────────────┘    │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │                         TENANT (TechStart)                             │ │
-│  │                    (completely isolated data)                          │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+---
 
-## Entity Relationships
+## Table of Contents
 
-### Core Hierarchy
+1. [Multi-Tenancy Architecture](#1-multi-tenancy--access-control)
+2. [Contract Intelligence Core](#2-contract-intelligence-core)
+3. [Post-Signing Management](#3-post-signing-management)
+4. [Relationship Governance](#4-relationship-governance-evaluetor-features)
+5. [Compliance Module](#5-compliance-module)
+6. [Supporting Entities](#6-supporting-entities)
+7. [Complete Overview](#7-complete-entity-relationship-overview)
+8. [Data Flow Diagrams](#8-data-flow-diagrams)
+9. [Key Design Decisions](#9-key-design-decisions)
 
-```
-Platform (1)
-    │
-    ├── Super Admin Users (N)           [tenant_id = NULL]
-    │
-    ├── Survey Templates (N)            [platform-wide, reusable]
-    │
-    └── Tenants (N)
-            │
-            ├── Custom Field Definitions [JSONB schema per tenant]
-            │
-            ├── Users (N)                [tenant_id required]
-            │       │
-            │       └── uploads ──► Contracts
-            │
-            ├── Organisations (N)        [counterparties: vendors, clients, partners]
-            │       │
-            │       └── linked via ──► Business Relationships
-            │
-            ├── Contracts (N)            [with embedded files]
-            │       │
-            │       ├── Clauses (N)
-            │       ├── Obligations (N)
-            │       ├── SLAs (N)
-            │       ├── Exhibits (N)
-            │       └── custom_fields [JSONB values]
-            │
-            └── Business Relationships (N)
-                    │
-                    ├── org_a ──► Organisation
-                    ├── org_b ──► Organisation
-                    ├── contracts (N)
-                    ├── KPIs (N)
-                    │     └── Perception Scores (N)
-                    ├── Improvement Points (N)
-                    └── Survey Instances (N)
+---
+
+## 1. Multi-Tenancy & Access Control
+
+### Tenant & User Model
+
+```mermaid
+erDiagram
+    Tenant ||--o{ User : "has users"
+    Tenant ||--o{ Contract : "owns contracts"
+    Tenant ||--o{ Client : "has clients"
+    Tenant ||--o{ Organization : "has organizations"
+    User ||--o{ AuditLog : "creates"
+
+    Tenant {
+        uuid id PK
+        string name
+        string slug UK
+        string contact_email
+        enum plan "starter|professional|enterprise|strategic"
+        int contract_limit
+        boolean is_active
+        jsonb custom_field_definitions
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    User {
+        uuid id PK
+        uuid tenant_id FK "nullable for super_admin"
+        string username UK
+        string email UK
+        string password_hash
+        enum role "super_admin|admin|legal|procurement|viewer"
+        boolean is_active
+        timestamp last_login
+        timestamp created_at
+    }
+
+    AuditLog {
+        uuid id PK
+        uuid tenant_id FK
+        uuid user_id FK
+        string action
+        string entity_type
+        uuid entity_id
+        jsonb old_values
+        jsonb new_values
+        string ip_address
+        timestamp created_at
+    }
 ```
 
-## Detailed Cardinalities
+### Role Hierarchy
 
-| Relationship | Cardinality | Notes |
-|--------------|-------------|-------|
-| Platform : Tenant | 1 : N | Platform hosts multiple tenants |
-| Platform : Super Admin | 1 : N | Super admins have `tenant_id = NULL` |
-| Platform : Survey Template | 1 : N | Templates reusable across tenants |
-| Tenant : User | 1 : N | Each user belongs to exactly one tenant |
-| Tenant : Organisation | 1 : N | Orgs are tenant-scoped counterparties |
-| Tenant : Contract | 1 : N | Contracts isolated per tenant |
-| Tenant : Business Relationship | 1 : N | Relationships within tenant |
-| User : Contract | 1 : N | User uploads many contracts |
-| Organisation : Business Relationship | N : N | Org can be in many relationships (as A or B) |
-| Business Relationship : Contract | 1 : N | Relationship governs multiple contracts |
-| Business Relationship : KPI | 1 : N | Relationship has many KPIs |
-| KPI : Perception Score | 1 : N | Each KPI has internal & external scores |
-| Contract : Clause | 1 : N | Contract has many extracted clauses |
-| Contract : Obligation | 1 : N | Contract has many obligations |
-| Contract : Document/File | 1 : 1 | File embedded in contract (file_path) |
+```mermaid
+graph TD
+    SA[Super Admin] --> A[Admin]
+    A --> L[Legal]
+    A --> P[Procurement]
+    L --> V[Viewer]
+    P --> V
 
-## Key Questions Addressed
-
-### 1. Where do files belong?
-
-**Answer: Files are PER TENANT, stored with Contract**
-
-```
-Contract Model:
-├── file_path      → "/data/uploads/{tenant_id}/{contract_id}.pdf"
-├── filename       → "MSA-TechServices-2024.pdf"
-├── file_size      → 245678
-├── mime_type      → "application/pdf"
-└── content_hash   → SHA256 for deduplication
+    SA -.- SA_DESC["Platform-wide access<br/>Tenant management<br/>X-Tenant-ID header required"]
+    A -.- A_DESC["Tenant admin<br/>User management<br/>Settings configuration"]
+    L -.- L_DESC["Contract analysis<br/>Risk assessment<br/>Clause review"]
+    P -.- P_DESC["Vendor management<br/>Renewals tracking<br/>SLA monitoring"]
+    V -.- V_DESC["Read-only access<br/>View contracts<br/>Basic queries"]
 ```
 
-- Files are stored on local filesystem at `data/uploads/`
-- Path includes tenant isolation: `{tenant_id}/{filename}`
-- No separate Document/File model - embedded in Contract
-- Single file per contract (main document)
-- Exhibits are text extracts, not separate files
+### Tenant Isolation Architecture
 
-### 2. What is Organisation's relationship to Tenant?
+```mermaid
+graph TB
+    subgraph Platform["Platform Level"]
+        SA[Super Admin Users<br/>tenant_id = NULL]
+        ST[Survey Templates<br/>Reusable across tenants]
+    end
 
-**Answer: Organisations are TENANT-SCOPED counterparties**
+    subgraph TenantA["Tenant: Acme Corp"]
+        TA_CFD[Custom Field Definitions]
+        TA_U[Users]
+        TA_O[Organizations]
+        TA_C[Contracts]
+        TA_BR[Business Relationships]
+    end
 
-```python
-class Organization(Base, TenantMixin):
-    tenant_id: UUID          # Required - org belongs to this tenant
-    org_type: Enum           # customer, vendor, partner, internal
-    name: str
-    # ... contact details
+    subgraph TenantB["Tenant: TechStart"]
+        TB_CFD[Custom Field Definitions]
+        TB_U[Users]
+        TB_O[Organizations]
+        TB_C[Contracts]
+        TB_BR[Business Relationships]
+    end
+
+    SA -.->|X-Tenant-ID header| TenantA
+    SA -.->|X-Tenant-ID header| TenantB
+    ST -.-> TenantA
+    ST -.-> TenantB
+
+    style Platform fill:#e1f5fe
+    style TenantA fill:#f3e5f5
+    style TenantB fill:#fff3e0
 ```
 
-- Each tenant manages their own list of counterparties
-- `org_type` distinguishes: `customer` (you sell to) vs `vendor` (you buy from)
-- Organisations can exist without users (they're counterparties, not platform users)
-- The tenant's own company can be an Organisation with `org_type = "internal"`
+---
 
-### 3. Can Organisation be a counterparty without Users?
+## 2. Contract Intelligence Core
 
-**Answer: YES - Organisations don't need users**
+### Contract & Extraction Model
 
-```
-Tenant (Acme Corp - has users)
-    │
-    ├── Organisation: "Acme Corp Internal" (type: internal)
-    │       └── This is the tenant's own org record
-    │
-    ├── Organisation: "TechServices Inc" (type: vendor)
-    │       └── No users - just a counterparty record
-    │
-    └── Organisation: "GlobalSupply" (type: vendor)
-            └── No users - just a counterparty record
-```
+```mermaid
+erDiagram
+    Contract ||--o{ Clause : "contains"
+    Contract ||--o{ Obligation : "defines"
+    Contract ||--o{ ContractParty : "involves"
+    Contract ||--o{ Amendment : "amended by"
+    Contract }o--o| Client : "grouped by"
+    Contract }o--o| BusinessRelationship : "linked to"
+    Clause }o--o| Obligation : "sources"
 
-- Organisations are contact/counterparty records
-- Users are platform login accounts
-- A vendor/client org doesn't need to be a tenant or have users
-- They become "known counterparties" for contract management
+    Contract {
+        uuid id PK
+        uuid tenant_id FK
+        uuid client_id FK "optional"
+        uuid business_relationship_id FK "optional"
+        string filename
+        string file_path
+        string content_hash
+        enum status "pending|processing|completed|failed"
+        enum contract_type "msa|sow|nda|employment|vendor|lease|license|other"
+        string counterparty
+        date effective_date
+        date expiration_date
+        decimal contract_value
+        string currency
+        enum risk_level "low|medium|high|critical"
+        int risk_score "0-100"
+        text risk_summary
+        text extracted_text
+        enum detected_industry
+        int compliance_score
+        jsonb custom_fields
+        jsonb ai_extraction_metadata
+        timestamp processed_at
+        timestamp created_at
+        timestamp updated_at
+    }
 
-### 4. What is Custom Fields scope?
+    Clause {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK
+        enum clause_type
+        string title
+        text content
+        int section_number
+        int page_number
+        decimal confidence_score
+        enum risk_level "low|medium|high"
+        text risk_notes
+        boolean is_standard
+        jsonb metadata
+        timestamp created_at
+    }
 
-**Answer: Schema per TENANT, values per ENTITY**
-
-```
-Tenant.custom_field_definitions = {
-    "contract": [
-        {"name": "department", "type": "select", "options": ["Legal", "IT", "HR"]},
-        {"name": "project_code", "type": "text"}
-    ],
-    "obligation": [
-        {"name": "owner_email", "type": "email"}
-    ]
-}
-
-Contract.custom_fields = {
-    "department": "Legal",
-    "project_code": "PRJ-2024-001"
-}
-```
-
-| Level | Location | Purpose |
-|-------|----------|---------|
-| Tenant | `custom_field_definitions` (JSONB) | Schema definition |
-| Contract | `custom_fields` (JSONB) | Actual values |
-| Clause | `custom_fields` (JSONB) | Actual values |
-| Obligation | `custom_fields` (JSONB) | Actual values |
-
-- Each tenant defines their own field schema
-- Entities store actual values in their own JSONB column
-- No database migrations needed for new fields
-
-### 5. Super Admin vs Normal User
-
-**Answer: Super Admin has NULL tenant_id**
-
-```python
-class User(Base):
-    tenant_id: UUID | None  # NULL for super_admin
-    role: Enum              # super_admin, admin, legal, procurement, viewer
-```
-
-| User Type | tenant_id | Access |
-|-----------|-----------|--------|
-| Super Admin | NULL | All tenants, platform settings |
-| Admin | UUID | Own tenant only |
-| Legal | UUID | Own tenant only |
-| Viewer | UUID | Own tenant only (read) |
-
-## Visual ER Diagram
-
-```
-┌─────────────┐       ┌──────────────┐       ┌───────────────┐
-│   TENANT    │       │     USER     │       │ ORGANISATION  │
-├─────────────┤       ├──────────────┤       ├───────────────┤
-│ id (PK)     │◄──┬───│ tenant_id(FK)│   ┌───│ tenant_id(FK) │
-│ name        │   │   │ username     │   │   │ name          │
-│ slug        │   │   │ email        │   │   │ org_type      │
-│ plan        │   │   │ role         │   │   │ (vendor/      │
-│ custom_     │   │   │ is_active    │   │   │  client/      │
-│ field_defs  │   │   └──────────────┘   │   │  partner)     │
-└─────────────┘   │                      │   └───────────────┘
-                  │                      │          │
-                  │   ┌──────────────┐   │          │
-                  │   │   CONTRACT   │   │          │
-                  │   ├──────────────┤   │          │
-                  └───│ tenant_id(FK)│◄──┘          │
-                      │ uploaded_by  │──────────────┤
-                      │ filename     │              │
-                      │ file_path    │              │
-                      │ custom_fields│              │
-                      └──────────────┘              │
-                            │                       │
-                            │                       │
-                            ▼                       ▼
-                  ┌────────────────────────────────────┐
-                  │       BUSINESS_RELATIONSHIP        │
-                  ├────────────────────────────────────┤
-                  │ tenant_id (FK)                     │
-                  │ org_a_id (FK) ──► Organisation     │
-                  │ org_b_id (FK) ──► Organisation     │
-                  │ relationship_type                  │
-                  │ health_score                       │
-                  └────────────────────────────────────┘
-                            │
-              ┌─────────────┼─────────────┐
-              ▼             ▼             ▼
-        ┌─────────┐   ┌─────────┐   ┌──────────────┐
-        │   KPI   │   │ SURVEY  │   │ IMPROVEMENT  │
-        │         │   │INSTANCE │   │    POINT     │
-        └─────────┘   └─────────┘   └──────────────┘
-              │
-              ▼
-        ┌───────────────┐
-        │  PERCEPTION   │
-        │    SCORE      │
-        └───────────────┘
+    ContractParty {
+        uuid id PK
+        uuid contract_id FK
+        enum role "provider|client|vendor|customer|licensor|licensee|other"
+        string legal_name
+        string short_name
+        string entity_type
+        string jurisdiction
+        string registered_address
+        string contact_name
+        string contact_email
+        boolean is_primary
+        string section_reference
+        timestamp created_at
+    }
 ```
 
-## Summary: Reviewer's Questions Answered
+### Clause Types
+
+```mermaid
+graph LR
+    subgraph ClauseTypes["17 Clause Types"]
+        C1[confidentiality]
+        C2[termination]
+        C3[indemnification]
+        C4[liability]
+        C5[ip_rights]
+        C6[payment]
+        C7[warranty]
+        C8[force_majeure]
+        C9[governing_law]
+        C10[dispute_resolution]
+        C11[assignment]
+        C12[notice]
+        C13[amendment]
+        C14[severability]
+        C15[entire_agreement]
+        C16[data_protection]
+        C17[audit_rights]
+    end
+```
+
+### Obligation Model
+
+```mermaid
+erDiagram
+    Contract ||--o{ Obligation : "defines"
+    Clause }o--o| Obligation : "sources"
+
+    Obligation {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK
+        uuid clause_id FK "optional"
+        text description
+        enum category "payment|delivery|reporting|compliance|notice|audit|insurance|confidentiality|performance|other"
+        enum owner_type "provider|client|mutual|third_party|unspecified"
+        string obligated_party
+        date deadline
+        enum deadline_type "fixed_date|recurring|relative|ongoing"
+        string recurrence_pattern
+        string relative_deadline_text
+        enum status "pending|in_progress|completed|overdue|waived"
+        enum rag_status "green|amber|red|not_assessed"
+        string consequence_of_breach
+        decimal financial_impact
+        int priority_score
+        date last_compliance_date
+        date next_compliance_due
+        text compliance_notes
+        jsonb custom_fields
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+### Amendment Tracking
+
+```mermaid
+erDiagram
+    Contract ||--o{ Amendment : "has amendments"
+    Contract ||--o{ ContractLink : "linked from"
+    Contract ||--o{ ContractLink : "linked to"
+
+    Amendment {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK
+        uuid amends_contract_id FK "optional parent MSA"
+        string amendment_number
+        string title
+        text description
+        date effective_date
+        date signed_date
+        enum amendment_type "modification|addendum|renewal|termination|assignment"
+        text changes_summary
+        jsonb changed_terms
+        decimal value_change
+        string file_path
+        enum status "draft|pending_approval|executed|superseded"
+        timestamp created_at
+    }
+
+    ContractLink {
+        uuid id PK
+        uuid tenant_id FK
+        uuid source_contract_id FK
+        uuid target_contract_id FK
+        enum link_type "amendment|sow_to_msa|renewal|related|supersedes"
+        text notes
+        uuid created_by FK
+        timestamp created_at
+    }
+```
+
+---
+
+## 3. Post-Signing Management
+
+### SLA & Performance Tracking
+
+```mermaid
+erDiagram
+    Contract ||--o{ ContractSLA : "has SLAs"
+    ContractSLA ||--o{ SLAPerformance : "tracked by"
+    ContractSLA ||--o{ SLAAlert : "triggers"
+    Clause }o--o| ContractSLA : "sources"
+
+    ContractSLA {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK
+        uuid source_clause_id FK "optional"
+        string sla_name
+        enum metric_type "uptime_percentage|response_time|resolution_time|delivery_time|throughput|error_rate|availability|quality_score|custom"
+        decimal target_value
+        string target_operator
+        string unit_of_measure
+        decimal warning_threshold
+        decimal critical_threshold
+        enum severity "critical|high|medium|low"
+        string measurement_period "monthly|quarterly|annual"
+        boolean has_penalty
+        string penalty_type "percentage|fixed|credit"
+        decimal penalty_value
+        decimal max_penalty_cap
+        decimal at_risk_percentage
+        boolean earnback_eligible
+        text earnback_conditions
+        decimal minimum_service_level
+        decimal current_compliance_rate
+        int consecutive_breaches
+        boolean is_active
+        timestamp created_at
+    }
+
+    SLAPerformance {
+        uuid id PK
+        uuid sla_id FK
+        decimal actual_value
+        date measured_at
+        date measurement_period_start
+        date measurement_period_end
+        boolean is_compliant
+        decimal deviation_percentage
+        enum breach_severity "none|minor|major|critical"
+        boolean penalty_applied
+        decimal penalty_amount
+        boolean credit_issued
+        decimal credit_amount
+        text notes
+        string evidence_reference
+        timestamp created_at
+    }
+
+    SLAAlert {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK "optional"
+        uuid sla_id FK "optional"
+        uuid obligation_id FK "optional"
+        enum category
+        enum priority "critical|high|medium|low"
+        string title
+        text description
+        enum status "open|acknowledged|in_progress|resolved|dismissed"
+        timestamp detected_at
+        timestamp acknowledged_at
+        timestamp resolved_at
+        text resolution_notes
+        boolean is_escalated
+        int escalation_level
+        jsonb notification_history
+        timestamp created_at
+    }
+```
+
+### Alert Categories
+
+```mermaid
+graph TD
+    subgraph AlertCategories["Alert Categories"]
+        A1[sla_breach]
+        A2[sla_warning]
+        A3[sla_improvement]
+        A4[milestone_delayed]
+        A5[milestone_at_risk]
+        A6[fx_threshold]
+        A7[service_credit]
+        A8[contract_expiry]
+        A9[obligation_due]
+        A10[compliance_gap]
+    end
+
+    A1 --> CRIT[Critical Priority]
+    A2 --> HIGH[High Priority]
+    A3 --> LOW[Low Priority]
+    A4 --> HIGH
+    A5 --> MED[Medium Priority]
+    A8 --> HIGH
+    A10 --> CRIT
+```
+
+### Renewal Management
+
+```mermaid
+erDiagram
+    Contract {
+        uuid id PK
+        date expiration_date
+        boolean auto_renewal
+        int notice_period_days
+        date notice_deadline
+        string renewal_term_length
+        text renewal_notes
+        enum renewal_status "not_applicable|active|notice_sent|renewed|expired|terminated"
+    }
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Active: Contract Signed
+    Active --> NoticePeriod: Notice deadline approaching
+    NoticePeriod --> NoticeSent: Notice sent
+    NoticeSent --> Terminated: Non-renewal
+    NoticeSent --> Renewed: Renewal agreed
+    NoticePeriod --> AutoRenewed: Auto-renewal (no notice)
+    Renewed --> Active: New term starts
+    AutoRenewed --> Active: New term starts
+    Terminated --> [*]
+    Active --> Expired: Expiration date passed
+    Expired --> [*]
+```
+
+---
+
+## 4. Relationship Governance (Evaluetor Features)
+
+### Organization & Business Relationships
+
+```mermaid
+erDiagram
+    Organization ||--o{ BusinessRelationship : "party A"
+    Organization ||--o{ BusinessRelationship : "party B"
+    BusinessRelationship ||--o{ RelationshipTeam : "has team"
+    BusinessRelationship ||--o{ KPI : "tracks KPIs"
+    BusinessRelationship ||--o{ Contract : "governs"
+    BusinessRelationship ||--o{ SurveyInstance : "surveys"
+    User ||--o{ RelationshipTeam : "member of"
+
+    Organization {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        string code UK
+        enum org_type "customer|vendor|partner|internal"
+        string industry
+        enum size "startup|smb|mid_market|enterprise|global"
+        string region
+        string country
+        string website
+        text address
+        string primary_contact_name
+        string primary_contact_email
+        string primary_contact_phone
+        uuid relationship_owner_id FK
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    BusinessRelationship {
+        uuid id PK
+        uuid tenant_id FK
+        uuid org_a_id FK
+        uuid org_b_id FK
+        enum relationship_type "customer|supplier|partner|joint_venture|reseller|distributor"
+        enum status "prospecting|active|at_risk|on_hold|terminated"
+        enum governance_tier "operational|tactical|strategic|executive"
+        int health_score "0-100"
+        date start_date
+        date end_date
+        text description
+        text strategic_objectives
+        decimal annual_value
+        string currency
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    RelationshipTeam {
+        uuid id PK
+        uuid relationship_id FK
+        uuid user_id FK
+        enum role "owner|sponsor|manager|member|observer"
+        string responsibilities
+        boolean is_primary_contact
+        boolean receives_alerts
+        timestamp assigned_at
+    }
+```
+
+### KPI & Perception Scoring
+
+```mermaid
+erDiagram
+    BusinessRelationship ||--o{ KPI : "tracks"
+    KPI ||--o{ PerceptionScore : "scored by"
+    KPI ||--o{ PerceptionGap : "has gaps"
+    KPI ||--o{ ImprovementPoint : "drives"
+
+    KPI {
+        uuid id PK
+        uuid tenant_id FK
+        uuid relationship_id FK
+        string name
+        text description
+        enum category "quality|delivery|cost|innovation|relationship|compliance"
+        string unit_of_measure
+        decimal target_value
+        decimal current_value
+        decimal weight
+        enum frequency "weekly|monthly|quarterly|annual"
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    PerceptionScore {
+        uuid id PK
+        uuid kpi_id FK
+        enum perspective "internal|external"
+        int score "1-10"
+        text comments
+        uuid scored_by FK
+        string scorer_role
+        date assessment_date
+        timestamp created_at
+    }
+
+    PerceptionGap {
+        uuid id PK
+        uuid kpi_id FK
+        decimal internal_score_avg
+        decimal external_score_avg
+        decimal gap_value
+        enum severity "critical|significant|moderate|minor|aligned"
+        date calculated_at
+        text analysis_notes
+    }
+
+    ImprovementPoint {
+        uuid id PK
+        uuid tenant_id FK
+        uuid relationship_id FK
+        uuid kpi_id FK "optional"
+        string title
+        text description
+        enum priority "critical|high|medium|low"
+        enum status "identified|planned|in_progress|completed|cancelled"
+        uuid owner_id FK
+        date target_date
+        date completed_date
+        text outcome_notes
+        decimal impact_score
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+### Perception Gap Analysis
+
+```mermaid
+graph LR
+    subgraph Internal["Internal Perception"]
+        I1[Score: 8/10]
+    end
+
+    subgraph External["External Perception"]
+        E1[Score: 5/10]
+    end
+
+    I1 --> GAP[Gap: 3.0<br/>Severity: Significant]
+    E1 --> GAP
+
+    GAP --> IP[Improvement Point]
+    IP --> Action[Action Plan]
+
+    style GAP fill:#ffcdd2
+    style IP fill:#fff9c4
+    style Action fill:#c8e6c9
+```
+
+### Survey System
+
+```mermaid
+erDiagram
+    SurveyTemplate ||--o{ SurveyQuestion : "contains"
+    SurveyTemplate ||--o{ SurveyInstance : "instantiated as"
+    SurveyInstance ||--o{ SurveyRespondent : "sent to"
+    SurveyRespondent ||--o{ SurveyResponse : "submits"
+    SurveyQuestion ||--o{ SurveyResponse : "answered by"
+    BusinessRelationship ||--o{ SurveyInstance : "subject of"
+
+    SurveyTemplate {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        text description
+        enum survey_type "satisfaction|performance|relationship_health|custom"
+        boolean is_active
+        boolean is_anonymous
+        jsonb settings
+        timestamp created_at
+    }
+
+    SurveyQuestion {
+        uuid id PK
+        uuid template_id FK
+        string question_text
+        enum question_type "rating|text|multiple_choice|yes_no|scale"
+        jsonb options
+        int display_order
+        boolean is_required
+        string category
+    }
+
+    SurveyInstance {
+        uuid id PK
+        uuid template_id FK
+        uuid relationship_id FK
+        string title
+        enum status "draft|sent|in_progress|completed|cancelled"
+        date start_date
+        date end_date
+        int response_count
+        decimal average_score
+        timestamp sent_at
+        timestamp completed_at
+    }
+
+    SurveyRespondent {
+        uuid id PK
+        uuid instance_id FK
+        string email
+        string name
+        string organization
+        enum perspective "internal|external"
+        string access_token UK
+        boolean has_responded
+        timestamp invited_at
+        timestamp responded_at
+    }
+
+    SurveyResponse {
+        uuid id PK
+        uuid respondent_id FK
+        uuid question_id FK
+        text answer_text
+        int answer_rating
+        jsonb answer_data
+        timestamp submitted_at
+    }
+```
+
+---
+
+## 5. Compliance Module
+
+### Industry Compliance
+
+```mermaid
+erDiagram
+    Contract ||--o{ ComplianceGap : "has gaps"
+    Contract ||--o{ RegulatoryObligation : "has obligations"
+    IndustryComplianceRule ||--o{ ComplianceGap : "triggers"
+
+    IndustryComplianceRule {
+        uuid id PK
+        uuid tenant_id FK "optional for system rules"
+        enum industry "pharmaceutical|healthcare|financial_services|technology|manufacturing|chemical|other"
+        enum primary_contract_type "msa|sow|nda|vendor|other"
+        enum required_document_type
+        boolean is_required
+        text condition_description
+        enum severity_if_missing "critical|high|medium|low"
+        string regulatory_reference
+        boolean is_active
+        timestamp created_at
+    }
+
+    ComplianceGap {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK
+        uuid rule_id FK "optional"
+        enum missing_document_type
+        text gap_description
+        enum severity "critical|high|medium|low"
+        enum status "open|in_progress|pending_review|resolved|waived|not_applicable"
+        date resolution_due_date
+        uuid resolved_by FK
+        uuid linked_document_id FK
+        decimal detection_confidence
+        text detection_reasoning
+        boolean is_waived
+        uuid waived_by FK
+        text waiver_reason
+        timestamp detected_at
+        timestamp resolved_at
+        timestamp created_at
+    }
+
+    RegulatoryObligation {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK
+        enum industry
+        string regulation_type
+        string obligation_category
+        text description
+        text source_text
+        string frequency
+        date next_due_date
+        enum compliance_status "green|amber|red|not_assessed"
+        text compliance_evidence
+        text compliance_notes
+        uuid responsible_party_id FK
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+### Required Document Types by Industry
+
+```mermaid
+graph TB
+    subgraph Pharmaceutical
+        P1[Quality Agreement<br/>21 CFR Part 211]
+        P2[Pharmacovigilance Agreement<br/>21 CFR Part 312]
+        P3[Product Specifications]
+    end
+
+    subgraph Healthcare
+        H1[BAA - Business Associate Agreement<br/>HIPAA 45 CFR 164]
+        H2[Security Addendum]
+    end
+
+    subgraph Technology
+        T1[DPA - Data Processing Agreement<br/>GDPR Article 28]
+        T2[SOC 2 Report]
+        T3[Security Addendum]
+    end
+
+    subgraph Chemical
+        C1[Safety Data Sheet<br/>OSHA 29 CFR 1910]
+        C2[Product Specifications]
+    end
+
+    subgraph Manufacturing
+        M1[Quality Agreement<br/>ISO 9001]
+        M2[Product Specifications]
+    end
+```
+
+---
+
+## 6. Supporting Entities
+
+### Client Management
+
+```mermaid
+erDiagram
+    Tenant ||--o{ Client : "has"
+    Client ||--o{ Contract : "owns contracts"
+
+    Client {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        string code UK
+        string industry
+        string website
+        text address
+        string city
+        string country
+        string contact_name
+        string contact_email
+        string contact_phone
+        jsonb custom_fields
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+### Suggested Links & Auto-Detection
+
+```mermaid
+erDiagram
+    Contract ||--o{ SuggestedLink : "source"
+    Contract ||--o{ SuggestedLink : "target"
+
+    SuggestedLink {
+        uuid id PK
+        uuid tenant_id FK
+        uuid source_contract_id FK
+        uuid target_contract_id FK
+        enum link_type "amendment|sow_to_msa|renewal|related|supersedes"
+        decimal confidence_score
+        text reasoning
+        enum status "pending|accepted|rejected|expired"
+        uuid reviewed_by FK
+        timestamp reviewed_at
+        timestamp created_at
+    }
+```
+
+```mermaid
+flowchart LR
+    Upload[Contract Upload] --> Analyze[Analyze Document]
+    Analyze --> Detect[Detect Counterparty Match]
+    Detect --> Suggest[Create Suggested Links]
+    Suggest --> Review{User Review}
+    Review -->|Accept| Create[Create Contract Link]
+    Review -->|Reject| Dismiss[Dismiss Suggestion]
+```
+
+### Scheduler & Background Jobs
+
+```mermaid
+erDiagram
+    SchedulerJob ||--o{ SchedulerJobHistory : "executes"
+
+    SchedulerJob {
+        uuid id PK
+        string job_name UK
+        string job_type
+        text description
+        int interval_seconds
+        boolean is_enabled
+        timestamp last_run_at
+        timestamp next_run_at
+        enum last_run_status "success|failed|running|skipped"
+        int last_run_duration_ms
+        text last_run_error
+        int total_runs
+        int successful_runs
+        int failed_runs
+        timestamp created_at
+    }
+
+    SchedulerJobHistory {
+        uuid id PK
+        uuid job_id FK
+        timestamp started_at
+        timestamp completed_at
+        int duration_ms
+        enum status "success|failed|running|skipped"
+        text error_message
+        int items_processed
+        jsonb run_metadata
+    }
+```
+
+### Notification System
+
+```mermaid
+erDiagram
+    User ||--o{ Notification : "receives"
+
+    Notification {
+        uuid id PK
+        uuid tenant_id FK
+        uuid user_id FK
+        enum notification_type "alert|reminder|system|workflow"
+        string title
+        text message
+        string link
+        enum priority "low|medium|high|critical"
+        boolean is_read
+        timestamp read_at
+        timestamp created_at
+    }
+```
+
+---
+
+## 7. Complete Entity Relationship Overview
+
+```mermaid
+graph TB
+    subgraph MultiTenancy["Multi-Tenancy"]
+        T[Tenant]
+        U[User]
+        AL[AuditLog]
+    end
+
+    subgraph ContractIntel["Contract Intelligence"]
+        C[Contract]
+        CL[Clause]
+        O[Obligation]
+        CP[ContractParty]
+        AM[Amendment]
+    end
+
+    subgraph PostSigning["Post-Signing"]
+        SLA[ContractSLA]
+        SLAP[SLAPerformance]
+        SLAA[SLAAlert]
+    end
+
+    subgraph RelGov["Relationship Governance"]
+        ORG[Organization]
+        BR[BusinessRelationship]
+        RT[RelationshipTeam]
+        KPI[KPI]
+        PS[PerceptionScore]
+        PG[PerceptionGap]
+        IP[ImprovementPoint]
+    end
+
+    subgraph Surveys["Surveys"]
+        ST[SurveyTemplate]
+        SQ[SurveyQuestion]
+        SI[SurveyInstance]
+        SR[SurveyRespondent]
+        SRESP[SurveyResponse]
+    end
+
+    subgraph Compliance["Compliance"]
+        ICR[IndustryComplianceRule]
+        CG[ComplianceGap]
+        RO[RegulatoryObligation]
+    end
+
+    subgraph Supporting["Supporting"]
+        CLI[Client]
+        SL[SuggestedLink]
+        CLINK[ContractLink]
+        N[Notification]
+        SJ[SchedulerJob]
+    end
+
+    T --> U
+    T --> C
+    T --> ORG
+    T --> CLI
+
+    C --> CL
+    C --> O
+    C --> CP
+    C --> AM
+    C --> SLA
+    C --> CG
+    C --> RO
+
+    SLA --> SLAP
+    SLA --> SLAA
+
+    ORG --> BR
+    BR --> RT
+    BR --> KPI
+    BR --> C
+    BR --> SI
+
+    KPI --> PS
+    KPI --> PG
+    KPI --> IP
+
+    ST --> SQ
+    ST --> SI
+    SI --> SR
+    SR --> SRESP
+    SQ --> SRESP
+
+    U --> RT
+    U --> N
+    U --> AL
+
+    C --> SL
+    C --> CLINK
+```
+
+---
+
+## 8. Data Flow Diagrams
+
+### Contract Processing Pipeline
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant API as Upload API
+    participant P as Parser
+    participant I as Indexer
+    participant VS as Vector Store
+    participant AI as AI Agents
+    participant DB as Database
+
+    U->>API: Upload Contract
+    API->>P: Parse Document
+    P-->>API: ParsedDocument
+    API->>DB: Create Contract (status=processing)
+    API->>I: Index Contract
+    I->>VS: Store Chunks
+    I->>AI: Extract Metadata
+    AI-->>I: Metadata, Parties, Dates
+    I->>AI: Extract Clauses
+    AI-->>I: Clause List
+    I->>AI: Extract Obligations
+    AI-->>I: Obligation List
+    I->>AI: Assess Risk
+    AI-->>I: Risk Score, Summary
+    I->>AI: Extract SLAs
+    AI-->>I: SLA List
+    I->>AI: Extract Renewals
+    AI-->>I: Renewal Terms
+    I->>DB: Update Contract (status=completed)
+    I-->>U: Processing Complete
+```
+
+### Q&A Query Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant API as Query API
+    participant VS as Vector Store
+    participant QA as Q&A Agent
+    participant LLM as OpenAI
+
+    U->>API: Ask Question
+    API->>VS: Search Similar Chunks
+    VS-->>API: Top-K Chunks (with RBAC)
+    API->>QA: Question + Context
+    QA->>LLM: Augmented Prompt
+    LLM-->>QA: Answer
+    QA-->>API: QAResponse
+    API-->>U: Answer + Sources + Confidence
+```
+
+### Compliance Check Flow
+
+```mermaid
+sequenceDiagram
+    participant C as Contract
+    participant ID as Industry Detector
+    participant GD as Gap Detector
+    participant DB as Database
+    participant AS as Alert Service
+
+    C->>ID: Detect Industry
+    ID-->>C: Industry + Confidence
+    C->>GD: Check Compliance
+    GD->>DB: Load Rules for Industry
+    DB-->>GD: Applicable Rules
+    GD->>DB: Check Linked Documents
+    DB-->>GD: Existing Links
+    GD-->>C: Compliance Gaps
+    loop For Each Critical Gap
+        C->>AS: Create Alert
+    end
+```
+
+---
+
+## 9. Key Design Decisions
+
+### Files & Documents
 
 | Question | Answer |
 |----------|--------|
-| Files per Tenant? | **Yes** - stored at `data/uploads/{tenant_id}/` |
-| Files per Platform? | **No** - tenant-isolated |
-| Org without Users? | **Yes** - Orgs are counterparty records, not user accounts |
-| Custom Fields scope? | **Schema per Tenant, Values per Entity** |
-| Super Admin scope? | **Platform-wide** (tenant_id = NULL) |
-| Vendor vs Client? | **org_type enum**: vendor, customer, partner, internal |
+| Where are files stored? | Local filesystem at `data/uploads/{tenant_id}/` |
+| One file per contract? | Yes - main document embedded in Contract |
+| Exhibits? | Text extracts, not separate files |
+
+### Organization Model
+
+| Question | Answer |
+|----------|--------|
+| Org without users? | Yes - Orgs are counterparty records, not accounts |
+| Vendor vs Client? | `org_type` enum: vendor, customer, partner, internal |
+| Cross-tenant orgs? | No - Orgs are tenant-scoped |
+
+### Custom Fields
+
+| Question | Answer |
+|----------|--------|
+| Schema location? | `Tenant.custom_field_definitions` (JSONB) |
+| Values location? | Entity's `custom_fields` column (JSONB) |
+| Per-contract fields? | No - schema is per-tenant, values per-entity |
+
+### Access Control
+
+| Question | Answer |
+|----------|--------|
+| Super Admin scope? | Platform-wide (tenant_id = NULL) |
+| Normal user scope? | Single tenant only |
+| Cross-tenant access? | Only via Super Admin with X-Tenant-ID header |
+
+---
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | 2024-02-25 | Initial data model with Mermaid diagrams |

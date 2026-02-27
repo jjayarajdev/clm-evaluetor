@@ -8,6 +8,7 @@ from app.models.clause_indicator import ContractClauseIndicator
 from app.models.client import Client
 from app.models.contract import Contract, ContractStatus, ContractType, RiskLevel
 from app.models.contract_link import ContractLink, LinkType
+from app.models.suggested_link import SuggestedContractLink, SuggestionStatus
 from app.models.definition import ContractDefinition
 from app.models.process_step import ContractProcessStep, StepType, StepStatus
 from app.models.preamble import ContractPreamble, ContractPartyDetail
@@ -128,6 +129,21 @@ from app.models.external_access import (
     TokenType,
 )
 from app.models.metric_snapshot import MetricSnapshot
+# Industry-Aware Compliance Module
+from app.models.industry import (
+    Industry,
+    ComplianceDocumentType,
+    ComplianceGapSeverity,
+    ComplianceGapStatus,
+    REGULATED_INDUSTRIES,
+)
+from app.models.compliance_rule import IndustryComplianceRule
+from app.models.compliance_gap import ComplianceGap
+from app.models.regulatory_obligation import (
+    RegulatoryObligation,
+    RegulationType,
+    ObligationCategory as RegulatoryObligationCategory,
+)
 
 __all__ = [
     # Base
@@ -182,6 +198,9 @@ __all__ = [
     # Contract Links
     "ContractLink",
     "LinkType",
+    # Suggested Contract Links
+    "SuggestedContractLink",
+    "SuggestionStatus",
     # Financial
     "ContractFinancial",
     "ContractLiability",
@@ -288,4 +307,15 @@ __all__ = [
     "TokenType",
     # Metric Snapshots
     "MetricSnapshot",
+    # Industry-Aware Compliance
+    "Industry",
+    "ComplianceDocumentType",
+    "ComplianceGapSeverity",
+    "ComplianceGapStatus",
+    "REGULATED_INDUSTRIES",
+    "IndustryComplianceRule",
+    "ComplianceGap",
+    "RegulatoryObligation",
+    "RegulationType",
+    "RegulatoryObligationCategory",
 ]

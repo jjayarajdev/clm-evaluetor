@@ -35,7 +35,7 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
 
-# Multi-tenant structure
+# Multi-tenant structure - each tenant gets a variety of contracts
 TENANTS = [
     {
         "name": "Acme Corp",
@@ -83,6 +83,15 @@ TENANTS = [
                 "risk_score": 85,
                 "status": "completed",
             },
+            {
+                "filename": "Software-License-Enterprise.pdf",
+                "contract_type": "license",
+                "counterparty": "Enterprise Software Co",
+                "contract_value": Decimal("320000.00"),
+                "risk_level": "medium",
+                "risk_score": 42,
+                "status": "completed",
+            },
         ],
     },
     {
@@ -92,6 +101,7 @@ TENANTS = [
         "plan": "professional",
         "users": [
             {"username": "techstart_admin", "email": "admin@techstart.io", "password": "admin123", "role": "admin"},
+            {"username": "techstart_legal", "email": "legal@techstart.io", "password": "legal123", "role": "legal"},
         ],
         "contracts": [
             {
@@ -104,13 +114,40 @@ TENANTS = [
                 "status": "completed",
             },
             {
-                "filename": "Consulting-Agreement.docx",
+                "filename": "Consulting-Agreement.pdf",
                 "contract_type": "sow",
                 "counterparty": "Expert Consultants",
                 "contract_value": Decimal("50000.00"),
                 "risk_level": "medium",
                 "risk_score": 35,
-                "status": "processing",
+                "status": "completed",
+            },
+            {
+                "filename": "NDA-Investor-Relations.pdf",
+                "contract_type": "nda",
+                "counterparty": "Venture Capital Partners",
+                "contract_value": None,
+                "risk_level": "low",
+                "risk_score": 12,
+                "status": "completed",
+            },
+            {
+                "filename": "MSA-DataCenter-Services.pdf",
+                "contract_type": "msa",
+                "counterparty": "DataCenter Solutions",
+                "contract_value": Decimal("180000.00"),
+                "risk_level": "medium",
+                "risk_score": 38,
+                "status": "completed",
+            },
+            {
+                "filename": "Employment-CTO-Agreement.pdf",
+                "contract_type": "employment_contract",
+                "counterparty": "John Smith",
+                "contract_value": Decimal("280000.00"),
+                "risk_level": "low",
+                "risk_score": 20,
+                "status": "completed",
             },
         ],
     },
@@ -121,6 +158,7 @@ TENANTS = [
         "plan": "enterprise",
         "users": [
             {"username": "legalco_admin", "email": "admin@legalco.com", "password": "admin123", "role": "admin"},
+            {"username": "legalco_legal", "email": "legal@legalco.com", "password": "legal123", "role": "legal"},
         ],
         "contracts": [
             {
@@ -139,6 +177,33 @@ TENANTS = [
                 "contract_value": Decimal("250000.00"),
                 "risk_level": "low",
                 "risk_score": 18,
+                "status": "completed",
+            },
+            {
+                "filename": "Vendor-Agreement-Office-Supplies.pdf",
+                "contract_type": "vendor_agreement",
+                "counterparty": "Office Supplies Corp",
+                "contract_value": Decimal("45000.00"),
+                "risk_level": "low",
+                "risk_score": 10,
+                "status": "completed",
+            },
+            {
+                "filename": "NDA-Client-Confidential.pdf",
+                "contract_type": "nda",
+                "counterparty": "Major Bank Corp",
+                "contract_value": None,
+                "risk_level": "medium",
+                "risk_score": 35,
+                "status": "completed",
+            },
+            {
+                "filename": "Service-Agreement-IT-Support.pdf",
+                "contract_type": "sow",
+                "counterparty": "IT Solutions Inc",
+                "contract_value": Decimal("120000.00"),
+                "risk_level": "medium",
+                "risk_score": 40,
                 "status": "completed",
             },
         ],

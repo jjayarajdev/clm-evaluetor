@@ -19,15 +19,31 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Drop existing enum types (in case of partial migration)
-    op.execute("DROP TYPE IF EXISTS alertpriority CASCADE")
-    op.execute("DROP TYPE IF EXISTS alertstatus CASCADE")
-    op.execute("DROP TYPE IF EXISTS alertcategory CASCADE")
-
-    # Create enum types
-    op.execute("CREATE TYPE alertpriority AS ENUM ('low', 'medium', 'high', 'critical')")
-    op.execute("CREATE TYPE alertstatus AS ENUM ('active', 'acknowledged', 'in_progress', 'resolved', 'dismissed', 'escalated')")
-    op.execute("CREATE TYPE alertcategory AS ENUM ('sla_breach', 'sla_warning', 'sla_improvement', 'milestone_delayed', 'milestone_at_risk', 'fx_threshold', 'service_credit', 'contract_expiry', 'obligation_due')")
+    # Create enum types if they don't exist (handles SQLAlchemy auto-creation)
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'alertpriority') THEN
+                CREATE TYPE alertpriority AS ENUM ('low', 'medium', 'high', 'critical');
+            END IF;
+        END $$;
+    """)
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'alertstatus') THEN
+                CREATE TYPE alertstatus AS ENUM ('active', 'acknowledged', 'in_progress', 'resolved', 'dismissed', 'escalated');
+            END IF;
+        END $$;
+    """)
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'alertcategory') THEN
+                CREATE TYPE alertcategory AS ENUM ('sla_breach', 'sla_warning', 'sla_improvement', 'milestone_delayed', 'milestone_at_risk', 'fx_threshold', 'service_credit', 'contract_expiry', 'obligation_due');
+            END IF;
+        END $$;
+    """)
 
     # Create sla_alerts table
     op.create_table(
@@ -36,9 +52,9 @@ def upgrade() -> None:
         sa.Column('contract_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('sla_id', postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column('performance_id', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column('category', sa.Enum('sla_breach', 'sla_warning', 'sla_improvement', 'milestone_delayed', 'milestone_at_risk', 'fx_threshold', 'service_credit', 'contract_expiry', 'obligation_due', name='alertcategory', create_type=False), nullable=False),
-        sa.Column('priority', sa.Enum('low', 'medium', 'high', 'critical', name='alertpriority', create_type=False), nullable=False),
-        sa.Column('status', sa.Enum('active', 'acknowledged', 'in_progress', 'resolved', 'dismissed', 'escalated', name='alertstatus', create_type=False), nullable=False, default='active'),
+        sa.Column('category', postgresql.ENUM('sla_breach', 'sla_warning', 'sla_improvement', 'milestone_delayed', 'milestone_at_risk', 'fx_threshold', 'service_credit', 'contract_expiry', 'obligation_due', name='alertcategory', create_type=False), nullable=False),
+        sa.Column('priority', postgresql.ENUM('low', 'medium', 'high', 'critical', name='alertpriority', create_type=False), nullable=False),
+        sa.Column('status', postgresql.ENUM('active', 'acknowledged', 'in_progress', 'resolved', 'dismissed', 'escalated', name='alertstatus', create_type=False), nullable=False, server_default='active'),
         sa.Column('title', sa.String(500), nullable=False),
         sa.Column('description', sa.Text(), nullable=False),
         sa.Column('sla_reference', sa.String(50), nullable=True),
@@ -47,7 +63,7 @@ def upgrade() -> None:
         sa.Column('minimum_value', sa.Numeric(10, 4), nullable=True),
         sa.Column('actual_value', sa.Numeric(10, 4), nullable=True),
         sa.Column('deviation_percentage', sa.Numeric(8, 2), nullable=True),
-        sa.Column('breach_severity', sa.Enum('minor', 'moderate', 'major', 'critical', name='breachseverity', create_type=False), nullable=True),
+        sa.Column('breach_severity', postgresql.ENUM('minor', 'moderate', 'major', 'critical', name='breachseverity', create_type=False), nullable=True),
         sa.Column('has_financial_impact', sa.Boolean(), nullable=False, default=False),
         sa.Column('estimated_credit', sa.Numeric(12, 2), nullable=True),
         sa.Column('at_risk_amount', sa.Numeric(12, 2), nullable=True),

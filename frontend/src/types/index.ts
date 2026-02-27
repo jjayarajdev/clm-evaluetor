@@ -1,5 +1,5 @@
 // User types
-export type Role = 'admin' | 'legal' | 'procurement' | 'viewer'
+export type Role = 'admin' | 'legal' | 'procurement' | 'viewer' | 'super_admin'
 
 export interface User {
   id: string
@@ -98,6 +98,7 @@ export interface Contract extends ContractSummary {
   clause_count: number
   obligation_count: number
   sla_count: number
+  custom_fields: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -154,7 +155,7 @@ export interface QueryResponse {
 }
 
 // Additional role type with viewer
-export type UserRole = 'admin' | 'legal' | 'procurement' | 'viewer'
+export type UserRole = 'admin' | 'legal' | 'procurement' | 'viewer' | 'super_admin'
 
 // Dashboard types
 export interface AdminDashboard {
@@ -481,4 +482,189 @@ export interface DashboardTrends {
   total_contract_value: number[]
   sla_compliance_rate: number[]
   obligations_overdue: number[]
+}
+
+// ============ TENANT TYPES (Super Admin) ============
+
+export type TenantPlan = 'starter' | 'professional' | 'enterprise'
+
+export interface Tenant {
+  id: string
+  name: string
+  slug: string
+  plan: TenantPlan
+  contract_limit: number | null
+  contact_email: string | null
+  is_active: boolean
+  created_at: string
+  updated_at?: string
+}
+
+export interface TenantCreate {
+  name: string
+  slug: string
+  plan: TenantPlan
+  contract_limit?: number | null
+  contact_email?: string | null
+}
+
+export interface TenantUpdate {
+  name?: string
+  slug?: string
+  plan?: TenantPlan
+  contract_limit?: number | null
+  contact_email?: string | null
+  is_active?: boolean
+}
+
+export interface TenantStats {
+  tenant_id: string
+  tenant_name?: string | null
+  plan?: string | null
+  contract_count: number
+  contract_limit?: number | null
+  user_count: number
+  is_active: boolean
+  // Frontend-only fields (calculated or estimated)
+  total_value?: number
+  storage_used_mb?: number
+}
+
+export interface PlatformStats {
+  total_tenants: number
+  active_tenants: number
+  total_users: number
+  total_contracts: number
+  total_value: number
+  plan_distribution: Record<TenantPlan, number>
+}
+
+// ============ CUSTOM FIELD TYPES ============
+
+export type FieldType = 'text' | 'number' | 'date' | 'dropdown' | 'multi_select' | 'checkbox' | 'url' | 'email' | 'currency'
+export type EntityType = 'contract' | 'obligation' | 'clause' | 'client'
+
+export interface CustomField {
+  name: string
+  label: string
+  field_type: FieldType
+  required: boolean
+  options?: string[]
+  help_text?: string
+  extraction_hints?: string
+  extraction_examples?: string[]
+  display_order: number
+  is_visible: boolean
+  is_archived: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CustomFieldCreate {
+  name: string
+  label: string
+  field_type: FieldType
+  required?: boolean
+  options?: string[]
+  help_text?: string
+  extraction_hints?: string
+  extraction_examples?: string[]
+  display_order?: number
+  is_visible?: boolean
+}
+
+export interface CustomFieldUpdate {
+  label?: string
+  required?: boolean
+  options?: string[]
+  help_text?: string
+  extraction_hints?: string
+  extraction_examples?: string[]
+  display_order?: number
+  is_visible?: boolean
+  is_archived?: boolean
+}
+
+// Extended user type with tenant info for cross-tenant management
+export interface UserWithTenant extends User {
+  tenant_id: string
+  tenant_name?: string
+}
+
+// ============ SUGGESTED CONTRACT LINKS ============
+
+export type LinkType =
+  | 'sow'
+  | 'work_order'
+  | 'service_order'
+  | 'purchase_order'
+  | 'amendment'
+  | 'addendum'
+  | 'change_order'
+  | 'modification'
+  | 'renewal'
+  | 'exhibit'
+  | 'schedule'
+  | 'appendix'
+  | 'attachment'
+  | 'supersedes'
+  | 'references'
+  | 'related'
+
+export type SuggestionStatus = 'pending' | 'approved' | 'rejected' | 'expired'
+
+export interface ContractBrief {
+  id: string
+  filename: string
+  contract_type: string | null
+  counterparty: string | null
+  effective_date: string | null
+  expiration_date: string | null
+  risk_level: string | null
+}
+
+export interface SuggestedLink {
+  id: string
+  source_contract_id: string
+  target_contract_id: string
+  suggested_link_type: LinkType
+  suggested_direction: 'source_is_child' | 'source_is_parent'
+  confidence_score: number
+  reasoning: string | null
+  matching_signals: Record<string, number> | null
+  status: SuggestionStatus
+  reviewed_by: string | null
+  reviewed_at: string | null
+  created_link_id: string | null
+  batch_id: string | null
+  created_at: string
+  updated_at: string
+  target_contract: ContractBrief | null
+}
+
+export interface SuggestedLinksListResponse {
+  suggestions: SuggestedLink[]
+  total: number
+  pending_count: number
+}
+
+export interface SuggestedLinkReviewResponse {
+  suggestion_id: string
+  action: string
+  status: string
+  created_link_id: string | null
+  message: string
+}
+
+export interface BatchReviewResponse {
+  processed: number
+  succeeded: number
+  failed: number
+  results: SuggestedLinkReviewResponse[]
+}
+
+export interface PendingSuggestionsResponse {
+  total_pending: number
+  by_contract: Record<string, number>
+  suggestions: SuggestedLink[]
 }

@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import {
   PlusIcon,
   PencilSquareIcon,
   TrashIcon,
   UserCircleIcon,
   ShieldCheckIcon,
+  FunnelIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDate } from '@/lib/utils'
-import type { User } from '@/types'
-
-import type { Role } from '@/types'
+import type { Tenant, Role, UserWithTenant } from '@/types'
 
 const ROLE_LABELS: Record<Role, string> = {
   admin: 'Administrator',
@@ -31,74 +31,64 @@ const ROLE_COLORS: Record<Role, string> = {
 }
 
 interface UserFormData {
+  tenant_id: string
   username: string
   email: string
   role: Role
-  password?: string
+  password: string
 }
 
-export default function UsersPage() {
+export default function GlobalUsersPage() {
   const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tenantFilter = searchParams.get('tenant') || ''
+
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingUser, setEditingUser] = useState<User | null>(null)
   const [formData, setFormData] = useState<UserFormData>({
-    email: '',
+    tenant_id: tenantFilter,
     username: '',
+    email: '',
     role: 'viewer',
     password: '',
   })
 
-  const { data: users, isLoading, error } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => api.getUsers(),
+  const { data: users, isLoading: usersLoading, error } = useQuery<UserWithTenant[]>({
+    queryKey: ['all-users', tenantFilter],
+    queryFn: () => api.getAllUsers(tenantFilter || undefined),
   })
 
-  // Log error for debugging
-  if (error) {
-    console.error('Error fetching users:', error)
-  }
+  const { data: tenants } = useQuery<Tenant[]>({
+    queryKey: ['tenants-list'],
+    queryFn: () => api.getTenants(false),
+  })
 
   const createMutation = useMutation({
-    mutationFn: (data: UserFormData) => api.createUser({
+    mutationFn: (data: UserFormData) => api.createUserForTenant(data.tenant_id, {
       username: data.username,
       email: data.email,
-      password: data.password || '',
+      password: data.password,
       role: data.role,
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      queryClient.invalidateQueries({ queryKey: ['all-users'] })
       closeModal()
     },
   })
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<UserFormData> }) =>
-      api.updateUser(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      closeModal()
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.deleteUser(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-    },
-  })
-
-  const openCreateModal = () => {
-    setEditingUser(null)
-    setFormData({ email: '', username: '', role: 'viewer', password: '' })
-    setIsModalOpen(true)
+  const handleTenantFilterChange = (tenantId: string) => {
+    if (tenantId) {
+      setSearchParams({ tenant: tenantId })
+    } else {
+      setSearchParams({})
+    }
   }
 
-  const openEditModal = (user: User) => {
-    setEditingUser(user)
+  const openCreateModal = () => {
     setFormData({
-      email: user.email,
-      username: user.username,
-      role: user.role,
+      tenant_id: tenantFilter,
+      username: '',
+      email: '',
+      role: 'viewer',
       password: '',
     })
     setIsModalOpen(true)
@@ -106,31 +96,22 @@ export default function UsersPage() {
 
   const closeModal = () => {
     setIsModalOpen(false)
-    setEditingUser(null)
-    setFormData({ email: '', username: '', role: 'viewer', password: '' })
+    setFormData({
+      tenant_id: tenantFilter,
+      username: '',
+      email: '',
+      role: 'viewer',
+      password: '',
+    })
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (editingUser) {
-      const updateData: Partial<UserFormData> = {
-        email: formData.email,
-        username: formData.username,
-        role: formData.role,
-      }
-      if (formData.password) {
-        updateData.password = formData.password
-      }
-      updateMutation.mutate({ id: editingUser.id, data: updateData })
-    } else {
-      createMutation.mutate(formData)
-    }
+    createMutation.mutate(formData)
   }
 
-  const handleDelete = (user: User) => {
-    if (window.confirm(`Are you sure you want to delete ${user.username}?`)) {
-      deleteMutation.mutate(user.id)
-    }
+  const getTenantName = (tenantId: string) => {
+    return tenants?.find(t => t.id === tenantId)?.name || tenantId
   }
 
   return (
@@ -138,9 +119,9 @@ export default function UsersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
+          <h1 className="text-2xl font-bold text-gray-900">All Users</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage user accounts and permissions
+            Manage users across all tenants
           </p>
         </div>
         <button onClick={openCreateModal} className="btn-primary">
@@ -149,8 +130,43 @@ export default function UsersPage() {
         </button>
       </div>
 
-      {/* Users table */}
-      {isLoading ? (
+      {/* Filters */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <FunnelIcon className="h-4 w-4 text-gray-400" />
+          <span className="text-sm text-gray-500">Filter by tenant:</span>
+        </div>
+        <select
+          value={tenantFilter}
+          onChange={(e) => handleTenantFilterChange(e.target.value)}
+          className="input max-w-xs"
+        >
+          <option value="">All Tenants</option>
+          {tenants?.map((tenant) => (
+            <option key={tenant.id} value={tenant.id}>
+              {tenant.name}
+            </option>
+          ))}
+        </select>
+        {tenantFilter && (
+          <button
+            onClick={() => handleTenantFilterChange('')}
+            className="text-sm text-primary-600 hover:text-primary-700"
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
+
+      {/* Error state */}
+      {error && (
+        <div className="rounded-lg bg-red-50 p-4 text-red-700">
+          Error loading users. Please try again.
+        </div>
+      )}
+
+      {/* Table */}
+      {usersLoading ? (
         <div className="flex items-center justify-center h-64">
           <LoadingSpinner size="lg" />
         </div>
@@ -161,6 +177,9 @@ export default function UsersPage() {
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tenant
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Role
@@ -193,6 +212,11 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
+                    <span className="text-sm text-gray-900">
+                      {user.tenant_name || getTenantName(user.tenant_id)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
                     <span className={cn(
                       'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
                       ROLE_COLORS[user.role]
@@ -217,15 +241,14 @@ export default function UsersPage() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        onClick={() => openEditModal(user)}
                         className="p-1 text-gray-400 hover:text-gray-600"
+                        title="Edit user"
                       >
                         <PencilSquareIcon className="h-5 w-5" />
                       </button>
                       <button
-                        onClick={() => handleDelete(user)}
                         className="p-1 text-gray-400 hover:text-red-600"
-                        disabled={deleteMutation.isPending}
+                        title="Delete user"
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -235,59 +258,73 @@ export default function UsersPage() {
               ))}
             </tbody>
           </table>
+          {users?.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              No users found.
+            </div>
+          )}
         </div>
       )}
 
-      {/* Modal */}
+      {/* Create User Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4">
-            <div
-              className="fixed inset-0 bg-black/50"
-              onClick={closeModal}
-            />
+            <div className="fixed inset-0 bg-black/50" onClick={closeModal} />
             <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingUser ? 'Edit User' : 'Create User'}
+                Create User
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Username
+                    Tenant *
+                  </label>
+                  <select
+                    value={formData.tenant_id}
+                    onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
+                    className="input"
+                    required
+                  >
+                    <option value="">Select a tenant</option>
+                    {tenants?.map((tenant) => (
+                      <option key={tenant.id} value={tenant.id}>
+                        {tenant.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Username *
                   </label>
                   <input
                     type="text"
                     value={formData.username}
-                    onChange={(e) =>
-                      setFormData({ ...formData, username: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                     className="input"
                     required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
+                    Email *
                   </label>
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="input"
                     required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role
+                    Role *
                   </label>
                   <select
                     value={formData.role}
-                    onChange={(e) =>
-                      setFormData({ ...formData, role: e.target.value as Role })
-                    }
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
                     className="input"
                   >
                     {Object.entries(ROLE_LABELS)
@@ -301,36 +338,28 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {editingUser ? 'New Password (leave blank to keep)' : 'Password'}
+                    Password *
                   </label>
                   <input
                     type="password"
                     value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="input"
-                    required={!editingUser}
+                    required
                     minLength={8}
                   />
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="btn-secondary"
-                  >
+                  <button type="button" onClick={closeModal} className="btn-secondary">
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
+                    disabled={createMutation.isPending}
                     className="btn-primary"
                   >
-                    {createMutation.isPending || updateMutation.isPending ? (
+                    {createMutation.isPending ? (
                       <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                    ) : editingUser ? (
-                      'Update'
                     ) : (
                       'Create'
                     )}

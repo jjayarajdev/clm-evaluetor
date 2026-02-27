@@ -4,8 +4,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
-from app.core.deps import AdminUser, RequiredTenantId
+from app.core.deps import AdminUser, RequiredTenantId, CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models.tenant import Tenant
 from app.schemas.custom_fields import (
@@ -19,6 +20,9 @@ from app.schemas.custom_fields import (
 
 router = APIRouter(prefix="/api/admin/custom-fields", tags=["Custom Fields"])
 
+# Public router for reading custom fields (any authenticated user in tenant)
+public_router = APIRouter(prefix="/api/custom-fields", tags=["Custom Fields"])
+
 
 def _get_field_definitions(tenant: Tenant, entity_type: str) -> list[dict]:
     """Get field definitions for an entity type."""
@@ -31,6 +35,8 @@ def _set_field_definitions(tenant: Tenant, entity_type: str, fields: list[dict])
     definitions = dict(tenant.custom_field_definitions or {})
     definitions[entity_type] = fields
     tenant.custom_field_definitions = definitions
+    # Flag the JSONB field as modified so SQLAlchemy detects the change
+    flag_modified(tenant, "custom_field_definitions")
 
 
 @router.get("/{entity_type}", response_model=CustomFieldsListResponse)
@@ -280,4 +286,51 @@ async def reorder_custom_fields(
     return CustomFieldsListResponse(
         entity_type=entity_type,
         fields=[CustomFieldResponse(**f) for f in reordered],
+    )
+
+
+# =============================================================================
+# PUBLIC ENDPOINTS (for any authenticated user in a tenant)
+# =============================================================================
+
+
+@public_router.get("/{entity_type}", response_model=CustomFieldsListResponse)
+async def get_custom_fields_for_tenant(
+    entity_type: EntityType,
+    tenant_id: CurrentTenantId,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> CustomFieldsListResponse:
+    """Get custom field definitions for the current user's tenant.
+
+    This is a read-only endpoint available to all authenticated users.
+    Only returns visible (non-archived) fields.
+    """
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not associated with a tenant",
+        )
+
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tenant not found",
+        )
+
+    fields = _get_field_definitions(tenant, entity_type.value)
+
+    # Filter to only visible, non-archived fields
+    visible_fields = [
+        f for f in fields
+        if f.get("is_visible", True) and not f.get("is_archived", False)
+    ]
+
+    # Sort by display order
+    visible_fields.sort(key=lambda f: f.get("display_order", 0))
+
+    return CustomFieldsListResponse(
+        entity_type=entity_type,
+        fields=[CustomFieldResponse(**f) for f in visible_fields],
     )

@@ -17,6 +17,9 @@ import {
   FlagIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  GlobeAltIcon,
+  AdjustmentsHorizontalIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSidebar } from '@/contexts/SidebarContext'
@@ -47,6 +50,13 @@ const adminNavigation = [
   { name: 'SLA Config', href: '/admin/sla-config', icon: CircleStackIcon, roles: ['admin'] },
   { name: 'Milestones', href: '/admin/milestone-config', icon: FlagIcon, roles: ['admin'] },
   { name: 'Scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
+]
+
+const superAdminNavigation = [
+  { name: 'Platform Overview', href: '/super-admin', icon: GlobeAltIcon, roles: ['super_admin'] },
+  { name: 'Tenants', href: '/super-admin/tenants', icon: BuildingOffice2Icon, roles: ['super_admin'] },
+  { name: 'All Users', href: '/super-admin/users', icon: UserGroupIcon, roles: ['super_admin'] },
+  { name: 'Custom Fields', href: '/super-admin/custom-fields', icon: AdjustmentsHorizontalIcon, roles: ['super_admin'] },
 ]
 
 function NavItem({
@@ -128,6 +138,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     (item) => user && item.roles.includes(user.role)
   )
 
+  const filteredSuperAdminNavigation = superAdminNavigation.filter(
+    (item) => user && item.roles.includes(user.role)
+  )
+
   const sidebarWidth = collapsed ? 'w-[60px]' : 'w-[220px]'
 
   const sidebarContent = (
@@ -193,6 +207,26 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             )}
 
             {filteredAdminNavigation.map((item) => (
+              <NavItem key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
+            ))}
+          </>
+        )}
+
+        {/* Divider for super admin section */}
+        {filteredSuperAdminNavigation.length > 0 && (
+          <>
+            <div className={cn(
+              'border-t border-gray-200 my-3',
+              collapsed ? 'w-6' : 'w-full'
+            )} />
+
+            {!collapsed && (
+              <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                Super Admin
+              </p>
+            )}
+
+            {filteredSuperAdminNavigation.map((item) => (
               <NavItem key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
             ))}
           </>

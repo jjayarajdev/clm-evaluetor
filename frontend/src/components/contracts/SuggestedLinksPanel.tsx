@@ -1,0 +1,365 @@
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
+import {
+  LinkIcon,
+  CheckIcon,
+  XMarkIcon,
+  ChevronDownIcon,
+  SparklesIcon,
+  ExclamationTriangleIcon,
+  DocumentTextIcon,
+} from '@heroicons/react/24/outline'
+import api from '@/lib/api'
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { cn, formatDate } from '@/lib/utils'
+import type { SuggestedLink, LinkType } from '@/types'
+
+interface SuggestedLinksPanelProps {
+  contractId: string
+}
+
+// Link type options for modify dropdown
+const LINK_TYPES: { value: LinkType; label: string }[] = [
+  { value: 'sow', label: 'Statement of Work (SOW)' },
+  { value: 'work_order', label: 'Work Order' },
+  { value: 'service_order', label: 'Service Order' },
+  { value: 'purchase_order', label: 'Purchase Order' },
+  { value: 'amendment', label: 'Amendment' },
+  { value: 'addendum', label: 'Addendum' },
+  { value: 'change_order', label: 'Change Order' },
+  { value: 'modification', label: 'Modification' },
+  { value: 'renewal', label: 'Renewal' },
+  { value: 'exhibit', label: 'Exhibit' },
+  { value: 'schedule', label: 'Schedule' },
+  { value: 'appendix', label: 'Appendix' },
+  { value: 'attachment', label: 'Attachment' },
+  { value: 'supersedes', label: 'Supersedes' },
+  { value: 'references', label: 'References' },
+  { value: 'related', label: 'Related' },
+]
+
+function ConfidenceBar({ score }: { score: number }) {
+  const percentage = Math.round(score * 100)
+
+  let colorClass = 'bg-red-500'
+  if (percentage >= 80) {
+    colorClass = 'bg-green-500'
+  } else if (percentage >= 50) {
+    colorClass = 'bg-yellow-500'
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all', colorClass)}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <span className={cn(
+        'text-xs font-medium min-w-[3rem] text-right',
+        percentage >= 80 ? 'text-green-600' : percentage >= 50 ? 'text-yellow-600' : 'text-red-600'
+      )}>
+        {percentage}%
+      </span>
+    </div>
+  )
+}
+
+interface SuggestionCardProps {
+  suggestion: SuggestedLink
+  contractId: string
+  onReviewComplete: () => void
+}
+
+function SuggestionCard({ suggestion, contractId, onReviewComplete }: SuggestionCardProps) {
+  const queryClient = useQueryClient()
+  const [showModifyDropdown, setShowModifyDropdown] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const reviewMutation = useMutation({
+    mutationFn: (params: { action: 'approve' | 'reject' | 'modify'; modifiedLinkType?: string }) =>
+      api.reviewSuggestedLink(contractId, suggestion.id, params.action, params.modifiedLinkType),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['suggested-links', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+      onReviewComplete()
+    },
+    onSettled: () => {
+      setIsProcessing(false)
+    },
+  })
+
+  const handleApprove = () => {
+    setIsProcessing(true)
+    reviewMutation.mutate({ action: 'approve' })
+  }
+
+  const handleReject = () => {
+    setIsProcessing(true)
+    reviewMutation.mutate({ action: 'reject' })
+  }
+
+  const handleModify = (linkType: string) => {
+    setIsProcessing(true)
+    setShowModifyDropdown(false)
+    reviewMutation.mutate({ action: 'modify', modifiedLinkType: linkType })
+  }
+
+  const target = suggestion.target_contract
+  const isHighConfidence = suggestion.confidence_score >= 0.8
+  const isLowConfidence = suggestion.confidence_score < 0.5
+
+  return (
+    <div className={cn(
+      'border rounded-lg p-4 bg-white',
+      isHighConfidence && 'border-green-200 bg-green-50/30',
+      isLowConfidence && 'border-yellow-200 bg-yellow-50/30',
+      !isHighConfidence && !isLowConfidence && 'border-gray-200'
+    )}>
+      {/* Header with contract info */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div className="shrink-0 mt-0.5">
+            <DocumentTextIcon className="h-5 w-5 text-gray-400" />
+          </div>
+          <div className="min-w-0">
+            <Link
+              to={`/contracts/${suggestion.target_contract_id}`}
+              className="text-sm font-medium text-gray-900 hover:text-primary-600 truncate block"
+            >
+              {target?.filename || 'Unknown Contract'}
+            </Link>
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-500">
+              {target?.contract_type && (
+                <span className="bg-gray-100 px-1.5 py-0.5 rounded uppercase">
+                  {target.contract_type}
+                </span>
+              )}
+              {target?.counterparty && (
+                <span>{target.counterparty}</span>
+              )}
+              {target?.effective_date && (
+                <span>Effective: {formatDate(target.effective_date)}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Suggested link type badge */}
+        <div className="shrink-0">
+          <span className={cn(
+            'inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium',
+            'bg-primary-100 text-primary-700'
+          )}>
+            <LinkIcon className="h-3 w-3" />
+            {suggestion.suggested_link_type.replace(/_/g, ' ')}
+          </span>
+        </div>
+      </div>
+
+      {/* Confidence score */}
+      <div className="mt-3">
+        <div className="flex items-center gap-2 mb-1">
+          <SparklesIcon className="h-4 w-4 text-gray-400" />
+          <span className="text-xs text-gray-500">AI Confidence</span>
+        </div>
+        <ConfidenceBar score={suggestion.confidence_score} />
+      </div>
+
+      {/* Reasoning */}
+      {suggestion.reasoning && (
+        <div className="mt-3 text-xs text-gray-600 bg-gray-50 rounded p-2">
+          {suggestion.reasoning}
+        </div>
+      )}
+
+      {/* Low confidence warning */}
+      {isLowConfidence && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-yellow-700 bg-yellow-50 rounded p-2">
+          <ExclamationTriangleIcon className="h-4 w-4 shrink-0" />
+          <span>Low confidence - please verify before approving</span>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          onClick={handleApprove}
+          disabled={isProcessing}
+          className={cn(
+            'btn-primary text-sm py-1.5 px-3 flex items-center gap-1',
+            isProcessing && 'opacity-50 cursor-not-allowed'
+          )}
+        >
+          {isProcessing ? (
+            <LoadingSpinner size="sm" className="border-white border-t-transparent" />
+          ) : (
+            <CheckIcon className="h-4 w-4" />
+          )}
+          Approve
+        </button>
+
+        <button
+          onClick={handleReject}
+          disabled={isProcessing}
+          className={cn(
+            'btn-secondary text-sm py-1.5 px-3 flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50',
+            isProcessing && 'opacity-50 cursor-not-allowed'
+          )}
+        >
+          <XMarkIcon className="h-4 w-4" />
+          Reject
+        </button>
+
+        {/* Modify dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowModifyDropdown(!showModifyDropdown)}
+            disabled={isProcessing}
+            className={cn(
+              'btn-secondary text-sm py-1.5 px-3 flex items-center gap-1',
+              isProcessing && 'opacity-50 cursor-not-allowed'
+            )}
+          >
+            Modify
+            <ChevronDownIcon className={cn('h-4 w-4 transition-transform', showModifyDropdown && 'rotate-180')} />
+          </button>
+
+          {showModifyDropdown && (
+            <div className="absolute z-10 mt-1 right-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-auto">
+              {LINK_TYPES.map((type) => (
+                <button
+                  key={type.value}
+                  onClick={() => handleModify(type.value)}
+                  className={cn(
+                    'w-full px-3 py-2 text-left text-sm hover:bg-gray-50',
+                    type.value === suggestion.suggested_link_type && 'bg-primary-50 text-primary-700'
+                  )}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelProps) {
+  const queryClient = useQueryClient()
+  const [showAll, setShowAll] = useState(false)
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['suggested-links', contractId],
+    queryFn: () => api.getSuggestedLinks(contractId),
+    enabled: !!contractId,
+  })
+
+  const batchApproveMutation = useMutation({
+    mutationFn: (suggestionIds: string[]) =>
+      api.batchReviewSuggestedLinks(contractId, suggestionIds, 'approve'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['suggested-links', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+    },
+  })
+
+  const handleReviewComplete = () => {
+    // Invalidate queries is handled by mutation
+  }
+
+  const handleApproveAll = () => {
+    const pendingSuggestions = data?.suggestions.filter(s => s.status === 'pending') || []
+    const ids = pendingSuggestions.map(s => s.id)
+    if (ids.length > 0) {
+      batchApproveMutation.mutate(ids)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+            <SparklesIcon className="h-4 w-4 text-primary-500" />
+            Related Contracts
+          </h3>
+        </div>
+        <div className="card-body flex items-center justify-center py-8">
+          <LoadingSpinner size="sm" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !data) {
+    return null
+  }
+
+  const pendingSuggestions = data.suggestions.filter(s => s.status === 'pending')
+  const reviewedSuggestions = data.suggestions.filter(s => s.status !== 'pending')
+
+  if (pendingSuggestions.length === 0 && !showAll) {
+    return null
+  }
+
+  const displaySuggestions = showAll ? data.suggestions : pendingSuggestions
+
+  return (
+    <div className="card border-primary-200 bg-primary-50/30">
+      <div className="card-header flex items-center justify-between">
+        <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+          <SparklesIcon className="h-4 w-4 text-primary-500" />
+          AI-Detected Related Contracts
+          {pendingSuggestions.length > 0 && (
+            <span className="bg-primary-100 text-primary-700 text-xs px-1.5 py-0.5 rounded-full">
+              {pendingSuggestions.length} pending
+            </span>
+          )}
+        </h3>
+
+        <div className="flex items-center gap-2">
+          {pendingSuggestions.length > 1 && (
+            <button
+              onClick={handleApproveAll}
+              disabled={batchApproveMutation.isPending}
+              className="text-xs text-primary-600 hover:text-primary-800 font-medium"
+            >
+              {batchApproveMutation.isPending ? 'Approving...' : 'Approve All'}
+            </button>
+          )}
+
+          {reviewedSuggestions.length > 0 && (
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              {showAll ? 'Hide reviewed' : `Show all (${data.total})`}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="card-body space-y-3">
+        {displaySuggestions.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center py-4">
+            No pending suggestions
+          </p>
+        ) : (
+          displaySuggestions.map((suggestion) => (
+            <SuggestionCard
+              key={suggestion.id}
+              suggestion={suggestion}
+              contractId={contractId}
+              onReviewComplete={handleReviewComplete}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  )
+}

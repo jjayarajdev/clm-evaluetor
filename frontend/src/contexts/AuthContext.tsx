@@ -11,6 +11,7 @@ interface AuthContextType {
   isAdmin: boolean
   isLegal: boolean
   isProcurement: boolean
+  isSuperAdmin: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -44,6 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Redirect based on role
     switch (response.user.role) {
+      case 'super_admin':
+        navigate('/super-admin')
+        break
       case 'admin':
         navigate('/dashboard')
         break
@@ -72,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin: user?.role === 'admin',
     isLegal: user?.role === 'legal',
     isProcurement: user?.role === 'procurement',
+    isSuperAdmin: user?.role === 'super_admin',
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

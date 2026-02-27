@@ -962,6 +962,7 @@ def contract_to_response(contract) -> ContractResponse:
 @router.get("/filter-options")
 async def get_filter_options(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     """Get available filter options for contracts.
@@ -971,6 +972,7 @@ async def get_filter_options(
 
     Args:
         current_user: Authenticated user.
+        tenant_id: Current tenant ID.
         db: Database session.
 
     Returns:
@@ -979,47 +981,60 @@ async def get_filter_options(
     from sqlalchemy import select, func, distinct
     from app.models.contract import Contract
 
-    # Get unique counterparties (non-null, non-empty)
-    counterparty_result = await db.execute(
+    # Build tenant filter
+    def add_tenant_filter(query):
+        if tenant_id is not None:
+            return query.where(Contract.tenant_id == tenant_id)
+        return query
+
+    # Get unique counterparties (non-null, non-empty) - with tenant filter
+    counterparty_query = (
         select(distinct(Contract.counterparty))
         .where(Contract.counterparty.isnot(None))
         .where(Contract.counterparty != "")
         .order_by(Contract.counterparty)
     )
+    counterparty_result = await db.execute(add_tenant_filter(counterparty_query))
     counterparties = [r[0] for r in counterparty_result.fetchall() if r[0]]
 
-    # Get unique contract types
-    type_result = await db.execute(
+    # Get unique contract types - with tenant filter
+    type_query = (
         select(distinct(Contract.contract_type))
         .where(Contract.contract_type.isnot(None))
     )
+    type_result = await db.execute(add_tenant_filter(type_query))
     contract_types = [r[0].value for r in type_result.fetchall() if r[0]]
 
-    # Get unique risk levels
-    risk_result = await db.execute(
+    # Get unique risk levels - with tenant filter
+    risk_query = (
         select(distinct(Contract.risk_level))
         .where(Contract.risk_level.isnot(None))
     )
+    risk_result = await db.execute(add_tenant_filter(risk_query))
     risk_levels = [r[0].value for r in risk_result.fetchall() if r[0]]
 
-    # Get counts per counterparty
-    count_result = await db.execute(
+    # Get counts per counterparty - with tenant filter
+    count_query = (
         select(Contract.counterparty, func.count(Contract.id))
         .where(Contract.counterparty.isnot(None))
         .where(Contract.counterparty != "")
         .group_by(Contract.counterparty)
         .order_by(func.count(Contract.id).desc())
     )
+    count_result = await db.execute(add_tenant_filter(count_query))
     counterparty_counts = {r[0]: r[1] for r in count_result.fetchall() if r[0]}
 
-    # Get clients with contract counts
+    # Get clients with contract counts - with tenant filter
     from app.models.client import Client
-    client_result = await db.execute(
+    client_query = (
         select(Client.id, Client.name, Client.code, func.count(Contract.id))
         .outerjoin(Contract, Contract.client_id == Client.id)
         .group_by(Client.id, Client.name, Client.code)
         .order_by(Client.name)
     )
+    if tenant_id is not None:
+        client_query = client_query.where(Client.tenant_id == tenant_id)
+    client_result = await db.execute(client_query)
     clients = [
         {"id": str(r[0]), "name": r[1], "code": r[2], "contract_count": r[3]}
         for r in client_result.fetchall()
@@ -2156,4 +2171,128 @@ async def batch_extract_custom_fields(
         successful=successful,
         failed=failed,
         results=results,
+    )
+
+
+class ReindexResponse(BaseModel):
+    """Response for reindex operation."""
+    total: int
+    indexed: int
+    failed: int
+    errors: list[str]
+
+
+@router.post("/admin/reindex-all", response_model=ReindexResponse)
+async def reindex_all_contracts(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ReindexResponse:
+    """Reindex all contracts into the vector store for Q&A.
+
+    This operation:
+    1. Finds all COMPLETED contracts
+    2. Parses and chunks each contract
+    3. Stores chunks in ChromaDB vector store
+
+    Use this if Q&A is not finding contract content.
+
+    Requires admin role.
+    """
+    from sqlalchemy import select
+    from app.models.contract import Contract, ContractStatus
+    from app.services.indexer import IndexingService
+    from app.services.vector_store import get_vector_store
+
+    # Check admin role
+    if current_user.role.value not in ["admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin role required"
+        )
+
+    # Get all completed contracts
+    query = select(Contract).where(Contract.status == ContractStatus.COMPLETED)
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+
+    result = await db.execute(query)
+    contracts = list(result.scalars().all())
+
+    if not contracts:
+        return ReindexResponse(total=0, indexed=0, failed=0, errors=[])
+
+    # Index each contract
+    indexer = IndexingService(db)
+    vector_store = get_vector_store()
+    indexed = 0
+    failed = 0
+    errors = []
+
+    for contract in contracts:
+        try:
+            # Clear existing chunks for this contract
+            vector_store.delete_by_contract_id(str(contract.id))
+
+            # Re-index (just the vector store part, not full analysis)
+            from app.services.parser import DocumentParser
+            from app.services.chunker import get_chunker
+
+            parser = DocumentParser()
+            chunker = get_chunker()
+
+            # Parse the document
+            if not contract.file_path:
+                errors.append(f"{contract.filename}: No file path")
+                failed += 1
+                continue
+
+            parsed = parser.parse_file(contract.file_path)
+            if not parsed.success:
+                errors.append(f"{contract.filename}: {parsed.error}")
+                failed += 1
+                continue
+
+            # Chunk the content
+            chunked = chunker.chunk_document(parsed)
+
+            if not chunked.chunks:
+                errors.append(f"{contract.filename}: No chunks extracted")
+                failed += 1
+                continue
+
+            # Prepare data for vector store
+            from app.services.vector_store import ChunkMetadata
+            import uuid as uuid_mod
+
+            texts = [chunk.text for chunk in chunked.chunks]
+            chunk_ids = [str(uuid_mod.uuid4()) for _ in chunked.chunks]
+            metadatas = [
+                ChunkMetadata(
+                    contract_id=str(contract.id),
+                    filename=contract.filename,
+                    section_number=chunk.section_number,
+                    page_number=chunk.page_start,
+                    char_start=chunk.char_start,
+                    char_end=chunk.char_end,
+                    access_level="public",
+                    uploaded_by=str(contract.uploaded_by) if contract.uploaded_by else None,
+                )
+                for chunk in chunked.chunks
+            ]
+
+            # Store in vector store
+            vector_store.add_documents(texts, metadatas, chunk_ids)
+
+            indexed += 1
+
+        except Exception as e:
+            errors.append(f"{contract.filename}: {str(e)}")
+            failed += 1
+
+    return ReindexResponse(
+        total=len(contracts),
+        indexed=indexed,
+        failed=failed,
+        errors=errors[:20],  # Limit error list
     )

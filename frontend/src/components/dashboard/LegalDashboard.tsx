@@ -117,12 +117,14 @@ export default function LegalDashboard({ data }: Props) {
             {data.high_risk_clauses.slice(0, 10).map((clause) => (
               <Link
                 key={clause.clause_id}
-                to={`/contracts/${clause.contract_id}`}
-                className="block px-4 py-3 hover:bg-gray-50"
+                to={`/clauses/${clause.clause_id}`}
+                className="block px-4 py-3 hover:bg-gray-50 group"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900">{clause.contract_filename}</p>
+                    <p className="text-sm font-medium text-gray-900 group-hover:text-primary-600">
+                      {clause.contract_filename}
+                    </p>
                     <p className="text-xs text-gray-500 capitalize">{clause.clause_type.replace(/_/g, ' ')}</p>
                     <p className="text-xs text-gray-600 mt-1 line-clamp-2">{clause.excerpt}</p>
                   </div>

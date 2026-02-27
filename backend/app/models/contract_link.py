@@ -66,9 +66,18 @@ class ContractLink(Base, UUIDMixin, TimestampMixin):
     )
 
     # Type of relationship
-    link_type: Mapped[LinkType] = mapped_column(
+    # Use PostgreSQL ENUM directly to ensure lowercase values
+    from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
+    link_type: Mapped[str] = mapped_column(
+        PG_ENUM(
+            'sow', 'work_order', 'service_order', 'purchase_order',
+            'amendment', 'addendum', 'change_order', 'modification',
+            'renewal', 'exhibit', 'schedule', 'appendix', 'attachment',
+            'supersedes', 'references', 'related',
+            name='linktype', create_type=False
+        ),
         nullable=False,
-        default=LinkType.RELATED,
+        default='related',
     )
 
     # Optional metadata

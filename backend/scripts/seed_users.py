@@ -20,6 +20,12 @@ async def create_default_users(db: AsyncSession) -> None:
 
     default_users = [
         {
+            "username": "superadmin",
+            "email": "superadmin@contractintel.local",
+            "password": "Super123!",
+            "role": Role.SUPER_ADMIN,
+        },
+        {
             "username": "admin",
             "email": "admin@contractintel.local",
             "password": "Admin123!",
@@ -77,6 +83,7 @@ async def main() -> None:
     print("\n" + "=" * 50)
     print("Default Login Credentials:")
     print("=" * 50)
+    print("Super Admin: superadmin / Super123!")
     print("Admin:       admin / Admin123!")
     print("Legal:       legal / Legal123!")
     print("Procurement: procurement / Procure123!")

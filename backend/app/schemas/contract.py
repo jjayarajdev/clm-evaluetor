@@ -141,6 +141,7 @@ class ContractUpdate(BaseModel):
     renewal_term_months: int | None = None
     contract_type: ContractType | None = None
     risk_level: RiskLevel | None = None
+    custom_fields: dict | None = None
 
 
 # Update forward references

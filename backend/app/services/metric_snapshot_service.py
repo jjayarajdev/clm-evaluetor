@@ -3,6 +3,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Optional
+from uuid import UUID
 
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -137,7 +138,8 @@ async def capture_daily_snapshot(db: AsyncSession) -> MetricSnapshot:
 async def get_metric_history(
     db: AsyncSession,
     days: int = 30,
-    end_date: Optional[date] = None
+    end_date: Optional[date] = None,
+    tenant_id: Optional[UUID] = None,  # TODO: Implement per-tenant metrics
 ) -> list[MetricSnapshot]:
     """
     Get metric snapshots for the specified number of days.
@@ -172,7 +174,8 @@ async def get_metric_history(
 async def get_trend_data(
     db: AsyncSession,
     metric: str,
-    days: int = 7
+    days: int = 7,
+    tenant_id: Optional[UUID] = None,  # TODO: Implement per-tenant metrics
 ) -> list[dict]:
     """
     Get trend data for a specific metric.

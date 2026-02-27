@@ -2,8 +2,8 @@
 
 Generated from: `tasks/prd-contract-intelligence-mvp.md`
 Generated on: 2025-02-01
-**Updated: 2026-02-01** - Added Phase 8 (Post-Signing Contract Management)
-Total Tasks: 43 parent tasks, ~180 sub-tasks
+**Updated: 2026-02-14** - Added Phase 9 (Relationship Governance) and Phase 10 (Mobile & Surveys)
+Total Tasks: 54 parent tasks, ~250 sub-tasks
 
 ## Relevant Files
 
@@ -116,17 +116,26 @@ This implementation follows a **backend-first** approach, building the complete 
 ## Critical Path
 
 ```
+Phase 0-4: COMPLETE ✅
 Task 1 (Docker) → Task 2 (PostgreSQL) → Task 3 (ChromaDB) → Task 4 (Agent Squad)
     ↓
 Task 5 (Auth) → Task 6 (RBAC) → Task 8 (Upload) → Task 9-11 (Parsing/Indexing)
     ↓
 Task 12 (Orchestrator) → Tasks 13-18 (Agents) → Tasks 19-22 (API Endpoints)
+
+Phase 5-7: FRONTEND & INTEGRATION
     ↓
 Task 23 (React) → Tasks 24-26 (Foundation) → Tasks 27-32 (Features)
     ↓
 Task 33 (Docker Final) → Task 34 (Sample Data) → Task 35 (Documentation)
+
+Phase 8: POST-SIGNING
     ↓
-Tasks 36-43 (Post-Signing Management) [Phase 8 - NEW]
+Tasks 36-43 (Post-Signing Management)
+
+Phase 9-10: RELATIONSHIP GOVERNANCE & MOBILE
+    ↓
+Tasks 44-51 (Relationship Governance) → Tasks 52-54 (Mobile & Surveys)
 ```
 
 ## Phase 8 Critical Path (Post-Signing)
@@ -137,6 +146,18 @@ Task 36 (Compliance Workflow) → Task 37 (SLA Tracking) → Task 40 (Vendor Sco
 Task 38 (Renewals) + Task 39 (Amendments) → Task 41 (Milestone Dashboard)
     ↓
 Task 42 (Compliance Reports) → Task 43 (Frontend Views)
+```
+
+## Phase 9-10 Critical Path (Evaluetor Features)
+
+```
+Task 44 (Relationship Model) → Task 45 (Org/Relationship APIs) → Task 46 (KPI Management)
+    ↓
+Task 47 (Perception Scoring) → Task 48 (Improvement Tracking)
+    ↓
+Task 49 (Business Leader Dashboard) + Task 50 (Account Manager Dashboard)
+    ↓
+Task 51 (Governance) → Task 52 (Surveys) → Task 53 (External Portal) → Task 54 (PWA)
 ```
 
 ---
@@ -1744,7 +1765,428 @@ Build frontend dashboard components for post-signing contract management feature
 
 ---
 
-*Last Updated: 2026-02-01*
+## Phase 9: Relationship Governance (Evaluetor Features)
+
+*Business relationship management with KPI perception scoring and improvement tracking*
+
+---
+
+### Task 44: Create business relationship data model
+
+**Type:** Backend
+**Priority:** P2-Medium
+**Dependencies:** Task 2
+**PRD Reference:** Evaluetor Requirements
+
+**Description:**
+Create data model for business relationships between organizations, governance structures, and team assignments.
+
+**Acceptance Criteria:**
+- [x] Organization model with type, industry, size, region
+- [x] BusinessRelationship model linking organizations
+- [x] RelationshipTeam model for team assignments
+- [x] GovernanceModel for tiers and escalation rules
+- [x] Migrations run successfully
+
+**Sub-tasks:**
+- [x] 44.1 Create Organization model (id, name, type, industry, size, region, relationship_owner)
+- [x] 44.2 Create BusinessRelationship model (id, org_a_id, org_b_id, type, status, health_score, governance_model_id)
+- [x] 44.3 Create RelationshipTeam model (id, user_id, relationship_id, role, responsibilities)
+- [x] 44.4 Create GovernanceModel model (id, name, tiers, escalation_rules, review_frequency)
+- [x] 44.5 Add relationship_id foreign key to Contract model
+- [x] 44.6 Create Alembic migration for all new tables
+- [x] 44.7 Create Pydantic schemas for all new models
+
+**Technical Notes:**
+- Organization types: customer, vendor, partner, internal
+- Relationship types: customer, supplier, partner, joint_venture
+- Health score: 0-100 composite score
+
+---
+
+### Task 45: Implement organization and relationship APIs
+
+**Type:** Backend
+**Priority:** P2-Medium
+**Dependencies:** Task 44
+**PRD Reference:** Evaluetor Requirements
+
+**Description:**
+Build REST API endpoints for organization and relationship management.
+
+**Acceptance Criteria:**
+- [x] CRUD endpoints for organizations
+- [x] CRUD endpoints for relationships
+- [x] Team assignment endpoints
+- [x] Health score calculation
+
+**Sub-tasks:**
+- [x] 45.1 Create organizations router (app/routers/organizations.py)
+- [x] 45.2 Implement POST /api/organizations endpoint
+- [x] 45.3 Implement GET /api/organizations (list with filters)
+- [x] 45.4 Implement GET /api/organizations/{id} with linked relationships
+- [x] 45.5 Implement PUT /api/organizations/{id}
+- [x] 45.6 Create relationships router (app/routers/relationships.py)
+- [x] 45.7 Implement POST /api/relationships endpoint
+- [x] 45.8 Implement GET /api/relationships (list with filters)
+- [x] 45.9 Implement GET /api/relationships/{id} with teams and contracts
+- [x] 45.10 Implement POST /api/relationships/{id}/teams (assign team members)
+- [x] 45.11 Create relationship health score calculation service
+- [ ] 45.12 Add organization auto-creation from contract metadata extraction
+
+**Technical Notes:**
+- Normalize organization names to avoid duplicates
+- Health score factors: compliance rate, SLA performance, issue count, satisfaction
+
+---
+
+### Task 46: Implement KPI definition and management
+
+**Type:** Backend
+**Priority:** P2-Medium
+**Dependencies:** Task 45
+**PRD Reference:** Evaluetor Requirements
+
+**Description:**
+Build KPI definition system for tracking performance metrics per relationship.
+
+**Acceptance Criteria:**
+- [x] KPI model with targets and thresholds
+- [x] CRUD endpoints for KPIs
+- [ ] KPI template library
+- [x] KPIs linked to relationships
+
+**Sub-tasks:**
+- [x] 46.1 Create KPI model (id, relationship_id, name, description, measurement_type, target, threshold_amber, threshold_red)
+- [x] 46.2 Create KPICategory model (id, name, description)
+- [x] 46.3 Create Alembic migration for KPI tables
+- [x] 46.4 Create kpis router (app/routers/kpis.py)
+- [x] 46.5 Implement POST /api/relationships/{id}/kpis endpoint
+- [x] 46.6 Implement GET /api/relationships/{id}/kpis (list KPIs)
+- [x] 46.7 Implement PUT /api/kpis/{id} (update KPI definition)
+- [x] 46.8 Implement DELETE /api/kpis/{id}
+- [ ] 46.9 Create KPI template library (common KPIs for contract types)
+- [ ] 46.10 Implement POST /api/relationships/{id}/kpis/from-template
+
+**Technical Notes:**
+- Measurement types: percentage, number, currency, time, boolean
+- Common KPIs: response_time, uptime, delivery_on_time, quality_score, satisfaction
+
+---
+
+### Task 47: Implement perception scoring system
+
+**Type:** Backend
+**Priority:** P2-Medium
+**Dependencies:** Task 46
+**PRD Reference:** Evaluetor Requirements
+
+**Description:**
+Build the perception scoring system that captures internal and external KPI perception scores with gap analysis.
+
+**Acceptance Criteria:**
+- [x] Internal scores captured per KPI
+- [x] External scores captured per KPI
+- [x] Gap calculation between internal/external
+- [x] Gap severity classification
+- [ ] Trend analysis over time
+
+**Sub-tasks:**
+- [x] 47.1 Create PerceptionScore model (id, kpi_id, scorer_org_id, score, period, comments, scored_by, scored_at)
+- [x] 47.2 Create PerceptionGap model (id, kpi_id, period, internal_score, external_score, gap, gap_severity)
+- [x] 47.3 Create Alembic migration for perception tables
+- [x] 47.4 Create perception router (app/routers/kpis.py with perception endpoints)
+- [x] 47.5 Implement POST /api/kpis/{id}/scores endpoint (submit score)
+- [x] 47.6 Implement GET /api/kpis/{id}/scores (list scores by period)
+- [x] 47.7 Create gap calculation service (compare internal vs external)
+- [x] 47.8 Implement GET /api/relationships/{id}/perception-gaps
+- [x] 47.9 Create gap severity classification (minor, moderate, significant, critical)
+- [ ] 47.10 Implement trend analysis for scores over time
+- [x] 47.11 Create external scoring portal API (token-based access)
+
+**Technical Notes:**
+- Score range: 1-10
+- Gap severity: minor (<1 point), moderate (1-2), significant (2-3), critical (>3)
+- Period: quarterly or monthly
+
+---
+
+### Task 48: Implement improvement point tracking
+
+**Type:** Backend
+**Priority:** P2-Medium
+**Dependencies:** Task 47
+**PRD Reference:** Evaluetor Requirements
+
+**Description:**
+Build improvement point management linked to KPI gaps.
+
+**Acceptance Criteria:**
+- [x] Improvement points linked to gaps
+- [x] Status workflow (open → in_progress → completed)
+- [x] Action items per improvement
+- [x] Auto-generation from critical gaps
+
+**Sub-tasks:**
+- [x] 48.1 Create ImprovementPoint model (id, relationship_id, kpi_id, gap_id, title, description, priority, status, owner, due_date)
+- [x] 48.2 Create ImprovementAction model (id, improvement_id, description, status, owner, due_date, completed_at)
+- [x] 48.3 Create Alembic migration
+- [x] 48.4 Create improvements router (app/routers/improvements.py)
+- [x] 48.5 Implement POST /api/relationships/{id}/improvements endpoint
+- [x] 48.6 Implement GET /api/relationships/{id}/improvements (list with filters)
+- [x] 48.7 Implement PUT /api/improvements/{id} (status update)
+- [x] 48.8 Implement POST /api/improvements/{id}/actions (add action item)
+- [x] 48.9 Create auto-improvement generation from critical gaps
+- [x] 48.10 Implement improvement completion workflow
+- [ ] 48.11 Add improvement metrics to relationship health score
+
+**Technical Notes:**
+- Priority: low, medium, high, critical
+- Status: open, in_progress, completed, cancelled
+- Auto-generate improvement for gaps with severity >= significant
+
+---
+
+### Task 49: Implement Business Leader dashboard
+
+**Type:** Backend + Frontend
+**Priority:** P2-Medium
+**Dependencies:** Task 47, Task 48
+**PRD Reference:** Evaluetor Requirements
+
+**Description:**
+Build the Business Leader dashboard with perception charts, satisfaction trends, and improvement tracking (Evaluetor-style).
+
+**Acceptance Criteria:**
+- [ ] Perception gap summary across relationships
+- [ ] Satisfaction trend charts
+- [ ] Improvement status summary
+- [ ] Relationship health scorecard
+
+**Sub-tasks:**
+- [ ] 49.1 Create BusinessLeaderDashboardResponse Pydantic schema
+- [ ] 49.2 Implement GET /api/dashboard/business-leader endpoint
+- [ ] 49.3 Return perception gap summary across relationships
+- [ ] 49.4 Return satisfaction trend data (quarterly/annual)
+- [ ] 49.5 Return improvement point status summary
+- [ ] 49.6 Create BusinessLeaderDashboardPage component
+- [ ] 49.7 Create PerceptionGapChart component (bar chart: internal vs external)
+- [ ] 49.8 Create SatisfactionTrendChart component (line chart over time)
+- [ ] 49.9 Create ImprovementStatusWidget component
+- [ ] 49.10 Create RelationshipHealthScorecard component
+
+**Technical Notes:**
+- Use Recharts for visualizations
+- Perception gap chart: side-by-side bars per KPI
+- Trend chart: 4 quarters or 12 months
+
+---
+
+### Task 50: Implement Account Manager dashboard
+
+**Type:** Backend + Frontend
+**Priority:** P2-Medium
+**Dependencies:** Task 45, Task 48
+**PRD Reference:** Evaluetor Requirements
+
+**Description:**
+Build the Account Manager dashboard for managing specific business relationships (Evaluetor-style).
+
+**Acceptance Criteria:**
+- [ ] Assigned relationships with health scores
+- [ ] Commitments and deadlines
+- [ ] KPI alerts
+- [ ] Relationship detail view
+
+**Sub-tasks:**
+- [ ] 50.1 Create AccountManagerDashboardResponse Pydantic schema
+- [ ] 50.2 Implement GET /api/dashboard/account-manager endpoint
+- [ ] 50.3 Return assigned relationships with health scores
+- [ ] 50.4 Return commitments and deadlines for relationships
+- [ ] 50.5 Return alerts (upcoming reviews, at-risk KPIs)
+- [ ] 50.6 Create AccountManagerDashboardPage component
+- [ ] 50.7 Create RelationshipsList component with health indicators
+- [ ] 50.8 Create CommitmentsTimeline component
+- [ ] 50.9 Create KPIAlerts component
+- [ ] 50.10 Create RelationshipDetailView component
+
+**Technical Notes:**
+- Filter relationships by current user as relationship_owner
+- Health indicators: green (>80), amber (60-80), red (<60)
+
+---
+
+### Task 51: Implement governance structure management
+
+**Type:** Backend + Frontend
+**Priority:** P3-Low
+**Dependencies:** Task 45
+**PRD Reference:** Evaluetor Requirements
+
+**Description:**
+Build governance structure visualization and management.
+
+**Acceptance Criteria:**
+- [ ] Governance tier definitions
+- [ ] Team hierarchy visualization
+- [ ] Review scheduling
+- [ ] Escalation configuration
+
+**Sub-tasks:**
+- [ ] 51.1 Create governance tier definitions (operational, tactical, strategic)
+- [ ] 51.2 Implement GET /api/relationships/{id}/governance endpoint
+- [ ] 51.3 Implement PUT /api/relationships/{id}/governance (update structure)
+- [ ] 51.4 Create governance review scheduling
+- [ ] 51.5 Create GovernanceStructurePage component
+- [ ] 51.6 Create OrgChartVisualization component (team hierarchy)
+- [ ] 51.7 Create GovernanceReviewCalendar component
+- [ ] 51.8 Add escalation workflow configuration
+
+**Technical Notes:**
+- Governance tiers: operational (weekly), tactical (monthly), strategic (quarterly)
+- Use react-organizational-chart or similar for visualization
+
+---
+
+## Phase 10: Mobile & Surveys (Evaluetor Features)
+
+*External stakeholder engagement and mobile access*
+
+---
+
+### Task 52: Implement satisfaction survey system
+
+**Type:** Backend
+**Priority:** P3-Low
+**Dependencies:** Task 47
+**PRD Reference:** Evaluetor Requirements
+
+**Description:**
+Build survey system for collecting multi-party satisfaction scores.
+
+**Acceptance Criteria:**
+- [x] Survey template builder
+- [ ] Survey distribution via email
+- [x] Public response collection
+- [ ] Response aggregation
+
+**Sub-tasks:**
+- [x] 52.1 Create SurveyTemplate model (id, name, questions, frequency, is_active)
+- [x] 52.2 Create SurveyQuestion model (id, template_id, text, type, options, required)
+- [x] 52.3 Create SurveyInstance model (id, template_id, relationship_id, period, status, sent_at, due_date)
+- [x] 52.4 Create SurveyResponse model (id, survey_id, respondent_email, respondent_org_id, answers, submitted_at)
+- [x] 52.5 Create Alembic migration
+- [x] 52.6 Create surveys router (app/routers/surveys.py)
+- [x] 52.7 Implement POST /api/surveys/templates endpoint
+- [x] 52.8 Implement POST /api/relationships/{id}/surveys (create instance)
+- [ ] 52.9 Create survey distribution service (email links)
+- [x] 52.10 Create public survey submission endpoint (token-based)
+- [ ] 52.11 Implement survey response aggregation
+- [ ] 52.12 Create SurveyBuilderPage component
+- [ ] 52.13 Create SurveyResponsePortal component (external-facing)
+- [ ] 52.14 Create SurveyResultsPage component
+
+**Technical Notes:**
+- Question types: rating (1-10), multiple_choice, text, yes_no
+- Survey status: draft, sent, completed, expired
+- Token-based access for external respondents
+
+---
+
+### Task 53: Implement external stakeholder portal
+
+**Type:** Backend + Frontend
+**Priority:** P3-Low
+**Dependencies:** Task 47, Task 52
+**PRD Reference:** Evaluetor Requirements
+
+**Description:**
+Build minimal external portal for clients/vendors to submit perception scores and survey responses.
+
+**Acceptance Criteria:**
+- [x] Token-based access (no registration)
+- [ ] Perception scoring form
+- [x] Survey submission form
+- [ ] Branded portal UI
+
+**Sub-tasks:**
+- [x] 53.1 Create ExternalAccessToken model (id, token, type, relationship_id, org_id, expires_at, used_at)
+- [x] 53.2 Create external access token generation service
+- [x] 53.3 Implement GET /api/external/{token}/context (relationship + KPIs)
+- [ ] 53.4 Implement POST /api/external/{token}/scores (submit perception)
+- [x] 53.5 Implement POST /api/external/{token}/survey (submit survey)
+- [ ] 53.6 Create ExternalPortalLayout component (minimal, branded)
+- [ ] 53.7 Create PerceptionScoringForm component
+- [ ] 53.8 Create SurveyForm component
+- [ ] 53.9 Create ThankYouPage component
+- [ ] 53.10 Add portal branding configuration
+
+**Technical Notes:**
+- Tokens expire after 30 days
+- Rate limit: 10 submissions per token
+- Minimal UI, mobile-friendly
+
+---
+
+### Task 54: Implement Progressive Web App (Mobile)
+
+**Type:** Frontend
+**Priority:** P3-Low
+**Dependencies:** Task 43
+**PRD Reference:** Evaluetor Requirements
+
+**Description:**
+Convert React app to PWA for mobile access.
+
+**Acceptance Criteria:**
+- [ ] Installable on mobile devices
+- [ ] Offline caching for key pages
+- [ ] Push notifications
+- [ ] Mobile-optimized UI
+
+**Sub-tasks:**
+- [ ] 54.1 Add PWA manifest.json with app metadata
+- [ ] 54.2 Configure service worker for offline caching
+- [ ] 54.3 Add install prompt for mobile browsers
+- [ ] 54.4 Optimize UI for mobile viewports (responsive)
+- [ ] 54.5 Create mobile-optimized navigation (bottom tabs)
+- [ ] 54.6 Add push notification support
+- [ ] 54.7 Create mobile dashboard views (simplified widgets)
+- [ ] 54.8 Test on iOS Safari and Android Chrome
+- [ ] 54.9 Add app icons for home screen (multiple sizes)
+- [ ] 54.10 Document PWA installation steps
+
+**Technical Notes:**
+- Use Workbox for service worker management
+- Cache strategy: network-first for API, cache-first for assets
+- Icons: 192x192 and 512x512 PNG
+
+---
+
+## Implementation Notes
+
+### Phase 9-10 Cross-Cutting Concerns
+
+1. **External Portal Security**: Token-based access with expiration, rate limiting, no PII exposure
+2. **Multi-tenancy**: Organizations must be isolated; relationships only visible to participants
+3. **Data Migration**: Provide import scripts for existing organization/relationship data
+4. **Localization**: Survey forms should support multiple languages (future)
+5. **GDPR Compliance**: Perception scores and survey responses are personal data; implement consent and deletion
+
+### Phase 9-10 Known Risks
+
+1. **External Engagement**: Clients/vendors may not respond to perception surveys
+2. **Data Quality**: Self-reported scores may be biased; consider validation
+3. **Complexity**: Relationship governance adds significant UI complexity
+4. **Scope Creep**: Clear boundaries between contract intelligence and relationship governance
+
+---
+
+*Last Updated: 2026-02-14*
 *Changes:*
 - *2025-02-01: Migrated from DSPy to Agent Squad + OpenAI + Langfuse*
 - *2026-02-01: Added Phase 8 - Post-Signing Contract Management (Tasks 36-43) based on Sirion Labs and Legitt AI competitive analysis*
+- *2026-02-14: Added Phase 9 - Relationship Governance (Tasks 44-51) and Phase 10 - Mobile & Surveys (Tasks 52-54) based on Evaluetor competitive analysis*
+- *2026-02-14: Implemented Phase 9 backend (Tasks 44-48: models, routers, schemas for Organizations, Relationships, KPIs, Perception Scoring, Improvements)*
+- *2026-02-14: Implemented Phase 10 backend surveys (Task 52-53: Survey models, templates, instances, external token-based access). Task 54 (PWA) deferred per requirement.*
+- *2026-02-14: Created seed script for relationship governance data (scripts/seed_relationship_governance.py)*

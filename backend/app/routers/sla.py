@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import CurrentUser
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models.sla import (
     ContractSLA,
@@ -133,10 +133,19 @@ def determine_breach_severity(deviation: Decimal) -> BreachSeverity | None:
 async def get_contract_slas(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     include_inactive: bool = False,
 ) -> list[SLAWithPerformance]:
     """Get all SLAs for a contract with recent performance history."""
+    # First verify contract belongs to tenant
+    contract_query = select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+    if tenant_id is not None:
+        contract_query = contract_query.where(Contract.tenant_id == tenant_id)
+    contract_result = await db.execute(contract_query)
+    if not contract_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Contract not found")
+
     query = select(ContractSLA).where(
         ContractSLA.contract_id == uuid_mod.UUID(contract_id)
     )
@@ -191,13 +200,15 @@ async def create_sla(
     contract_id: str,
     sla_data: SLACreate,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SLAResponse:
     """Create a new SLA for a contract."""
-    # Verify contract exists
-    contract_result = await db.execute(
-        select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
-    )
+    # Verify contract exists and belongs to tenant
+    contract_query = select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+    if tenant_id is not None:
+        contract_query = contract_query.where(Contract.tenant_id == tenant_id)
+    contract_result = await db.execute(contract_query)
     if not contract_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Contract not found")
 
@@ -234,9 +245,18 @@ async def log_sla_performance(
     sla_id: str,
     perf_data: SLAPerformanceCreate,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SLAPerformanceResponse:
     """Log a performance measurement for an SLA."""
+    # Verify contract belongs to tenant first
+    contract_query = select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+    if tenant_id is not None:
+        contract_query = contract_query.where(Contract.tenant_id == tenant_id)
+    contract_result = await db.execute(contract_query)
+    if not contract_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Contract not found")
+
     # Get the SLA
     result = await db.execute(
         select(ContractSLA).where(
@@ -313,11 +333,19 @@ async def log_sla_performance(
 @router.get("/compliance/summary", response_model=SLAComplianceResponse)
 async def get_sla_compliance(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     contract_id: str | None = None,
 ) -> SLAComplianceResponse:
     """Get SLA compliance summary across all contracts or a specific contract."""
-    query = select(ContractSLA).where(ContractSLA.is_active == True)
+    # Build query with tenant filter via contract join
+    query = (
+        select(ContractSLA)
+        .join(Contract, ContractSLA.contract_id == Contract.id)
+        .where(ContractSLA.is_active == True)
+    )
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
 
     if contract_id:
         query = query.where(ContractSLA.contract_id == uuid_mod.UUID(contract_id))
@@ -441,11 +469,12 @@ async def get_sla_compliance(
 @router.get("/breaches/active", response_model=SLABreachesResponse)
 async def get_active_breaches(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SLABreachesResponse:
     """Get all currently active SLA breaches."""
-    # Get SLAs with consecutive breaches > 0
-    result = await db.execute(
+    # Get SLAs with consecutive breaches > 0 - with tenant filter
+    query = (
         select(ContractSLA, Contract.filename)
         .join(Contract, ContractSLA.contract_id == Contract.id)
         .where(
@@ -454,6 +483,9 @@ async def get_active_breaches(
         )
         .order_by(ContractSLA.severity, ContractSLA.consecutive_breaches.desc())
     )
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    result = await db.execute(query)
 
     breaches_by_severity: dict[str, list[SLABreachItem]] = {
         "critical": [], "high": [], "medium": [], "low": []
@@ -506,6 +538,7 @@ async def get_active_breaches(
 @router.get("/", response_model=list[SLAResponse])
 async def list_all_slas(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     metric_type: str | None = None,
     severity: str | None = None,
@@ -514,7 +547,14 @@ async def list_all_slas(
     offset: int = 0,
 ) -> list[SLAResponse]:
     """List all SLAs with optional filters."""
-    query = select(ContractSLA).where(ContractSLA.is_active == True)
+    # Apply tenant filter via contract join
+    query = (
+        select(ContractSLA)
+        .join(Contract, ContractSLA.contract_id == Contract.id)
+        .where(ContractSLA.is_active == True)
+    )
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
 
     if metric_type:
         query = query.where(ContractSLA.metric_type == SLAMetricType(metric_type))
@@ -544,6 +584,7 @@ async def update_sla(
     sla_id: str,
     sla_data: SLAUpdate,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SLAResponse:
     """Update an SLA. Requires admin role."""
@@ -553,6 +594,14 @@ async def update_sla(
             status_code=403,
             detail="Only admin or legal users can update SLAs"
         )
+
+    # Verify contract belongs to tenant
+    contract_query = select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+    if tenant_id is not None:
+        contract_query = contract_query.where(Contract.tenant_id == tenant_id)
+    contract_result = await db.execute(contract_query)
+    if not contract_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Contract not found")
 
     # Get the SLA
     result = await db.execute(
@@ -590,6 +639,7 @@ async def delete_sla(
     contract_id: str,
     sla_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     """Delete an SLA. Requires admin role."""
@@ -599,6 +649,14 @@ async def delete_sla(
             status_code=403,
             detail="Only admin or legal users can delete SLAs"
         )
+
+    # Verify contract belongs to tenant
+    contract_query = select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+    if tenant_id is not None:
+        contract_query = contract_query.where(Contract.tenant_id == tenant_id)
+    contract_result = await db.execute(contract_query)
+    if not contract_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Contract not found")
 
     # Get the SLA
     result = await db.execute(

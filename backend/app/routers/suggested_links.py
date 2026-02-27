@@ -1,0 +1,387 @@
+"""Suggested contract links router for AI-detected relationship management."""
+
+import uuid
+from datetime import datetime
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.audit import log_audit
+from app.core.deps import CurrentUser, CurrentTenantId
+from app.database import get_db
+from app.models.audit import AuditAction
+from app.models.contract import Contract
+from app.models.contract_link import ContractLink, LinkType
+from app.models.suggested_link import SuggestedContractLink, SuggestionStatus
+from app.schemas.suggested_link import (
+    BatchReviewRequest,
+    BatchReviewResponse,
+    PendingSuggestionsResponse,
+    SuggestedLinkResponse,
+    SuggestedLinkReviewRequest,
+    SuggestedLinkReviewResponse,
+    SuggestedLinksListResponse,
+)
+
+router = APIRouter(prefix="/api/contracts", tags=["Suggested Links"])
+
+
+@router.get("/{contract_id}/suggested-links", response_model=SuggestedLinksListResponse)
+async def get_suggested_links(
+    contract_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    status_filter: str | None = None,
+) -> SuggestedLinksListResponse:
+    """Get suggested links for a specific contract.
+
+    Args:
+        contract_id: ID of the contract to get suggestions for.
+        current_user: Authenticated user.
+        tenant_id: Current tenant ID.
+        db: Database session.
+        status_filter: Optional filter by status (pending, approved, rejected).
+
+    Returns:
+        List of suggested links with metadata.
+    """
+    # Verify contract exists
+    contract = await db.get(Contract, uuid.UUID(contract_id))
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
+    # Build query
+    query = (
+        select(SuggestedContractLink)
+        .where(SuggestedContractLink.source_contract_id == uuid.UUID(contract_id))
+        .options(selectinload(SuggestedContractLink.target_contract))
+        .order_by(SuggestedContractLink.confidence_score.desc())
+    )
+
+    if tenant_id:
+        query = query.where(SuggestedContractLink.tenant_id == tenant_id)
+
+    if status_filter:
+        # Filter by status string (pending, approved, rejected, expired)
+        query = query.where(SuggestedContractLink.status == status_filter)
+
+    result = await db.execute(query)
+    suggestions = result.scalars().all()
+
+    # Count pending
+    pending_count = sum(1 for s in suggestions if s.status == "pending")
+
+    return SuggestedLinksListResponse(
+        suggestions=[
+            SuggestedLinkResponse.from_model(s) for s in suggestions
+        ],
+        total=len(suggestions),
+        pending_count=pending_count,
+    )
+
+
+@router.post(
+    "/{contract_id}/suggested-links/{suggestion_id}/review",
+    response_model=SuggestedLinkReviewResponse,
+)
+async def review_suggested_link(
+    contract_id: str,
+    suggestion_id: str,
+    review: SuggestedLinkReviewRequest,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SuggestedLinkReviewResponse:
+    """Review (approve/reject/modify) a suggested link.
+
+    Args:
+        contract_id: ID of the source contract.
+        suggestion_id: ID of the suggestion to review.
+        review: Review action and details.
+        current_user: Authenticated user.
+        tenant_id: Current tenant ID.
+        request: FastAPI request for audit logging.
+        db: Database session.
+
+    Returns:
+        Review result with created link ID if approved.
+    """
+    # Get the suggestion with related contracts
+    query = (
+        select(SuggestedContractLink)
+        .where(SuggestedContractLink.id == uuid.UUID(suggestion_id))
+        .where(SuggestedContractLink.source_contract_id == uuid.UUID(contract_id))
+        .options(
+            selectinload(SuggestedContractLink.source_contract),
+            selectinload(SuggestedContractLink.target_contract),
+        )
+    )
+
+    if tenant_id:
+        query = query.where(SuggestedContractLink.tenant_id == tenant_id)
+
+    result = await db.execute(query)
+    suggestion = result.scalar_one_or_none()
+
+    if not suggestion:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Suggestion not found: {suggestion_id}",
+        )
+
+    if suggestion.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Suggestion already {suggestion.status}",
+        )
+
+    created_link_id = None
+    message = ""
+
+    if review.action == "approve":
+        # Create the actual ContractLink
+        # Use the string value directly (matches PostgreSQL enum)
+        link_type = suggestion.suggested_link_type  # Already a string like "sow"
+
+        # Determine parent/child based on direction
+        if suggestion.suggested_direction == "source_is_child":
+            parent_id = suggestion.target_contract_id
+            child_id = suggestion.source_contract_id
+        else:
+            parent_id = suggestion.source_contract_id
+            child_id = suggestion.target_contract_id
+
+        # Check if link already exists
+        existing = await db.execute(
+            select(ContractLink).where(
+                ContractLink.parent_contract_id == parent_id,
+                ContractLink.child_contract_id == child_id,
+                ContractLink.link_type == link_type,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This link already exists",
+            )
+
+        # Create the link
+        contract_link = ContractLink(
+            parent_contract_id=parent_id,
+            child_contract_id=child_id,
+            link_type=link_type,
+            link_description=f"Auto-detected: {suggestion.reasoning}" if suggestion.reasoning else None,
+            is_active=True,
+        )
+        db.add(contract_link)
+        await db.flush()
+
+        created_link_id = str(contract_link.id)
+        suggestion.created_link_id = contract_link.id
+        suggestion.status = "approved"
+        message = f"Link created: {link_type}"
+
+    elif review.action == "reject":
+        suggestion.status = "rejected"
+        message = "Suggestion rejected"
+
+    elif review.action == "modify":
+        if not review.modified_link_type:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="modified_link_type required for modify action",
+            )
+
+        try:
+            new_link_type = LinkType(review.modified_link_type)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid link type: {review.modified_link_type}",
+            )
+
+        # Update suggestion type and approve
+        suggestion.suggested_link_type = new_link_type.value  # Store string value
+
+        # Create the link with modified type
+        if suggestion.suggested_direction == "source_is_child":
+            parent_id = suggestion.target_contract_id
+            child_id = suggestion.source_contract_id
+        else:
+            parent_id = suggestion.source_contract_id
+            child_id = suggestion.target_contract_id
+
+        contract_link = ContractLink(
+            parent_contract_id=parent_id,
+            child_contract_id=child_id,
+            link_type=new_link_type,
+            link_description=f"Modified from AI suggestion: {suggestion.reasoning}" if suggestion.reasoning else None,
+            is_active=True,
+        )
+        db.add(contract_link)
+        await db.flush()
+
+        created_link_id = str(contract_link.id)
+        suggestion.created_link_id = contract_link.id
+        suggestion.status = "approved"
+        message = f"Link created with modified type: {new_link_type.value}"
+
+    # Update review metadata
+    suggestion.reviewed_by = current_user.id
+    suggestion.reviewed_at = datetime.utcnow()
+
+    await db.commit()
+
+    # Audit log
+    await log_audit(
+        db=db,
+        action=AuditAction.CONTRACT_VIEW,  # TODO: Add SUGGESTION_REVIEWED action
+        user_id=str(current_user.id),
+        resource_type="suggested_link",
+        resource_id=suggestion_id,
+        details={
+            "action": review.action,
+            "contract_id": contract_id,
+            "created_link_id": created_link_id,
+        },
+        request=request,
+    )
+
+    return SuggestedLinkReviewResponse(
+        suggestion_id=suggestion_id,
+        action=review.action,
+        status=suggestion.status,  # Already a string
+        created_link_id=created_link_id,
+        message=message,
+    )
+
+
+@router.get("/pending-suggestions", response_model=PendingSuggestionsResponse)
+async def get_all_pending_suggestions(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = 50,
+) -> PendingSuggestionsResponse:
+    """Get all pending suggestions for the current tenant.
+
+    Args:
+        current_user: Authenticated user.
+        tenant_id: Current tenant ID.
+        db: Database session.
+        limit: Maximum suggestions to return.
+
+    Returns:
+        All pending suggestions grouped by contract.
+    """
+    query = (
+        select(SuggestedContractLink)
+        .where(SuggestedContractLink.status == "pending")
+        .options(selectinload(SuggestedContractLink.target_contract))
+        .order_by(
+            SuggestedContractLink.created_at.desc(),
+            SuggestedContractLink.confidence_score.desc(),
+        )
+        .limit(limit)
+    )
+
+    if tenant_id:
+        query = query.where(SuggestedContractLink.tenant_id == tenant_id)
+
+    result = await db.execute(query)
+    suggestions = result.scalars().all()
+
+    # Group by contract
+    by_contract: dict[str, int] = {}
+    for s in suggestions:
+        cid = str(s.source_contract_id)
+        by_contract[cid] = by_contract.get(cid, 0) + 1
+
+    return PendingSuggestionsResponse(
+        total_pending=len(suggestions),
+        by_contract=by_contract,
+        suggestions=[SuggestedLinkResponse.from_model(s) for s in suggestions],
+    )
+
+
+@router.post(
+    "/{contract_id}/suggested-links/batch-review",
+    response_model=BatchReviewResponse,
+)
+async def batch_review_suggestions(
+    contract_id: str,
+    batch_review: BatchReviewRequest,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> BatchReviewResponse:
+    """Batch approve or reject multiple suggestions.
+
+    Args:
+        contract_id: ID of the source contract.
+        batch_review: Batch review request with IDs and action.
+        current_user: Authenticated user.
+        tenant_id: Current tenant ID.
+        request: FastAPI request for audit logging.
+        db: Database session.
+
+    Returns:
+        Batch review results.
+    """
+    results: list[SuggestedLinkReviewResponse] = []
+    succeeded = 0
+    failed = 0
+
+    for suggestion_id in batch_review.suggestion_ids:
+        try:
+            review_request = SuggestedLinkReviewRequest(
+                action=batch_review.action,
+                notes=batch_review.notes,
+            )
+            result = await review_suggested_link(
+                contract_id=contract_id,
+                suggestion_id=suggestion_id,
+                review=review_request,
+                current_user=current_user,
+                tenant_id=tenant_id,
+                request=request,
+                db=db,
+            )
+            results.append(result)
+            succeeded += 1
+        except HTTPException as e:
+            results.append(
+                SuggestedLinkReviewResponse(
+                    suggestion_id=suggestion_id,
+                    action=batch_review.action,
+                    status="error",
+                    message=e.detail,
+                )
+            )
+            failed += 1
+        except Exception as e:
+            results.append(
+                SuggestedLinkReviewResponse(
+                    suggestion_id=suggestion_id,
+                    action=batch_review.action,
+                    status="error",
+                    message=str(e),
+                )
+            )
+            failed += 1
+
+    return BatchReviewResponse(
+        processed=len(batch_review.suggestion_ids),
+        succeeded=succeeded,
+        failed=failed,
+        results=results,
+    )

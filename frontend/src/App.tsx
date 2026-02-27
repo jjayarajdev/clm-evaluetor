@@ -19,6 +19,11 @@ import SchedulerPage from './pages/admin/SchedulerPage'
 import RenewalsPage from './pages/RenewalsPage'
 import VendorsPage from './pages/VendorsPage'
 import ReportsPage from './pages/ReportsPage'
+import SuperAdminDashboardPage from './pages/super-admin/SuperAdminDashboardPage'
+import TenantManagementPage from './pages/super-admin/TenantManagementPage'
+import TenantDetailPage from './pages/super-admin/TenantDetailPage'
+import GlobalUsersPage from './pages/super-admin/GlobalUsersPage'
+import CustomFieldsPage from './pages/super-admin/CustomFieldsPage'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -71,6 +76,12 @@ function App() {
         <Route path="admin/sla-config" element={<SLAConfigPage />} />
         <Route path="admin/milestone-config" element={<MilestoneConfigPage />} />
         <Route path="admin/scheduler" element={<SchedulerPage />} />
+        {/* Super Admin Routes */}
+        <Route path="super-admin" element={<SuperAdminDashboardPage />} />
+        <Route path="super-admin/tenants" element={<TenantManagementPage />} />
+        <Route path="super-admin/tenants/:id" element={<TenantDetailPage />} />
+        <Route path="super-admin/users" element={<GlobalUsersPage />} />
+        <Route path="super-admin/custom-fields" element={<CustomFieldsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

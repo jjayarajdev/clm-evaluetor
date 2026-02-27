@@ -63,7 +63,8 @@ services:
       LOG_JSON: "true"
     volumes:
       - uploads_data:/app/data/uploads
-      - chroma_backend_data:/app/data/chroma
+      # NOTE: No local ChromaDB volume - all vector data goes to the chromadb service
+      # This prevents data inconsistency between two separate databases
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
@@ -92,5 +93,4 @@ services:
 volumes:
   postgres_data:
   chroma_data:
-  chroma_backend_data:
   uploads_data:

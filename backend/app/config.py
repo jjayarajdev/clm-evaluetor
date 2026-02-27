@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -52,8 +52,8 @@ class Settings(BaseSettings):
     jwt_expiration_hours: int = 24
     access_token_expire_minutes: int = 30  # Alternative config option
 
-    # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # CORS - allow all origins for demo/dev (restrict in production)
+    cors_origins: list[str] = ["*"]
 
     # File Upload
     max_upload_size_mb: int = 50

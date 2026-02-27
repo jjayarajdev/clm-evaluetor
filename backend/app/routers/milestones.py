@@ -1,12 +1,14 @@
 """Milestone Health Dashboard API endpoints."""
 
 from datetime import date, datetime, timedelta
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models import (
     Contract, ContractStatus, Obligation, ObligationStatus, RAGStatus,
@@ -24,6 +26,13 @@ from app.schemas.milestone import (
 )
 
 router = APIRouter(prefix="/api/milestones", tags=["milestones"])
+
+
+def apply_tenant_filter(query, tenant_id):
+    """Apply tenant filter to a Contract query if tenant_id is set."""
+    if tenant_id is not None:
+        return query.where(Contract.tenant_id == tenant_id)
+    return query
 
 
 def determine_time_bucket(due_date: date | None, today: date) -> str:
@@ -110,7 +119,9 @@ async def build_milestone_item(
 
 @router.get("/health", response_model=MilestoneHealthResponse)
 async def get_milestone_health(
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get milestone health dashboard showing all milestones across the portfolio.
@@ -119,13 +130,14 @@ async def get_milestone_health(
     """
     today = date.today()
 
-    # Get all obligations with their contracts
+    # Get all obligations with their contracts - with tenant filter
     query = select(Obligation, Contract).join(
         Contract,
         Obligation.contract_id == Contract.id
     ).where(
         Contract.status == ContractStatus.COMPLETED
     ).order_by(Obligation.deadline)
+    query = apply_tenant_filter(query, tenant_id)
 
     result = await db.execute(query)
     rows = result.all()
@@ -188,7 +200,9 @@ async def get_milestone_health(
 
 @router.get("/at-risk-contracts", response_model=AtRiskContractsResponse)
 async def get_at_risk_contracts(
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get contracts that are at risk based on milestone/obligation status.
@@ -200,10 +214,11 @@ async def get_at_risk_contracts(
     """
     today = date.today()
 
-    # Get all completed contracts
+    # Get all completed contracts - with tenant filter
     query = select(Contract).where(
         Contract.status == ContractStatus.COMPLETED
     )
+    query = apply_tenant_filter(query, tenant_id)
     result = await db.execute(query)
     contracts = result.scalars().all()
 
@@ -330,27 +345,31 @@ async def get_at_risk_contracts(
 
 @router.get("/portfolio-compliance", response_model=PortfolioComplianceMetrics)
 async def get_portfolio_compliance(
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get portfolio-level compliance metrics across all contracts.
     """
     today = date.today()
 
-    # Count contracts
+    # Count contracts - with tenant filter
     contract_query = select(func.count(Contract.id)).where(
         Contract.status == ContractStatus.COMPLETED
     )
+    contract_query = apply_tenant_filter(contract_query, tenant_id)
     contract_result = await db.execute(contract_query)
     total_contracts = contract_result.scalar() or 0
 
-    # Get all obligations
+    # Get all obligations - with tenant filter
     obl_query = select(Obligation).join(
         Contract,
         Obligation.contract_id == Contract.id
     ).where(
         Contract.status == ContractStatus.COMPLETED
     )
+    obl_query = apply_tenant_filter(obl_query, tenant_id)
     obl_result = await db.execute(obl_query)
     obligations = list(obl_result.scalars().all())
 
@@ -383,8 +402,16 @@ async def get_portfolio_compliance(
     denominator = total_obligations - waived
     obligation_compliance = (completed / denominator * 100) if denominator > 0 else 100.0
 
-    # Get SLA stats
-    sla_query = select(ContractSLA).where(ContractSLA.is_active == True)
+    # Get SLA stats - with tenant filter via contract join
+    if tenant_id is not None:
+        sla_query = (
+            select(ContractSLA)
+            .join(Contract, ContractSLA.contract_id == Contract.id)
+            .where(ContractSLA.is_active == True)
+            .where(Contract.tenant_id == tenant_id)
+        )
+    else:
+        sla_query = select(ContractSLA).where(ContractSLA.is_active == True)
     sla_result = await db.execute(sla_query)
     slas = list(sla_result.scalars().all())
 
@@ -397,8 +424,8 @@ async def get_portfolio_compliance(
     # Overall compliance (weighted)
     overall_compliance = (obligation_compliance * 0.6 + sla_compliance * 0.4)
 
-    # Count at-risk contracts
-    at_risk_response = await get_at_risk_contracts(db)
+    # Count at-risk contracts - call internal helper to avoid recursion issues
+    at_risk_response = await get_at_risk_contracts(current_user, tenant_id, db)
     contracts_at_risk = at_risk_response.total_at_risk
 
     return PortfolioComplianceMetrics(
@@ -423,12 +450,21 @@ async def get_portfolio_compliance(
 async def assign_milestone_owner(
     milestone_id: UUID,
     assignment: MilestoneOwnerAssignment,
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Assign an owner to a milestone (obligation).
     """
-    query = select(Obligation).where(Obligation.id == milestone_id)
+    # Get obligation with tenant check via contract join
+    query = (
+        select(Obligation)
+        .join(Contract, Obligation.contract_id == Contract.id)
+        .where(Obligation.id == milestone_id)
+    )
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
     result = await db.execute(query)
     obligation = result.scalar_one_or_none()
 

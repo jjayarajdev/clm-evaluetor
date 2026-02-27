@@ -4,7 +4,7 @@ import uuid
 from contextvars import ContextVar
 from typing import Annotated, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -118,14 +118,16 @@ async def get_current_tenant_id(
 
 
 async def require_tenant(
+    request: Request,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> uuid.UUID:
     """Require a valid tenant context.
 
     This dependency ensures the user belongs to a tenant.
-    Super admins must specify a tenant via query parameter (not implemented here).
+    Super admins can specify a tenant via X-Tenant-ID header.
 
     Args:
+        request: The FastAPI request object.
         current_user: The authenticated user.
 
     Returns:
@@ -134,12 +136,24 @@ async def require_tenant(
     Raises:
         HTTPException: If no tenant context is available.
     """
+    # Check for X-Tenant-ID header (for super admins)
+    tenant_id_header = request.headers.get("X-Tenant-ID")
+
+    if current_user.is_super_admin:
+        if tenant_id_header:
+            try:
+                return uuid.UUID(tenant_id_header)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid X-Tenant-ID header format",
+                )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Super admin must specify X-Tenant-ID header",
+        )
+
     if current_user.tenant_id is None:
-        if current_user.is_super_admin:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Super admin must specify a tenant context",
-            )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User is not associated with a tenant",

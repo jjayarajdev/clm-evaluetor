@@ -13,6 +13,7 @@ import {
   BuildingOfficeIcon,
   PlusIcon,
   ChevronDownIcon,
+  LinkIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -27,6 +28,8 @@ interface FileUpload {
   contractId?: string
   clauseCount?: number
   obligationCount?: number
+  hasSuggestions?: boolean
+  suggestionCount?: number
 }
 
 const ACCEPTED_TYPES = {
@@ -126,6 +129,7 @@ export default function UploadPage() {
     if (!contractsData) return
 
     let hasNewlyCompleted = false
+    const newlyCompletedIds: string[] = []
 
     setFiles(prev => prev.map(f => {
       if (!f.contractId) return f
@@ -137,6 +141,7 @@ export default function UploadPage() {
         // Check if this is a newly completed contract (was not completed before)
         if (f.status !== 'completed') {
           hasNewlyCompleted = true
+          newlyCompletedIds.push(f.contractId)
         }
         return {
           ...f,
@@ -171,6 +176,22 @@ export default function UploadPage() {
       // Reports
       queryClient.invalidateQueries({ queryKey: ['contract-trend'] })
       queryClient.invalidateQueries({ queryKey: ['compliance-report'] })
+
+      // Check for suggested links on newly completed contracts
+      newlyCompletedIds.forEach(async (contractId) => {
+        try {
+          const suggestions = await api.getSuggestedLinks(contractId)
+          if (suggestions.pending_count > 0) {
+            setFiles(prev => prev.map(f =>
+              f.contractId === contractId
+                ? { ...f, hasSuggestions: true, suggestionCount: suggestions.pending_count }
+                : f
+            ))
+          }
+        } catch {
+          // Ignore errors - suggestions are optional
+        }
+      })
     }
   }, [contractsData, queryClient])
 
@@ -581,6 +602,12 @@ export default function UploadPage() {
                       >
                         View
                       </button>
+                      {fileUpload.hasSuggestions && fileUpload.suggestionCount && (
+                        <span className="inline-flex items-center gap-1 bg-primary-100 text-primary-700 text-xs px-2 py-0.5 rounded-full">
+                          <LinkIcon className="h-3 w-3" />
+                          {fileUpload.suggestionCount} link{fileUpload.suggestionCount > 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
                   )}
                   {fileUpload.status === 'error' && (
@@ -614,6 +641,37 @@ export default function UploadPage() {
                 AI analysis complete - clauses and obligations have been extracted
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Related contracts found notification */}
+      {files.some(f => f.hasSuggestions) && (
+        <div className="rounded-lg bg-primary-50 border border-primary-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <LinkIcon className="h-5 w-5 text-primary-500" />
+              <div>
+                <p className="text-sm font-medium text-primary-800">
+                  Related Contracts Found
+                </p>
+                <p className="text-xs text-primary-600 mt-0.5">
+                  AI detected potential relationships with existing contracts
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                // Navigate to the first contract with suggestions
+                const fileWithSuggestions = files.find(f => f.hasSuggestions && f.contractId)
+                if (fileWithSuggestions?.contractId) {
+                  navigate(`/contracts/${fileWithSuggestions.contractId}`)
+                }
+              }}
+              className="btn-primary text-sm py-1.5 px-4"
+            >
+              Review
+            </button>
           </div>
         </div>
       )}

@@ -1,12 +1,13 @@
 """Metrics API endpoints for historical trend data."""
 
 from datetime import date
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.services.metric_snapshot_service import (
     capture_daily_snapshot,
@@ -64,8 +65,10 @@ class SnapshotResponse(BaseModel):
 @router.get("/trends/{metric}", response_model=TrendResponse)
 async def get_metric_trend(
     metric: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     days: int = Query(default=7, ge=1, le=90),
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     """
     Get trend data for a specific metric.
@@ -79,7 +82,8 @@ async def get_metric_trend(
     - sla_compliance_rate
     - slas_breached
     """
-    data = await get_trend_data(db, metric, days)
+    # TODO: Pass tenant_id to get_trend_data for tenant-scoped metrics
+    data = await get_trend_data(db, metric, days, tenant_id=tenant_id)
     return TrendResponse(
         metric=metric,
         days=days,
@@ -89,14 +93,17 @@ async def get_metric_trend(
 
 @router.get("/dashboard-trends", response_model=DashboardTrends)
 async def get_dashboard_trends(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     days: int = Query(default=7, ge=1, le=30),
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     """
     Get all trend data needed for the dashboard sparklines.
     Returns arrays of values (most recent last) for each metric.
     """
-    snapshots = await get_metric_history(db, days=days)
+    # TODO: Pass tenant_id to get_metric_history for tenant-scoped metrics
+    snapshots = await get_metric_history(db, days=days, tenant_id=tenant_id)
 
     # If no snapshots, return empty arrays
     if not snapshots:

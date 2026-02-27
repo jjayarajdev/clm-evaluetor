@@ -1,14 +1,15 @@
 import enum
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, Enum, ForeignKey, Index, Numeric, String, Text
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.models.base import TenantMixin, TimestampMixin, UUIDMixin
+from app.models.industry import Industry
 
 
 class ContractType(str, enum.Enum):
@@ -109,6 +110,31 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         Enum(RiskLevel, name='risklevel', create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=True,
         index=True,
+    )
+
+    # Industry and compliance (Industry-Aware Compliance Module)
+    detected_industry: Mapped[Industry | None] = mapped_column(
+        Enum(
+            Industry,
+            name='industry',
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
+        nullable=True,
+        index=True,
+    )
+    industry_confidence: Mapped[float | None] = mapped_column(
+        nullable=True,
+        doc="Confidence score for industry detection (0.0-1.0)",
+    )
+    compliance_score: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        doc="Overall compliance score (0-100)",
+    )
+    last_compliance_check: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     # Renewal information
@@ -350,12 +376,30 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         lazy="selectin",
     )
 
+    # Compliance Gaps (Industry-Aware Compliance Module)
+    compliance_gaps: Mapped[list["ComplianceGap"]] = relationship(
+        "ComplianceGap",
+        back_populates="contract",
+        foreign_keys="ComplianceGap.contract_id",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    # Regulatory Obligations (Industry-Aware Compliance Module)
+    regulatory_obligations: Mapped[list["RegulatoryObligation"]] = relationship(
+        "RegulatoryObligation",
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
     # ===== END NEW RELATIONSHIPS =====
 
     # Indexes for common queries
     __table_args__ = (
         Index("ix_contracts_expiration_risk", "expiration_date", "risk_level"),
         Index("ix_contracts_type_status", "contract_type", "status"),
+        Index("ix_contracts_industry_compliance", "detected_industry", "compliance_score"),
     )
 
     def __repr__(self) -> str:
