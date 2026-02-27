@@ -18,6 +18,27 @@ class AccessLevel(str):
     RESTRICTED = "restricted"  # Specific users only
 
 
+class SectionType(str):
+    """Semantic section types for contract chunks."""
+
+    PREAMBLE = "preamble"  # Opening, recitals, whereas clauses
+    DEFINITIONS = "definitions"  # Defined terms
+    PARTIES = "parties"  # Party identification
+    SCOPE = "scope"  # Scope of work/services
+    TERMS = "terms"  # Term and duration
+    PAYMENT = "payment"  # Payment terms, pricing, fees
+    CONFIDENTIALITY = "confidentiality"  # NDA provisions
+    LIABILITY = "liability"  # Liability, indemnification
+    TERMINATION = "termination"  # Termination, renewal
+    IP = "ip"  # Intellectual property
+    COMPLIANCE = "compliance"  # Regulatory compliance
+    GOVERNANCE = "governance"  # Governance, reporting
+    SLA = "sla"  # Service levels, KPIs
+    EXHIBITS = "exhibits"  # Exhibits, schedules, appendices
+    SIGNATURES = "signatures"  # Signature blocks
+    GENERAL = "general"  # General provisions, miscellaneous
+
+
 class ChunkMetadata(BaseModel):
     """Metadata for a document chunk stored in ChromaDB."""
 
@@ -25,9 +46,14 @@ class ChunkMetadata(BaseModel):
     filename: str | None = None  # Original filename for display
     clause_type: str | None = None
     section_number: str | None = None
+    section_title: str | None = None  # Section heading text
     page_number: int | None = None
     char_start: int | None = None
     char_end: int | None = None
+
+    # Semantic classification (replaces regex-based detection)
+    section_type: str | None = None  # Semantic type: preamble, definitions, payment, etc.
+    semantic_tags: str | None = None  # Comma-separated: "liability,indemnification,risk"
 
     # RBAC fields
     uploaded_by: str | None = None  # User ID who uploaded
@@ -245,17 +271,21 @@ class VectorStore:
         top_k: int = 10,
         contract_id: str | None = None,
         clause_type: str | None = None,
+        section_types: list[str] | None = None,
+        semantic_tags: list[str] | None = None,
         user_id: str | None = None,
         user_role: str | None = None,
         tenant_id: str | None = None,
     ) -> list[QueryResult]:
-        """Query for similar documents with RBAC filtering.
+        """Query for similar documents with semantic and RBAC filtering.
 
         Args:
             query_text: Text to search for.
             top_k: Number of results to return.
             contract_id: Optional filter by contract ID.
             clause_type: Optional filter by clause type.
+            section_types: Optional list of section types (e.g., ["payment", "terms"]).
+            semantic_tags: Optional list of semantic tags to match.
             user_id: Current user's ID for RBAC.
             user_role: Current user's role for RBAC (admin, legal, procurement).
             tenant_id: Tenant ID for isolation.
@@ -275,6 +305,21 @@ class VectorStore:
             conditions.append({"contract_id": contract_id})
         if clause_type:
             conditions.append({"clause_type": clause_type})
+
+        # Semantic section type filter (replaces regex-based detection)
+        if section_types:
+            if len(section_types) == 1:
+                conditions.append({"section_type": section_types[0]})
+            else:
+                conditions.append({"section_type": {"$in": section_types}})
+
+        # Semantic tags filter
+        if semantic_tags:
+            tag_conditions = [{"semantic_tags": {"$contains": tag}} for tag in semantic_tags]
+            if len(tag_conditions) == 1:
+                conditions.append(tag_conditions[0])
+            else:
+                conditions.append({"$or": tag_conditions})
 
         # RBAC filters
         rbac_conditions = self._build_rbac_filter(user_id, user_role)
@@ -556,6 +601,77 @@ class VectorStore:
                         break
 
         return list(contract_ids)[:limit]
+
+    def query_by_section_type(
+        self,
+        contract_id: str,
+        section_types: list[str],
+        top_k: int = 20,
+    ) -> list[QueryResult]:
+        """Query chunks by semantic section type.
+
+        This replaces regex-based section searching with semantic queries.
+
+        Args:
+            contract_id: Contract to search within.
+            section_types: Section types to retrieve (e.g., ["terms", "payment"]).
+            top_k: Maximum results.
+
+        Returns:
+            List of QueryResult matching the section types.
+        """
+        # Build filter
+        conditions = [{"contract_id": contract_id}]
+
+        if len(section_types) == 1:
+            conditions.append({"section_type": section_types[0]})
+        else:
+            conditions.append({"section_type": {"$in": section_types}})
+
+        where_filter = {"$and": conditions}
+
+        # Get matching chunks
+        results = self.collection.get(
+            where=where_filter,
+            include=["documents", "metadatas"],
+            limit=top_k,
+        )
+
+        query_results = []
+        if results["ids"]:
+            for i, doc_id in enumerate(results["ids"]):
+                query_results.append(
+                    QueryResult(
+                        id=doc_id,
+                        text=results["documents"][i] if results["documents"] else "",
+                        metadata=results["metadatas"][i] if results["metadatas"] else {},
+                        distance=0.0,  # Not a similarity query
+                    )
+                )
+
+        return query_results
+
+    def get_contract_sections_summary(self, contract_id: str) -> dict[str, int]:
+        """Get count of chunks by section type for a contract.
+
+        Args:
+            contract_id: Contract ID.
+
+        Returns:
+            Dict mapping section_type to chunk count.
+        """
+        results = self.collection.get(
+            where={"contract_id": contract_id},
+            include=["metadatas"],
+        )
+
+        section_counts: dict[str, int] = {}
+        if results["metadatas"]:
+            for metadata in results["metadatas"]:
+                section_type = metadata.get("section_type", "general")
+                section_counts[section_type] = section_counts.get(section_type, 0) + 1
+
+        return section_counts
 
 
 # Singleton instance

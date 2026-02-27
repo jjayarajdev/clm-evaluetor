@@ -111,7 +111,7 @@ def get_renewal_monitoring_config() -> AgentConfig:
 def _prepare_renewal_text(contract_text: str, max_length: int = 25000) -> str:
     """Prepare contract text for renewal term extraction.
 
-    Focuses on sections containing term, renewal, termination, and expiration info.
+    Simple fallback when semantic queries aren't available.
 
     Args:
         contract_text: Full contract text.
@@ -120,46 +120,76 @@ def _prepare_renewal_text(contract_text: str, max_length: int = 25000) -> str:
     Returns:
         Text sample optimized for renewal extraction.
     """
-    import re
+    if len(contract_text) <= max_length:
+        return contract_text
+
+    # For renewal terms, key info is usually in:
+    # 1. Beginning (term start date)
+    # 2. End (signature dates)
+    # 3. Term/termination sections (processed via chunked extraction)
+    beginning = contract_text[:10000]
+    ending = contract_text[-3000:]
+
+    return f"{beginning}\n\n[...MIDDLE SECTIONS PROCESSED VIA CHUNKED EXTRACTION...]\n\n{ending}"
+
+
+async def prepare_renewal_text_semantic(
+    contract_id: str,
+    contract_text: str,
+    max_length: int = 25000,
+) -> str:
+    """Prepare contract text using semantic section queries for renewal terms.
+
+    Uses ChromaDB semantic section types instead of regex patterns.
+
+    Args:
+        contract_id: Contract ID for semantic queries.
+        contract_text: Full contract text (fallback).
+        max_length: Maximum text length.
+
+    Returns:
+        Text sample from renewal-relevant sections.
+    """
+    from app.services.vector_store import get_vector_store
 
     if len(contract_text) <= max_length:
         return contract_text
 
-    # Always include first 8000 chars (parties, dates, initial terms)
-    beginning = contract_text[:8000]
+    vs = get_vector_store()
 
-    # Search for renewal-related sections
-    remaining = contract_text[8000:]
-    renewal_sections = []
+    # Query for renewal-relevant sections semantically
+    relevant_types = ["terms", "termination", "preamble", "signatures"]
+    sections = vs.query_by_section_type(contract_id, relevant_types, top_k=10)
 
-    # Patterns for renewal/term sections
-    patterns = [
-        r"(?i)(?:^|\n)\s*\d*\.?\s*(?:TERM|DURATION|RENEWAL|TERMINATION|EXPIRATION)[^\n]*\n",
-        r"(?i)(?:^|\n)\s*(?:ARTICLE|SECTION)\s+\d+[.:]\s*(?:TERM|RENEWAL|TERMINATION)[^\n]*\n",
-        r"(?i)auto[- ]?renew",
-        r"(?i)automatic\s+renewal",
-        r"(?i)(?:notice|written)\s+(?:period|of\s+termination)",
-        r"(?i)(?:expires?|terminates?)\s+(?:on|after|upon)",
-        r"(?i)initial\s+term",
-        r"(?i)renewal\s+(?:term|period)",
-        r"(?i)(?:thirty|sixty|ninety|\d+)\s*(?:\(\d+\))?\s*days?\s*(?:prior|before|notice)",
-    ]
+    # Also query for auto_renewal tag
+    renewal_tagged = vs.query_similar(
+        query_text="auto renewal notice period termination",
+        contract_id=contract_id,
+        semantic_tags=["auto_renewal"],
+        top_k=5,
+    )
 
-    for pattern in patterns:
-        for match in re.finditer(pattern, remaining):
-            start = max(0, match.start() - 300)
-            end = min(len(remaining), match.end() + 2000)
-            section = remaining[start:end]
-            if not any(section[:200] in s for s in renewal_sections):
-                renewal_sections.append(section)
+    all_sections = sections + renewal_tagged
 
-    # Combine
-    result = beginning
-    for section in renewal_sections[:6]:  # Up to 6 sections
-        if len(result) + len(section) < max_length:
-            result += "\n\n[...]\n\n" + section
+    if not all_sections:
+        return _prepare_renewal_text(contract_text, max_length)
 
-    return result
+    # Combine relevant sections
+    result_parts = []
+    total_length = 0
+    seen_ids = set()
+
+    for section in all_sections:
+        if section.id in seen_ids:
+            continue
+        seen_ids.add(section.id)
+
+        if total_length + len(section.text) < max_length:
+            section_type = section.metadata.get("section_type", "unknown")
+            result_parts.append(f"[{section_type.upper()}]\n{section.text}")
+            total_length += len(section.text) + 50
+
+    return "\n\n---\n\n".join(result_parts)
 
 
 async def analyze_renewal_terms(

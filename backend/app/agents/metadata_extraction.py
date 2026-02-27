@@ -130,12 +130,15 @@ If a field cannot be found or only has generic placeholder text, set its value t
 def _prepare_metadata_text(contract_text: str, max_length: int = 25000) -> str:
     """Prepare contract text for metadata extraction.
 
-    Includes the beginning (parties, dates) plus relevant sections
-    like Term, Duration, Termination, Payment, Value where key metadata appears.
+    For full text processing, returns the text directly.
+    For fallback/legacy mode, includes beginning + ending.
+
+    Note: Semantic section queries should be used when possible via
+    vector_store.query_by_section_type() with contract_id.
 
     Args:
         contract_text: Full contract text.
-        max_length: Maximum text length to return (increased for better coverage).
+        max_length: Maximum text length to return.
 
     Returns:
         Text sample optimized for metadata extraction.
@@ -143,59 +146,61 @@ def _prepare_metadata_text(contract_text: str, max_length: int = 25000) -> str:
     if len(contract_text) <= max_length:
         return contract_text
 
-    # Always include first 10000 chars (parties, effective date, preamble, initial sections)
-    beginning = contract_text[:10000]
+    # For metadata extraction, the most important parts are:
+    # 1. Beginning (parties, effective date, preamble) - first 12000 chars
+    # 2. End (signature blocks with dates) - last 4000 chars
+    # 3. Middle sections are processed by chunked extraction
 
-    # Search for metadata-rich sections in the rest
-    remaining = contract_text[10000:]
-    important_sections = []
+    beginning = contract_text[:12000]
+    ending = contract_text[-4000:]
 
-    # Patterns that indicate sections with important metadata
-    section_patterns = [
-        # Term and duration
-        r"(?i)(?:^|\n)\s*\d*\.?\s*(?:TERM|DURATION|EXPIRATION|TERMINATION)[^\n]*\n",
-        r"(?i)(?:^|\n)\s*(?:ARTICLE|SECTION)\s+\d+[.:]\s*(?:TERM|DURATION)[^\n]*\n",
-        r"(?i)initial\s+term",
-        r"(?i)contract\s+(?:term|period|duration)",
-        r"(?i)(?:expires?|terminates?)\s+(?:on|after)",
-        r"(?i)valid\s+(?:until|through|for)",
-        # Payment and value
-        r"(?i)(?:^|\n)\s*\d*\.?\s*(?:PAYMENT|COMPENSATION|FEES|PRICING)[^\n]*\n",
-        r"(?i)(?:^|\n)\s*(?:ARTICLE|SECTION)\s+\d+[.:]\s*(?:PAYMENT|FEE)[^\n]*\n",
-        r"(?i)(?:total|aggregate|contract)\s+(?:amount|value|sum)",
-        r"(?i)not\s+(?:to\s+)?exceed",
-        # Governing law / jurisdiction
-        r"(?i)(?:^|\n)\s*\d*\.?\s*(?:GOVERNING\s+LAW|JURISDICTION)[^\n]*\n",
-        r"(?i)govern(?:ed|ing)\s+(?:by\s+)?(?:the\s+)?law",
-        # Auto-renewal
-        r"(?i)(?:auto[- ]?renew|automatic\s+renewal)",
-        r"(?i)renewal\s+(?:term|period|notice)",
-    ]
+    # Simple approach: beginning + ending with clear separator
+    return f"{beginning}\n\n[...MIDDLE SECTIONS OMITTED - PROCESSED VIA CHUNKED EXTRACTION...]\n\n{ending}"
 
-    for pattern in section_patterns:
-        for match in re.finditer(pattern, remaining):
-            # Extract ~2000 chars around the match for better context
-            start = max(0, match.start() - 300)
-            end = min(len(remaining), match.end() + 1700)
-            section = remaining[start:end]
-            # Avoid duplicate sections
-            if not any(section[:200] in s for s in important_sections):
-                important_sections.append(section)
 
-    # Also include the last 3000 chars (often contains signature blocks with dates)
-    ending = contract_text[-3000:] if len(contract_text) > 13000 else ""
+async def prepare_metadata_text_semantic(
+    contract_id: str,
+    contract_text: str,
+    max_length: int = 30000,
+) -> str:
+    """Prepare contract text using semantic section queries.
 
-    # Combine beginning with found sections and ending
-    result = beginning
-    for section in important_sections[:5]:  # Increased to 5 sections
-        if len(result) + len(section) < max_length - 3500:
-            result += "\n\n[...]\n\n" + section
+    Uses ChromaDB semantic section types instead of regex patterns.
 
-    # Add ending if room
-    if ending and len(result) + len(ending) < max_length:
-        result += "\n\n[...END OF CONTRACT...]\n\n" + ending
+    Args:
+        contract_id: Contract ID for semantic queries.
+        contract_text: Full contract text (fallback).
+        max_length: Maximum text length.
 
-    return result
+    Returns:
+        Text sample from semantically relevant sections.
+    """
+    from app.services.vector_store import get_vector_store
+
+    if len(contract_text) <= max_length:
+        return contract_text
+
+    vs = get_vector_store()
+
+    # Query for metadata-relevant sections semantically
+    relevant_types = ["preamble", "parties", "terms", "payment", "signatures"]
+    sections = vs.query_by_section_type(contract_id, relevant_types, top_k=15)
+
+    if not sections:
+        # Fallback to simple text preparation
+        return _prepare_metadata_text(contract_text, max_length)
+
+    # Combine relevant sections
+    result_parts = []
+    total_length = 0
+
+    for section in sections:
+        if total_length + len(section.text) < max_length:
+            section_type = section.metadata.get("section_type", "unknown")
+            result_parts.append(f"[{section_type.upper()}]\n{section.text}")
+            total_length += len(section.text) + 50
+
+    return "\n\n---\n\n".join(result_parts)
 
 
 def get_metadata_extraction_config() -> AgentConfig:

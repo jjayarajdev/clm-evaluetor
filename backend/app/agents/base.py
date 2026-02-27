@@ -98,11 +98,18 @@ class ContractSearchTool:
         self.tenant_id = tenant_id
         self.n_results = n_results
 
-    def search(self, query: str) -> list[QueryResult]:
-        """Search for relevant contract chunks.
+    def search(
+        self,
+        query: str,
+        section_types: list[str] | None = None,
+        semantic_tags: list[str] | None = None,
+    ) -> list[QueryResult]:
+        """Search for relevant contract chunks with optional semantic filtering.
 
         Args:
             query: Search query text.
+            section_types: Optional filter by section types (e.g., ["payment", "terms"]).
+            semantic_tags: Optional filter by semantic tags (e.g., ["auto_renewal"]).
 
         Returns:
             List of QueryResult with relevant chunks.
@@ -111,9 +118,28 @@ class ContractSearchTool:
             query_text=query,
             top_k=self.n_results,
             contract_id=self.contract_id,
+            section_types=section_types,
+            semantic_tags=semantic_tags,
             user_id=self.user_id,
             user_role=self.user_role,
             tenant_id=self.tenant_id,
+        )
+
+    def search_by_section_type(self, section_types: list[str]) -> list[QueryResult]:
+        """Get chunks by semantic section type without similarity search.
+
+        Args:
+            section_types: Section types to retrieve (e.g., ["payment", "liability"]).
+
+        Returns:
+            List of QueryResult matching section types.
+        """
+        if not self.contract_id:
+            return []
+        return self.vector_store.query_by_section_type(
+            contract_id=self.contract_id,
+            section_types=section_types,
+            top_k=self.n_results,
         )
 
     def search_with_context(self, query: str) -> str:

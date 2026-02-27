@@ -260,7 +260,7 @@ class IndexingService:
         user_id: str | None,
         user_role: str | None,
     ) -> None:
-        """Store chunks in vector store and database.
+        """Store chunks in vector store and database with semantic classification.
 
         Args:
             contract: Contract being indexed.
@@ -268,7 +268,14 @@ class IndexingService:
             user_id: User ID for RBAC.
             user_role: User role for RBAC.
         """
+        from app.services.section_classifier import smart_classify_batch
+
         contract_id = str(contract.id)
+
+        # Semantic classification of all chunks (replaces regex-based detection)
+        logger.info(f"Classifying {len(chunked.chunks)} chunks semantically for contract {contract.id}")
+        chunk_texts = [chunk.text for chunk in chunked.chunks]
+        classifications = await smart_classify_batch(chunk_texts, batch_size=10)
 
         # Prepare data for batch insertion
         documents: list[str] = []
@@ -276,34 +283,39 @@ class IndexingService:
         ids: list[str] = []
         clauses: list[Clause] = []
 
-        for chunk in chunked.chunks:
+        for chunk, classification in zip(chunked.chunks, classifications):
             chunk_id = f"{contract_id}_{chunk.chunk_index}"
 
-            # Prepare vector store metadata
+            # Prepare vector store metadata with semantic classification
             metadata = ChunkMetadata(
                 contract_id=contract_id,
                 filename=contract.filename,
                 section_number=chunk.section_number,
+                section_title=classification.section_title,
                 page_number=chunk.page_start,
                 uploaded_by=user_id,
                 allowed_roles=user_role,
+                # Semantic classification (replaces regex)
+                section_type=classification.section_type,
+                semantic_tags=",".join(classification.semantic_tags) if classification.semantic_tags else None,
             )
 
             documents.append(chunk.text)
             metadatas.append(metadata)
             ids.append(chunk_id)
 
-            # Create clause record
-            # Default to GENERAL type - specific type will be determined by clause extraction agent
+            # Create clause record with semantic type hint
             clause = Clause(
                 contract_id=contract.id,
                 clause_type=ClauseType.OTHER,
                 text=chunk.text,  # Store full chunk text without truncation
                 section_number=chunk.section_number,
                 page_number=chunk.page_start,
-                confidence_score=1.0,  # Will be updated by extraction agent
+                confidence_score=classification.confidence,
             )
             clauses.append(clause)
+
+        logger.info(f"Storing {len(documents)} chunks with semantic metadata")
 
         # Store in vector store (batched)
         batch_size = 100
