@@ -320,7 +320,9 @@ class KnowledgeGraphExtractor:
 
         for entity in entities:
             try:
-                entity_type = KGEntityType(entity.entity_type)
+                # Normalize to lowercase for enum matching
+                entity_type_str = entity.entity_type.lower()
+                entity_type = KGEntityType(entity_type_str)
             except ValueError:
                 entity_type = KGEntityType.TERM  # Default fallback
 
@@ -373,7 +375,9 @@ class KnowledgeGraphExtractor:
                 continue
 
             try:
-                rel_type = KGRelationshipType(rel.relationship_type)
+                # Normalize to lowercase for enum matching
+                rel_type_str = rel.relationship_type.lower()
+                rel_type = KGRelationshipType(rel_type_str)
             except ValueError:
                 rel_type = KGRelationshipType.REFERENCES  # Default fallback
 

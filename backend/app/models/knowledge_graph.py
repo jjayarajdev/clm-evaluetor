@@ -70,8 +70,16 @@ class KGEntity(Base, UUIDMixin, TimestampMixin):
     )
 
     # Entity identification
+    # Use native_enum=False to avoid SQLAlchemy enum name/value confusion
+    # PostgreSQL enum was created with lowercase values
     entity_type: Mapped[KGEntityType] = mapped_column(
-        Enum(KGEntityType),
+        Enum(
+            KGEntityType,
+            values_callable=lambda x: [e.value for e in x],
+            native_enum=True,
+            name='kgentitytype',
+            create_type=False,  # Don't try to create, it already exists
+        ),
         nullable=False,
         index=True,
     )
@@ -161,8 +169,15 @@ class KGRelationship(Base, UUIDMixin):
     )
 
     # Relationship type
+    # Use values_callable to ensure enum values (lowercase) are used
     relationship_type: Mapped[KGRelationshipType] = mapped_column(
-        Enum(KGRelationshipType),
+        Enum(
+            KGRelationshipType,
+            values_callable=lambda x: [e.value for e in x],
+            native_enum=True,
+            name='kgrelationshiptype',
+            create_type=False,  # Already exists in DB
+        ),
         nullable=False,
         index=True,
     )
