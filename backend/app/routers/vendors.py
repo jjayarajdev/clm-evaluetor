@@ -8,6 +8,7 @@ from sqlalchemy import select, func, and_, or_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.models import (
     Contract, ContractStatus, ContractSLA, SLAPerformance,
     Obligation, ObligationStatus, RAGStatus,
@@ -142,7 +143,7 @@ def score_to_grade(score: float) -> str:
         return "F"
 
 
-async def get_vendor_contracts(db: AsyncSession, vendor_name: str) -> list[Contract]:
+async def get_vendor_contracts(db: AsyncSession, vendor_name: str, tenant_id=None) -> list[Contract]:
     """Get all contracts for a vendor."""
     normalized = normalize_vendor_name(vendor_name)
 
@@ -152,6 +153,8 @@ async def get_vendor_contracts(db: AsyncSession, vendor_name: str) -> list[Contr
             func.lower(Contract.counterparty).ilike(f"%{normalized}%"),
         )
     )
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -351,6 +354,8 @@ async def list_vendors(
     party_type: str = Query("all", pattern="^(all|vendor|client)$", description="Filter by counterparty type"),
     include_inactive: bool = False,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """
     List all counterparties with performance scores.
@@ -368,7 +373,10 @@ async def list_vendors(
             Contract.status == ContractStatus.COMPLETED,
             Contract.counterparty.isnot(None),
         )
-    ).distinct()
+    )
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    query = query.distinct()
 
     result = await db.execute(query)
     counterparties = [row[0] for row in result.all() if row[0]]
@@ -379,7 +387,7 @@ async def list_vendors(
     at_risk_count = 0
 
     for counterparty in counterparties:
-        contracts = await get_vendor_contracts(db, counterparty)
+        contracts = await get_vendor_contracts(db, counterparty, tenant_id=tenant_id)
         if not contracts:
             continue
 
@@ -451,6 +459,8 @@ async def list_vendors(
 @router.get("/at-risk", response_model=AtRiskVendorsResponse)
 async def get_at_risk_vendors(
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """
     Get vendors with performance score below threshold (< 60).
@@ -458,7 +468,7 @@ async def get_at_risk_vendors(
     These vendors require attention due to compliance or SLA issues.
     """
     # Get all vendors first
-    vendor_response = await list_vendors(sort_by="score", sort_order="asc", include_inactive=False, db=db)
+    vendor_response = await list_vendors(sort_by="score", sort_order="asc", include_inactive=False, db=db, current_user=current_user, tenant_id=tenant_id)
 
     at_risk_vendors = []
     total_exposure = 0.0
@@ -470,7 +480,7 @@ async def get_at_risk_vendors(
             continue
 
         # Get detailed metrics
-        contracts = await get_vendor_contracts(db, vendor.vendor_name)
+        contracts = await get_vendor_contracts(db, vendor.vendor_name, tenant_id=tenant_id)
         metrics = await build_vendor_metrics(db, vendor.vendor_name, contracts)
 
         # Identify primary issues
@@ -525,6 +535,8 @@ async def get_at_risk_vendors(
 async def compare_vendors(
     vendors: str = Query(..., description="Comma-separated vendor names"),
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """
     Compare multiple vendors side by side.
@@ -548,7 +560,7 @@ async def compare_vendors(
     compare_items = []
 
     for vendor_name in vendor_names:
-        contracts = await get_vendor_contracts(db, vendor_name)
+        contracts = await get_vendor_contracts(db, vendor_name, tenant_id=tenant_id)
         if not contracts:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -591,13 +603,15 @@ async def compare_vendors(
 async def get_vendor_scorecards(
     limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """
     Get vendor scorecards for procurement dashboard.
 
     Returns simplified scorecard view for top vendors by exposure.
     """
-    vendor_response = await list_vendors(sort_by="exposure", sort_order="desc", include_inactive=False, db=db)
+    vendor_response = await list_vendors(sort_by="exposure", sort_order="desc", include_inactive=False, db=db, current_user=current_user, tenant_id=tenant_id)
 
     scorecards = []
     strategic_threshold = vendor_response.total_exposure * 0.1  # Top 10% by exposure
@@ -624,13 +638,15 @@ async def get_vendor_scorecards(
 async def get_vendor_performance(
     vendor_name: str,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """
     Get detailed performance profile for a specific vendor.
 
     Includes full breakdown of scores, contracts, obligations, and SLAs.
     """
-    contracts = await get_vendor_contracts(db, vendor_name)
+    contracts = await get_vendor_contracts(db, vendor_name, tenant_id=tenant_id)
 
     if not contracts:
         raise HTTPException(

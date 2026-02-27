@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_audit
-from app.core.deps import CurrentUser
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models.audit import AuditAction
 
@@ -56,6 +56,7 @@ class SuggestionsResponse(BaseModel):
 async def query_contracts(
     request_body: QueryRequest,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> QueryResponse:
@@ -69,6 +70,7 @@ async def query_contracts(
     Args:
         request_body: Query request with question and optional contract scope.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID for isolation.
         request: FastAPI request for audit logging.
         db: Database session.
 
@@ -86,6 +88,7 @@ async def query_contracts(
             session_id=session_id,
             contract_id=request_body.contract_id,
             user_role=current_user.role.value,
+            tenant_id=str(tenant_id) if tenant_id else None,
         )
 
         # Convert sources
@@ -138,12 +141,14 @@ async def query_contracts(
 @router.get("/suggestions", response_model=SuggestionsResponse)
 async def get_suggested_questions(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     contract_id: str | None = None,
 ) -> SuggestionsResponse:
     """Get suggested questions for contracts.
 
     Args:
         current_user: Authenticated user.
+        tenant_id: Current tenant ID for isolation.
         contract_id: Optional contract ID for specific suggestions.
 
     Returns:
@@ -155,6 +160,7 @@ async def get_suggested_questions(
         contract_id=contract_id or "",
         user_id=str(current_user.id),
         user_role=current_user.role.value,
+        tenant_id=str(tenant_id) if tenant_id else None,
     )
 
     return SuggestionsResponse(
@@ -167,6 +173,7 @@ async def get_suggested_questions(
 async def analyze_contract(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     analysis_type: str = "full",
@@ -183,6 +190,7 @@ async def analyze_contract(
     Args:
         contract_id: ID of the contract to analyze.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID for isolation.
         request: FastAPI request for audit logging.
         db: Database session.
         analysis_type: Type of analysis ("full", "metadata", "risk", "renewal").
@@ -209,10 +217,11 @@ async def analyze_contract(
     )
     from app.services.parser import get_parser
 
-    # Get contract
-    result = await db.execute(
-        select(Contract).where(Contract.id == uuid.UUID(contract_id))
-    )
+    # Get contract with tenant filter
+    query = select(Contract).where(Contract.id == uuid.UUID(contract_id))
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    result = await db.execute(query)
     contract = result.scalar_one_or_none()
 
     if not contract:

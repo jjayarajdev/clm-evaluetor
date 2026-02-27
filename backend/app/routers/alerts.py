@@ -18,8 +18,9 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.deps import get_db, get_current_user
+from app.core.deps import get_db, get_current_user, CurrentUser, CurrentTenantId
 from app.models.user import User
+from app.models import Contract
 from app.models.sla_alert import (
     SLAAlert,
     AlertCategory,
@@ -142,15 +143,25 @@ class BulkActionRequest(BaseModel):
 
 # ===== Endpoints =====
 
+def apply_tenant_filter_alerts(query, tenant_id):
+    """Apply tenant filter to SLAAlert query via Contract join."""
+    if tenant_id is not None:
+        query = query.join(Contract, SLAAlert.contract_id == Contract.id).where(
+            Contract.tenant_id == tenant_id
+        )
+    return query
+
+
 @router.get("/dashboard", response_model=AlertDashboardSummary)
 async def get_alert_dashboard(
     contract_id: Optional[UUID] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Get alert dashboard summary."""
     alert_service = SLAAlertService(db)
-    summary = await alert_service.get_alert_summary(contract_id)
+    summary = await alert_service.get_alert_summary(contract_id, tenant_id=tenant_id)
 
     return AlertDashboardSummary(
         active_count=summary["active_count"],
@@ -178,12 +189,14 @@ async def list_alerts(
     limit: int = Query(default=50, le=200),
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """List alerts with filters."""
     cutoff = datetime.utcnow() - timedelta(days=days)
 
     query = select(SLAAlert).where(SLAAlert.detected_at >= cutoff)
+    query = apply_tenant_filter_alerts(query, tenant_id)
 
     if active_only:
         query = query.where(
@@ -240,7 +253,8 @@ async def list_critical_alerts(
     contract_id: Optional[UUID] = None,
     limit: int = Query(default=10, le=50),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Get critical and high-priority active alerts for dashboard."""
     query = select(SLAAlert).where(
@@ -251,6 +265,7 @@ async def list_critical_alerts(
         ]),
         SLAAlert.priority.in_([AlertPriority.CRITICAL, AlertPriority.HIGH])
     )
+    query = apply_tenant_filter_alerts(query, tenant_id)
 
     if contract_id:
         query = query.where(SLAAlert.contract_id == contract_id)
@@ -290,14 +305,20 @@ async def list_critical_alerts(
 async def get_alert(
     alert_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Get alert details."""
-    result = await db.execute(
+    query = (
         select(SLAAlert)
         .where(SLAAlert.id == alert_id)
         .options(selectinload(SLAAlert.contract))
     )
+    if tenant_id is not None:
+        query = query.join(Contract, SLAAlert.contract_id == Contract.id).where(
+            Contract.tenant_id == tenant_id
+        )
+    result = await db.execute(query)
     alert = result.scalar_one_or_none()
 
     if not alert:
@@ -367,7 +388,8 @@ async def acknowledge_alert(
     alert_id: UUID,
     request: Optional[AcknowledgeRequest] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Acknowledge an alert."""
     alert_service = SLAAlertService(db)
@@ -391,7 +413,8 @@ async def resolve_alert(
     alert_id: UUID,
     request: ResolveRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Resolve an alert."""
     alert_service = SLAAlertService(db)
@@ -419,7 +442,8 @@ async def escalate_alert(
     alert_id: UUID,
     request: EscalateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Escalate an alert."""
     alert_service = SLAAlertService(db)
@@ -447,12 +471,16 @@ async def escalate_alert(
 async def dismiss_alert(
     alert_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Dismiss an alert (mark as not actionable)."""
-    result = await db.execute(
-        select(SLAAlert).where(SLAAlert.id == alert_id)
-    )
+    query = select(SLAAlert).where(SLAAlert.id == alert_id)
+    if tenant_id is not None:
+        query = query.join(Contract, SLAAlert.contract_id == Contract.id).where(
+            Contract.tenant_id == tenant_id
+        )
+    result = await db.execute(query)
     alert = result.scalar_one_or_none()
 
     if not alert:
@@ -478,12 +506,16 @@ async def send_alert_notification(
     recipient_email: str,
     recipient_name: str = "",
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Send notification for an alert."""
-    result = await db.execute(
-        select(SLAAlert).where(SLAAlert.id == alert_id)
-    )
+    query = select(SLAAlert).where(SLAAlert.id == alert_id)
+    if tenant_id is not None:
+        query = query.join(Contract, SLAAlert.contract_id == Contract.id).where(
+            Contract.tenant_id == tenant_id
+        )
+    result = await db.execute(query)
     alert = result.scalar_one_or_none()
 
     if not alert:
@@ -509,7 +541,8 @@ async def send_alert_notification(
 async def bulk_alert_action(
     request: BulkActionRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Perform bulk action on multiple alerts."""
     alert_service = SLAAlertService(db)
@@ -562,9 +595,20 @@ async def get_alerts_by_contract(
     active_only: bool = True,
     limit: int = Query(default=50, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Get all alerts for a specific contract."""
+    # Verify contract belongs to tenant
+    if tenant_id is not None:
+        contract_query = select(Contract).where(
+            Contract.id == contract_id,
+            Contract.tenant_id == tenant_id
+        )
+        contract_result = await db.execute(contract_query)
+        if not contract_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Contract not found")
+
     query = select(SLAAlert).where(SLAAlert.contract_id == contract_id)
 
     if active_only:
@@ -613,7 +657,8 @@ async def get_alert_trends(
     contract_id: Optional[UUID] = None,
     days: int = Query(default=30, le=90),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Get alert trends over time."""
     cutoff = datetime.utcnow() - timedelta(days=days)
@@ -628,9 +673,15 @@ async def get_alert_trends(
             SLAAlert.category,
         )
         .where(SLAAlert.detected_at >= cutoff)
-        .group_by(cast(SLAAlert.detected_at, Date), SLAAlert.category)
-        .order_by(cast(SLAAlert.detected_at, Date))
     )
+
+    # Apply tenant filter
+    if tenant_id is not None:
+        query = query.join(Contract, SLAAlert.contract_id == Contract.id).where(
+            Contract.tenant_id == tenant_id
+        )
+
+    query = query.group_by(cast(SLAAlert.detected_at, Date), SLAAlert.category).order_by(cast(SLAAlert.detected_at, Date))
 
     if contract_id:
         query = query.where(SLAAlert.contract_id == contract_id)

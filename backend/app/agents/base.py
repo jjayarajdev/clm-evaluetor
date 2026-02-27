@@ -79,6 +79,7 @@ class ContractSearchTool:
         user_id: str | None = None,
         user_role: str | None = None,
         contract_id: str | None = None,
+        tenant_id: str | None = None,
         n_results: int = 10,
     ) -> None:
         """Initialize the search tool.
@@ -87,12 +88,14 @@ class ContractSearchTool:
             user_id: User ID for RBAC filtering.
             user_role: User role for RBAC filtering.
             contract_id: Optional contract ID to scope search.
+            tenant_id: Tenant ID for isolation.
             n_results: Number of results to retrieve.
         """
         self.vector_store = get_vector_store()
         self.user_id = user_id
         self.user_role = user_role
         self.contract_id = contract_id
+        self.tenant_id = tenant_id
         self.n_results = n_results
 
     def search(self, query: str) -> list[QueryResult]:
@@ -110,6 +113,7 @@ class ContractSearchTool:
             contract_id=self.contract_id,
             user_id=self.user_id,
             user_role=self.user_role,
+            tenant_id=self.tenant_id,
         )
 
     def search_with_context(self, query: str) -> str:

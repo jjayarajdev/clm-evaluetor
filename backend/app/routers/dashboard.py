@@ -271,13 +271,15 @@ async def get_admin_dashboard(
         failed=by_status.get("failed", 0),
     )
 
-    # Recent failures
-    failures_result = await db.execute(
+    # Recent failures (with tenant filter)
+    failures_query = (
         select(Contract.id, Contract.filename, Contract.processing_error, Contract.updated_at)
         .where(Contract.status == ContractStatus.FAILED)
         .order_by(Contract.updated_at.desc())
         .limit(5)
     )
+    failures_query = apply_tenant_filter(failures_query, tenant_id)
+    failures_result = await db.execute(failures_query)
     recent_failures = [
         {
             "id": str(row.id),
@@ -648,14 +650,16 @@ async def get_procurement_dashboard(
             )
         )
 
-    # Vendor summary (contracts per vendor)
-    vendor_result = await db.execute(
+    # Vendor summary (contracts per vendor) - with tenant filter
+    vendor_query = (
         select(Contract.counterparty, func.count(Contract.id))
         .where(Contract.counterparty.isnot(None))
         .group_by(Contract.counterparty)
         .order_by(func.count(Contract.id).desc())
         .limit(20)
     )
+    vendor_query = apply_tenant_filter(vendor_query, tenant_id)
+    vendor_result = await db.execute(vendor_query)
     vendor_summary = {row[0]: row[1] for row in vendor_result.all()}
 
     return ProcurementDashboardResponse(
@@ -735,6 +739,7 @@ class ContractIntelligenceResponse(BaseModel):
 async def get_contract_intelligence(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ContractIntelligenceResponse:
     """Get comprehensive contract intelligence for a single contract.
@@ -743,10 +748,11 @@ async def get_contract_intelligence(
     """
     import uuid
 
-    # Get contract
-    result = await db.execute(
-        select(Contract).where(Contract.id == uuid.UUID(contract_id))
-    )
+    # Get contract with tenant filter
+    query = select(Contract).where(Contract.id == uuid.UUID(contract_id))
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    result = await db.execute(query)
     contract = result.scalar_one_or_none()
 
     if not contract:
@@ -896,6 +902,7 @@ class ObligationsSummaryResponse(BaseModel):
 @router.get("/obligations-summary", response_model=ObligationsSummaryResponse)
 async def get_obligations_summary(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     contract_id: str | None = None,
     client_id: str | None = None,
@@ -903,18 +910,23 @@ async def get_obligations_summary(
     """Get summary of obligations, optionally filtered by contract or client."""
     import uuid as uuid_mod
 
-    # Build base query with optional contract/client filter
+    # Build base query with tenant filter and optional contract/client filter
     base_filter = []
+
+    # Always apply tenant filter - obligations must belong to contracts in this tenant
+    if tenant_id is not None:
+        tenant_contracts_subquery = select(Contract.id).where(Contract.tenant_id == tenant_id)
+        base_filter.append(Obligation.contract_id.in_(tenant_contracts_subquery))
+
     if contract_id:
         base_filter.append(Obligation.contract_id == uuid_mod.UUID(contract_id))
     elif client_id:
         # Get contracts for this client and filter obligations
         from sqlalchemy import exists
-        base_filter.append(
-            Obligation.contract_id.in_(
-                select(Contract.id).where(Contract.client_id == uuid_mod.UUID(client_id))
-            )
-        )
+        client_contracts = select(Contract.id).where(Contract.client_id == uuid_mod.UUID(client_id))
+        if tenant_id is not None:
+            client_contracts = client_contracts.where(Contract.tenant_id == tenant_id)
+        base_filter.append(Obligation.contract_id.in_(client_contracts))
 
     # By type with party breakdown
     type_query = select(
@@ -999,6 +1011,7 @@ class ClausesSummaryResponse(BaseModel):
 @router.get("/clauses-summary", response_model=ClausesSummaryResponse)
 async def get_clauses_summary(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     contract_id: str | None = None,
     client_id: str | None = None,
@@ -1007,17 +1020,22 @@ async def get_clauses_summary(
     import uuid as uuid_mod
     from app.models.clause import Clause, ClauseType
 
-    # Build base query with optional contract/client filter
+    # Build base query with tenant filter and optional contract/client filter
     base_filter = []
+
+    # Always apply tenant filter - clauses must belong to contracts in this tenant
+    if tenant_id is not None:
+        tenant_contracts_subquery = select(Contract.id).where(Contract.tenant_id == tenant_id)
+        base_filter.append(Clause.contract_id.in_(tenant_contracts_subquery))
+
     if contract_id:
         base_filter.append(Clause.contract_id == uuid_mod.UUID(contract_id))
     elif client_id:
         # Get contracts for this client and filter clauses
-        base_filter.append(
-            Clause.contract_id.in_(
-                select(Contract.id).where(Contract.client_id == uuid_mod.UUID(client_id))
-            )
-        )
+        client_contracts = select(Contract.id).where(Contract.client_id == uuid_mod.UUID(client_id))
+        if tenant_id is not None:
+            client_contracts = client_contracts.where(Contract.tenant_id == tenant_id)
+        base_filter.append(Clause.contract_id.in_(client_contracts))
 
     # By type with high risk count
     type_query = select(
@@ -1093,6 +1111,7 @@ class ClausesByTypeResponse(BaseModel):
 async def get_clauses_by_type(
     clause_type: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     contract_id: str | None = None,
 ) -> ClausesByTypeResponse:
@@ -1107,13 +1126,17 @@ async def get_clauses_by_type(
     except ValueError:
         clause_type_enum = ClauseType.OTHER
 
-    # Build query
+    # Build query with tenant filter via join
     query = (
         select(Clause, Contract.filename, Contract.counterparty)
         .join(Contract, Clause.contract_id == Contract.id)
         .where(Clause.clause_type == clause_type_enum)
         .order_by(Clause.page_number.asc().nulls_last())
     )
+
+    # Apply tenant filter
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
 
     if contract_id:
         query = query.where(Clause.contract_id == uuid_mod.UUID(contract_id))
@@ -1261,6 +1284,7 @@ class ObligationsByTypeResponse(BaseModel):
 async def get_obligations_by_type(
     obligation_type: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ObligationsByTypeResponse:
     """Get all obligations of a specific type with full details."""
@@ -1275,14 +1299,20 @@ async def get_obligations_by_type(
             detail=f"Invalid obligation type: {obligation_type}",
         )
 
-    # Get obligations with contract info and clause text
-    result = await db.execute(
+    # Get obligations with contract info and clause text - with tenant filter
+    query = (
         select(Obligation, Contract.filename, Contract.counterparty, Clause.text)
         .join(Contract, Obligation.contract_id == Contract.id)
         .outerjoin(Clause, Obligation.clause_id == Clause.id)
         .where(Obligation.obligation_type == obl_type_enum)
         .order_by(Obligation.deadline.asc().nulls_last())
     )
+
+    # Apply tenant filter
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+
+    result = await db.execute(query)
 
     obligations = []
     by_party: dict[str, int] = {}
@@ -2491,8 +2521,16 @@ async def get_portfolio_dashboard(
     expiring_90d = sum(1 for c in contracts_data if c["days_until"] is not None and 0 <= c["days_until"] <= 90)
     auto_renewal_count = sum(1 for c in contracts_data if c["contract"].auto_renewal)
 
-    # Count contracts missing key clauses
-    indicators_result = await db.execute(select(ContractClauseIndicator))
+    # Count contracts missing key clauses - with tenant filter
+    # Get contract IDs for this tenant
+    tenant_contract_ids = {c["contract"].id for c in contracts_data}
+
+    indicators_query = select(ContractClauseIndicator)
+    if tenant_id is not None:
+        indicators_query = indicators_query.where(
+            ContractClauseIndicator.contract_id.in_(tenant_contract_ids)
+        )
+    indicators_result = await db.execute(indicators_query)
     indicators_list = indicators_result.scalars().all()
     missing_key_count = sum(
         1 for ind in indicators_list
@@ -2509,8 +2547,8 @@ async def get_portfolio_dashboard(
         missing_key_clauses=missing_key_count,
     )
 
-    # Obligation metrics
-    obl_result = await db.execute(
+    # Obligation metrics - with tenant filter
+    obl_query = (
         select(
             Obligation.owner_type,
             Obligation.status,
@@ -2519,6 +2557,9 @@ async def get_portfolio_dashboard(
         )
         .group_by(Obligation.owner_type, Obligation.status, Obligation.rag_status)
     )
+    if tenant_id is not None:
+        obl_query = obl_query.where(Obligation.contract_id.in_(tenant_contract_ids))
+    obl_result = await db.execute(obl_query)
 
     obl_by_owner: dict[str, int] = defaultdict(int)
     obl_by_status: dict[str, int] = defaultdict(int)
@@ -2798,17 +2839,26 @@ async def get_contract_definitions(
 @router.get("/definitions-summary", response_model=dict[str, Any])
 async def get_definitions_summary(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, Any]:
     """Get summary of all definitions across contracts."""
-    # Count by category
-    category_result = await db.execute(
+    # Build tenant subquery for filtering definitions
+    tenant_contracts = select(Contract.id)
+    if tenant_id is not None:
+        tenant_contracts = tenant_contracts.where(Contract.tenant_id == tenant_id)
+
+    # Count by category - with tenant filter
+    category_query = (
         select(
             ContractDefinition.category,
             func.count(ContractDefinition.id),
         )
         .group_by(ContractDefinition.category)
     )
+    if tenant_id is not None:
+        category_query = category_query.where(ContractDefinition.contract_id.in_(tenant_contracts))
+    category_result = await db.execute(category_query)
 
     by_category = {}
     total = 0
@@ -2818,14 +2868,15 @@ async def get_definitions_summary(
         by_category[cat] = count
         total += count
 
-    # Count contracts with definitions
-    contracts_result = await db.execute(
-        select(func.count(func.distinct(ContractDefinition.contract_id)))
-    )
+    # Count contracts with definitions - with tenant filter
+    contracts_query = select(func.count(func.distinct(ContractDefinition.contract_id)))
+    if tenant_id is not None:
+        contracts_query = contracts_query.where(ContractDefinition.contract_id.in_(tenant_contracts))
+    contracts_result = await db.execute(contracts_query)
     contracts_with_definitions = contracts_result.scalar() or 0
 
-    # Get most common terms
-    common_terms_result = await db.execute(
+    # Get most common terms - with tenant filter
+    common_terms_query = (
         select(
             ContractDefinition.term_normalized,
             func.count(ContractDefinition.id).label("count"),
@@ -2834,6 +2885,9 @@ async def get_definitions_summary(
         .order_by(func.count(ContractDefinition.id).desc())
         .limit(20)
     )
+    if tenant_id is not None:
+        common_terms_query = common_terms_query.where(ContractDefinition.contract_id.in_(tenant_contracts))
+    common_terms_result = await db.execute(common_terms_query)
 
     common_terms = [
         {"term": row[0], "count": row[1]}
@@ -2852,19 +2906,24 @@ async def get_definitions_summary(
 async def search_definitions(
     term: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[dict[str, Any]]:
     """Search for a definition by term across all contracts."""
     # Search by normalized term (case-insensitive)
     normalized = term.lower().strip().replace('"', '').replace("'", "")
 
-    result = await db.execute(
+    query = (
         select(ContractDefinition, Contract.filename)
         .join(Contract, ContractDefinition.contract_id == Contract.id)
         .where(ContractDefinition.term_normalized.ilike(f"%{normalized}%"))
         .order_by(ContractDefinition.term)
         .limit(50)
     )
+    # Apply tenant filter
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    result = await db.execute(query)
 
     definitions = []
     for defn, filename in result.all():
@@ -2885,6 +2944,7 @@ async def search_definitions(
 async def compare_definitions(
     term: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, Any]:
     """Compare how a term is defined across different contracts.
@@ -2895,12 +2955,16 @@ async def compare_definitions(
     # Search by normalized term (exact match for comparison)
     normalized = term.lower().strip().replace('"', '').replace("'", "")
 
-    result = await db.execute(
+    query = (
         select(ContractDefinition, Contract.filename, Contract.counterparty, Contract.contract_type)
         .join(Contract, ContractDefinition.contract_id == Contract.id)
         .where(ContractDefinition.term_normalized == normalized)
         .order_by(Contract.created_at.desc())
     )
+    # Apply tenant filter
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    result = await db.execute(query)
 
     definitions = []
     definition_texts = set()
@@ -3444,7 +3508,7 @@ async def get_dashboard_insights(
     # 1. Renewal Opportunity - contracts expiring in 30 days
     expiring_query = select(
         func.count(Contract.id),
-        func.coalesce(func.sum(Contract.total_value), 0)
+        func.coalesce(func.sum(Contract.contract_value), 0)
     ).where(
         Contract.expiration_date.isnot(None),
         Contract.expiration_date <= today + timedelta(days=30),
@@ -3590,7 +3654,8 @@ async def get_recent_activity(
     # Get recent audit logs
     audit_query = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit * 2)
     if tenant_id:
-        audit_query = audit_query.where(AuditLog.tenant_id == tenant_id)
+        # Filter via User table since AuditLog doesn't have tenant_id
+        audit_query = audit_query.join(User, AuditLog.user_id == User.id).where(User.tenant_id == tenant_id)
 
     audit_result = await db.execute(audit_query)
     audit_logs = audit_result.scalars().all()

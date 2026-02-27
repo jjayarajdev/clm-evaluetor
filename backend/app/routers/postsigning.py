@@ -1,12 +1,14 @@
 """Post-Signing Dashboard API endpoints."""
 
 from datetime import date, datetime, timedelta
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models import (
     Contract, ContractStatus, Obligation, ObligationStatus, RAGStatus,
@@ -25,9 +27,18 @@ from app.schemas.postsigning import (
 router = APIRouter(prefix="/api/dashboard/postsigning", tags=["postsigning-dashboard"])
 
 
+def apply_tenant_filter(query, tenant_id):
+    """Apply tenant filter to a Contract query if tenant_id is set."""
+    if tenant_id is not None:
+        return query.where(Contract.tenant_id == tenant_id)
+    return query
+
+
 @router.get("", response_model=PostSigningDashboard)
 async def get_postsigning_dashboard(
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get complete post-signing dashboard data.
@@ -42,6 +53,7 @@ async def get_postsigning_dashboard(
     contract_query = select(Contract).where(
         Contract.status == ContractStatus.COMPLETED
     )
+    contract_query = apply_tenant_filter(contract_query, tenant_id)
     contract_result = await db.execute(contract_query)
     contracts = list(contract_result.scalars().all())
 
@@ -52,6 +64,7 @@ async def get_postsigning_dashboard(
     obl_query = select(Obligation).join(
         Contract, Obligation.contract_id == Contract.id
     ).where(Contract.status == ContractStatus.COMPLETED)
+    obl_query = apply_tenant_filter(obl_query, tenant_id)
     obl_result = await db.execute(obl_query)
     obligations = list(obl_result.scalars().all())
 
@@ -106,6 +119,7 @@ async def get_postsigning_dashboard(
     sla_query = select(ContractSLA).join(
         Contract, ContractSLA.contract_id == Contract.id
     ).where(Contract.status == ContractStatus.COMPLETED)
+    sla_query = apply_tenant_filter(sla_query, tenant_id)
     sla_result = await db.execute(sla_query)
     slas = list(sla_result.scalars().all())
 
@@ -121,14 +135,20 @@ async def get_postsigning_dashboard(
     compliance_rates = [float(s.current_compliance_rate) for s in slas if s.current_compliance_rate is not None]
     sla_compliance = sum(compliance_rates) / len(compliance_rates) if compliance_rates else 100.0
 
-    # Get MTD penalties
+    # Get MTD penalties (filtered by tenant)
     mtd_start = date(today.year, today.month, 1)
-    penalty_query = select(func.sum(SLAPerformance.penalty_amount)).where(
+    penalty_query = select(func.sum(SLAPerformance.penalty_amount)).join(
+        ContractSLA, SLAPerformance.sla_id == ContractSLA.id
+    ).join(
+        Contract, ContractSLA.contract_id == Contract.id
+    ).where(
         and_(
             SLAPerformance.penalty_applied == True,
             SLAPerformance.measured_at >= datetime.combine(mtd_start, datetime.min.time()),
         )
     )
+    if tenant_id is not None:
+        penalty_query = penalty_query.where(Contract.tenant_id == tenant_id)
     penalty_result = await db.execute(penalty_query)
     total_penalties_mtd = float(penalty_result.scalar() or 0)
 
@@ -384,6 +404,8 @@ async def get_postsigning_dashboard(
 
 @router.get("/obligations")
 async def get_obligation_details(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     status: str = None,
     rag: str = None,
     db: AsyncSession = Depends(get_db),
@@ -392,6 +414,7 @@ async def get_obligation_details(
     query = select(Obligation, Contract).join(
         Contract, Obligation.contract_id == Contract.id
     ).where(Contract.status == ContractStatus.COMPLETED)
+    query = apply_tenant_filter(query, tenant_id)
 
     if status:
         query = query.where(Obligation.status == ObligationStatus(status))
@@ -423,6 +446,8 @@ async def get_obligation_details(
 
 @router.get("/slas")
 async def get_sla_details(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     breached_only: bool = False,
     db: AsyncSession = Depends(get_db),
 ):
@@ -435,6 +460,7 @@ async def get_sla_details(
             ContractSLA.is_active == True,
         )
     )
+    query = apply_tenant_filter(query, tenant_id)
 
     if breached_only:
         query = query.where(ContractSLA.consecutive_breaches > 0)

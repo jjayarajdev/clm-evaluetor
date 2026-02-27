@@ -7,8 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from uuid import UUID as UUIDType
 
 from app.database import get_db
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.models import Contract, ContractStatus, AuditLog, AuditAction
 from app.models.contract_link import ContractLink, LinkType
 from app.schemas.amendment import (
@@ -66,9 +68,11 @@ PARTY_FIELDS = [
 ]
 
 
-async def get_contract_or_404(db: AsyncSession, contract_id: UUID) -> Contract:
+async def get_contract_or_404(db: AsyncSession, contract_id: UUID, tenant_id=None) -> Contract:
     """Get contract by ID or raise 404."""
     query = select(Contract).where(Contract.id == contract_id)
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
     result = await db.execute(query)
     contract = result.scalar_one_or_none()
 
@@ -80,7 +84,7 @@ async def get_contract_or_404(db: AsyncSession, contract_id: UUID) -> Contract:
     return contract
 
 
-async def find_original_contract(db: AsyncSession, contract_id: UUID) -> Contract:
+async def find_original_contract(db: AsyncSession, contract_id: UUID, tenant_id=None) -> Contract:
     """Find the original contract in an amendment chain."""
     current_id = contract_id
 
@@ -103,15 +107,15 @@ async def find_original_contract(db: AsyncSession, contract_id: UUID) -> Contrac
         current_id = link.parent_contract_id
 
     # Return the original contract
-    return await get_contract_or_404(db, current_id)
+    return await get_contract_or_404(db, current_id, tenant_id=tenant_id)
 
 
-async def get_all_versions(db: AsyncSession, original_contract_id: UUID) -> list[tuple[Contract, ContractLink | None, int]]:
+async def get_all_versions(db: AsyncSession, original_contract_id: UUID, tenant_id=None) -> list[tuple[Contract, ContractLink | None, int]]:
     """Get all versions of a contract including the original."""
     versions = []
 
     # Start with the original
-    original = await get_contract_or_404(db, original_contract_id)
+    original = await get_contract_or_404(db, original_contract_id, tenant_id=tenant_id)
     versions.append((original, None, 1))
 
     # Get all amendments (children)
@@ -166,6 +170,8 @@ async def link_amendment(
     contract_id: UUID,
     amendment: AmendmentCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """
     Link an amendment or version to a parent contract.
@@ -174,11 +180,11 @@ async def link_amendment(
     that represents the amendment.
     """
     # Verify parent contract exists
-    parent = await get_contract_or_404(db, contract_id)
+    parent = await get_contract_or_404(db, contract_id, tenant_id=tenant_id)
 
     # Verify child contract exists
-    child_id = UUID(amendment.child_contract_id)
-    child = await get_contract_or_404(db, child_id)
+    child_id = UUIDType(amendment.child_contract_id)
+    child = await get_contract_or_404(db, child_id, tenant_id=tenant_id)
 
     # Check for existing link
     existing_query = select(ContractLink).where(
@@ -243,6 +249,8 @@ async def link_amendment(
 async def get_version_history(
     contract_id: UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """
     Get complete version history for a contract.
@@ -250,10 +258,10 @@ async def get_version_history(
     Returns all versions (original + amendments) ordered by version number.
     """
     # Find the original contract
-    original = await find_original_contract(db, contract_id)
+    original = await find_original_contract(db, contract_id, tenant_id=tenant_id)
 
     # Get all versions
-    versions = await get_all_versions(db, original.id)
+    versions = await get_all_versions(db, original.id, tenant_id=tenant_id)
 
     # Check if any version is superseded
     supersede_query = select(ContractLink).where(
@@ -300,6 +308,8 @@ async def get_version_diff(
     contract_id: UUID,
     compare_id: UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """
     Compare two contract versions and return the differences.
@@ -307,12 +317,12 @@ async def get_version_diff(
     Compares key metadata, financial terms, and contract terms.
     """
     # Get both contracts
-    base_contract = await get_contract_or_404(db, contract_id)
-    compare_contract = await get_contract_or_404(db, compare_id)
+    base_contract = await get_contract_or_404(db, contract_id, tenant_id=tenant_id)
+    compare_contract = await get_contract_or_404(db, compare_id, tenant_id=tenant_id)
 
     # Find version numbers
-    original = await find_original_contract(db, contract_id)
-    versions = await get_all_versions(db, original.id)
+    original = await find_original_contract(db, contract_id, tenant_id=tenant_id)
+    versions = await get_all_versions(db, original.id, tenant_id=tenant_id)
 
     base_version = 0
     compare_version = 0
@@ -399,6 +409,8 @@ async def mark_superseded(
     contract_id: UUID,
     request: SupersedeRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """
     Mark a contract as superseded by another contract.
@@ -406,11 +418,11 @@ async def mark_superseded(
     The superseded contract will be marked as inactive.
     """
     # Verify old contract exists
-    old_contract = await get_contract_or_404(db, contract_id)
+    old_contract = await get_contract_or_404(db, contract_id, tenant_id=tenant_id)
 
     # Verify new contract exists
-    new_contract_id = UUID(request.superseding_contract_id)
-    new_contract = await get_contract_or_404(db, new_contract_id)
+    new_contract_id = UUIDType(request.superseding_contract_id)
+    new_contract = await get_contract_or_404(db, new_contract_id, tenant_id=tenant_id)
 
     # Create supersedes link
     link = ContractLink(
@@ -442,6 +454,8 @@ async def get_audit_trail(
     contract_id: UUID,
     include_amendments: bool = True,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """
     Get complete audit trail for a contract and optionally its amendments.
@@ -449,7 +463,7 @@ async def get_audit_trail(
     Returns all audit log entries related to the contract.
     """
     # Get the contract
-    contract = await get_contract_or_404(db, contract_id)
+    contract = await get_contract_or_404(db, contract_id, tenant_id=tenant_id)
 
     # Collect contract IDs to query
     contract_ids = [str(contract_id)]
@@ -457,8 +471,8 @@ async def get_audit_trail(
 
     if include_amendments:
         # Find original
-        original = await find_original_contract(db, contract_id)
-        versions = await get_all_versions(db, original.id)
+        original = await find_original_contract(db, contract_id, tenant_id=tenant_id)
+        versions = await get_all_versions(db, original.id, tenant_id=tenant_id)
 
         for c, link, version_num in versions:
             if str(c.id) not in contract_ids:
@@ -529,10 +543,12 @@ async def get_audit_trail(
 async def list_amendments(
     contract_id: UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """List all amendments linked to a contract."""
     # Verify contract exists
-    contract = await get_contract_or_404(db, contract_id)
+    contract = await get_contract_or_404(db, contract_id, tenant_id=tenant_id)
 
     # Get amendments
     query = select(ContractLink, Contract).join(
@@ -572,6 +588,8 @@ async def get_amendment_summary(
     contract_id: UUID,
     amendment_id: UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """
     Get AI-extracted summary of changes in an amendment.
@@ -580,11 +598,11 @@ async def get_amendment_summary(
     and the amendment to summarize what changed.
     """
     # Get both contracts
-    parent = await get_contract_or_404(db, contract_id)
-    amendment = await get_contract_or_404(db, amendment_id)
+    parent = await get_contract_or_404(db, contract_id, tenant_id=tenant_id)
+    amendment = await get_contract_or_404(db, amendment_id, tenant_id=tenant_id)
 
     # Get the diff
-    diff_response = await get_version_diff(contract_id, amendment_id, db)
+    diff_response = await get_version_diff(contract_id, amendment_id, db, current_user=current_user, tenant_id=tenant_id)
 
     # Build summary from diff
     key_changes = []

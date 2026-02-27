@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models import (
     Contract, ContractStatus, Obligation, ObligationStatus,
@@ -32,6 +33,7 @@ async def get_obligations_in_period(
     db: AsyncSession,
     start_date: date,
     end_date: date,
+    tenant_id=None,
 ) -> list[tuple]:
     """Get obligations with activity in the date range."""
     query = select(Obligation, Contract).join(
@@ -53,8 +55,12 @@ async def get_obligations_in_period(
                 ),
             )
         )
-    ).order_by(Obligation.deadline)
+    )
 
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+
+    query = query.order_by(Obligation.deadline)
     result = await db.execute(query)
     return result.all()
 
@@ -63,6 +69,7 @@ async def get_sla_performances_in_period(
     db: AsyncSession,
     start_date: date,
     end_date: date,
+    tenant_id=None,
 ) -> list[tuple]:
     """Get SLA performances measured in the date range."""
     query = select(SLAPerformance, ContractSLA, Contract).join(
@@ -77,8 +84,12 @@ async def get_sla_performances_in_period(
             SLAPerformance.measured_at >= datetime.combine(start_date, datetime.min.time()),
             SLAPerformance.measured_at <= datetime.combine(end_date, datetime.max.time()),
         )
-    ).order_by(SLAPerformance.measured_at)
+    )
 
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+
+    query = query.order_by(SLAPerformance.measured_at)
     result = await db.execute(query)
     return result.all()
 
@@ -103,6 +114,8 @@ def determine_trend(values: list[float]) -> str:
 async def get_compliance_report(
     start_date: date = Query(..., description="Report start date"),
     end_date: date = Query(..., description="Report end date"),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -117,7 +130,7 @@ async def get_compliance_report(
         )
 
     # Get obligations
-    obl_rows = await get_obligations_in_period(db, start_date, end_date)
+    obl_rows = await get_obligations_in_period(db, start_date, end_date, tenant_id)
 
     obligation_items = []
     obligations_completed = 0
@@ -184,7 +197,7 @@ async def get_compliance_report(
         by_category[cat]["compliance_rate"] = (completed / total * 100) if total > 0 else 0
 
     # Get SLA performances
-    sla_rows = await get_sla_performances_in_period(db, start_date, end_date)
+    sla_rows = await get_sla_performances_in_period(db, start_date, end_date, tenant_id)
 
     sla_items = []
     slas_compliant = 0
@@ -315,6 +328,8 @@ async def get_compliance_report(
 async def get_compliance_trend(
     period: str = Query("weekly", pattern="^(weekly|monthly)$"),
     lookback: int = Query(4, ge=1, le=12, description="Number of periods to look back"),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -349,7 +364,7 @@ async def get_compliance_trend(
             label = start.strftime("%b %Y")
 
         # Get report for this period
-        report = await get_compliance_report(start, end, db)
+        report = await get_compliance_report(start, end, current_user, tenant_id, db)
 
         point = TrendDataPoint(
             period_start=start,
@@ -396,6 +411,8 @@ async def export_compliance_report(
     start_date: date = Query(...),
     end_date: date = Query(...),
     format: str = Query("csv", pattern="^(csv|excel)$"),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -403,7 +420,7 @@ async def export_compliance_report(
 
     Returns a downloadable file.
     """
-    report = await get_compliance_report(start_date, end_date, db)
+    report = await get_compliance_report(start_date, end_date, current_user, tenant_id, db)
 
     if format == "csv":
         # Create CSV
@@ -481,6 +498,8 @@ async def export_compliance_report(
 
 @router.get("/summary")
 async def get_quick_summary(
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -489,7 +508,7 @@ async def get_quick_summary(
     today = date.today()
     start_of_month = date(today.year, today.month, 1)
 
-    report = await get_compliance_report(start_of_month, today, db)
+    report = await get_compliance_report(start_of_month, today, current_user, tenant_id, db)
 
     return {
         "period": f"{start_of_month} to {today}",

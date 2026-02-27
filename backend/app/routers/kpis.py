@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role
+from app.core.deps import get_current_user, require_role, CurrentUser, CurrentTenantId
 from app.models import (
     User,
     KPI,
@@ -39,6 +39,18 @@ from app.schemas.kpi import (
 router = APIRouter(prefix="/kpis", tags=["KPIs"])
 
 
+def apply_tenant_filter_kpi(query, tenant_id):
+    """Apply tenant filter to KPI query via relationship/organization join."""
+    if tenant_id is not None:
+        # Filter by checking if the KPI's relationship's organization belongs to tenant
+        query = query.join(
+            BusinessRelationship, KPI.relationship_id == BusinessRelationship.id
+        ).join(
+            Organization, BusinessRelationship.org_a_id == Organization.id
+        ).where(Organization.tenant_id == tenant_id)
+    return query
+
+
 # ===== KPI CRUD =====
 
 @router.get("", response_model=KPIListResponse)
@@ -47,10 +59,12 @@ async def list_kpis(
     category: Optional[KPICategory] = None,
     is_active: bool = Query(True),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """List KPIs with optional filtering."""
     query = select(KPI)
+    query = apply_tenant_filter_kpi(query, tenant_id)
 
     if relationship_id:
         query = query.where(KPI.relationship_id == relationship_id)
@@ -79,7 +93,8 @@ async def list_kpis(
 async def create_kpi(
     data: KPICreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Create a new KPI."""
     # Verify relationship exists
@@ -102,10 +117,14 @@ async def create_kpi(
 async def get_kpi(
     kpi_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Get KPI by ID."""
-    kpi = await db.get(KPI, kpi_id)
+    query = select(KPI).where(KPI.id == kpi_id)
+    query = apply_tenant_filter_kpi(query, tenant_id)
+    result = await db.execute(query)
+    kpi = result.scalar_one_or_none()
     if not kpi:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -120,10 +139,14 @@ async def update_kpi(
     kpi_id: UUID,
     data: KPIUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Update a KPI."""
-    kpi = await db.get(KPI, kpi_id)
+    query = select(KPI).where(KPI.id == kpi_id)
+    query = apply_tenant_filter_kpi(query, tenant_id)
+    result = await db.execute(query)
+    kpi = result.scalar_one_or_none()
     if not kpi:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -144,10 +167,14 @@ async def update_kpi(
 async def delete_kpi(
     kpi_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Delete a KPI (soft delete)."""
-    kpi = await db.get(KPI, kpi_id)
+    query = select(KPI).where(KPI.id == kpi_id)
+    query = apply_tenant_filter_kpi(query, tenant_id)
+    result = await db.execute(query)
+    kpi = result.scalar_one_or_none()
     if not kpi:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -166,11 +193,15 @@ async def list_perception_scores(
     period: Optional[str] = None,
     is_internal: Optional[bool] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """List perception scores for a KPI."""
-    # Verify KPI exists
-    kpi = await db.get(KPI, kpi_id)
+    # Verify KPI exists and belongs to tenant
+    query = select(KPI).where(KPI.id == kpi_id)
+    query = apply_tenant_filter_kpi(query, tenant_id)
+    result = await db.execute(query)
+    kpi = result.scalar_one_or_none()
     if not kpi:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -206,7 +237,8 @@ async def submit_perception_score(
     kpi_id: UUID,
     data: PerceptionScoreCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Submit a perception score for a KPI."""
     # Get KPI with relationship
@@ -266,10 +298,14 @@ async def submit_perception_score(
 async def list_perception_gaps(
     kpi_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """List perception gaps for a KPI."""
-    kpi = await db.get(KPI, kpi_id)
+    query = select(KPI).where(KPI.id == kpi_id)
+    query = apply_tenant_filter_kpi(query, tenant_id)
+    result = await db.execute(query)
+    kpi = result.scalar_one_or_none()
     if not kpi:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -303,7 +339,8 @@ async def list_relationship_gaps(
     severity: Optional[GapSeverity] = None,
     requires_action: Optional[bool] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """List all perception gaps for a relationship."""
     # Get KPIs for relationship
@@ -348,7 +385,8 @@ async def get_gap_summary(
     rel_id: UUID,
     period: str = Query(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Get summary of perception gaps for a relationship in a period."""
     # Get KPIs for relationship

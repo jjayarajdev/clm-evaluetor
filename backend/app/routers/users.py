@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import AdminUser, CurrentUser
+from app.core.deps import AdminUser, CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models.user import Role
 from app.schemas.user import (
@@ -38,6 +38,7 @@ def user_to_response(user) -> UserResponse:
 @router.get("", response_model=UserListResponse)
 async def list_users(
     admin: AdminUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     role: Role | None = None,
     is_active: bool | None = None,
@@ -49,6 +50,7 @@ async def list_users(
 
     Args:
         admin: Authenticated admin user.
+        tenant_id: Current tenant ID for isolation.
         db: Database session.
         role: Filter by role.
         is_active: Filter by active status.
@@ -59,7 +61,7 @@ async def list_users(
     Returns:
         Paginated list of users.
     """
-    service = UserService(db)
+    service = UserService(db, tenant_id=tenant_id)
     filters = UserFilter(role=role, is_active=is_active, search=search)
 
     users, total = await service.list_users(filters, page, page_size)
@@ -77,6 +79,7 @@ async def list_users(
 async def create_user(
     data: UserCreate,
     admin: AdminUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserResponse:
     """Create a new user (admin only).
@@ -84,12 +87,13 @@ async def create_user(
     Args:
         data: User creation data.
         admin: Authenticated admin user.
+        tenant_id: Current tenant ID for isolation.
         db: Database session.
 
     Returns:
         Created user.
     """
-    service = UserService(db)
+    service = UserService(db, tenant_id=tenant_id)
 
     try:
         user = await service.create(data)
@@ -121,6 +125,7 @@ async def get_current_user_details(
 async def get_user(
     user_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserResponse:
     """Get user by ID.
@@ -128,13 +133,14 @@ async def get_user(
     Args:
         user_id: User's UUID.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID for isolation.
         db: Database session.
 
     Returns:
         User details.
 
     Notes:
-        - Admin can view any user
+        - Admin can view any user in their tenant
         - Non-admin can only view themselves
     """
     # Non-admin can only view themselves
@@ -144,7 +150,7 @@ async def get_user(
             detail="Access denied",
         )
 
-    service = UserService(db)
+    service = UserService(db, tenant_id=tenant_id)
     user = await service.get_by_id(user_id)
 
     if not user:
@@ -161,6 +167,7 @@ async def update_user(
     user_id: str,
     data: UserUpdate,
     admin: AdminUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserResponse:
     """Update a user (admin only).
@@ -169,12 +176,13 @@ async def update_user(
         user_id: User's UUID.
         data: Update data.
         admin: Authenticated admin user.
+        tenant_id: Current tenant ID for isolation.
         db: Database session.
 
     Returns:
         Updated user.
     """
-    service = UserService(db)
+    service = UserService(db, tenant_id=tenant_id)
     user = await service.get_by_id(user_id)
 
     if not user:
@@ -199,6 +207,7 @@ async def update_user_password(
     user_id: str,
     data: UserPasswordUpdate,
     admin: AdminUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserResponse:
     """Update a user's password (admin only).
@@ -207,12 +216,13 @@ async def update_user_password(
         user_id: User's UUID.
         data: New password data.
         admin: Authenticated admin user.
+        tenant_id: Current tenant ID for isolation.
         db: Database session.
 
     Returns:
         Updated user.
     """
-    service = UserService(db)
+    service = UserService(db, tenant_id=tenant_id)
     user = await service.get_by_id(user_id)
 
     if not user:
@@ -230,6 +240,7 @@ async def update_user_password(
 async def deactivate_user(
     user_id: str,
     admin: AdminUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserResponse:
     """Deactivate a user (soft delete, admin only).
@@ -237,6 +248,7 @@ async def deactivate_user(
     Args:
         user_id: User's UUID.
         admin: Authenticated admin user.
+        tenant_id: Current tenant ID for isolation.
         db: Database session.
 
     Returns:
@@ -252,7 +264,7 @@ async def deactivate_user(
             detail="Cannot deactivate yourself",
         )
 
-    service = UserService(db)
+    service = UserService(db, tenant_id=tenant_id)
     user = await service.get_by_id(user_id)
 
     if not user:
@@ -270,6 +282,7 @@ async def deactivate_user(
 async def activate_user(
     user_id: str,
     admin: AdminUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserResponse:
     """Reactivate a deactivated user (admin only).
@@ -277,12 +290,13 @@ async def activate_user(
     Args:
         user_id: User's UUID.
         admin: Authenticated admin user.
+        tenant_id: Current tenant ID for isolation.
         db: Database session.
 
     Returns:
         Activated user.
     """
-    service = UserService(db)
+    service = UserService(db, tenant_id=tenant_id)
     user = await service.get_by_id(user_id)
 
     if not user:

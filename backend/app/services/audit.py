@@ -16,9 +16,10 @@ from app.schemas.audit import AuditLogFilter
 class AuditService:
     """Service for audit logging operations."""
 
-    def __init__(self, db: AsyncSession) -> None:
-        """Initialize with database session."""
+    def __init__(self, db: AsyncSession, tenant_id: uuid.UUID | None = None) -> None:
+        """Initialize with database session and optional tenant filter."""
         self.db = db
+        self.tenant_id = tenant_id
 
     async def log_action(
         self,
@@ -76,6 +77,12 @@ class AuditService:
             Tuple of (logs list, total count).
         """
         query = select(AuditLog).options(joinedload(AuditLog.user))
+
+        # Apply tenant filter via user
+        if self.tenant_id is not None:
+            query = query.join(User, AuditLog.user_id == User.id).where(
+                User.tenant_id == self.tenant_id
+            )
 
         # Apply filters
         if filters:
@@ -143,15 +150,23 @@ class AuditService:
         Returns:
             List of audit logs for the resource.
         """
-        result = await self.db.execute(
+        query = (
             select(AuditLog)
             .options(joinedload(AuditLog.user))
             .where(
                 AuditLog.resource_type == resource_type,
                 AuditLog.resource_id == resource_id,
             )
-            .order_by(AuditLog.created_at.desc())
         )
+
+        # Apply tenant filter via user
+        if self.tenant_id is not None:
+            query = query.join(User, AuditLog.user_id == User.id).where(
+                User.tenant_id == self.tenant_id
+            )
+
+        query = query.order_by(AuditLog.created_at.desc())
+        result = await self.db.execute(query)
         return result.scalars().unique().all()
 
     async def count_actions_since(
@@ -192,11 +207,19 @@ class AuditService:
             hour=0, minute=0, second=0, microsecond=0
         )
 
-        result = await self.db.execute(
+        query = (
             select(AuditLog.action, func.count(AuditLog.id))
             .where(AuditLog.created_at >= since)
-            .group_by(AuditLog.action)
         )
+
+        # Apply tenant filter via user
+        if self.tenant_id is not None:
+            query = query.join(User, AuditLog.user_id == User.id).where(
+                User.tenant_id == self.tenant_id
+            )
+
+        query = query.group_by(AuditLog.action)
+        result = await self.db.execute(query)
 
         stats = {action.value: 0 for action in AuditAction}
         for action, count in result.all():

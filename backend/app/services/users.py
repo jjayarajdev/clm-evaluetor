@@ -14,9 +14,10 @@ from app.schemas.user import UserCreate, UserFilter, UserUpdate
 class UserService:
     """Service for user management operations."""
 
-    def __init__(self, db: AsyncSession) -> None:
-        """Initialize with database session."""
+    def __init__(self, db: AsyncSession, tenant_id: uuid.UUID | None = None) -> None:
+        """Initialize with database session and optional tenant filter."""
         self.db = db
+        self.tenant_id = tenant_id
 
     async def get_by_id(self, user_id: str | uuid.UUID) -> User | None:
         """Get user by ID.
@@ -27,9 +28,10 @@ class UserService:
         Returns:
             User if found, None otherwise.
         """
-        result = await self.db.execute(
-            select(User).where(User.id == user_id)
-        )
+        query = select(User).where(User.id == user_id)
+        if self.tenant_id is not None:
+            query = query.where(User.tenant_id == self.tenant_id)
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def get_by_username(self, username: str) -> User | None:
@@ -77,6 +79,10 @@ class UserService:
             Tuple of (users list, total count).
         """
         query = select(User)
+
+        # Apply tenant filter
+        if self.tenant_id is not None:
+            query = query.where(User.tenant_id == self.tenant_id)
 
         # Apply filters
         if filters:
@@ -135,6 +141,7 @@ class UserService:
             password_hash=hash_password(data.password),
             role=data.role,
             is_active=True,
+            tenant_id=self.tenant_id,
         )
 
         self.db.add(user)

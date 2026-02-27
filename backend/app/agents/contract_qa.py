@@ -84,6 +84,7 @@ async def ask_question(
     session_id: str | None = None,
     contract_id: str | None = None,
     user_role: str | None = None,
+    tenant_id: str | None = None,
     n_results: int = 10,
 ) -> QAResponse:
     """Ask a question about contracts using RAG.
@@ -94,6 +95,7 @@ async def ask_question(
         session_id: Session ID for conversation context.
         contract_id: Optional contract ID to scope the search.
         user_role: User role for RBAC.
+        tenant_id: Tenant ID for isolation.
         n_results: Number of context chunks to retrieve.
 
     Returns:
@@ -106,6 +108,7 @@ async def ask_question(
         user_id=user_id,
         user_role=user_role,
         contract_id=contract_id,
+        tenant_id=tenant_id,
         n_results=n_results,
     )
 
@@ -278,6 +281,7 @@ async def suggest_questions(
     contract_id: str,
     user_id: str,
     user_role: str | None = None,
+    tenant_id: str | None = None,
 ) -> list[str]:
     """Suggest relevant questions for a contract.
 
@@ -285,6 +289,7 @@ async def suggest_questions(
         contract_id: Contract ID to analyze.
         user_id: User ID for RBAC.
         user_role: User role for RBAC.
+        tenant_id: Tenant ID for isolation.
 
     Returns:
         List of suggested questions.

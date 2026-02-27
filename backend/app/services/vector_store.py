@@ -46,7 +46,13 @@ class QueryResult(BaseModel):
 
 
 class VectorStore:
-    """ChromaDB vector store service for contract chunks."""
+    """ChromaDB vector store service for contract chunks.
+
+    IMPORTANT: Uses HTTP client only - no local fallback to prevent data
+    inconsistency between two separate databases. If ChromaDB service is
+    unavailable, operations will fail fast rather than silently write to
+    a different database.
+    """
 
     COLLECTION_NAME = "contract_chunks"
 
@@ -54,35 +60,67 @@ class VectorStore:
         """Initialize ChromaDB client."""
         self._client: chromadb.ClientAPI | None = None
         self._collection: chromadb.Collection | None = None
+        self._last_heartbeat_failed: bool = False
+
+    def _create_http_client(self) -> chromadb.HttpClient:
+        """Create a new HTTP client connection to ChromaDB."""
+        return chromadb.HttpClient(
+            host=settings.chroma_host,
+            port=settings.chroma_port,
+            settings=Settings(
+                anonymized_telemetry=False,
+            ),
+        )
+
+    def _ensure_connection(self) -> None:
+        """Verify HTTP client is healthy, reconnect if needed.
+
+        This prevents stale connections from causing silent failures.
+        """
+        if self._client is not None:
+            try:
+                self._client.heartbeat()
+                self._last_heartbeat_failed = False
+            except Exception:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning("ChromaDB heartbeat failed, reconnecting...")
+                self._client = None
+                self._collection = None
+                self._last_heartbeat_failed = True
 
     @property
     def client(self) -> chromadb.ClientAPI:
-        """Get or create ChromaDB client.
+        """Get or create ChromaDB HTTP client.
 
-        Tries HTTP client first, falls back to persistent local storage.
+        Uses HTTP client only - no local fallback. This ensures all data
+        goes to a single authoritative ChromaDB instance and prevents
+        data loss from writes going to different databases.
+
+        Raises:
+            ConnectionError: If ChromaDB service is unavailable.
         """
+        # Check if existing connection is still valid
+        self._ensure_connection()
+
         if self._client is None:
-            # Try HTTP client first (for Docker/production)
+            import logging
+            logger = logging.getLogger(__name__)
+
             try:
-                http_client = chromadb.HttpClient(
-                    host=settings.chroma_host,
-                    port=settings.chroma_port,
-                    settings=Settings(
-                        anonymized_telemetry=False,
-                    ),
-                )
+                http_client = self._create_http_client()
                 # Test connection
                 http_client.heartbeat()
                 self._client = http_client
-            except Exception:
-                # Fall back to persistent local storage
-                import os
-                persist_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data", "chroma")
-                os.makedirs(persist_dir, exist_ok=True)
-                self._client = chromadb.PersistentClient(
-                    path=persist_dir,
-                    settings=Settings(anonymized_telemetry=False),
+                logger.info(f"Connected to ChromaDB at {settings.chroma_host}:{settings.chroma_port}")
+            except Exception as e:
+                logger.error(
+                    f"Failed to connect to ChromaDB at {settings.chroma_host}:{settings.chroma_port}: {e}"
                 )
+                raise ConnectionError(
+                    f"ChromaDB service unavailable at {settings.chroma_host}:{settings.chroma_port}. "
+                    "Ensure the ChromaDB container is running and healthy."
+                ) from e
         return self._client
 
     @property
@@ -98,6 +136,18 @@ class VectorStore:
             )
         return self._collection
 
+    def reset_connection(self) -> None:
+        """Force reconnection to ChromaDB on next access.
+
+        Use this when you suspect the connection is stale or after
+        ChromaDB service restarts.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("Resetting ChromaDB connection")
+        self._client = None
+        self._collection = None
+
     def health_check(self) -> bool:
         """Check if ChromaDB is reachable.
 
@@ -105,6 +155,8 @@ class VectorStore:
             True if healthy, False otherwise.
         """
         try:
+            # First ensure existing connection is valid
+            self._ensure_connection()
             self.client.heartbeat()
             return True
         except Exception:
@@ -195,6 +247,7 @@ class VectorStore:
         clause_type: str | None = None,
         user_id: str | None = None,
         user_role: str | None = None,
+        tenant_id: str | None = None,
     ) -> list[QueryResult]:
         """Query for similar documents with RBAC filtering.
 
@@ -205,12 +258,17 @@ class VectorStore:
             clause_type: Optional filter by clause type.
             user_id: Current user's ID for RBAC.
             user_role: Current user's role for RBAC (admin, legal, procurement).
+            tenant_id: Tenant ID for isolation.
 
         Returns:
             List of QueryResult with matching documents the user can access.
         """
         # Build where filter
         conditions = []
+
+        # Tenant filter
+        if tenant_id:
+            conditions.append({"tenant_id": tenant_id})
 
         # Content filters
         if contract_id:

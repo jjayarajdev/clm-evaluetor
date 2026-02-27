@@ -543,63 +543,65 @@ class SLAAlertService:
     async def get_alert_summary(
         self,
         contract_id: Optional[UUID] = None,
+        tenant_id: Optional[UUID] = None,
     ) -> dict:
         """Get summary of alerts.
 
         Args:
             contract_id: Filter by contract (optional).
+            tenant_id: Filter by tenant (optional).
 
         Returns:
             Dictionary with alert counts by status and priority.
         """
         from sqlalchemy import func
 
-        base_query = select(SLAAlert)
-        if contract_id:
-            base_query = base_query.where(SLAAlert.contract_id == contract_id)
+        def apply_filters(query):
+            """Apply contract and tenant filters."""
+            if contract_id:
+                query = query.where(SLAAlert.contract_id == contract_id)
+            if tenant_id:
+                query = query.join(Contract, SLAAlert.contract_id == Contract.id).where(
+                    Contract.tenant_id == tenant_id
+                )
+            return query
 
         # Count by status
         status_counts = {}
         for status in AlertStatus:
-            result = await self.db.execute(
-                select(func.count(SLAAlert.id))
-                .where(SLAAlert.status == status)
-                .where(SLAAlert.contract_id == contract_id if contract_id else True)
-            )
+            query = select(func.count(SLAAlert.id)).where(SLAAlert.status == status)
+            query = apply_filters(query)
+            result = await self.db.execute(query)
             status_counts[status.value] = result.scalar() or 0
 
         # Count by priority (active only)
         priority_counts = {}
         for priority in AlertPriority:
-            result = await self.db.execute(
-                select(func.count(SLAAlert.id))
-                .where(
-                    SLAAlert.priority == priority,
-                    SLAAlert.status.in_([
-                        AlertStatus.ACTIVE,
-                        AlertStatus.ACKNOWLEDGED,
-                        AlertStatus.IN_PROGRESS,
-                    ])
-                )
-                .where(SLAAlert.contract_id == contract_id if contract_id else True)
+            query = select(func.count(SLAAlert.id)).where(
+                SLAAlert.priority == priority,
+                SLAAlert.status.in_([
+                    AlertStatus.ACTIVE,
+                    AlertStatus.ACKNOWLEDGED,
+                    AlertStatus.IN_PROGRESS,
+                ])
             )
+            query = apply_filters(query)
+            result = await self.db.execute(query)
             priority_counts[priority.value] = result.scalar() or 0
 
         # Count by category (active only)
         category_counts = {}
         for category in AlertCategory:
-            result = await self.db.execute(
-                select(func.count(SLAAlert.id))
-                .where(
-                    SLAAlert.category == category,
-                    SLAAlert.status.in_([
-                        AlertStatus.ACTIVE,
-                        AlertStatus.ACKNOWLEDGED,
-                        AlertStatus.IN_PROGRESS,
-                    ])
-                )
-                .where(SLAAlert.contract_id == contract_id if contract_id else True)
+            query = select(func.count(SLAAlert.id)).where(
+                SLAAlert.category == category,
+                SLAAlert.status.in_([
+                    AlertStatus.ACTIVE,
+                    AlertStatus.ACKNOWLEDGED,
+                    AlertStatus.IN_PROGRESS,
+                ])
             )
+            query = apply_filters(query)
+            result = await self.db.execute(query)
             category_counts[category.value] = result.scalar() or 0
 
         # Calculate totals
@@ -610,21 +612,19 @@ class SLAAlertService:
         resolved_count = status_counts.get(AlertStatus.RESOLVED.value, 0)
 
         # Financial impact (active alerts only)
-        financial_result = await self.db.execute(
-            select(
-                func.sum(SLAAlert.estimated_credit),
-                func.sum(SLAAlert.at_risk_amount),
-            )
-            .where(
-                SLAAlert.has_financial_impact == True,
-                SLAAlert.status.in_([
-                    AlertStatus.ACTIVE,
-                    AlertStatus.ACKNOWLEDGED,
-                    AlertStatus.IN_PROGRESS,
-                ])
-            )
-            .where(SLAAlert.contract_id == contract_id if contract_id else True)
+        financial_query = select(
+            func.sum(SLAAlert.estimated_credit),
+            func.sum(SLAAlert.at_risk_amount),
+        ).where(
+            SLAAlert.has_financial_impact == True,
+            SLAAlert.status.in_([
+                AlertStatus.ACTIVE,
+                AlertStatus.ACKNOWLEDGED,
+                AlertStatus.IN_PROGRESS,
+            ])
         )
+        financial_query = apply_filters(financial_query)
+        financial_result = await self.db.execute(financial_query)
         financial_row = financial_result.fetchone()
         total_credits_due = float(financial_row[0] or 0)
         total_at_risk = float(financial_row[1] or 0)

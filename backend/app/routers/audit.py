@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import AdminUser
+from app.core.deps import AdminUser, CurrentTenantId
 from app.database import get_db
 from app.models.audit import AuditAction
 from app.schemas.audit import AuditLogFilter, AuditLogListResponse, AuditLogResponse
@@ -35,6 +35,7 @@ def log_to_response(log) -> AuditLogResponse:
 @router.get("", response_model=AuditLogListResponse)
 async def list_audit_logs(
     admin: AdminUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     user_id: str | None = None,
     action: AuditAction | None = None,
@@ -49,6 +50,7 @@ async def list_audit_logs(
 
     Args:
         admin: Authenticated admin user.
+        tenant_id: Current tenant ID for isolation.
         db: Database session.
         user_id: Filter by user ID.
         action: Filter by action type.
@@ -62,7 +64,7 @@ async def list_audit_logs(
     Returns:
         Paginated list of audit logs.
     """
-    service = AuditService(db)
+    service = AuditService(db, tenant_id=tenant_id)
     filters = AuditLogFilter(
         user_id=user_id,
         action=action,
@@ -86,6 +88,7 @@ async def list_audit_logs(
 @router.get("/stats")
 async def get_audit_stats(
     admin: AdminUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     days: int = Query(7, ge=1, le=90),
 ) -> dict:
@@ -93,13 +96,14 @@ async def get_audit_stats(
 
     Args:
         admin: Authenticated admin user.
+        tenant_id: Current tenant ID for isolation.
         db: Database session.
         days: Number of days to look back.
 
     Returns:
         Dictionary with action counts.
     """
-    service = AuditService(db)
+    service = AuditService(db, tenant_id=tenant_id)
     stats = await service.get_action_stats(days)
 
     return {
@@ -114,6 +118,7 @@ async def get_resource_audit_history(
     resource_type: str,
     resource_id: str,
     admin: AdminUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[AuditLogResponse]:
     """Get audit history for a specific resource (admin only).
@@ -122,12 +127,13 @@ async def get_resource_audit_history(
         resource_type: Type of resource (e.g., "contract", "user").
         resource_id: ID of the resource.
         admin: Authenticated admin user.
+        tenant_id: Current tenant ID for isolation.
         db: Database session.
 
     Returns:
         List of audit logs for the resource.
     """
-    service = AuditService(db)
+    service = AuditService(db, tenant_id=tenant_id)
     logs = await service.get_resource_history(resource_type, resource_id)
 
     return [log_to_response(log) for log in logs]

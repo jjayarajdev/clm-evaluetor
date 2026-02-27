@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role
+from app.core.deps import get_current_user, require_role, CurrentUser, CurrentTenantId
 from app.models import (
     User,
     ImprovementPoint,
@@ -23,6 +23,7 @@ from app.models import (
     KPI,
     PerceptionGap,
     GapSeverity,
+    Organization,
 )
 from app.schemas.improvement import (
     ImprovementCreate,
@@ -38,6 +39,17 @@ from app.schemas.improvement import (
 router = APIRouter(prefix="/improvements", tags=["Improvements"])
 
 
+def apply_tenant_filter_improvement(query, tenant_id):
+    """Apply tenant filter to ImprovementPoint query via relationship/organization join."""
+    if tenant_id is not None:
+        query = query.join(
+            BusinessRelationship, ImprovementPoint.relationship_id == BusinessRelationship.id
+        ).join(
+            Organization, BusinessRelationship.org_a_id == Organization.id
+        ).where(Organization.tenant_id == tenant_id)
+    return query
+
+
 # ===== Improvement CRUD =====
 
 @router.get("", response_model=ImprovementListResponse)
@@ -51,7 +63,8 @@ async def list_improvements(
     kpi_id: Optional[UUID] = None,
     overdue_only: bool = Query(False),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """List improvement points with filtering and pagination."""
     query = select(ImprovementPoint).options(
@@ -59,6 +72,7 @@ async def list_improvements(
         selectinload(ImprovementPoint.kpi),
         selectinload(ImprovementPoint.relationship),
     )
+    query = apply_tenant_filter_improvement(query, tenant_id)
 
     if relationship_id:
         query = query.where(ImprovementPoint.relationship_id == relationship_id)
@@ -112,7 +126,8 @@ async def list_improvements(
 async def create_improvement(
     data: ImprovementCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Create a new improvement point."""
     # Verify relationship exists
@@ -154,17 +169,18 @@ async def create_improvement(
 async def get_improvement(
     improvement_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Get improvement point by ID."""
-    result = await db.execute(
-        select(ImprovementPoint).where(ImprovementPoint.id == improvement_id).options(
-            selectinload(ImprovementPoint.owner),
-            selectinload(ImprovementPoint.kpi),
-            selectinload(ImprovementPoint.relationship),
-            selectinload(ImprovementPoint.actions).selectinload(ImprovementAction.owner),
-        )
+    query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id).options(
+        selectinload(ImprovementPoint.owner),
+        selectinload(ImprovementPoint.kpi),
+        selectinload(ImprovementPoint.relationship),
+        selectinload(ImprovementPoint.actions).selectinload(ImprovementAction.owner),
     )
+    query = apply_tenant_filter_improvement(query, tenant_id)
+    result = await db.execute(query)
     improvement = result.scalar_one_or_none()
 
     if not improvement:
@@ -181,16 +197,17 @@ async def update_improvement(
     improvement_id: UUID,
     data: ImprovementUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Update an improvement point."""
-    result = await db.execute(
-        select(ImprovementPoint).where(ImprovementPoint.id == improvement_id).options(
-            selectinload(ImprovementPoint.owner),
-            selectinload(ImprovementPoint.kpi),
-            selectinload(ImprovementPoint.relationship),
-        )
+    query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id).options(
+        selectinload(ImprovementPoint.owner),
+        selectinload(ImprovementPoint.kpi),
+        selectinload(ImprovementPoint.relationship),
     )
+    query = apply_tenant_filter_improvement(query, tenant_id)
+    result = await db.execute(query)
     improvement = result.scalar_one_or_none()
 
     if not improvement:
@@ -222,10 +239,14 @@ async def update_improvement(
 async def delete_improvement(
     improvement_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Delete an improvement point (sets status to cancelled)."""
-    improvement = await db.get(ImprovementPoint, improvement_id)
+    query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id)
+    query = apply_tenant_filter_improvement(query, tenant_id)
+    result = await db.execute(query)
+    improvement = result.scalar_one_or_none()
     if not improvement:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -242,10 +263,14 @@ async def delete_improvement(
 async def list_actions(
     improvement_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """List actions for an improvement point."""
-    improvement = await db.get(ImprovementPoint, improvement_id)
+    query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id)
+    query = apply_tenant_filter_improvement(query, tenant_id)
+    result = await db.execute(query)
+    improvement = result.scalar_one_or_none()
     if not improvement:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -269,10 +294,14 @@ async def add_action(
     improvement_id: UUID,
     data: ActionCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Add an action to an improvement point."""
-    improvement = await db.get(ImprovementPoint, improvement_id)
+    query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id)
+    query = apply_tenant_filter_improvement(query, tenant_id)
+    result = await db.execute(query)
+    improvement = result.scalar_one_or_none()
     if not improvement:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -304,7 +333,8 @@ async def update_action(
     action_id: UUID,
     data: ActionUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Update an action."""
     result = await db.execute(
@@ -345,7 +375,8 @@ async def delete_action(
     improvement_id: UUID,
     action_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Delete an action."""
     result = await db.execute(
@@ -372,7 +403,8 @@ async def delete_action(
 async def get_improvement_summary(
     rel_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Get summary of improvements for a relationship."""
     result = await db.execute(
@@ -404,7 +436,8 @@ async def generate_from_gaps(
     period: str = Query(...),
     min_severity: GapSeverity = Query(GapSeverity.SIGNIFICANT),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
 ):
     """Auto-generate improvement points from perception gaps."""
     # Get gaps that meet severity threshold

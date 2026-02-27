@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role
+from app.core.deps import get_current_user, require_role, CurrentTenantId
 from app.models import (
     User,
     SurveyTemplate,
@@ -317,12 +317,23 @@ async def list_instances(
     status_filter: Optional[SurveyStatus] = Query(None, alias="status"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: CurrentTenantId = None,
 ):
     """List survey instances."""
+    from app.models import Organization
+
     query = select(SurveyInstance).options(
         selectinload(SurveyInstance.template),
         selectinload(SurveyInstance.relationship),
     )
+
+    # Apply tenant filter via relationship -> organization
+    if tenant_id is not None:
+        query = query.join(
+            BusinessRelationship, SurveyInstance.relationship_id == BusinessRelationship.id
+        ).join(
+            Organization, BusinessRelationship.org_a_id == Organization.id
+        ).where(Organization.tenant_id == tenant_id)
 
     if relationship_id:
         query = query.where(SurveyInstance.relationship_id == relationship_id)

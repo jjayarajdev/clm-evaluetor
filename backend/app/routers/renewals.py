@@ -1,6 +1,7 @@
 """Renewal Management API endpoints."""
 
 from datetime import date, datetime, timedelta
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,6 +9,7 @@ from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models import Contract, ContractStatus, ContractSLA, SLAPerformance
 from app.schemas.renewal import (
@@ -21,6 +23,13 @@ from app.schemas.renewal import (
 )
 
 router = APIRouter(prefix="/api/renewals", tags=["renewals"])
+
+
+def apply_tenant_filter(query, tenant_id):
+    """Apply tenant filter to a Contract query if tenant_id is set."""
+    if tenant_id is not None:
+        return query.where(Contract.tenant_id == tenant_id)
+    return query
 
 
 def calculate_notice_deadline(expiration_date: date | None, notice_period_days: int | None) -> date | None:
@@ -140,7 +149,9 @@ def build_contract_renewal_info(
 
 @router.get("/calendar", response_model=RenewalCalendarResponse)
 async def get_renewal_calendar(
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get renewal calendar showing contracts grouped by renewal window.
@@ -166,6 +177,7 @@ async def get_renewal_calendar(
             Contract.expiration_date <= cutoff_90,
         )
     ).order_by(Contract.expiration_date)
+    query = apply_tenant_filter(query, tenant_id)
 
     result = await db.execute(query)
     contracts = result.scalars().all()
@@ -226,7 +238,9 @@ async def get_renewal_calendar(
 
 @router.get("/at-risk", response_model=AtRiskResponse)
 async def get_at_risk_contracts(
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get contracts that are at risk of unfavorable renewal.
@@ -246,6 +260,7 @@ async def get_at_risk_contracts(
             Contract.expiration_date > today,
         )
     ).order_by(Contract.expiration_date)
+    query = apply_tenant_filter(query, tenant_id)
 
     result = await db.execute(query)
     contracts = result.scalars().all()
@@ -316,7 +331,9 @@ async def get_at_risk_contracts(
 
 @router.get("/summary", response_model=RenewalSummaryStats)
 async def get_renewal_summary(
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get summary statistics for the renewal dashboard."""
     today = date.today()
@@ -325,6 +342,7 @@ async def get_renewal_summary(
     total_query = select(func.count(Contract.id)).where(
         Contract.status == ContractStatus.COMPLETED
     )
+    total_query = apply_tenant_filter(total_query, tenant_id)
     total_result = await db.execute(total_query)
     total_active = total_result.scalar() or 0
 
@@ -335,6 +353,7 @@ async def get_renewal_summary(
             Contract.expiration_date.isnot(None),
         )
     )
+    query = apply_tenant_filter(query, tenant_id)
     result = await db.execute(query)
     contracts = result.scalars().all()
 
@@ -411,7 +430,9 @@ async def get_renewal_summary(
 async def update_renewal_status(
     contract_id: UUID,
     update: RenewalStatusUpdate,
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Update the renewal decision status for a contract.
@@ -424,8 +445,9 @@ async def update_renewal_status(
     - expired: Contract has expired
     - renegotiating: In renegotiation
     """
-    # Get the contract
+    # Get the contract with tenant filter
     query = select(Contract).where(Contract.id == contract_id)
+    query = apply_tenant_filter(query, tenant_id)
     result = await db.execute(query)
     contract = result.scalar_one_or_none()
 
@@ -464,7 +486,9 @@ async def update_renewal_status(
 @router.get("/{contract_id}/recommendation", response_model=RenewalRecommendation)
 async def get_renewal_recommendation(
     contract_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get AI-generated renewal recommendation for a contract.
@@ -476,8 +500,9 @@ async def get_renewal_recommendation(
     - Contract value vs. market
     - Risk factors
     """
-    # Get the contract
+    # Get the contract with tenant filter
     query = select(Contract).where(Contract.id == contract_id)
+    query = apply_tenant_filter(query, tenant_id)
     result = await db.execute(query)
     contract = result.scalar_one_or_none()
 
