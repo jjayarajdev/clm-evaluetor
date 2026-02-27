@@ -138,7 +138,7 @@ def get_clause_extraction_config() -> AgentConfig:
         confidentiality, IP, payment terms, warranties, and more.""",
         system_prompt=CLAUSE_EXTRACTION_PROMPT,
         temperature=0.1,
-        max_tokens=4000,  # Need more tokens for multiple clauses
+        max_tokens=6000,  # Increased for comprehensive clause extraction
     )
 
 
@@ -160,9 +160,12 @@ async def extract_clauses(
     orchestrator = get_orchestrator()
 
     # Process in chunks if document is very long
-    max_chunk_size = 15000
+    # Increased chunk size to 25000 for better context per chunk
+    max_chunk_size = 25000
     all_clauses = []
     missing_clauses_set = set()
+
+    logger.info(f"Processing contract for clause extraction (length: {len(contract_text)} chars)")
 
     # Split into overlapping chunks for better extraction
     chunks = _split_for_extraction(contract_text, max_chunk_size)
@@ -234,24 +237,25 @@ def _split_for_extraction(text: str, max_size: int) -> list[str]:
         return [text]
 
     chunks = []
-    overlap = 500  # Overlap to catch clauses at boundaries
+    overlap = 2000  # Increased overlap to better catch clauses at boundaries
     start = 0
 
     while start < len(text):
         end = start + max_size
 
-        # Find a good break point
+        # Find a good break point at section boundaries
         if end < len(text):
-            # Look for section break
-            break_point = text.rfind("\n\n", start + max_size - 1000, end)
+            # Look for section break (article/section headers)
+            break_point = text.rfind("\n\n", start + max_size - 2000, end)
             if break_point == -1:
-                break_point = text.rfind(". ", start + max_size - 500, end)
-            if break_point != -1:
+                break_point = text.rfind(". ", start + max_size - 1000, end)
+            if break_point != -1 and break_point > start:
                 end = break_point + 2
 
         chunks.append(text[start:end])
-        start = end - overlap
+        start = end - overlap if end < len(text) else end
 
+    logger.info(f"Split contract into {len(chunks)} chunks for clause extraction")
     return chunks
 
 

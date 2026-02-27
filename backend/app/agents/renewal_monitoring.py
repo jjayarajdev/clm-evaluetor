@@ -9,6 +9,7 @@ Extracts renewal terms and calculates notice deadlines:
 
 import json
 import logging
+import re
 import uuid
 from datetime import date, timedelta
 from typing import Any
@@ -103,8 +104,62 @@ def get_renewal_monitoring_config() -> AgentConfig:
         expiration dates, and termination rights. Use for renewal tracking and alerts.""",
         system_prompt=RENEWAL_MONITORING_PROMPT,
         temperature=0.0,
-        max_tokens=1500,
+        max_tokens=2500,  # Increased for comprehensive term extraction
     )
+
+
+def _prepare_renewal_text(contract_text: str, max_length: int = 25000) -> str:
+    """Prepare contract text for renewal term extraction.
+
+    Focuses on sections containing term, renewal, termination, and expiration info.
+
+    Args:
+        contract_text: Full contract text.
+        max_length: Maximum text length to return.
+
+    Returns:
+        Text sample optimized for renewal extraction.
+    """
+    import re
+
+    if len(contract_text) <= max_length:
+        return contract_text
+
+    # Always include first 8000 chars (parties, dates, initial terms)
+    beginning = contract_text[:8000]
+
+    # Search for renewal-related sections
+    remaining = contract_text[8000:]
+    renewal_sections = []
+
+    # Patterns for renewal/term sections
+    patterns = [
+        r"(?i)(?:^|\n)\s*\d*\.?\s*(?:TERM|DURATION|RENEWAL|TERMINATION|EXPIRATION)[^\n]*\n",
+        r"(?i)(?:^|\n)\s*(?:ARTICLE|SECTION)\s+\d+[.:]\s*(?:TERM|RENEWAL|TERMINATION)[^\n]*\n",
+        r"(?i)auto[- ]?renew",
+        r"(?i)automatic\s+renewal",
+        r"(?i)(?:notice|written)\s+(?:period|of\s+termination)",
+        r"(?i)(?:expires?|terminates?)\s+(?:on|after|upon)",
+        r"(?i)initial\s+term",
+        r"(?i)renewal\s+(?:term|period)",
+        r"(?i)(?:thirty|sixty|ninety|\d+)\s*(?:\(\d+\))?\s*days?\s*(?:prior|before|notice)",
+    ]
+
+    for pattern in patterns:
+        for match in re.finditer(pattern, remaining):
+            start = max(0, match.start() - 300)
+            end = min(len(remaining), match.end() + 2000)
+            section = remaining[start:end]
+            if not any(section[:200] in s for s in renewal_sections):
+                renewal_sections.append(section)
+
+    # Combine
+    result = beginning
+    for section in renewal_sections[:6]:  # Up to 6 sections
+        if len(result) + len(section) < max_length:
+            result += "\n\n[...]\n\n" + section
+
+    return result
 
 
 async def analyze_renewal_terms(
@@ -129,8 +184,8 @@ async def analyze_renewal_terms(
     if current_date is None:
         current_date = date.today()
 
-    # Focus on the first part and any section mentioning "term" or "renewal"
-    text_sample = contract_text[:15000]
+    # Smart extraction: include beginning + sections with renewal/term keywords
+    text_sample = _prepare_renewal_text(contract_text, max_length=25000)
 
     query = f"""Extract all renewal and termination terms from this contract:
 

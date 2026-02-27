@@ -127,15 +127,15 @@ If a field cannot be found or only has generic placeholder text, set its value t
 """
 
 
-def _prepare_metadata_text(contract_text: str, max_length: int = 12000) -> str:
+def _prepare_metadata_text(contract_text: str, max_length: int = 25000) -> str:
     """Prepare contract text for metadata extraction.
 
     Includes the beginning (parties, dates) plus relevant sections
-    like Term, Duration, Termination where expiration dates appear.
+    like Term, Duration, Termination, Payment, Value where key metadata appears.
 
     Args:
         contract_text: Full contract text.
-        max_length: Maximum text length to return.
+        max_length: Maximum text length to return (increased for better coverage).
 
     Returns:
         Text sample optimized for metadata extraction.
@@ -143,37 +143,57 @@ def _prepare_metadata_text(contract_text: str, max_length: int = 12000) -> str:
     if len(contract_text) <= max_length:
         return contract_text
 
-    # Always include first 6000 chars (parties, effective date, preamble)
-    beginning = contract_text[:6000]
+    # Always include first 10000 chars (parties, effective date, preamble, initial sections)
+    beginning = contract_text[:10000]
 
-    # Search for term/expiration related sections in the rest
-    remaining = contract_text[6000:]
-    term_sections = []
+    # Search for metadata-rich sections in the rest
+    remaining = contract_text[10000:]
+    important_sections = []
 
-    # Patterns that indicate term/expiration sections
+    # Patterns that indicate sections with important metadata
     section_patterns = [
+        # Term and duration
         r"(?i)(?:^|\n)\s*\d*\.?\s*(?:TERM|DURATION|EXPIRATION|TERMINATION)[^\n]*\n",
         r"(?i)(?:^|\n)\s*(?:ARTICLE|SECTION)\s+\d+[.:]\s*(?:TERM|DURATION)[^\n]*\n",
         r"(?i)initial\s+term",
         r"(?i)contract\s+(?:term|period|duration)",
         r"(?i)(?:expires?|terminates?)\s+(?:on|after)",
         r"(?i)valid\s+(?:until|through|for)",
+        # Payment and value
+        r"(?i)(?:^|\n)\s*\d*\.?\s*(?:PAYMENT|COMPENSATION|FEES|PRICING)[^\n]*\n",
+        r"(?i)(?:^|\n)\s*(?:ARTICLE|SECTION)\s+\d+[.:]\s*(?:PAYMENT|FEE)[^\n]*\n",
+        r"(?i)(?:total|aggregate|contract)\s+(?:amount|value|sum)",
+        r"(?i)not\s+(?:to\s+)?exceed",
+        # Governing law / jurisdiction
+        r"(?i)(?:^|\n)\s*\d*\.?\s*(?:GOVERNING\s+LAW|JURISDICTION)[^\n]*\n",
+        r"(?i)govern(?:ed|ing)\s+(?:by\s+)?(?:the\s+)?law",
+        # Auto-renewal
+        r"(?i)(?:auto[- ]?renew|automatic\s+renewal)",
+        r"(?i)renewal\s+(?:term|period|notice)",
     ]
 
     for pattern in section_patterns:
         for match in re.finditer(pattern, remaining):
-            # Extract ~1500 chars around the match
-            start = max(0, match.start() - 200)
-            end = min(len(remaining), match.end() + 1300)
+            # Extract ~2000 chars around the match for better context
+            start = max(0, match.start() - 300)
+            end = min(len(remaining), match.end() + 1700)
             section = remaining[start:end]
-            if section not in term_sections:
-                term_sections.append(section)
+            # Avoid duplicate sections
+            if not any(section[:200] in s for s in important_sections):
+                important_sections.append(section)
 
-    # Combine beginning with found sections
+    # Also include the last 3000 chars (often contains signature blocks with dates)
+    ending = contract_text[-3000:] if len(contract_text) > 13000 else ""
+
+    # Combine beginning with found sections and ending
     result = beginning
-    for section in term_sections[:3]:  # Limit to 3 sections
-        if len(result) + len(section) < max_length:
+    for section in important_sections[:5]:  # Increased to 5 sections
+        if len(result) + len(section) < max_length - 3500:
             result += "\n\n[...]\n\n" + section
+
+    # Add ending if room
+    if ending and len(result) + len(ending) < max_length:
+        result += "\n\n[...END OF CONTRACT...]\n\n" + ending
 
     return result
 
@@ -187,7 +207,7 @@ def get_metadata_extraction_config() -> AgentConfig:
         Use this agent when you need to extract specific fields from a contract.""",
         system_prompt=METADATA_EXTRACTION_PROMPT,
         temperature=0.0,  # Low temperature for consistent extraction
-        max_tokens=1500,
+        max_tokens=2500,  # Increased for comprehensive metadata with raw_text snippets
     )
 
 

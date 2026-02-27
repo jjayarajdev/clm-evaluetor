@@ -289,21 +289,21 @@ async def run_agent(
 def inject_context(
     query: str,
     search_tool: ContractSearchTool,
-    max_context_length: int = 8000,
+    max_context_length: int = 32000,
 ) -> str:
     """Inject relevant context into a query for RAG.
 
     Args:
         query: Original user query.
         search_tool: Search tool to retrieve context.
-        max_context_length: Maximum context length in characters.
+        max_context_length: Maximum context length in characters (default 32KB for GPT-4).
 
     Returns:
         Query with injected context.
     """
     context = search_tool.search_with_context(query)
 
-    # Truncate context if too long
+    # Truncate context if too long (32KB is safe for GPT-4's 128K context)
     if len(context) > max_context_length:
         context = context[:max_context_length] + "\n\n[Context truncated...]"
 

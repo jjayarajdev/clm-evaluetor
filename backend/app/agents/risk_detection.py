@@ -167,8 +167,38 @@ def get_risk_detection_config() -> AgentConfig:
         IP, and regulatory concerns. Provides risk scores and recommendations.""",
         system_prompt=RISK_DETECTION_PROMPT,
         temperature=0.1,
-        max_tokens=3000,
+        max_tokens=4000,  # Increased for comprehensive risk extraction
     )
+
+
+def _split_text_for_processing(text: str, chunk_size: int = 30000, overlap: int = 2000) -> list[str]:
+    """Split large text into overlapping chunks for processing.
+
+    Args:
+        text: Full contract text.
+        chunk_size: Maximum size per chunk.
+        overlap: Overlap between chunks to avoid missing risks at boundaries.
+
+    Returns:
+        List of text chunks.
+    """
+    if len(text) <= chunk_size:
+        return [text]
+
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        # Try to break at a paragraph boundary
+        if end < len(text):
+            # Look for paragraph break within last 1000 chars
+            break_point = text.rfind('\n\n', start + chunk_size - 1000, end)
+            if break_point > start:
+                end = break_point
+        chunks.append(text[start:end])
+        start = end - overlap if end < len(text) else end
+
+    return chunks
 
 
 async def assess_risk(
@@ -177,6 +207,8 @@ async def assess_risk(
     user_id: str | None = None,
 ) -> RiskAssessmentResult:
     """Assess risk in contract text using the AI agent.
+
+    Processes full contract by splitting into chunks and aggregating results.
 
     Args:
         contract_text: The contract text to assess.
@@ -188,40 +220,137 @@ async def assess_risk(
     """
     orchestrator = get_orchestrator()
 
-    # Use full text but limit
-    text_sample = contract_text[:25000] if len(contract_text) > 25000 else contract_text
+    # Split large contracts into chunks for complete processing
+    chunks = _split_text_for_processing(contract_text, chunk_size=30000, overlap=2000)
+    logger.info(f"Processing contract in {len(chunks)} chunk(s) for risk assessment")
 
-    query = f"""Assess the risks in this contract:
+    all_risk_factors: list[RiskFactor] = []
+    chunk_scores: list[int] = []
+
+    for chunk_idx, chunk_text in enumerate(chunks):
+        chunk_label = f"[Part {chunk_idx + 1}/{len(chunks)}]" if len(chunks) > 1 else ""
+
+        query = f"""Assess the risks in this contract {chunk_label}:
 
 ---
-{text_sample}
+{chunk_text}
 ---
 
-Identify all risk factors and calculate an overall risk score."""
+Identify all risk factors and calculate an overall risk score for this section."""
 
-    try:
-        from app.services.orchestrator import AgentRequest
+        try:
+            from app.services.orchestrator import AgentRequest
 
-        response = await orchestrator.route_request(
-            AgentRequest(
-                query=query,
-                user_id=user_id or "system",
-                session_id=f"risk_{contract_id or 'unknown'}",
-                contract_id=contract_id,
-                context={"task": "risk_detection"},
+            response = await orchestrator.route_request(
+                AgentRequest(
+                    query=query,
+                    user_id=user_id or "system",
+                    session_id=f"risk_{contract_id or 'unknown'}_{chunk_idx}",
+                    contract_id=contract_id,
+                    context={"task": "risk_detection", "chunk": chunk_idx},
+                )
             )
-        )
 
-        json_data = extract_json_from_response(response.response)
-        if json_data:
-            return _parse_risk_response(json_data)
-        else:
-            logger.warning("Could not parse risk response")
-            return RiskAssessmentResult(overall_score=0, risk_level="LOW")
+            json_data = extract_json_from_response(response.response)
+            if json_data:
+                chunk_result = _parse_risk_response(json_data)
+                all_risk_factors.extend(chunk_result.risk_factors)
+                chunk_scores.append(chunk_result.overall_score)
 
-    except Exception as e:
-        logger.exception(f"Error assessing risk: {e}")
+        except Exception as e:
+            logger.warning(f"Error processing chunk {chunk_idx} for risk: {e}")
+            continue
+
+    if not all_risk_factors:
+        logger.warning("No risk factors found in any chunk")
         return RiskAssessmentResult(overall_score=0, risk_level="LOW")
+
+    # Deduplicate risk factors by category and description similarity
+    unique_factors = _deduplicate_risk_factors(all_risk_factors)
+
+    # Calculate overall score as weighted average with max consideration
+    if chunk_scores:
+        avg_score = sum(chunk_scores) / len(chunk_scores)
+        max_score = max(chunk_scores)
+        # Use weighted combination: 60% max (capture worst risks) + 40% average
+        overall_score = int(0.6 * max_score + 0.4 * avg_score)
+    else:
+        overall_score = sum(f.score for f in unique_factors) // max(len(unique_factors), 1)
+
+    overall_score = min(100, overall_score)  # Cap at 100
+
+    risk_level = _calculate_risk_level(overall_score)
+
+    avg_confidence = (
+        sum(f.confidence for f in unique_factors) / len(unique_factors)
+        if unique_factors
+        else 0.0
+    )
+
+    # Generate summary and recommendations
+    top_recs = []
+    for factor in sorted(unique_factors, key=lambda x: x.score, reverse=True)[:5]:
+        if factor.recommendation:
+            top_recs.append(factor.recommendation)
+
+    summary = f"Contract analyzed in {len(chunks)} section(s). Found {len(unique_factors)} risk factors. "
+    high_risks = [f for f in unique_factors if f.severity == "HIGH"]
+    if high_risks:
+        summary += f"High-severity risks: {', '.join(f.category for f in high_risks[:3])}."
+
+    return RiskAssessmentResult(
+        risk_factors=unique_factors,
+        overall_score=overall_score,
+        risk_level=risk_level,
+        summary=summary,
+        top_recommendations=top_recs[:5],
+        overall_confidence=avg_confidence,
+    )
+
+
+def _deduplicate_risk_factors(factors: list[RiskFactor]) -> list[RiskFactor]:
+    """Deduplicate risk factors by category, keeping highest-scoring instances.
+
+    Args:
+        factors: List of risk factors from multiple chunks.
+
+    Returns:
+        Deduplicated list of risk factors.
+    """
+    # Group by category
+    by_category: dict[str, list[RiskFactor]] = {}
+    for factor in factors:
+        if factor.category not in by_category:
+            by_category[factor.category] = []
+        by_category[factor.category].append(factor)
+
+    # For each category, keep the factor with highest score and merge info
+    unique = []
+    for category, cat_factors in by_category.items():
+        # Sort by score descending
+        cat_factors.sort(key=lambda x: x.score, reverse=True)
+        best = cat_factors[0]
+
+        # If multiple factors in same category, boost score slightly and merge recommendations
+        if len(cat_factors) > 1:
+            # Found in multiple places - likely significant
+            merged_score = min(100, int(best.score * 1.1))
+            merged_refs = [f.clause_reference for f in cat_factors if f.clause_reference]
+            merged_ref = "; ".join(merged_refs[:3]) if merged_refs else best.clause_reference
+
+            unique.append(RiskFactor(
+                category=best.category,
+                description=best.description,
+                severity=best.severity,
+                score=merged_score,
+                clause_reference=merged_ref,
+                recommendation=best.recommendation,
+                confidence=max(f.confidence for f in cat_factors),
+            ))
+        else:
+            unique.append(best)
+
+    return sorted(unique, key=lambda x: x.score, reverse=True)
 
 
 def _parse_risk_response(data: dict[str, Any]) -> RiskAssessmentResult:

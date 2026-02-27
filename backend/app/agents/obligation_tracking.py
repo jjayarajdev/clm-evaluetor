@@ -141,8 +141,38 @@ def get_obligation_tracking_config() -> AgentConfig:
         and compliance requirements. Use for tracking deliverables, payments, and duties.""",
         system_prompt=OBLIGATION_EXTRACTION_PROMPT,
         temperature=0.1,
-        max_tokens=4000,
+        max_tokens=6000,  # Increased for comprehensive obligation extraction
     )
+
+
+def _split_text_for_obligations(text: str, chunk_size: int = 25000, overlap: int = 2000) -> list[str]:
+    """Split large text into overlapping chunks for obligation extraction.
+
+    Args:
+        text: Full contract text.
+        chunk_size: Maximum size per chunk.
+        overlap: Overlap between chunks to capture obligations at boundaries.
+
+    Returns:
+        List of text chunks.
+    """
+    if len(text) <= chunk_size:
+        return [text]
+
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        # Try to break at a paragraph or section boundary
+        if end < len(text):
+            # Look for section header or paragraph break
+            break_point = text.rfind('\n\n', start + chunk_size - 1500, end)
+            if break_point > start:
+                end = break_point
+        chunks.append(text[start:end])
+        start = end - overlap if end < len(text) else end
+
+    return chunks
 
 
 async def extract_obligations(
@@ -151,6 +181,8 @@ async def extract_obligations(
     user_id: str | None = None,
 ) -> ObligationExtractionResult:
     """Extract obligations from contract text using the AI agent.
+
+    Processes full contract by splitting into chunks and aggregating results.
 
     Args:
         contract_text: The contract text to extract obligations from.
@@ -162,40 +194,105 @@ async def extract_obligations(
     """
     orchestrator = get_orchestrator()
 
-    # Use full text but limit to reasonable size
-    text_sample = contract_text[:20000] if len(contract_text) > 20000 else contract_text
+    # Split large contracts into chunks for complete processing
+    chunks = _split_text_for_obligations(contract_text, chunk_size=25000, overlap=2000)
+    logger.info(f"Processing contract in {len(chunks)} chunk(s) for obligation extraction")
 
-    query = f"""Extract all contractual obligations from the following contract:
+    all_obligations: list[ExtractedObligation] = []
+    all_party_counts: dict[str, int] = {}
+
+    for chunk_idx, chunk_text in enumerate(chunks):
+        chunk_label = f"[Part {chunk_idx + 1}/{len(chunks)}]" if len(chunks) > 1 else ""
+
+        query = f"""Extract all contractual obligations from the following contract {chunk_label}:
 
 ---
-{text_sample}
+{chunk_text}
 ---
 
-Identify ALL obligations, deadlines, and responsible parties."""
+Identify ALL obligations, deadlines, and responsible parties in this section."""
 
-    try:
-        from app.services.orchestrator import AgentRequest
+        try:
+            from app.services.orchestrator import AgentRequest
 
-        response = await orchestrator.route_request(
-            AgentRequest(
-                query=query,
-                user_id=user_id or "system",
-                session_id=f"obligation_{contract_id or 'unknown'}",
-                contract_id=contract_id,
-                context={"task": "obligation_tracking"},
+            response = await orchestrator.route_request(
+                AgentRequest(
+                    query=query,
+                    user_id=user_id or "system",
+                    session_id=f"obligation_{contract_id or 'unknown'}_{chunk_idx}",
+                    contract_id=contract_id,
+                    context={"task": "obligation_tracking", "chunk": chunk_idx},
+                )
             )
-        )
 
-        json_data = extract_json_from_response(response.response)
-        if json_data:
-            return _parse_obligation_response(json_data)
-        else:
-            logger.warning(f"Could not parse obligation response")
-            return ObligationExtractionResult()
+            json_data = extract_json_from_response(response.response)
+            if json_data:
+                chunk_result = _parse_obligation_response(json_data)
+                all_obligations.extend(chunk_result.obligations)
+                # Aggregate party counts
+                for party, count in chunk_result.party_summary.items():
+                    all_party_counts[party] = all_party_counts.get(party, 0) + count
 
-    except Exception as e:
-        logger.exception(f"Error extracting obligations: {e}")
+        except Exception as e:
+            logger.warning(f"Error processing chunk {chunk_idx} for obligations: {e}")
+            continue
+
+    if not all_obligations:
+        logger.warning("No obligations found in any chunk")
         return ObligationExtractionResult()
+
+    # Deduplicate obligations by description similarity
+    unique_obligations = _deduplicate_obligations(all_obligations)
+
+    logger.info(f"Extracted {len(unique_obligations)} unique obligations from {len(all_obligations)} total")
+
+    avg_confidence = (
+        sum(o.confidence for o in unique_obligations) / len(unique_obligations)
+        if unique_obligations
+        else 0.0
+    )
+
+    return ObligationExtractionResult(
+        obligations=unique_obligations,
+        party_summary=all_party_counts,
+        overall_confidence=avg_confidence,
+    )
+
+
+def _deduplicate_obligations(obligations: list[ExtractedObligation]) -> list[ExtractedObligation]:
+    """Deduplicate obligations by description similarity.
+
+    Args:
+        obligations: List of obligations from multiple chunks.
+
+    Returns:
+        Deduplicated list of obligations.
+    """
+    if not obligations:
+        return []
+
+    unique: list[ExtractedObligation] = []
+    seen_descriptions: set[str] = set()
+
+    for obl in obligations:
+        # Normalize description for comparison
+        norm_desc = obl.description.lower().strip()[:100]
+
+        # Check for similar descriptions
+        is_duplicate = False
+        for seen in seen_descriptions:
+            # Simple similarity check - if 80% of words match, consider duplicate
+            obl_words = set(norm_desc.split())
+            seen_words = set(seen.split())
+            if len(obl_words & seen_words) >= 0.8 * min(len(obl_words), len(seen_words)):
+                is_duplicate = True
+                break
+
+        if not is_duplicate:
+            seen_descriptions.add(norm_desc)
+            unique.append(obl)
+
+    return unique
 
 
 def _parse_obligation_response(data: dict[str, Any]) -> ObligationExtractionResult:

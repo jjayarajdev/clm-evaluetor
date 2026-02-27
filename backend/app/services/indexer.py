@@ -298,7 +298,7 @@ class IndexingService:
             clause = Clause(
                 contract_id=contract.id,
                 clause_type=ClauseType.OTHER,
-                text=chunk.text[:10000],  # Limit text size
+                text=chunk.text,  # Store full chunk text without truncation
                 section_number=chunk.section_number,
                 page_number=chunk.page_start,
                 confidence_score=1.0,  # Will be updated by extraction agent
