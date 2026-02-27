@@ -144,6 +144,13 @@ from app.models.regulatory_obligation import (
     RegulationType,
     ObligationCategory as RegulatoryObligationCategory,
 )
+# Knowledge Graph
+from app.models.knowledge_graph import (
+    KGEntity,
+    KGEntityType,
+    KGRelationship,
+    KGRelationshipType,
+)
 
 __all__ = [
     # Base
@@ -318,4 +325,9 @@ __all__ = [
     "RegulatoryObligation",
     "RegulationType",
     "RegulatoryObligationCategory",
+    # Knowledge Graph
+    "KGEntity",
+    "KGEntityType",
+    "KGRelationship",
+    "KGRelationshipType",
 ]

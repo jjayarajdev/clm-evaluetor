@@ -17,6 +17,7 @@ from app.agents.base import (
     AgentConfig,
     ContractSearchTool,
     SourceCitation,
+    get_kg_context_for_query,
     inject_context,
 )
 from app.config import settings
@@ -112,8 +113,16 @@ async def ask_question(
         n_results=n_results,
     )
 
-    # Inject context into the query
-    augmented_query = inject_context(question, search_tool)
+    # Get knowledge graph context if contract_id is specified
+    kg_context = None
+    if contract_id and tenant_id:
+        try:
+            kg_context = await get_kg_context_for_query(question, contract_id, tenant_id)
+        except Exception as e:
+            logger.warning(f"Failed to get KG context: {e}")
+
+    # Inject context into the query (includes KG context if available)
+    augmented_query = inject_context(question, search_tool, kg_context=kg_context)
 
     try:
         from app.services.orchestrator import AgentRequest

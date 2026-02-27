@@ -316,6 +316,7 @@ def inject_context(
     query: str,
     search_tool: ContractSearchTool,
     max_context_length: int = 32000,
+    kg_context: str | None = None,
 ) -> str:
     """Inject relevant context into a query for RAG.
 
@@ -323,11 +324,16 @@ def inject_context(
         query: Original user query.
         search_tool: Search tool to retrieve context.
         max_context_length: Maximum context length in characters (default 32KB for GPT-4).
+        kg_context: Optional knowledge graph context to include.
 
     Returns:
         Query with injected context.
     """
     context = search_tool.search_with_context(query)
+
+    # Include knowledge graph context if available
+    if kg_context:
+        context = f"KNOWLEDGE GRAPH CONTEXT:\n{kg_context}\n\n---\n\nDOCUMENT CONTEXT:\n{context}"
 
     # Truncate context if too long (32KB is safe for GPT-4's 128K context)
     if len(context) > max_context_length:
@@ -341,7 +347,99 @@ CONTEXT:
 QUESTION:
 {query}
 
-Please provide a clear, accurate answer based on the context above. If the answer cannot be found in the context, say so clearly."""
+Please provide a clear, accurate answer based on the context above. Use the knowledge graph entities and relationships to resolve terms (e.g., "Provider" refers to a specific company) and understand obligations. If the answer cannot be found in the context, say so clearly."""
+
+
+async def get_kg_context_for_query(
+    query: str,
+    contract_id: str,
+    tenant_id: str,
+) -> str | None:
+    """Get relevant knowledge graph context for a query.
+
+    Extracts relevant entities, resolved terms, and relationships
+    from the knowledge graph to enhance Q&A responses.
+
+    Args:
+        query: User's query.
+        contract_id: Contract ID to search.
+        tenant_id: Tenant ID for isolation.
+
+    Returns:
+        Formatted knowledge graph context or None if unavailable.
+    """
+    try:
+        from app.database import async_session_maker
+        from app.services.knowledge_graph_service import get_knowledge_graph_service
+
+        async with async_session_maker() as db:
+            service = await get_knowledge_graph_service(db)
+
+            # Get entities that might be relevant to the query
+            context_parts = []
+
+            # Extract potential term references from the query
+            query_lower = query.lower()
+
+            # Key terms that often need resolution
+            key_terms = [
+                "provider", "client", "customer", "vendor", "service", "company",
+                "party", "parties", "effective date", "termination", "renewal",
+            ]
+
+            # Look for terms mentioned in the query
+            resolved_terms = []
+            for term in key_terms:
+                if term in query_lower:
+                    resolution = await service.resolve_term(contract_id, term)
+                    if resolution.definition or resolution.resolved_entity:
+                        resolved_terms.append(
+                            f"- \"{term.title()}\" refers to: {resolution.definition or resolution.resolved_entity.name}"
+                        )
+
+            if resolved_terms:
+                context_parts.append("TERM DEFINITIONS:\n" + "\n".join(resolved_terms))
+
+            # Get party obligations if query mentions obligations or parties
+            if any(word in query_lower for word in ["obligation", "must", "shall", "duty", "responsible", "liability"]):
+                try:
+                    party_obligations = await service.get_party_obligations(contract_id)
+                    if party_obligations:
+                        obl_lines = []
+                        for po in party_obligations[:3]:  # Top 3 parties
+                            for obl in po.obligations[:3]:  # Top 3 obligations per party
+                                limits = ", ".join(
+                                    f"capped at {l.properties.get('value', 'N/A')} {l.properties.get('currency', '')}"
+                                    for l in obl.limited_by
+                                ) if obl.limited_by else "no cap specified"
+                                obl_lines.append(
+                                    f"- {po.party_name} has obligation: {obl.obligation_name} ({limits})"
+                                )
+                        if obl_lines:
+                            context_parts.append("PARTY OBLIGATIONS:\n" + "\n".join(obl_lines))
+                except Exception:
+                    pass  # Skip if obligation lookup fails
+
+            # Get graph stats as overview
+            try:
+                graph = await service.get_full_graph(contract_id, tenant_id)
+                if graph.stats.total_entities > 0:
+                    summary_parts = []
+                    for entity_type, count in graph.stats.entities_by_type.items():
+                        summary_parts.append(f"{count} {entity_type}(s)")
+                    context_parts.append(
+                        f"CONTRACT ENTITIES: {', '.join(summary_parts)}"
+                    )
+            except Exception:
+                pass
+
+            if context_parts:
+                return "\n\n".join(context_parts)
+
+    except Exception as e:
+        logger.warning(f"Failed to get KG context: {e}")
+
+    return None
 
 
 def extract_confidence(response: str) -> float | None:

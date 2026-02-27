@@ -17,6 +17,8 @@ from app.services.vector_store import ChunkMetadata, VectorStore, get_vector_sto
 from app.agents.metadata_extraction import extract_metadata_with_fallback, update_contract_metadata
 from app.agents.risk_detection import assess_risk, update_contract_risk
 from app.services.custom_field_extraction import extract_custom_fields
+from app.services.knowledge_graph_extractor import get_knowledge_graph_extractor
+from app.models.knowledge_graph import KGEntity
 from app.models.tenant import Tenant
 
 logger = logging.getLogger(__name__)
@@ -153,6 +155,23 @@ class IndexingService:
             except Exception as e:
                 logger.warning(f"Risk assessment failed for {contract.id}: {e}")
 
+            # Extract knowledge graph (entities and relationships)
+            logger.info(f"Extracting knowledge graph for contract {contract.id}")
+            try:
+                kg_extractor = await get_knowledge_graph_extractor(self.db)
+                entity_count, rel_count = await kg_extractor.extract_and_store(
+                    contract_id=str(contract.id),
+                    tenant_id=str(contract.tenant_id),
+                    contract_text=full_text,
+                    force_reextract=True,  # Always fresh extract during indexing
+                )
+                logger.info(
+                    f"Knowledge graph extracted for contract {contract.id}: "
+                    f"{entity_count} entities, {rel_count} relationships"
+                )
+            except Exception as e:
+                logger.warning(f"Knowledge graph extraction failed for {contract.id}: {e}")
+
             # Mark as completed
             contract.status = ContractStatus.COMPLETED
             await self.db.flush()
@@ -235,7 +254,7 @@ class IndexingService:
         # Additional metadata extraction will be done by the metadata agent
 
     async def _cleanup_existing(self, contract: Contract) -> None:
-        """Clean up existing vectors and clauses for a contract.
+        """Clean up existing vectors, clauses, and knowledge graph for a contract.
 
         Args:
             contract: Contract to clean up.
@@ -251,6 +270,11 @@ class IndexingService:
         # Delete clauses from database
         await self.db.execute(
             delete(Clause).where(Clause.contract_id == contract.id)
+        )
+
+        # Delete knowledge graph entities (relationships cascade delete)
+        await self.db.execute(
+            delete(KGEntity).where(KGEntity.contract_id == contract.id)
         )
 
     async def _store_chunks(
