@@ -15,14 +15,32 @@ from app.models.base import TimestampMixin, UUIDMixin
 class SLAMetricType(str, enum.Enum):
     """Types of SLA metrics."""
 
+    # Availability metrics
     UPTIME_PERCENTAGE = "uptime_percentage"  # e.g., 99.9% uptime
+    AVAILABILITY = "availability"  # e.g., available 24/7
+
+    # Time-based metrics
     RESPONSE_TIME = "response_time"  # e.g., respond within 4 hours
     RESOLUTION_TIME = "resolution_time"  # e.g., resolve within 24 hours
     DELIVERY_TIME = "delivery_time"  # e.g., deliver within 5 business days
-    THROUGHPUT = "throughput"  # e.g., process 1000 transactions/hour
+
+    # Rate/percentage metrics
+    SUCCESS_RATE = "success_rate"  # e.g., first call resolution 75%, change success 98%
     ERROR_RATE = "error_rate"  # e.g., less than 0.1% errors
-    AVAILABILITY = "availability"  # e.g., available 24/7
-    QUALITY_SCORE = "quality_score"  # e.g., maintain quality score > 95
+    COMPLIANCE_RATE = "compliance_rate"  # e.g., patch compliance >98%
+
+    # Capacity/utilization metrics
+    UTILIZATION = "utilization"  # e.g., CPU <70%, memory <75%, storage <80%
+    THROUGHPUT = "throughput"  # e.g., process 1000 transactions/hour
+
+    # Recovery metrics
+    RECOVERY_TIME = "recovery_time"  # e.g., RTO 4 hours, restore within 8 hours
+    RECOVERY_POINT = "recovery_point"  # e.g., RPO 1 hour (max data loss)
+
+    # Quality metrics
+    QUALITY_SCORE = "quality_score"  # e.g., CSAT 4.5/5, NPS > 50
+
+    # Fallback
     CUSTOM = "custom"
 
 

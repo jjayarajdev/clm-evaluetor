@@ -25,15 +25,33 @@ logger = logging.getLogger(__name__)
 
 # Metric type descriptions for the prompt
 METRIC_TYPES = {
-    "UPTIME_PERCENTAGE": "System availability (e.g., 99.9% uptime)",
-    "RESPONSE_TIME": "Time to respond (e.g., respond within 4 hours)",
-    "RESOLUTION_TIME": "Time to resolve (e.g., resolve within 24 hours)",
-    "DELIVERY_TIME": "Time to deliver (e.g., deliver within 5 business days)",
-    "THROUGHPUT": "Processing rate (e.g., process 1000 transactions/hour)",
-    "ERROR_RATE": "Error frequency (e.g., less than 0.1% errors)",
-    "AVAILABILITY": "Service availability (e.g., available 24/7)",
-    "QUALITY_SCORE": "Quality metric (e.g., maintain quality score > 95)",
-    "CUSTOM": "Other SLA metric",
+    # Availability metrics
+    "UPTIME_PERCENTAGE": "System uptime percentage (e.g., 99.9% uptime, 99.95% availability)",
+    "AVAILABILITY": "Service availability windows (e.g., available 24/7, 99.99% available)",
+
+    # Time-based metrics
+    "RESPONSE_TIME": "Time to respond/acknowledge (e.g., respond within 4 hours, answer in 30 seconds)",
+    "RESOLUTION_TIME": "Time to resolve/fix (e.g., resolve within 24 hours, incident containment 1 hour)",
+    "DELIVERY_TIME": "Time to deliver/deploy (e.g., deliver within 5 days, patch deployment 24 hours)",
+
+    # Rate/percentage metrics
+    "SUCCESS_RATE": "Success/completion rates (e.g., first call resolution 75%, change success 98%, backup success 99.9%, DR test 100%)",
+    "ERROR_RATE": "Error/failure rates (e.g., error rate <0.1%, call abandonment <3%, false positive <5%)",
+    "COMPLIANCE_RATE": "Compliance percentages (e.g., patch compliance >98%, security compliance 100%)",
+
+    # Capacity/utilization metrics
+    "UTILIZATION": "Resource utilization (e.g., CPU <70%, memory <75%, storage <80%, bandwidth <60%)",
+    "THROUGHPUT": "Processing rate/capacity (e.g., process 1000 transactions/hour)",
+
+    # Recovery metrics
+    "RECOVERY_TIME": "Recovery time objectives (e.g., RTO 4 hours, restore within 8 hours, incident eradication 4 hours)",
+    "RECOVERY_POINT": "Recovery point objectives (e.g., RPO 1 hour max data loss)",
+
+    # Quality metrics
+    "QUALITY_SCORE": "Quality/satisfaction scores (e.g., CSAT 4.5/5.0, NPS >50, quality score >95)",
+
+    # Fallback
+    "CUSTOM": "Other SLA metrics that don't fit above categories",
 }
 
 UNITS = {
@@ -155,7 +173,7 @@ UNITS:
 For each SLA found, extract:
 1. **sla_name**: A clear name for the SLA (e.g., "System Uptime", "Response Time - Priority 1")
 2. **sla_description**: Description of what is being measured
-3. **metric_type**: One of: UPTIME_PERCENTAGE, RESPONSE_TIME, RESOLUTION_TIME, DELIVERY_TIME, THROUGHPUT, ERROR_RATE, AVAILABILITY, QUALITY_SCORE, CUSTOM
+3. **metric_type**: One of: UPTIME_PERCENTAGE, AVAILABILITY, RESPONSE_TIME, RESOLUTION_TIME, DELIVERY_TIME, SUCCESS_RATE, ERROR_RATE, COMPLIANCE_RATE, UTILIZATION, THROUGHPUT, RECOVERY_TIME, RECOVERY_POINT, QUALITY_SCORE, CUSTOM
 4. **metric_unit**: One of: PERCENTAGE, HOURS, MINUTES, DAYS, BUSINESS_DAYS, COUNT, SCORE
 5. **target_value**: The numerical target (e.g., 99.9 for 99.9% uptime)
 6. **target_operator**: How to compare: >= (at least), <= (at most), >, <, = (exactly)
