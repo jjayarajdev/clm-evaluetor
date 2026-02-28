@@ -266,6 +266,7 @@ async def extract_slas(
 
         if not json_data:
             logger.warning(f"No JSON found in SLA extraction response for {contract_id}")
+            logger.debug(f"Raw SLA extraction response (first 2000 chars): {response[:2000]}")
             return None
 
         # Preprocess to handle AI response format issues
@@ -368,7 +369,7 @@ def register_sla_extraction_agent() -> None:
         response times, penalty clauses, service credits, and KPIs.""",
         system_prompt=SLA_EXTRACTION_PROMPT,
         temperature=0.1,
-        max_tokens=4000,
+        max_tokens=16000,  # Increased for contracts with many SLAs (70+)
     )
 
     logger.info("Registered SLA extraction agent")
