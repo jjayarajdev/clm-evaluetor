@@ -18,6 +18,19 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+# Determine docker compose command (plugin vs standalone)
+get_compose_cmd() {
+    if docker compose version &> /dev/null; then
+        echo "docker compose"
+    elif command -v docker-compose &> /dev/null; then
+        echo "docker-compose"
+    else
+        echo ""
+    fi
+}
+
+COMPOSE_CMD=""
+
 # Check required tools
 check_requirements() {
     log_info "Checking requirements..."
@@ -27,12 +40,13 @@ check_requirements() {
         exit 1
     fi
 
-    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+    COMPOSE_CMD=$(get_compose_cmd)
+    if [ -z "$COMPOSE_CMD" ]; then
         log_error "Docker Compose is not installed. Please install Docker Compose first."
         exit 1
     fi
 
-    log_info "All requirements met."
+    log_info "All requirements met. Using: $COMPOSE_CMD"
 }
 
 # Setup environment
@@ -97,10 +111,10 @@ deploy() {
 
     # Build and start services
     log_info "Building Docker images..."
-    docker compose -f docker-compose.prod.yml build
+    $COMPOSE_CMD -f docker-compose.prod.yml build
 
     log_info "Starting services..."
-    docker compose -f docker-compose.prod.yml up -d
+    $COMPOSE_CMD -f docker-compose.prod.yml up -d
 
     # Wait for services to be healthy
     log_info "Waiting for services to be ready..."
@@ -108,17 +122,17 @@ deploy() {
 
     # Run database migrations
     log_info "Running database migrations..."
-    docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head || {
+    $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend alembic upgrade head || {
         log_warn "Migration failed, services may still be starting. Retrying in 10s..."
         sleep 10
-        docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
+        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend alembic upgrade head
     }
 
     # Only seed on fresh deployments
     if [ "$SKIP_SEED" = false ]; then
         log_info "Seeding initial data (fresh deployment)..."
-        docker compose -f docker-compose.prod.yml exec -T backend python -m scripts.seed_data || true
-        docker compose -f docker-compose.prod.yml exec -T backend python -m scripts.seed_compliance_rules || true
+        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -m scripts.seed_data || true
+        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -m scripts.seed_compliance_rules || true
     else
         log_info "Skipping seed data (existing deployment - data preserved)"
     fi
@@ -131,31 +145,35 @@ deploy() {
 # Force seed data (use with caution)
 seed() {
     cd "$SCRIPT_DIR"
+    COMPOSE_CMD=$(get_compose_cmd)
     log_warn "Seeding data - this will add demo data to the database"
-    docker compose -f docker-compose.prod.yml exec -T backend python -m scripts.seed_data || true
-    docker compose -f docker-compose.prod.yml exec -T backend python -m scripts.seed_compliance_rules || true
+    $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -m scripts.seed_data || true
+    $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -m scripts.seed_compliance_rules || true
     log_info "Seeding complete."
 }
 
 # Show logs
 logs() {
     cd "$SCRIPT_DIR"
-    docker compose -f docker-compose.prod.yml logs -f "${1:-}"
+    COMPOSE_CMD=$(get_compose_cmd)
+    $COMPOSE_CMD -f docker-compose.prod.yml logs -f "${1:-}"
 }
 
 # Restart services
 restart() {
     cd "$SCRIPT_DIR"
+    COMPOSE_CMD=$(get_compose_cmd)
     log_info "Restarting services..."
-    docker compose -f docker-compose.prod.yml restart
+    $COMPOSE_CMD -f docker-compose.prod.yml restart
     log_info "Services restarted."
 }
 
 # Stop services (preserves data volumes)
 stop() {
     cd "$SCRIPT_DIR"
+    COMPOSE_CMD=$(get_compose_cmd)
     log_info "Stopping services (data volumes will be PRESERVED)..."
-    docker compose -f docker-compose.prod.yml down
+    $COMPOSE_CMD -f docker-compose.prod.yml down
     log_info "Services stopped. Data is safe in Docker volumes."
     log_info "To restart: ./deploy.sh deploy"
 }
@@ -163,6 +181,7 @@ stop() {
 # Destroy everything including data (DANGEROUS!)
 destroy() {
     cd "$SCRIPT_DIR"
+    COMPOSE_CMD=$(get_compose_cmd)
     log_error "WARNING: This will DELETE ALL DATA including:"
     log_error "  - PostgreSQL database (all contracts, users, etc.)"
     log_error "  - ChromaDB vectors (all embeddings)"
@@ -171,7 +190,7 @@ destroy() {
     read -p "Are you absolutely sure? Type 'DELETE ALL DATA' to confirm: " confirm
     if [ "$confirm" = "DELETE ALL DATA" ]; then
         log_warn "Removing all containers and volumes..."
-        docker compose -f docker-compose.prod.yml down -v --remove-orphans
+        $COMPOSE_CMD -f docker-compose.prod.yml down -v --remove-orphans
         log_info "All data has been deleted."
     else
         log_info "Cancelled. No data was deleted."
@@ -181,11 +200,12 @@ destroy() {
 # Backup data volumes
 backup() {
     cd "$SCRIPT_DIR"
+    COMPOSE_CMD=$(get_compose_cmd)
     BACKUP_DIR="./backups/$(date +%Y%m%d_%H%M%S)"
     mkdir -p "$BACKUP_DIR"
 
     log_info "Backing up PostgreSQL data..."
-    docker compose -f docker-compose.prod.yml exec -T postgres pg_dumpall -U ${POSTGRES_USER:-clm} > "$BACKUP_DIR/postgres_backup.sql"
+    $COMPOSE_CMD -f docker-compose.prod.yml exec -T postgres pg_dumpall -U ${POSTGRES_USER:-clm} > "$BACKUP_DIR/postgres_backup.sql"
 
     log_info "Backing up ChromaDB data..."
     docker run --rm -v deploy_chroma_data:/data -v "$(pwd)/$BACKUP_DIR":/backup alpine tar czf /backup/chroma_backup.tar.gz -C /data .
@@ -197,9 +217,10 @@ backup() {
 # Show status
 status() {
     cd "$SCRIPT_DIR"
+    COMPOSE_CMD=$(get_compose_cmd)
     echo ""
     log_info "Service Status:"
-    docker compose -f docker-compose.prod.yml ps
+    $COMPOSE_CMD -f docker-compose.prod.yml ps
     echo ""
 
     # Check if frontend is accessible

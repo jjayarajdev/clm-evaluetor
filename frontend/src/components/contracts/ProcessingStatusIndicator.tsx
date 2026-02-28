@@ -5,7 +5,7 @@
  * Uses SSE to receive updates from the backend.
  */
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useProcessingStatus, ProcessingStage } from '../../hooks/useProcessingStatus';
 
 interface ProcessingStatusIndicatorProps {
@@ -42,7 +42,7 @@ export function ProcessingStatusIndicator({
   onError,
   className = '',
 }: ProcessingStatusIndicatorProps) {
-  const { progress, isProcessing, connect } = useProcessingStatus({
+  const { progress, connect } = useProcessingStatus({
     onComplete: () => onComplete?.(),
     onError: (err) => onError?.(err),
   });
