@@ -3708,7 +3708,7 @@ async def get_recent_activity(
         activities.append(ActivityItem(
             icon="check",
             title="Obligation completed",
-            subtitle=obl.title[:50] + "..." if len(obl.title) > 50 else obl.title,
+            subtitle=obl.description[:50] + "..." if len(obl.description) > 50 else obl.description,
             time=time_ago(obl.updated_at) if obl.updated_at else "recently",
             color="green"
         ))
