@@ -1,8 +1,10 @@
 """Contracts router for upload and management."""
 
+import json
 from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +24,7 @@ from app.schemas.contract import (
     UploadStatusResponse,
 )
 from app.services.upload import UploadError, UploadService
+from app.services.progress_tracker import get_progress_tracker, ProcessingStage
 
 router = APIRouter(prefix="/api/contracts", tags=["Contracts"])
 
@@ -1767,6 +1770,87 @@ async def analyze_contract(
         "contract_id": contract_id,
         "analyses": ["clause_extraction", "obligation_tracking", "sla_extraction"],
     }
+
+
+@router.get("/{contract_id}/processing-status")
+async def get_processing_status_sse(
+    contract_id: str,
+    current_user: CurrentUser,
+) -> StreamingResponse:
+    """Stream processing status updates via Server-Sent Events (SSE).
+
+    Connect to this endpoint to receive real-time progress updates when
+    a contract is being processed (uploaded or re-analyzed).
+
+    The stream sends JSON events with the following structure:
+    ```
+    {
+        "contract_id": "...",
+        "stage": "parsing|metadata|risk|knowledge_graph|completed|failed",
+        "stage_description": "Human readable description",
+        "progress_percent": 0-100,
+        "message": "Current status message",
+        "error": null or "Error message if failed"
+    }
+    ```
+
+    The stream will automatically close when processing completes or fails.
+    """
+    tracker = get_progress_tracker()
+
+    async def event_generator():
+        """Generate SSE events."""
+        try:
+            async for progress in tracker.subscribe(contract_id):
+                data = json.dumps(progress.to_dict())
+                yield f"data: {data}\n\n"
+
+                # Stop streaming if completed or failed
+                if progress.stage in (ProcessingStage.COMPLETED, ProcessingStage.FAILED):
+                    break
+        except Exception as e:
+            error_data = json.dumps({
+                "contract_id": contract_id,
+                "stage": "failed",
+                "error": str(e),
+            })
+            yield f"data: {error_data}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        },
+    )
+
+
+@router.get("/{contract_id}/processing-status/current")
+async def get_current_processing_status(
+    contract_id: str,
+    current_user: CurrentUser,
+) -> dict:
+    """Get the current processing status (non-streaming).
+
+    Returns the current state of processing without streaming.
+    Useful for initial state check before connecting to SSE.
+    """
+    tracker = get_progress_tracker()
+    progress = tracker.get_progress(contract_id)
+
+    if not progress:
+        return {
+            "contract_id": contract_id,
+            "stage": "idle",
+            "stage_description": "Not currently processing",
+            "progress_percent": 0,
+            "message": "Contract is not being processed",
+            "error": None,
+        }
+
+    return progress.to_dict()
 
 
 @router.patch("/{contract_id}", response_model=ContractResponse)
