@@ -176,11 +176,52 @@ scp -i ~/.ssh/clm-demo-key.pem -r backend frontend deploy ec2-user@$PUBLIC_IP:~/
 # Restart services
 ./deploy.sh restart
 
-# Stop services
+# Stop services (data volumes are PRESERVED)
 ./deploy.sh stop
 
 # Check status
 ./deploy.sh status
+
+# Backup PostgreSQL and ChromaDB data
+./deploy.sh backup
+
+# Manually seed demo data (use with caution)
+./deploy.sh seed
+
+# DELETE ALL DATA (requires typing "DELETE ALL DATA" to confirm)
+./deploy.sh destroy
+```
+
+## Data Persistence
+
+**Data is automatically preserved** across deployments and restarts:
+
+- **PostgreSQL data** is stored in Docker named volume `deploy_postgres_data`
+- **ChromaDB vectors** are stored in Docker named volume `deploy_chroma_data`
+
+When you run `./deploy.sh deploy`:
+- On **fresh deployment**: Seeds demo data automatically
+- On **update deployment**: Detects existing volumes and skips seeding
+
+To **update code without losing data**:
+```bash
+cd ~/clm
+git pull origin main
+cd deploy
+./deploy.sh deploy
+```
+
+To **backup data before updates**:
+```bash
+./deploy.sh backup
+# Creates timestamped backup in ./backups/
+```
+
+To **completely wipe and start fresh** (DANGEROUS):
+```bash
+./deploy.sh destroy
+# Requires typing "DELETE ALL DATA" to confirm
+./deploy.sh deploy  # Fresh start with new data
 ```
 
 ## Adding HTTPS (Optional)
