@@ -51,7 +51,7 @@ SUPPORTED_CLAUSE_TYPES = {
 
     # IT Service/Outsourcing contract clauses
     "SERVICE_DESCRIPTION": "Description of services provided, service catalog, bundles",
-    "SERVICE_LEVEL": "Performance metrics, targets, KPIs, response times",
+    "SERVICE_LEVEL": "Performance metrics, targets, KPIs, response times, availability percentages (99.9%, 99.95%), SLA tables with columns like 'Target', 'Minimum', 'Measurement Window', uptime requirements, incident response/resolution times, throughput metrics",
     "DELIVERABLE": "What must be delivered, milestones, acceptance criteria",
     "GOVERNANCE": "Management structure, oversight, escalation, reporting",
     "TRANSITION": "Exit planning, knowledge transfer, handover procedures",
@@ -107,6 +107,14 @@ For each clause found in the contract, extract:
 
 Also identify any EXPECTED clauses that are MISSING from the contract. Common expected clauses include: LIMITATION_OF_LIABILITY, INDEMNIFICATION, TERMINATION, CONFIDENTIALITY, GOVERNING_LAW.
 
+IMPORTANT - Recognizing SERVICE_LEVEL content:
+- SLA metric tables with columns like "Target", "Minimum", "Measurement Window" = SERVICE_LEVEL
+- Availability percentages (99.9%, 99.95%, 99.99%) = SERVICE_LEVEL
+- Response/resolution time requirements (respond within 4 hours, resolve within 24 hours) = SERVICE_LEVEL
+- Performance thresholds with units (minutes, hours, %, count) = SERVICE_LEVEL
+- Priority definitions (P1, P2, P3, P4) with response times = SERVICE_LEVEL
+- Do NOT classify these as OTHER - they are SERVICE_LEVEL clauses
+
 Respond ONLY with valid JSON in this format:
 ```json
 {{
@@ -138,7 +146,7 @@ def get_clause_extraction_config() -> AgentConfig:
         confidentiality, IP, payment terms, warranties, and more.""",
         system_prompt=CLAUSE_EXTRACTION_PROMPT,
         temperature=0.1,
-        max_tokens=6000,  # Increased for comprehensive clause extraction
+        max_tokens=12000,  # Increased for contracts with many clauses (50+)
     )
 
 
