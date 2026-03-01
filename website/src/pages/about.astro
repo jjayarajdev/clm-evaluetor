@@ -12,7 +12,7 @@ import CTABanner from '../components/CTABanner.astro';
     tag="Our Story"
     headline='A small team with a <span class="text-primary-600">big bet</span>'
     subheadline="We're building the contract intelligence platform that enterprises deserve but have never had."
-    primaryCTA={{ text: 'Talk to the founder', href: '/contact' }}
+    primaryCTA={{ text: 'Talk to the team', href: '/contact' }}
     secondaryCTA={{ text: 'See the product', href: '/product' }}
   />
 
@@ -45,10 +45,10 @@ import CTABanner from '../components/CTABanner.astro';
         />
         <div class="text-lg text-gray-400 mx-auto text-center leading-relaxed">
           <p>
-            I spent years in vendor governance and relationship management, watching enterprises lose millions to contracts they couldn't track. Legal teams drowning in manual review. Procurement missing SLA breaches. Finance discovering auto-renewals after they triggered.
+            Years of experience in vendor governance and relationship management revealed a painful truth: enterprises lose millions to contracts they can't track. Legal teams drowning in manual review. Procurement missing SLA breaches. Finance discovering auto-renewals after they've triggered.
           </p>
           <p class="mt-4">
-            I started Evaluetor in Rotterdam with a simple thesis: if AI can read and understand contracts better than any individual person, why are we still doing it manually? So I built a platform that doesn't just store contracts — it understands them.
+            Evaluetor was started in Rotterdam with a simple thesis: if AI can read and understand contracts better than any individual person, why are we still doing it manually? So we built a platform that doesn't just store contracts — it understands them.
           </p>
         </div>
       </div>
@@ -88,21 +88,29 @@ import CTABanner from '../components/CTABanner.astro';
     </div>
   </section>
 
-  <!-- Leadership -->
+  <!-- Who's Behind This -->
   <section class="section-padding bg-gray-50">
     <div class="container-narrow">
       <SectionHeading
-        tag="Founder"
+        tag="Behind Evaluetor"
         title="Who's building this"
       />
-      <div class="flex justify-center mt-8">
-        <div class="text-center max-w-md">
-          <div class="w-32 h-32 rounded-full bg-gradient-to-br from-primary-500 to-primary-300 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary-500/20">
-            <span class="text-4xl font-bold text-white">JJ</span>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mt-8">
+        <div class="bg-white rounded-2xl p-8 border border-gray-200/60 text-center shadow-sm hover:shadow-md transition-shadow">
+          <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center mx-auto mb-5 shadow-md shadow-primary-500/20">
+            <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" /></svg>
           </div>
-          <h3 class="text-2xl font-bold text-gray-900">Jay Jayaraj</h3>
-          <p class="text-base text-primary-600 font-semibold mt-1">Founder & CEO</p>
-          <p class="text-sm text-gray-600 mt-3 leading-relaxed">Entrepreneur and builder with deep experience in vendor governance and business relationship management. Tired of watching enterprises struggle with contracts, so decided to build the solution.</p>
+          <h3 class="text-xl font-bold text-gray-900">S.E.Visser Consultancy B.V.</h3>
+          <p class="text-base text-primary-600 font-semibold mt-1">Strategy & Domain Expertise</p>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">Deep experience in vendor governance, business relationship management, and enterprise contract operations. The domain knowledge and strategic vision behind Evaluetor.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-8 border border-gray-200/60 text-center shadow-sm hover:shadow-md transition-shadow">
+          <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center mx-auto mb-5 shadow-md shadow-primary-500/20">
+            <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900">Syntegreti Technologies B.V.</h3>
+          <p class="text-base text-primary-600 font-semibold mt-1">Engineering & AI</p>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">The technical force building the platform. AI-native architecture, multi-agent orchestration, and the engineering that turns domain expertise into working software.</p>
         </div>
       </div>
     </div>
