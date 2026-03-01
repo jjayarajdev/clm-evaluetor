@@ -1,0 +1,116 @@
+---
+import MarketingLayout from '../layouts/MarketingLayout.astro';
+import Hero from '../components/Hero.astro';
+import PricingTable from '../components/PricingTable.astro';
+import AccordionFAQ from '../components/AccordionFAQ.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import CTABanner from '../components/CTABanner.astro';
+
+const faqItems = [
+  {
+    question: 'Is there a free trial?',
+    answer: 'Yes. Every plan includes a 14-day free trial with full access to all features in that tier. No credit card required to start. Upload your own contracts and see results within minutes.',
+  },
+  {
+    question: 'What counts as a contract toward my limit?',
+    answer: 'A contract is any document you upload for AI processing — master agreements, SOWs, amendments, NDAs, and order forms each count as one contract. Attachments and exhibits linked to a parent contract do not count separately.',
+  },
+  {
+    question: 'How long does implementation take?',
+    answer: 'Evaluetor is designed for rapid time-to-value. Most teams are up and running within hours, not months. Upload a PDF and get extracted intelligence in minutes. Enterprise customers with custom integrations and SSO typically complete onboarding in 2-4 weeks.',
+  },
+  {
+    question: 'How do you handle data security?',
+    answer: 'Security is foundational to our platform. We are SOC 2 Type II compliant and GDPR-ready with data residency options for US and EU regions. All data is encrypted at rest and in transit. We support SSO, role-based access control, and maintain comprehensive audit trails for every action.',
+  },
+  {
+    question: 'What integrations are available?',
+    answer: 'Evaluetor integrates with popular tools including Salesforce, SAP Ariba, Microsoft 365, Google Workspace, Slack, and Jira. Our REST API allows custom integrations with any system. The number of integrations included depends on your plan tier.',
+  },
+  {
+    question: 'Can I cancel or change plans at any time?',
+    answer: 'Yes. All plans are billed monthly or annually (with a discount for annual billing). You can upgrade, downgrade, or cancel at any time. When you cancel, you retain access through the end of your current billing period. Your data is available for export for 30 days after cancellation.',
+  },
+];
+---
+
+<MarketingLayout title="Pricing - Simple, Transparent Plans" description="Contract volume-based pricing with unlimited users. No per-seat fees. Choose the plan that fits your portfolio.">
+
+  <!-- Hero -->
+  <Hero
+    tag="Pricing"
+    headline='Simple, <span class="text-primary-600">transparent pricing</span>'
+    subheadline="Pay for contracts, not seats. Every plan includes unlimited users so your whole team can collaborate."
+    primaryCTA={{ text: 'Start free trial', href: '/contact' }}
+    secondaryCTA={{ text: 'Talk to sales', href: '/contact' }}
+  />
+
+  <!-- Pricing Table -->
+  <section class="section-padding">
+    <div class="container-narrow">
+      <SectionHeading
+        tag="Plans"
+        title="Choose the right plan for your team"
+        subtitle="All plans include unlimited users, AI-powered extraction, and our core contract intelligence engine. Scale as your portfolio grows."
+      />
+      <PricingTable />
+    </div>
+  </section>
+
+  <!-- Key Differentiators -->
+  <section class="section-padding bg-gray-50">
+    <div class="container-narrow">
+      <SectionHeading
+        tag="Why Our Pricing Is Different"
+        title="Pricing that actually makes sense"
+        subtitle="No per-seat gotchas. No enterprise tax. Just pay for what you use."
+      />
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
+        <div class="bg-white rounded-xl p-8 border border-gray-100 text-center">
+          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" /></svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">No per-seat fees</h3>
+          <p class="text-sm text-gray-600">Invite your entire legal, procurement, finance, and operations teams without worrying about escalating license costs.</p>
+        </div>
+        <div class="bg-white rounded-xl p-8 border border-gray-100 text-center">
+          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">Unlimited users</h3>
+          <p class="text-sm text-gray-600">Every stakeholder gets access. Legal reviews risks, procurement tracks SLAs, finance monitors renewals — all on the same platform.</p>
+        </div>
+        <div class="bg-white rounded-xl p-8 border border-gray-100 text-center">
+          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">Contract volume-based</h3>
+          <p class="text-sm text-gray-600">Pricing scales with your portfolio, not your org chart. Add users freely and only upgrade when your contract volume grows.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section-padding">
+    <div class="container-narrow">
+      <SectionHeading
+        tag="FAQ"
+        title="Frequently asked questions"
+        subtitle="Everything you need to know about Evaluetor pricing and plans."
+      />
+      <div class="max-w-3xl mx-auto">
+        <AccordionFAQ items={faqItems} />
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <CTABanner
+    headline="14 days free. No credit card."
+    subtext="Upload your contracts and see what you've been missing."
+    buttonText="Start free"
+    buttonLink="/contact"
+  />
+
+</MarketingLayout>

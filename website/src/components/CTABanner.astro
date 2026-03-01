@@ -1,0 +1,37 @@
+---
+interface Props {
+  headline?: string;
+  subtext?: string;
+  buttonText?: string;
+  buttonLink?: string;
+}
+
+const {
+  headline = 'Ready to make your contracts actionable?',
+  subtext = 'See how Evaluetor can transform your contract management in a live demo.',
+  buttonText = 'Book a Demo',
+  buttonLink = '/contact',
+} = Astro.props;
+---
+
+<section class="relative overflow-hidden bg-gray-950 border-t border-b border-primary-500/20">
+  <!-- Glowing purple orb from center -->
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-[radial-gradient(ellipse,rgba(124,58,237,0.15)_0%,transparent_70%)] animate-pulse-glow"></div>
+
+  <!-- Dot grid overlay -->
+  <div class="absolute inset-0 dot-grid opacity-30"></div>
+
+  <!-- Subtle glow lines at edges -->
+  <div class="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary-500/40 to-transparent"></div>
+  <div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary-500/40 to-transparent"></div>
+
+  <div class="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16 text-center">
+    <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-white">{headline}</h2>
+    <p class="mt-5 text-xl text-gray-400 max-w-2xl mx-auto">{subtext}</p>
+    <div class="mt-10">
+      <a href={buttonLink} class="inline-flex items-center justify-center px-10 py-4 text-lg font-semibold text-primary-700 bg-white rounded-lg hover:bg-gray-100 transition-all duration-200 shadow-lg shadow-primary-500/25 hover:shadow-xl hover:shadow-primary-500/30">
+        {buttonText}
+      </a>
+    </div>
+  </div>
+</section>

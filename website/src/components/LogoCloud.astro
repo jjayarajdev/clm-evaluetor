@@ -1,0 +1,13 @@
+---
+interface Props {
+  title?: string;
+}
+
+const { title = 'Built for legal and procurement teams who are done with spreadsheets' } = Astro.props;
+---
+
+<section class="py-10 bg-gray-950 border-t border-white/[0.06]">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <p class="text-center text-sm text-gray-500">{title}</p>
+  </div>
+</section>

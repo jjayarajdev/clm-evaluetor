@@ -1,0 +1,170 @@
+---
+import MarketingLayout from '../layouts/MarketingLayout.astro';
+import Hero from '../components/Hero.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import FeatureShowcase from '../components/FeatureShowcase.astro';
+import Timeline from '../components/Timeline.astro';
+import CTABanner from '../components/CTABanner.astro';
+
+const steps = [
+  {
+    number: 1,
+    title: 'Upload',
+    description: 'Upload any PDF or Word contract. Drag and drop single documents or bulk import an entire portfolio. No templates, no pre-configuration required.',
+  },
+  {
+    number: 2,
+    title: 'AI Extraction',
+    description: 'Eight specialized AI agents analyze every document simultaneously — extracting metadata, classifying clauses, scoring risks, identifying obligations, and detecting SLA terms.',
+  },
+  {
+    number: 3,
+    title: 'Track & Monitor',
+    description: 'Obligations surface with deadlines and owners. SLA metrics are matched against actual performance. Renewal dates populate your calendar with auto-renewal and notice period alerts.',
+  },
+  {
+    number: 4,
+    title: 'Govern Relationships',
+    description: 'Score vendor performance with multi-factor analysis. Track KPI perception gaps between internal and external stakeholders. Drive accountability with structured improvement plans.',
+  },
+];
+---
+
+<MarketingLayout title="Product Overview - Complete Post-Signing Contract Management" description="One platform to understand, track, and govern every contract. AI-powered extraction, obligation tracking, SLA monitoring, renewal management, and relationship governance.">
+
+  <!-- Hero -->
+  <Hero
+    tag="Product Overview"
+    headline='One platform to <span class="text-primary-600">understand, track, and govern</span> every contract'
+    subheadline="Complete post-signing contract management. AI extraction, obligation tracking, SLA monitoring, renewal alerts, and relationship governance — in one platform."
+    primaryCTA={{ text: 'See it live', href: '/contact' }}
+    secondaryCTA={{ text: 'See Pricing', href: '/pricing' }}
+  />
+
+  <!-- How It Works -->
+  <section class="section-padding">
+    <div class="container-narrow">
+      <SectionHeading
+        tag="How It Works"
+        title="From upload to intelligence in minutes"
+        subtitle="Four steps from PDF to actionable intelligence."
+      />
+      <div class="max-w-2xl mx-auto">
+        <Timeline steps={steps} />
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature Showcase 1: Contract Intelligence -->
+  <section class="section-padding bg-gray-50">
+    <div class="container-narrow">
+      <FeatureShowcase
+        title="Contract Intelligence"
+        description="Eight specialized AI agents powered by GPT-4o extract every critical data point from your contracts. No manual review, no templates, no training period. Upload a document and receive structured, searchable intelligence in minutes."
+        imagePosition="right"
+        tag="AI-Powered Extraction"
+        image="/screenshots/contract-qa.png"
+        imageAlt="Contract Q&A interface showing AI-powered question answering"
+        bullets={[
+          'Metadata extraction identifies parties, dates, values, governing law, and contract type automatically',
+          'Clause classification across 30+ types including indemnification, IP assignment, termination, and confidentiality',
+          'Risk scoring on a four-level scale (Low, Medium, High, Critical) across 10 risk categories',
+          'Natural language Q&A with cited answers across your entire contract portfolio',
+          'Custom schema extraction for data points specific to your business processes',
+        ]}
+      />
+    </div>
+  </section>
+
+  <!-- Feature Showcase 2: Obligation Tracking -->
+  <section class="section-padding">
+    <div class="container-narrow">
+      <FeatureShowcase
+        title="Obligation Tracking"
+        description="Every contractual obligation is extracted, assigned, and tracked through completion. Automated alerts ensure nothing falls through the cracks, while compliance evidence creates an auditable trail for every commitment."
+        imagePosition="left"
+        tag="Compliance Management"
+        image="/screenshots/obligations.png"
+        imageAlt="Obligation tracking dashboard with compliance status"
+        bullets={[
+          'AI identifies obligations across all contract types — delivery milestones, reporting requirements, payment terms, and regulatory commitments',
+          'RAG status indicators (Red, Amber, Green) provide at-a-glance compliance visibility for every obligation',
+          'Owner assignment and escalation paths ensure clear accountability across teams',
+          'Automated deadline alerts with configurable lead times prevent missed commitments',
+          'Compliance evidence attachments create an auditable trail for internal governance and external audits',
+        ]}
+      />
+    </div>
+  </section>
+
+  <!-- Feature Showcase 3: SLA Monitoring -->
+  <section class="section-padding bg-gray-50">
+    <div class="container-narrow">
+      <FeatureShowcase
+        title="SLA Monitoring"
+        description="Contracted SLA metrics are extracted automatically and matched against actual performance data. Detect breaches the moment they occur, calculate service credits owed, and track penalty enforcement across your vendor portfolio."
+        imagePosition="right"
+        tag="Performance Tracking"
+        image="/screenshots/sla-breaches.png"
+        imageAlt="SLA breach detection dashboard with severity indicators"
+        bullets={[
+          'AI extracts SLA metrics, target thresholds, measurement periods, and penalty structures from contract language',
+          'Actual performance data integrates with contracted targets for continuous compliance monitoring',
+          'Breach detection triggers automated alerts with severity classification and financial impact assessment',
+          'Service credit calculations track credits owed, credits claimed, and credits recovered',
+          'Historical trend analysis reveals chronic underperformance patterns across vendors and service categories',
+        ]}
+      />
+    </div>
+  </section>
+
+  <!-- Feature Showcase 4: Renewal Management -->
+  <section class="section-padding">
+    <div class="container-narrow">
+      <FeatureShowcase
+        title="Renewal Management"
+        description="Never be caught off guard by an auto-renewal or missed notice period again. Evaluetor builds a complete calendar of every contract expiration, with intelligent alerts that account for notice requirements and internal approval timelines."
+        imagePosition="left"
+        tag="Deadline Management"
+        image="/screenshots/renewals.png"
+        imageAlt="Renewal management calendar with deadline tracking"
+        bullets={[
+          'Calendar view of all contract expirations with filterable views by vendor, department, and contract value',
+          'Auto-renewal detection identifies evergreen clauses and calculates the last date to provide notice',
+          'Notice period tracking with configurable lead-time alerts for internal review and approval workflows',
+          'AI-powered renewal recommendations based on vendor performance, market conditions, and contract terms',
+        ]}
+      />
+    </div>
+  </section>
+
+  <!-- Feature Showcase 5: Relationship Governance -->
+  <section class="section-padding bg-gray-50">
+    <div class="container-narrow">
+      <FeatureShowcase
+        title="Relationship Governance"
+        description="Go beyond contract compliance to measure the health of your vendor and partner relationships. KPI perception scoring reveals gaps between how your team and your counterparty view performance — the leading indicator of relationship risk."
+        imagePosition="right"
+        tag="Vendor Performance"
+        image="/screenshots/counterparty-performance.png"
+        imageAlt="Counterparty performance scoring dashboard"
+        bullets={[
+          'Multi-factor vendor scoring combines SLA compliance, obligation fulfillment, risk posture, and stakeholder satisfaction',
+          'KPI perception gap analysis compares internal vs. external views of performance across every key metric',
+          'Improvement point tracking links specific initiatives to the perception gaps they address',
+          'Multi-party satisfaction surveys collect structured feedback from all stakeholders in a relationship',
+          'Governance structure visualization maps team hierarchies, escalation paths, and decision-making authority',
+        ]}
+      />
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <CTABanner
+    headline="Want to see it work?"
+    subtext="Upload your own contracts and watch Evaluetor extract intelligence in real time."
+    buttonText="Try it free"
+    buttonLink="/contact"
+  />
+
+</MarketingLayout>

@@ -1,0 +1,104 @@
+---
+const navItems = [
+  {
+    label: 'Product',
+    href: '/product',
+    children: [
+      { label: 'Contract Intelligence', href: '/features/contract-intelligence' },
+      { label: 'Obligation Tracking', href: '/features/obligation-tracking' },
+      { label: 'SLA Monitoring', href: '/features/sla-monitoring' },
+      { label: 'Renewal Management', href: '/features/renewal-management' },
+      { label: 'Relationship Governance', href: '/features/relationship-governance' },
+    ],
+  },
+  { label: 'Pricing', href: '/pricing' },
+  { label: 'Platform', href: '/platform' },
+  { label: 'Customers', href: '/customers' },
+  { label: 'About', href: '/about' },
+];
+---
+
+<header class="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-xl border-b border-gray-200/50">
+  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-18">
+      <!-- Logo -->
+      <a href="/" class="flex items-center gap-2.5">
+        <div class="w-9 h-9 bg-primary-600 rounded-lg flex items-center justify-center">
+          <span class="text-white font-bold text-base">E</span>
+        </div>
+        <span class="text-2xl font-bold text-gray-900">Evaluetor</span>
+      </a>
+
+      <!-- Desktop Nav -->
+      <div class="hidden md:flex items-center gap-1">
+        {navItems.map((item) => (
+          item.children ? (
+            <div class="relative group">
+              <button class="px-4 py-2 text-base font-medium text-gray-700 hover:text-primary-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1">
+                {item.label}
+                <svg class="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+              </button>
+              <div class="absolute left-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <div class="bg-white rounded-xl shadow-lg border border-gray-100 py-2 w-64">
+                  {item.children.map((child) => (
+                    <a href={child.href} class="block px-4 py-2.5 text-base text-gray-700 hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                      {child.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <a href={item.href} class="px-4 py-2 text-base font-medium text-gray-700 hover:text-primary-700 rounded-lg hover:bg-gray-50 transition-colors">
+              {item.label}
+            </a>
+          )
+        ))}
+      </div>
+
+      <!-- CTA + Mobile toggle -->
+      <div class="flex items-center gap-3">
+        <a href="/contact" class="hidden sm:inline-flex btn-primary !text-base !py-2.5 !px-5">
+          Get started
+        </a>
+        <button id="mobile-menu-btn" class="md:hidden p-2 text-gray-700 hover:text-primary-700 rounded-lg hover:bg-gray-50">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-gray-100">
+    <div class="px-4 py-4 space-y-1">
+      {navItems.map((item) => (
+        item.children ? (
+          <div>
+            <a href={item.href} class="block px-3 py-2 text-sm font-semibold text-gray-900">{item.label}</a>
+            <div class="pl-4 space-y-1">
+              {item.children.map((child) => (
+                <a href={child.href} class="block px-3 py-2 text-sm text-gray-600 hover:text-primary-700">{child.label}</a>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <a href={item.href} class="block px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-700">{item.label}</a>
+        )
+      ))}
+      <div class="pt-3">
+        <a href="/contact" class="btn-primary w-full text-center">Get started</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Spacer for fixed header -->
+<div class="h-16"></div>
+
+<script>
+  const btn = document.getElementById('mobile-menu-btn');
+  const menu = document.getElementById('mobile-menu');
+  btn?.addEventListener('click', () => {
+    menu?.classList.toggle('hidden');
+  });
+</script>

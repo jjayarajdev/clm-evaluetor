@@ -1,0 +1,25 @@
+---
+import MarketingLayout from '../layouts/MarketingLayout.astro';
+---
+
+<MarketingLayout title="Page Not Found" description="The page you're looking for doesn't exist or has been moved.">
+
+  <section class="section-padding">
+    <div class="max-w-2xl mx-auto text-center py-12 sm:py-20">
+      <p class="text-8xl sm:text-9xl font-bold text-primary-600 leading-none">404</p>
+      <h1 class="mt-6 text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">Page not found</h1>
+      <p class="mt-4 text-lg text-gray-600 max-w-md mx-auto">
+        The page you are looking for does not exist or has been moved. Let us help you find your way back.
+      </p>
+      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="/" class="btn-primary text-base !px-8 !py-3.5">
+          Go Home
+        </a>
+        <a href="/contact" class="btn-secondary text-base !px-8 !py-3.5">
+          Contact Us
+        </a>
+      </div>
+    </div>
+  </section>
+
+</MarketingLayout>

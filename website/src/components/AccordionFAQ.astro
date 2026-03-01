@@ -1,0 +1,43 @@
+---
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  items: FAQItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<div class="divide-y divide-gray-200">
+  {items.map((item, index) => (
+    <div class="faq-item">
+      <button
+        class="w-full flex items-center justify-between py-5 text-left"
+        data-faq-toggle={index}
+      >
+        <span class="text-base font-medium text-gray-900">{item.question}</span>
+        <svg class="w-5 h-5 text-gray-500 transition-transform faq-icon" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+      <div class="faq-answer hidden pb-5">
+        <p class="text-sm text-gray-600 leading-relaxed">{item.answer}</p>
+      </div>
+    </div>
+  ))}
+</div>
+
+<script>
+  document.querySelectorAll('[data-faq-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.faq-item');
+      const answer = item?.querySelector('.faq-answer');
+      const icon = item?.querySelector('.faq-icon');
+      answer?.classList.toggle('hidden');
+      icon?.classList.toggle('rotate-180');
+    });
+  });
+</script>

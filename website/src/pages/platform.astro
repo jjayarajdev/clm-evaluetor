@@ -1,0 +1,194 @@
+---
+import MarketingLayout from '../layouts/MarketingLayout.astro';
+import Hero from '../components/Hero.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import FeatureShowcase from '../components/FeatureShowcase.astro';
+import StatsBar from '../components/StatsBar.astro';
+import CTABanner from '../components/CTABanner.astro';
+---
+
+<MarketingLayout title="Platform & Security - Enterprise-Grade Architecture" description="AI-native architecture built for enterprise security. SOC 2 Type II compliant, GDPR-ready, with AES-256 encryption, SSO, and comprehensive audit trails.">
+
+  <!-- Hero -->
+  <Hero
+    tag="Platform"
+    headline='Enterprise-grade <span class="text-primary-600">security and architecture</span>'
+    subheadline="AI-native architecture built for enterprise security from day one. SOC 2, GDPR, AES-256, SSO — the stuff your security team actually cares about."
+    primaryCTA={{ text: 'See the architecture', href: '/contact' }}
+    secondaryCTA={{ text: 'See Pricing', href: '/pricing' }}
+  />
+
+  <!-- Stats -->
+  <StatsBar stats={[
+    { value: 'SOC 2', label: 'Type II Compliant' },
+    { value: '99.9%', label: 'Uptime SLA' },
+    { value: 'AES-256', label: 'Encryption' },
+    { value: 'GDPR', label: 'Ready' },
+  ]} />
+
+  <!-- Architecture -->
+  <section class="section-padding">
+    <div class="container-narrow">
+      <SectionHeading
+        tag="Architecture"
+        title="AI-native from the ground up"
+        subtitle="Purpose-built for contract intelligence. Every architectural decision optimizes for extraction accuracy, query performance, and operational reliability."
+      />
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div class="bg-white rounded-xl p-8 border border-gray-100">
+          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">AI-Native Design</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">Multi-agent orchestration powered by Agent Squad with GPT-4o. RAG pipeline combines ChromaDB vector search with structured filters and intelligent re-ranking for high-accuracy contract analysis.</p>
+        </div>
+        <div class="bg-white rounded-xl p-8 border border-gray-100">
+          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">Modern Stack</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">FastAPI async backend with real-time APIs. React frontend with TypeScript. PostgreSQL for structured entities. ChromaDB for vector embeddings. Built for performance and developer productivity.</p>
+        </div>
+        <div class="bg-white rounded-xl p-8 border border-gray-100">
+          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z" /></svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">Cloud Infrastructure</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">Docker-containerized services with horizontal scaling. Regional deployment options for data residency requirements. Automated backups, health monitoring, and zero-downtime deployments.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Security & Compliance -->
+  <section class="section-padding bg-gray-50">
+    <div class="container-narrow">
+      <SectionHeading
+        tag="Security & Compliance"
+        title="Built to meet enterprise security standards"
+        subtitle="Security is foundational, not an afterthought. Every layer of the platform is designed with data protection, access control, and auditability at its core."
+      />
+      <div class="space-y-16 mt-8">
+        <FeatureShowcase
+          title="Data Protection"
+          description="Your contract data is protected at every stage — in transit, at rest, and during AI processing. Comprehensive key management and data residency controls ensure compliance with regional regulations."
+          imagePosition="right"
+          tag="Encryption & Residency"
+          image="/screenshots/dashboard.png"
+          imageAlt="Platform dashboard with security overview"
+          bullets={[
+            'AES-256 encryption at rest for all stored contract data and extracted intelligence',
+            'TLS 1.3 encryption in transit for all API communications and data transfers',
+            'Customer-managed encryption key support for organizations with strict key governance policies',
+            'Data residency options with isolated deployments in US and EU regions for GDPR compliance',
+            'Automated data retention policies with configurable expiration and secure deletion',
+          ]}
+        />
+        <FeatureShowcase
+          title="Access Control"
+          description="Granular access controls ensure the right people see the right contracts. From role-based permissions to SSO integration, every access point is secured and audited."
+          imagePosition="left"
+          tag="Identity & Authorization"
+          image="/screenshots/users.png"
+          imageAlt="User access control and role management"
+          bullets={[
+            'Role-based access control (RBAC) with predefined roles for legal, procurement, finance, and executive teams',
+            'SSO and SAML 2.0 integration with major identity providers including Okta, Azure AD, and OneLogin',
+            'Multi-factor authentication (MFA) enforced at the organization level with support for TOTP and hardware keys',
+            'Comprehensive audit trails log every action — document access, data export, configuration changes, and AI queries',
+            'IP allowlisting and session management controls for additional network-level security',
+          ]}
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- Integrations -->
+  <section class="section-padding">
+    <div class="container-narrow">
+      <SectionHeading
+        tag="Integrations"
+        title="Connect to your existing tools"
+        subtitle="Evaluetor fits into your existing technology ecosystem. Pre-built integrations with leading enterprise platforms plus a comprehensive REST API for custom workflows."
+      />
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+        <div class="bg-white rounded-xl p-6 border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
+          <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" /></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-1">CRM</h3>
+          <p class="text-sm text-gray-600">Salesforce, HubSpot</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
+          <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-1">ERP</h3>
+          <p class="text-sm text-gray-600">SAP, Oracle</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
+          <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m6.75 12H9.75m3 0H9.75m0 0H8.25m1.5 0v3.75m0-3.75v-3.75m0 3.75h3m-3 0H6.75m6 0h1.5m-7.5 3.75h7.5m-7.5 0h7.5" /></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-1">Productivity</h3>
+          <p class="text-sm text-gray-600">Microsoft 365, Google Workspace</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
+          <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" /></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-1">Communication</h3>
+          <p class="text-sm text-gray-600">Slack, Microsoft Teams</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
+          <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" /></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-1">Procurement</h3>
+          <p class="text-sm text-gray-600">SAP Ariba, Coupa</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
+          <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-1">Development</h3>
+          <p class="text-sm text-gray-600">REST API, Webhooks</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Observability -->
+  <section class="section-padding bg-gray-50">
+    <div class="container-narrow">
+      <SectionHeading
+        tag="Observability"
+        title="Full visibility into AI operations"
+        subtitle="Every AI decision is traceable. Langfuse integration provides end-to-end observability across all agent operations, so you always know what the AI is doing, why, and at what cost."
+      />
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div class="bg-white rounded-xl p-6 border border-gray-100">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Agent Tracing</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">Full trace visibility for every AI operation. See which agents processed each contract, what prompts were sent, and how responses were generated — from input to final output.</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-gray-100">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Debugging & Quality</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">When an extraction needs review, trace the exact chain of reasoning. Compare agent outputs across document versions. Identify and resolve accuracy issues systematically.</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-gray-100">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Cost Monitoring</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">Track token usage, API costs, and processing time per contract, per agent, and per operation. Set budgets and alerts to maintain predictable AI spend across your organization.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <CTABanner
+    headline="Questions about security?"
+    subtext="We love talking architecture. Let's do a technical deep-dive with your engineering team."
+    buttonText="Schedule a call"
+    buttonLink="/contact"
+  />
+
+</MarketingLayout>

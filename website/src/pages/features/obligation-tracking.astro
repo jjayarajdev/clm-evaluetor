@@ -1,0 +1,134 @@
+---
+import MarketingLayout from '../../layouts/MarketingLayout.astro';
+import Hero from '../../components/Hero.astro';
+import SectionHeading from '../../components/SectionHeading.astro';
+import FeatureShowcase from '../../components/FeatureShowcase.astro';
+import FeatureCard from '../../components/FeatureCard.astro';
+import FeatureGrid from '../../components/FeatureGrid.astro';
+import StatsBar from '../../components/StatsBar.astro';
+import CTABanner from '../../components/CTABanner.astro';
+---
+
+<MarketingLayout title="Obligation Tracking - Never Miss a Contractual Commitment" description="AI-powered extraction of 7 obligation types with deadline tracking, RAG status monitoring, compliance evidence management, and complete audit trails.">
+
+  <!-- Hero -->
+  <Hero
+    tag="Obligation Tracking"
+    headline='Never miss a <span class="text-primary-600">contractual commitment</span>'
+    subheadline="AI extracts every obligation, assigns owners, tracks deadlines, and monitors compliance. From payment schedules to reporting requirements — nothing slips."
+    primaryCTA={{ text: 'See it in action', href: '/contact' }}
+    secondaryCTA={{ text: 'See Pricing', href: '/pricing' }}
+  />
+
+  <!-- Stats -->
+  <StatsBar stats={[
+    { value: '7', label: 'Obligation types tracked' },
+    { value: '95%', label: 'Fewer missed deadlines' },
+    { value: '100%', label: 'Audit trail coverage' },
+    { value: 'Real-time', label: 'Compliance monitoring' },
+  ]} />
+
+  <!-- Showcase 1: Obligation Extraction -->
+  <section class="section-padding">
+    <div class="container-narrow">
+      <SectionHeading
+        tag="AI-Powered Extraction"
+        title="Obligations identified, structured, and tracked"
+        subtitle="Our Obligation Tracking Agent reads every clause and surfaces the commitments that matter, complete with deadlines, responsible parties, and consequences for non-compliance."
+      />
+      <FeatureShowcase
+        title="Obligation Extraction"
+        description="Upload a contract and our AI immediately identifies and classifies every obligation, eliminating the manual effort of reading through hundreds of pages to find what your team is committed to deliver."
+        imagePosition="right"
+        tag="Automated Discovery"
+        image="/screenshots/obligations.png"
+        imageAlt="Obligation extraction with deadline tracking"
+        bullets={[
+          'Extracts 7 obligation types: Payment, Delivery, Reporting, Compliance, Notification, Performance, and Other',
+          'Identifies deadlines with 4 classification types: fixed date, recurring, event-triggered, and rolling',
+          'Maps each obligation to the responsible party and affected counterparty',
+          'Captures consequences and penalty clauses tied to each obligation',
+          'Links obligations back to their source clauses for full traceability',
+        ]}
+      />
+    </div>
+  </section>
+
+  <!-- Showcase 2: Compliance Dashboard -->
+  <section class="section-padding bg-gray-50">
+    <div class="container-narrow">
+      <FeatureShowcase
+        title="Compliance Dashboard"
+        description="A single view of your entire obligation landscape. See what is on track, what is at risk, and what has been missed, with drill-down capability from portfolio level to individual obligations."
+        imagePosition="left"
+        tag="Visibility & Control"
+        image="/screenshots/compliance-overview.png"
+        imageAlt="Compliance dashboard with RAG status indicators"
+        bullets={[
+          'RAG status indicators (Red, Amber, Green) for instant visual assessment of compliance health',
+          'Filter and group by contract, owner, category, deadline, or status',
+          'Compliance rate metrics calculated by contract, by owner, and by obligation category',
+          'Upcoming deadline alerts with configurable notification windows (7, 14, 30 days)',
+          'Historical compliance trend charts to identify patterns and systemic issues',
+        ]}
+      />
+    </div>
+  </section>
+
+  <!-- Showcase 3: Evidence Management -->
+  <section class="section-padding">
+    <div class="container-narrow">
+      <FeatureShowcase
+        title="Evidence Management"
+        description="Document your compliance with uploaded evidence, owner assignments, and timestamped records. Build an audit-ready trail that proves your organization met every commitment."
+        imagePosition="right"
+        tag="Audit-Ready"
+        image="/screenshots/compliance-reports.png"
+        imageAlt="Compliance evidence and reporting interface"
+        bullets={[
+          'Upload evidence documents to prove obligation fulfillment (reports, receipts, deliverables)',
+          'Assign and reassign obligation owners with full change history tracking',
+          'Flag critical obligations that require senior review or escalation',
+          'Automated status transitions based on deadline proximity and evidence submission',
+        ]}
+      />
+    </div>
+  </section>
+
+  <!-- Additional Features -->
+  <section class="section-padding bg-gray-50">
+    <div class="container-narrow">
+      <SectionHeading
+        tag="More Capabilities"
+        title="Complete obligation lifecycle management"
+        subtitle="From extraction to completion, every stage of an obligation is tracked, monitored, and documented."
+      />
+      <FeatureGrid>
+        <FeatureCard
+          title="Smart Notifications"
+          description="Configurable alerts notify obligation owners ahead of deadlines. Escalation rules automatically involve managers when deadlines approach without action."
+          icon='<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>'
+        />
+        <FeatureCard
+          title="Cross-Contract View"
+          description="See all obligations across your entire portfolio in one unified view. Identify concentration risks where too many deadlines cluster in the same period."
+          icon='<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" /></svg>'
+        />
+        <FeatureCard
+          title="Compliance Reporting"
+          description="Generate compliance reports by contract, vendor, or time period. Export data for board presentations, regulatory filings, or internal governance reviews."
+          icon='<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>'
+        />
+      </FeatureGrid>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <CTABanner
+    headline="Tired of obligations falling through cracks?"
+    subtext="Upload a contract and watch every commitment get extracted and tracked automatically."
+    buttonText="Try it free"
+    buttonLink="/contact"
+  />
+
+</MarketingLayout>
