@@ -21,7 +21,7 @@ from app.schemas.contract_comment import (
     ContractCommentListResponse,
 )
 
-router = APIRouter(prefix="/external", tags=["External Portal"])
+router = APIRouter(prefix="/api/external", tags=["External Portal"])
 
 
 async def validate_token(

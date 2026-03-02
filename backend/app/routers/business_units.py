@@ -21,7 +21,7 @@ from app.schemas.business_unit import (
     BusinessUnitSummary,
 )
 
-router = APIRouter(prefix="/business-units", tags=["Business Units"])
+router = APIRouter(prefix="/api/business-units", tags=["Business Units"])
 
 
 @router.get("", response_model=BusinessUnitListResponse)

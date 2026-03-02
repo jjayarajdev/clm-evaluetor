@@ -24,7 +24,7 @@ from app.schemas.external_user import (
     ExternalUserWithShares,
 )
 
-router = APIRouter(prefix="/external-users", tags=["External Users"])
+router = APIRouter(prefix="/api/external-users", tags=["External Users"])
 
 
 @router.get("", response_model=ExternalUserListResponse)
