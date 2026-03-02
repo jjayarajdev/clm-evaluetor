@@ -161,6 +161,16 @@ async def require_tenant(
     return current_user.tenant_id
 
 
+async def get_current_business_unit_id(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> uuid.UUID | None:
+    """Get the current business unit ID from the authenticated user.
+
+    Users without a business unit return None (can access all BUs in their tenant).
+    """
+    return current_user.business_unit_id
+
+
 def require_role(*allowed_roles: Role):
     """Create a dependency that requires specific roles.
 
@@ -219,11 +229,17 @@ require_legal = require_role(Role.ADMIN, Role.LEGAL)
 require_procurement = require_role(Role.ADMIN, Role.PROCUREMENT)
 
 
+# Pre-configured role dependencies for BU_HEAD
+require_bu_head = require_role(Role.ADMIN, Role.BU_HEAD)
+
+
 # Type aliases for cleaner annotations
 CurrentUser = Annotated[User, Depends(get_current_active_user)]
 CurrentTenantId = Annotated[uuid.UUID | None, Depends(get_current_tenant_id)]
+CurrentBusinessUnitId = Annotated[uuid.UUID | None, Depends(get_current_business_unit_id)]
 RequiredTenantId = Annotated[uuid.UUID, Depends(require_tenant)]
 AdminUser = Annotated[User, Depends(require_admin)]
 LegalUser = Annotated[User, Depends(require_legal)]
 ProcurementUser = Annotated[User, Depends(require_procurement)]
+BuHeadUser = Annotated[User, Depends(require_bu_head)]
 SuperAdminUser = Annotated[User, Depends(require_super_admin())]

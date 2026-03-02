@@ -18,6 +18,7 @@ class TokenType(str, enum.Enum):
     SURVEY_RESPONSE = "survey_response"
     DOCUMENT_VIEW = "document_view"
     MULTI_PURPOSE = "multi_purpose"
+    CONTRACT_ACCESS = "contract_access"
 
 
 class ExternalAccessToken(Base):
@@ -39,6 +40,8 @@ class ExternalAccessToken(Base):
     relationship_id = Column(UUID(as_uuid=True), ForeignKey("business_relationships.id"), nullable=True)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True)
     survey_instance_id = Column(UUID(as_uuid=True), ForeignKey("survey_instances.id"), nullable=True)
+    external_user_id = Column(UUID(as_uuid=True), ForeignKey("external_users.id"), nullable=True, index=True)
+    contract_id = Column(UUID(as_uuid=True), ForeignKey("contracts.id"), nullable=True, index=True)
 
     # Recipient
     recipient_email = Column(String(255), nullable=True)
@@ -66,7 +69,9 @@ class ExternalAccessToken(Base):
     relationship = sa_relationship("BusinessRelationship")
     organization = sa_relationship("Organization")
     survey_instance = sa_relationship("SurveyInstance")
-    created_by = sa_relationship("User")
+    created_by = sa_relationship("User", foreign_keys=[created_by_id])
+    external_user = sa_relationship("ExternalUser", back_populates="access_tokens")
+    contract = sa_relationship("Contract")
 
     def __repr__(self) -> str:
         return f"<ExternalAccessToken {self.token[:8]}... ({self.token_type.value})>"

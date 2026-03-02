@@ -97,6 +97,13 @@ class Organization(Base):
         lazy="dynamic"
     )
 
+    # External users associated with this organization
+    external_users = sa_relationship(
+        "ExternalUser",
+        back_populates="organization",
+        lazy="dynamic"
+    )
+
     def __repr__(self) -> str:
         return f"<Organization {self.code}: {self.name}>"
 

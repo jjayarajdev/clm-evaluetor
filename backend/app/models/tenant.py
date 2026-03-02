@@ -100,6 +100,11 @@ class Tenant(Base, UUIDMixin, TimestampMixin):
         back_populates="tenant",
         lazy="selectin",
     )
+    business_units: Mapped[list["BusinessUnit"]] = relationship(
+        "BusinessUnit",
+        back_populates="tenant",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return f"<Tenant {self.name} ({self.slug})>"

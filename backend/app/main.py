@@ -13,6 +13,8 @@ from app.routers import (
     sla, suggested_links, tenants, users, vendors, workflow_admin,
     # Relationship Governance (Evaluetor features)
     organizations, relationships, kpis, improvements, surveys,
+    # Business Unit & External Access
+    business_units, external_users, external_portal,
 )
 from app.services.vector_store import get_vector_store
 from app.services.orchestrator import get_orchestrator, initialize_default_agents
@@ -276,3 +278,8 @@ app.include_router(relationships.router)
 app.include_router(kpis.router)
 app.include_router(improvements.router)
 app.include_router(surveys.router)
+
+# Business Unit & External Access
+app.include_router(business_units.router)
+app.include_router(external_users.router)
+app.include_router(external_portal.router)

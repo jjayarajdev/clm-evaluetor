@@ -218,6 +218,13 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         index=True,
     )
 
+    # Business Unit association
+    business_unit_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("business_units.id"),
+        nullable=True,
+        index=True,
+    )
+
     # Business relationship association (Evaluetor feature)
     business_relationship_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("business_relationships.id"),
@@ -247,6 +254,11 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
     client: Mapped["Client | None"] = relationship(
         "Client",
         back_populates="contracts",
+    )
+    business_unit: Mapped["BusinessUnit | None"] = relationship(
+        "BusinessUnit",
+        back_populates="contracts",
+        lazy="selectin",
     )
     business_relationship: Mapped["BusinessRelationship | None"] = relationship(
         "BusinessRelationship",
@@ -394,6 +406,20 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
     )
 
     # ===== END NEW RELATIONSHIPS =====
+
+    # External sharing and comments
+    shares: Mapped[list["ContractShare"]] = relationship(
+        "ContractShare",
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    comments: Mapped[list["ContractComment"]] = relationship(
+        "ContractComment",
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     # Indexes for common queries
     __table_args__ = (

@@ -181,7 +181,7 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
     """Run deep AI analysis on a contract."""
     import logging
     from app.services.parser import get_parser
-    from app.agents.clause_extraction import extract_clauses, store_extracted_clauses
+    from app.agents.clause_extraction import extract_clauses, store_extracted_clauses, reclassify_sla_chunks
     from app.agents.obligation_tracking import extract_obligations, store_extracted_obligations
     from app.agents.sla_extraction import extract_slas, store_extracted_slas
     from app.agents import register_all_agents
@@ -297,6 +297,14 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                     result=clause_result,
                 )
                 print(f"[DEEP ANALYSIS] Clauses stored")
+
+            # Reclassify uncategorized chunks that contain SLA patterns
+            reclassified = await reclassify_sla_chunks(
+                db=session,
+                contract_id=uuid_mod.UUID(contract_id),
+            )
+            if reclassified > 0:
+                print(f"[DEEP ANALYSIS] Reclassified {reclassified} chunks as SERVICE_LEVEL")
 
             if obligation_result and obligation_result.obligations:
                 print(f"[DEEP ANALYSIS] Storing {len(obligation_result.obligations)} obligations...")
@@ -1526,7 +1534,7 @@ async def analyze_contract(
     # Queue deep analysis in background
     async def run_deep_analysis():
         from app.services.parser import get_parser
-        from app.agents.clause_extraction import extract_clauses, store_extracted_clauses
+        from app.agents.clause_extraction import extract_clauses, store_extracted_clauses, reclassify_sla_chunks
         from app.agents.obligation_tracking import extract_obligations, store_extracted_obligations
         from app.agents.sla_extraction import extract_slas, store_extracted_slas
         from app.agents import register_all_agents
@@ -1614,6 +1622,16 @@ async def analyze_contract(
                         result=clause_result,
                     )
                     logging.info(f"Stored {len(clause_result.extracted_clauses)} clauses")
+
+                # Reclassify uncategorized chunks that contain SLA patterns
+                logging.warning(f"[DEBUG] About to call reclassify_sla_chunks for {contract_id}")
+                reclassified = await reclassify_sla_chunks(
+                    db=session,
+                    contract_id=uuid_mod.UUID(contract_id),
+                )
+                logging.warning(f"[DEBUG] reclassify_sla_chunks returned: {reclassified}")
+                if reclassified > 0:
+                    logging.info(f"Reclassified {reclassified} chunks as SERVICE_LEVEL")
 
                 # Store obligations
                 if obligation_result and obligation_result.obligations:
@@ -2380,3 +2398,434 @@ async def reindex_all_contracts(
         failed=failed,
         errors=errors[:20],  # Limit error list
     )
+
+
+# ===== Contract Sharing Endpoints =====
+
+from uuid import UUID
+from datetime import timedelta
+
+from app.models.contract_share import ContractShare
+from app.models.contract_comment import ContractComment
+from app.models.external_user import ExternalUser
+from app.models.external_access import ExternalAccessToken, TokenType
+from app.schemas.contract_share import (
+    ContractShareCreate,
+    ContractShareBulkCreate,
+    ContractShareResponse,
+    ContractShareWithUser,
+    ContractShareListResponse,
+    ShareInviteResponse,
+)
+from app.schemas.contract_comment import (
+    ContractCommentCreate,
+    ContractCommentResponse,
+    ContractCommentListResponse,
+)
+from app.schemas.external_user import ExternalUserSummary
+from sqlalchemy import select, func
+
+
+@router.post("/{contract_id}/share", response_model=ShareInviteResponse)
+async def share_contract(
+    contract_id: str,
+    share_data: ContractShareCreate,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Share a contract with an external user."""
+    from app.services.contracts import ContractService
+    import uuid as uuid_mod
+
+    # Verify contract exists and user has access
+    service = ContractService(db, tenant_id=tenant_id)
+    contract = await service.get_contract(contract_id)
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
+    # Verify external user exists and belongs to same tenant
+    ext_user_query = select(ExternalUser).where(
+        ExternalUser.id == share_data.external_user_id,
+        ExternalUser.tenant_id == contract.tenant_id,
+        ExternalUser.is_active == True,
+    )
+    ext_user = (await db.execute(ext_user_query)).scalar_one_or_none()
+    if not ext_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="External user not found or inactive",
+        )
+
+    # Check if already shared
+    existing_query = select(ContractShare).where(
+        ContractShare.contract_id == uuid_mod.UUID(contract_id),
+        ContractShare.external_user_id == share_data.external_user_id,
+        ContractShare.is_revoked == False,
+    )
+    existing = (await db.execute(existing_query)).scalar_one_or_none()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contract is already shared with this user",
+        )
+
+    # Calculate expiration
+    from datetime import datetime
+    expires_at = None
+    if share_data.expires_in_days:
+        expires_at = datetime.utcnow() + timedelta(days=share_data.expires_in_days)
+
+    # Create share
+    share = ContractShare(
+        contract_id=uuid_mod.UUID(contract_id),
+        external_user_id=share_data.external_user_id,
+        shared_by_id=current_user.id,
+        can_download=share_data.can_download,
+        can_comment=share_data.can_comment,
+        expires_at=expires_at,
+        message=share_data.message,
+    )
+    db.add(share)
+
+    # Create access token
+    access_token = ExternalAccessToken.create_token(
+        token_type=TokenType.CONTRACT_ACCESS,
+        expires_in_days=share_data.expires_in_days or 30,
+        external_user_id=share_data.external_user_id,
+        contract_id=uuid_mod.UUID(contract_id),
+        recipient_email=ext_user.email,
+        recipient_name=ext_user.full_name,
+        max_uses=None,
+        created_by_id=current_user.id,
+    )
+    db.add(access_token)
+
+    await db.commit()
+    await db.refresh(share)
+
+    return ShareInviteResponse(
+        share=ContractShareResponse.model_validate(share),
+        access_url=f"/external/contracts/{access_token.token}",
+        token=access_token.token,
+    )
+
+
+@router.get("/{contract_id}/shares", response_model=ContractShareListResponse)
+async def list_contract_shares(
+    contract_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    include_revoked: bool = False,
+):
+    """List all shares for a contract."""
+    from app.services.contracts import ContractService
+    import uuid as uuid_mod
+
+    # Verify contract exists
+    service = ContractService(db, tenant_id=tenant_id)
+    contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
+    # Get shares
+    query = select(ContractShare).where(
+        ContractShare.contract_id == uuid_mod.UUID(contract_id),
+    )
+    if not include_revoked:
+        query = query.where(ContractShare.is_revoked == False)
+
+    result = await db.execute(query)
+    shares = result.scalars().all()
+
+    # Build response with external user details
+    items = []
+    for share in shares:
+        share_response = ContractShareWithUser(
+            **ContractShareResponse.model_validate(share).model_dump(),
+            external_user=ExternalUserSummary.model_validate(share.external_user),
+        )
+        items.append(share_response)
+
+    return ContractShareListResponse(items=items, total=len(items))
+
+
+@router.delete("/{contract_id}/shares/{share_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_contract_share(
+    contract_id: str,
+    share_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Revoke a contract share."""
+    from app.services.contracts import ContractService
+    import uuid as uuid_mod
+
+    # Verify contract exists
+    service = ContractService(db, tenant_id=tenant_id)
+    contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
+    # Get share
+    share_query = select(ContractShare).where(
+        ContractShare.id == uuid_mod.UUID(share_id),
+        ContractShare.contract_id == uuid_mod.UUID(contract_id),
+    )
+    share = (await db.execute(share_query)).scalar_one_or_none()
+    if not share:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Share not found",
+        )
+
+    if share.is_revoked:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Share is already revoked",
+        )
+
+    # Revoke share
+    share.revoke(current_user.id)
+    await db.commit()
+
+
+# ===== Contract Comments Endpoints =====
+
+@router.get("/{contract_id}/comments", response_model=ContractCommentListResponse)
+async def list_contract_comments(
+    contract_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    include_resolved: bool = True,
+    include_internal: bool = True,
+):
+    """List all comments for a contract."""
+    from app.services.contracts import ContractService
+    import uuid as uuid_mod
+
+    # Verify contract exists
+    service = ContractService(db, tenant_id=tenant_id)
+    contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
+    # Build query
+    query = select(ContractComment).where(
+        ContractComment.contract_id == uuid_mod.UUID(contract_id),
+        ContractComment.is_deleted == False,
+    )
+
+    if not include_resolved:
+        query = query.where(ContractComment.is_resolved == False)
+
+    if not include_internal:
+        query = query.where(ContractComment.is_internal == False)
+
+    query = query.order_by(ContractComment.created_at.desc())
+
+    result = await db.execute(query)
+    comments = result.scalars().all()
+
+    # Build response
+    items = []
+    for comment in comments:
+        # Count replies
+        reply_count_query = select(func.count()).select_from(ContractComment).where(
+            ContractComment.parent_id == comment.id,
+            ContractComment.is_deleted == False,
+        )
+        reply_count = (await db.execute(reply_count_query)).scalar() or 0
+
+        items.append(ContractCommentResponse(
+            id=comment.id,
+            contract_id=comment.contract_id,
+            user_id=comment.user_id,
+            external_user_id=comment.external_user_id,
+            parent_id=comment.parent_id,
+            content=comment.content,
+            clause_id=comment.clause_id,
+            section_reference=comment.section_reference,
+            is_internal=comment.is_internal,
+            is_resolved=comment.is_resolved,
+            resolved_by_id=comment.resolved_by_id,
+            resolved_at=comment.resolved_at,
+            is_deleted=comment.is_deleted,
+            author_name=comment.author_name,
+            author_email=comment.author_email,
+            is_internal_author=comment.is_internal_author,
+            created_at=comment.created_at,
+            updated_at=comment.updated_at,
+            reply_count=reply_count,
+        ))
+
+    return ContractCommentListResponse(items=items, total=len(items))
+
+
+@router.post("/{contract_id}/comments", response_model=ContractCommentResponse, status_code=status.HTTP_201_CREATED)
+async def add_contract_comment(
+    contract_id: str,
+    comment_data: ContractCommentCreate,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Add a comment to a contract (internal user)."""
+    from app.services.contracts import ContractService
+    import uuid as uuid_mod
+
+    # Verify contract exists
+    service = ContractService(db, tenant_id=tenant_id)
+    contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
+    # Validate parent_id if provided
+    if comment_data.parent_id:
+        parent_query = select(ContractComment).where(
+            ContractComment.id == comment_data.parent_id,
+            ContractComment.contract_id == uuid_mod.UUID(contract_id),
+            ContractComment.is_deleted == False,
+        )
+        parent = (await db.execute(parent_query)).scalar_one_or_none()
+        if not parent:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Parent comment not found",
+            )
+
+    # Create comment
+    comment = ContractComment(
+        contract_id=uuid_mod.UUID(contract_id),
+        user_id=current_user.id,
+        parent_id=comment_data.parent_id,
+        content=comment_data.content,
+        clause_id=comment_data.clause_id,
+        section_reference=comment_data.section_reference,
+        is_internal=comment_data.is_internal,
+    )
+    db.add(comment)
+    await db.commit()
+    await db.refresh(comment)
+
+    return ContractCommentResponse(
+        id=comment.id,
+        contract_id=comment.contract_id,
+        user_id=comment.user_id,
+        external_user_id=comment.external_user_id,
+        parent_id=comment.parent_id,
+        content=comment.content,
+        clause_id=comment.clause_id,
+        section_reference=comment.section_reference,
+        is_internal=comment.is_internal,
+        is_resolved=comment.is_resolved,
+        resolved_by_id=comment.resolved_by_id,
+        resolved_at=comment.resolved_at,
+        is_deleted=comment.is_deleted,
+        author_name=comment.author_name,
+        author_email=comment.author_email,
+        is_internal_author=comment.is_internal_author,
+        created_at=comment.created_at,
+        updated_at=comment.updated_at,
+        reply_count=0,
+    )
+
+
+@router.post("/{contract_id}/comments/{comment_id}/resolve", status_code=status.HTTP_204_NO_CONTENT)
+async def resolve_contract_comment(
+    contract_id: str,
+    comment_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Mark a comment as resolved."""
+    from app.services.contracts import ContractService
+    import uuid as uuid_mod
+
+    # Verify contract exists
+    service = ContractService(db, tenant_id=tenant_id)
+    contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
+    # Get comment
+    comment_query = select(ContractComment).where(
+        ContractComment.id == uuid_mod.UUID(comment_id),
+        ContractComment.contract_id == uuid_mod.UUID(contract_id),
+        ContractComment.is_deleted == False,
+    )
+    comment = (await db.execute(comment_query)).scalar_one_or_none()
+    if not comment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comment not found",
+        )
+
+    comment.resolve(current_user.id)
+    await db.commit()
+
+
+@router.delete("/{contract_id}/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_contract_comment(
+    contract_id: str,
+    comment_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Soft delete a comment."""
+    from app.services.contracts import ContractService
+    import uuid as uuid_mod
+
+    # Verify contract exists
+    service = ContractService(db, tenant_id=tenant_id)
+    contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
+    # Get comment
+    comment_query = select(ContractComment).where(
+        ContractComment.id == uuid_mod.UUID(comment_id),
+        ContractComment.contract_id == uuid_mod.UUID(contract_id),
+    )
+    comment = (await db.execute(comment_query)).scalar_one_or_none()
+    if not comment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comment not found",
+        )
+
+    # Only author or admin can delete
+    if comment.user_id != current_user.id and current_user.role.value not in ["admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only comment author or admin can delete",
+        )
+
+    comment.soft_delete()
+    await db.commit()

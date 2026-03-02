@@ -20,16 +20,26 @@ logger = get_logger(__name__)
 class ContractService:
     """Service for contract CRUD operations."""
 
-    def __init__(self, db: AsyncSession, tenant_id: uuid_module.UUID | None = None) -> None:
-        """Initialize with database session and optional tenant filter.
+    def __init__(
+        self,
+        db: AsyncSession,
+        tenant_id: uuid_module.UUID | None = None,
+        business_unit_id: uuid_module.UUID | None = None,
+        user_role: str | None = None,
+    ) -> None:
+        """Initialize with database session and optional filters.
 
         Args:
             db: Database session.
             tenant_id: Tenant ID to filter by. If None, no tenant filtering is applied
                       (used by super-admin or system operations).
+            business_unit_id: Business unit ID to filter by. Only applies for certain roles.
+            user_role: User's role for BU-aware filtering.
         """
         self.db = db
         self.tenant_id = tenant_id
+        self.business_unit_id = business_unit_id
+        self.user_role = user_role
         self.vector_store = get_vector_store()
 
     def _apply_tenant_filter(self, query):
@@ -37,6 +47,40 @@ class ContractService:
         if self.tenant_id is not None:
             return query.where(Contract.tenant_id == self.tenant_id)
         return query
+
+    def _apply_bu_filter(self, query):
+        """Apply business unit filter based on user role.
+
+        Role hierarchy:
+        - SUPER_ADMIN: No BU filter (sees all)
+        - ADMIN: No BU filter within tenant (sees all in tenant)
+        - BU_HEAD: Sees all contracts in their BU and child BUs
+        - LEGAL/PROCUREMENT/VIEWER: Sees contracts in their BU only, or all if no BU assigned
+        """
+        from app.models.user import Role
+
+        # Super admin and tenant admin see everything
+        if self.user_role in [Role.SUPER_ADMIN.value, Role.ADMIN.value, "super_admin", "admin"]:
+            return query
+
+        # If user has no BU assigned, they can see all (legacy behavior)
+        if self.business_unit_id is None:
+            return query
+
+        # BU_HEAD sees their BU and child BUs
+        if self.user_role in [Role.BU_HEAD.value, "bu_head"]:
+            # For now, just filter by their BU
+            # TODO: Include child BUs in filter
+            return query.where(
+                (Contract.business_unit_id == self.business_unit_id) |
+                (Contract.business_unit_id.is_(None))  # Also include unassigned contracts
+            )
+
+        # Other roles see only their BU or unassigned
+        return query.where(
+            (Contract.business_unit_id == self.business_unit_id) |
+            (Contract.business_unit_id.is_(None))
+        )
 
     async def get_contract(
         self,
@@ -58,6 +102,9 @@ class ContractService:
 
         # Apply tenant filter
         query = self._apply_tenant_filter(query)
+
+        # Apply BU filter
+        query = self._apply_bu_filter(query)
 
         if include_clauses:
             query = query.options(selectinload(Contract.clauses))
@@ -101,9 +148,10 @@ class ContractService:
         Returns:
             Tuple of (contracts, total_count).
         """
-        # Base query with tenant filter
+        # Base query with tenant and BU filters
         query = select(Contract)
         query = self._apply_tenant_filter(query)
+        query = self._apply_bu_filter(query)
 
         # Apply filters
         if contract_type:

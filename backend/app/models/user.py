@@ -13,6 +13,7 @@ class Role(str, enum.Enum):
 
     SUPER_ADMIN = "super_admin"  # Can see all tenants
     ADMIN = "admin"  # Tenant admin
+    BU_HEAD = "bu_head"  # Business Unit head - sees all contracts in their BU
     LEGAL = "legal"
     PROCUREMENT = "procurement"
     VIEWER = "viewer"
@@ -61,11 +62,24 @@ class User(Base, UUIDMixin, TimestampMixin):
         index=True,
     )
 
+    # Business Unit association (nullable for admins who can access all BUs)
+    business_unit_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("business_units.id"),
+        nullable=True,
+        index=True,
+    )
+
     # Relationships
     tenant: Mapped["Tenant | None"] = relationship(
         "Tenant",
         back_populates="users",
         lazy="selectin",  # Eager load tenant with user
+    )
+    business_unit: Mapped["BusinessUnit | None"] = relationship(
+        "BusinessUnit",
+        back_populates="users",
+        foreign_keys=[business_unit_id],
+        lazy="selectin",
     )
     contracts: Mapped[list["Contract"]] = relationship(
         "Contract",
@@ -92,6 +106,11 @@ class User(Base, UUIDMixin, TimestampMixin):
     def is_tenant_admin(self) -> bool:
         """Check if user is a tenant admin."""
         return self.role == Role.ADMIN
+
+    @property
+    def is_bu_head(self) -> bool:
+        """Check if user is a business unit head."""
+        return self.role == Role.BU_HEAD
 
     def __repr__(self) -> str:
         tenant_info = f" tenant={self.tenant_id}" if self.tenant_id else " (super)"

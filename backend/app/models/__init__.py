@@ -128,6 +128,10 @@ from app.models.external_access import (
     ExternalAccessToken,
     TokenType,
 )
+from app.models.business_unit import BusinessUnit
+from app.models.external_user import ExternalUser
+from app.models.contract_share import ContractShare
+from app.models.contract_comment import ContractComment
 from app.models.metric_snapshot import MetricSnapshot
 # Industry-Aware Compliance Module
 from app.models.industry import (
@@ -312,6 +316,12 @@ __all__ = [
     # External Access (Evaluetor)
     "ExternalAccessToken",
     "TokenType",
+    # Business Unit Hierarchy
+    "BusinessUnit",
+    # External User Access
+    "ExternalUser",
+    "ContractShare",
+    "ContractComment",
     # Metric Snapshots
     "MetricSnapshot",
     # Industry-Aware Compliance
