@@ -34,7 +34,10 @@ class ExternalAccessToken(Base):
 
     # Token itself
     token = Column(String(100), nullable=False, unique=True, index=True)
-    token_type = Column(Enum(TokenType), nullable=False)
+    token_type = Column(
+        Enum(TokenType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False
+    )
 
     # Scope
     relationship_id = Column(UUID(as_uuid=True), ForeignKey("business_relationships.id"), nullable=True)
