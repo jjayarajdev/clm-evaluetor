@@ -11,6 +11,7 @@ import {
   ChartBarIcon,
   LinkIcon,
   InformationCircleIcon,
+  ShareIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -18,16 +19,18 @@ import ContractIntelligence from '@/components/dashboard/ContractIntelligence'
 import SLASummary from '@/components/dashboard/SLASummary'
 import CustomFieldsDisplay from '@/components/contracts/CustomFieldsDisplay'
 import SuggestedLinksPanel from '@/components/contracts/SuggestedLinksPanel'
+import ContractSharing from '@/components/contracts/ContractSharing'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn, formatDate, formatCurrency, formatFileSize, getRiskColor, getStatusColor } from '@/lib/utils'
 
-type TabType = 'overview' | 'intelligence' | 'slas' | 'related'
+type TabType = 'overview' | 'intelligence' | 'slas' | 'related' | 'sharing'
 
 const TABS = [
   { id: 'overview' as const, label: 'Overview', icon: InformationCircleIcon },
   { id: 'intelligence' as const, label: 'Intelligence', icon: ClipboardDocumentListIcon },
   { id: 'slas' as const, label: 'SLAs', icon: ChartBarIcon },
   { id: 'related' as const, label: 'Related Docs', icon: LinkIcon },
+  { id: 'sharing' as const, label: 'Sharing', icon: ShareIcon },
 ]
 
 export default function ContractViewPage() {
@@ -208,7 +211,8 @@ export default function ContractViewPage() {
         <nav className="flex gap-6" aria-label="Tabs">
           {TABS.map((tab) => {
             // Hide Intelligence, SLAs, Related tabs for non-completed contracts
-            if (!isCompleted && tab.id !== 'overview') {
+            // Sharing tab is always visible
+            if (!isCompleted && tab.id !== 'overview' && tab.id !== 'sharing') {
               return null
             }
             return (
@@ -434,6 +438,11 @@ export default function ContractViewPage() {
         {/* Related Docs Tab */}
         {activeTab === 'related' && isCompleted && id && (
           <SuggestedLinksPanel contractId={id} />
+        )}
+
+        {/* Sharing Tab */}
+        {activeTab === 'sharing' && id && (
+          <ContractSharing contractId={id} />
         )}
       </div>
     </div>

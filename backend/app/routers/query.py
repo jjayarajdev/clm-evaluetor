@@ -35,6 +35,14 @@ class SourceReference(BaseModel):
     chunk_index: int | None = None
 
 
+class Visualization(BaseModel):
+    """Chart/visualization data for rich Q&A responses."""
+
+    chart_type: str  # "bar", "pie", "timeline", "table", "stat_cards"
+    title: str
+    data: list[dict] | dict
+
+
 class QueryResponse(BaseModel):
     """Response from Q&A query."""
 
@@ -43,6 +51,7 @@ class QueryResponse(BaseModel):
     sources: list[SourceReference]
     follow_up_questions: list[str]
     session_id: str
+    visualizations: list[Visualization] = []
 
 
 class SuggestionsResponse(BaseModel):
@@ -123,12 +132,25 @@ async def query_contracts(
 
         await db.commit()
 
+        # Convert visualizations if present
+        visualizations = []
+        if hasattr(result, 'visualizations') and result.visualizations:
+            visualizations = [
+                Visualization(
+                    chart_type=v.get("chart_type", "table"),
+                    title=v.get("title", ""),
+                    data=v.get("data", []),
+                )
+                for v in result.visualizations
+            ]
+
         return QueryResponse(
             answer=result.answer,
             confidence=result.confidence,
             sources=sources,
             follow_up_questions=result.follow_up_questions,
             session_id=session_id,
+            visualizations=visualizations,
         )
 
     except Exception as e:

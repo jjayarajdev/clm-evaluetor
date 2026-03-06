@@ -105,6 +105,11 @@ class Tenant(Base, UUIDMixin, TimestampMixin):
         back_populates="tenant",
         lazy="selectin",
     )
+    notification_rules: Mapped[list["NotificationRule"]] = relationship(
+        "NotificationRule",
+        back_populates="tenant",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return f"<Tenant {self.name} ({self.slug})>"

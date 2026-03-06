@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CLM (Contract Lifecycle Management) is a strategic initiative to build an AI-native contract management platform positioned as an "AI Legal Engineer." The platform combines contract intelligence (AI-powered extraction and analysis) with relationship governance (Evaluetor-style KPI perception scoring and business relationship management). It aims to disrupt legacy CLM vendors (DocuSign, Icertis, Ironclad, Sirion, Agiloft) through rapid time-to-value, agentic AI workflows, and modern architecture.
 
-**Current State:** Backend complete (Phases 0-4). Frontend and extended features in progress.
+**Current State:** Phases 0-10 complete. ~305 API endpoints, 39 routers, 35 services, 8 AI agents, 45 model files, 50+ database tables.
 
 ## Implementation Progress
 
@@ -19,7 +19,7 @@ CLM (Contract Lifecycle Management) is a strategic initiative to build an AI-nat
 | 4 | Backend API Endpoints (Contracts, Dashboards, Query) | ✅ Complete |
 | 5 | Frontend Foundation (React, Routing, Auth UI, Components) | ✅ Complete |
 | 6 | Frontend Features (Upload, Contract Viewer, Dashboards, Chat) | ✅ Complete |
-| 7 | Integration & Delivery (Docker, Seed Data, Docs) | ⬜ Not Started |
+| 7 | Integration & Delivery (Docker, Seed Data, Docs) | 🔄 Partial |
 | 8 | Post-Signing Management (Compliance, SLA, Renewals, Vendor Scoring) | ✅ Complete |
 | 9 | Relationship Governance (Evaluetor: KPIs, Perception, Improvements) | ✅ Complete |
 | 10 | Surveys (External Portal, Satisfaction Surveys) | ✅ Complete |
@@ -192,9 +192,11 @@ This ensures local dev (which auto-creates enums) and Docker (which uses migrati
 - `tasks/prd-contract-intelligence-mvp.md` - Product Requirements Document for MVP
 - `tasks/tasks-contract-intelligence-mvp.md` - Implementation task list (54 tasks, ~250 sub-tasks)
 - `tasks/skills.md` - Agent Squad agent definitions and orchestration setup
+- `docs/ARCHITECTURE_OVERVIEW.md` - System architecture and component overview
 - `docs/ARCHITECTURE_DIAGRAMS.md` - System architecture and sequence diagrams (Mermaid)
+- `docs/API_DOCUMENTATION.md` - Comprehensive API documentation (~305 endpoints)
+- `docs/DATA_MODEL.md` - Complete data model with Mermaid ER diagrams
 - `docs/PRODUCT_VISION_AND_ROADMAP.md` - Product vision and feature roadmap
-- `backend/docs/ARCHITECTURE_OVERVIEW.md` - Backend architecture quick reference
 
 ## Data Model Summary
 

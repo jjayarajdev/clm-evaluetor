@@ -681,6 +681,12 @@ async def test_integration(
                 healthy = await client.health_check()
                 message = "Connection successful" if healthy else "Health check failed"
 
+        elif integration.system == IntegrationSystem.teams:
+            from app.integrations.teams import TeamsClient
+            client = TeamsClient(integration, db)
+            healthy = await client.health_check()
+            message = "Connection successful" if healthy else "Health check failed"
+
         else:
             message = "Test not implemented for this system type"
 
@@ -790,3 +796,71 @@ async def remove_approver(
     await db.commit()
 
     return {"deleted": str(approver_id)}
+
+
+# ============== Teams Notification Test ==============
+
+class TeamsTestNotification(BaseModel):
+    """Test notification payload for Teams."""
+    title: str = "CLM Test Notification"
+    message: str = "This is a test notification from the Contract Lifecycle Management platform."
+    severity: str = "info"  # info, warning, error, success
+
+
+@router.post("/integrations/{integration_id}/teams/test-notification")
+async def send_teams_test_notification(
+    integration_id: UUID,
+    data: TeamsTestNotification = TeamsTestNotification(),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send a test notification to Teams via Power Automate.
+
+    Use this endpoint to verify your Teams integration is working correctly.
+    """
+    result = await db.execute(
+        select(IntegrationConfig).where(IntegrationConfig.id == integration_id)
+    )
+    integration = result.scalar_one_or_none()
+
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+
+    if integration.system != IntegrationSystem.teams:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Integration is not a Teams integration (found: {integration.system.value})"
+        )
+
+    try:
+        from app.integrations.teams import TeamsClient
+        client = TeamsClient(integration, db)
+
+        result = await client.send_notification(
+            title=data.title,
+            message=data.message,
+            severity=data.severity,
+            details={
+                "Integration": integration.name,
+                "Test": "This is a test notification",
+                "Source": "CLM Admin API",
+            },
+        )
+
+        # Update last used
+        integration.last_used_at = datetime.utcnow()
+        integration.total_requests += 1
+        await db.commit()
+
+        return {
+            "success": result["status"] == "sent",
+            "message": "Test notification sent successfully" if result["status"] == "sent" else "Failed to send notification",
+            "details": result,
+        }
+
+    except Exception as e:
+        integration.failed_requests += 1
+        await db.commit()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send notification: {str(e)}"
+        )

@@ -1,7 +1,10 @@
 """Contracts router for upload and management."""
 
 import json
+import logging
 from typing import Annotated, Any
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
@@ -2507,9 +2510,83 @@ async def share_contract(
     await db.commit()
     await db.refresh(share)
 
+    # Send email notification to the external user
+    access_url = f"/external/contracts/{access_token.token}"
+    try:
+        from app.integrations.email import EmailService
+        from app.core.config import settings
+
+        email_service = EmailService(db)
+
+        # Build the full URL
+        base_url = getattr(settings, 'FRONTEND_URL', None) or "https://34.204.15.143"
+        full_url = f"{base_url}{access_url}"
+
+        # Create email body
+        shared_by_name = current_user.full_name or current_user.email
+        email_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <div style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; padding: 15px 25px; border-radius: 10px; display: inline-block;">
+                        <h1 style="margin: 0; font-size: 24px;">Evaluetor</h1>
+                    </div>
+                </div>
+
+                <h2 style="color: #1f2937; margin-bottom: 20px;">A contract has been shared with you</h2>
+
+                <p>Hello{' ' + ext_user.full_name if ext_user.full_name else ''},</p>
+
+                <p><strong>{shared_by_name}</strong> has shared the following contract with you:</p>
+
+                <div style="background: #f3f4f6; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                    <p style="margin: 0; font-weight: bold; color: #374151;">{contract.filename}</p>
+                    {f'<p style="margin: 5px 0 0; color: #6b7280; font-size: 14px;">{contract.counterparty or ""}</p>' if contract.counterparty else ''}
+                </div>
+
+                {f'<div style="background: #ede9fe; border-left: 4px solid #7c3aed; padding: 15px; margin: 20px 0;"><p style="margin: 0; color: #5b21b6; font-style: italic;">{share_data.message}</p></div>' if share_data.message else ''}
+
+                <p>Your permissions:</p>
+                <ul style="color: #4b5563;">
+                    <li>View contract details</li>
+                    {'<li>Download contract document</li>' if share_data.can_download else ''}
+                    {'<li>Add comments</li>' if share_data.can_comment else ''}
+                </ul>
+
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{full_url}" style="background: #7c3aed; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View Contract</a>
+                </div>
+
+                <p style="color: #6b7280; font-size: 14px;">Or copy this link: <a href="{full_url}" style="color: #7c3aed;">{full_url}</a></p>
+
+                {f'<p style="color: #dc2626; font-size: 14px;"><strong>Note:</strong> This link expires on {expires_at.strftime("%B %d, %Y") if expires_at else "never"}.</p>' if expires_at else ''}
+
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+                <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+                    Powered by Evaluetor Contract Intelligence Platform
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+
+        await email_service.send_email(
+            to_email=ext_user.email,
+            to_name=ext_user.full_name or "",
+            subject=f"Contract Shared: {contract.filename}",
+            body=email_body,
+            is_html=True,
+        )
+        logger.info(f"Sent share notification email to {ext_user.email}")
+    except Exception as e:
+        # Log error but don't fail the share operation
+        logger.warning(f"Failed to send share notification email: {e}")
+
     return ShareInviteResponse(
         share=ContractShareResponse.model_validate(share),
-        access_url=f"/external/contracts/{access_token.token}",
+        access_url=access_url,
         token=access_token.token,
     )
 

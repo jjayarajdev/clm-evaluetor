@@ -346,6 +346,7 @@ class IndexingService:
             # Prepare vector store metadata with semantic classification
             metadata = ChunkMetadata(
                 contract_id=contract_id,
+                tenant_id=str(contract.tenant_id) if contract.tenant_id else None,
                 filename=contract.filename,
                 section_number=chunk.section_number,
                 section_title=classification.section_title,
@@ -361,10 +362,31 @@ class IndexingService:
             metadatas.append(metadata)
             ids.append(chunk_id)
 
-            # Create clause record with semantic type hint
+            # Map AI section classification to clause type
+            section_to_clause_type = {
+                "sla": ClauseType.SERVICE_LEVEL,
+                "governance": ClauseType.GOVERNANCE,
+                "liability": ClauseType.LIMITATION_OF_LIABILITY,
+                "payment": ClauseType.PAYMENT_TERMS,
+                "confidentiality": ClauseType.CONFIDENTIALITY,
+                "termination": ClauseType.TERMINATION,
+                "ip": ClauseType.INTELLECTUAL_PROPERTY,
+                "compliance": ClauseType.DATA_PROTECTION,
+                "scope": ClauseType.SCOPE,
+                "preamble": ClauseType.PREAMBLE,
+                "definitions": ClauseType.DEFINITIONS,
+                "exhibits": ClauseType.EXHIBIT,
+                "terms": ClauseType.PROCEDURAL,
+            }
+            clause_type = section_to_clause_type.get(
+                classification.section_type,
+                ClauseType.OTHER
+            )
+
+            # Create clause record with AI-determined type
             clause = Clause(
                 contract_id=contract.id,
-                clause_type=ClauseType.OTHER,
+                clause_type=clause_type,
                 text=chunk.text,  # Store full chunk text without truncation
                 section_number=chunk.section_number,
                 page_number=chunk.page_start,

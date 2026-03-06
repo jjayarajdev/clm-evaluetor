@@ -43,6 +43,7 @@ class ChunkMetadata(BaseModel):
     """Metadata for a document chunk stored in ChromaDB."""
 
     contract_id: str
+    tenant_id: str | None = None  # Tenant ID for multi-tenant isolation
     filename: str | None = None  # Original filename for display
     clause_type: str | None = None
     section_number: str | None = None

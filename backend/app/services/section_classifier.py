@@ -68,7 +68,7 @@ auto_renewal, force_majeure, warranty, dispute_resolution, assignment,
 non_compete, data_protection, insurance, audit, change_control
 
 Respond with JSON:
-{"type": "payment", "tags": ["pricing"], "confidence": 0.9, "title": "Payment Terms"}"""
+{{"type": "payment", "tags": ["pricing"], "confidence": 0.9, "title": "Payment Terms"}}"""
 
 
 async def classify_section(text: str, max_chars: int = 2000) -> SectionClassification:
@@ -101,13 +101,39 @@ async def classify_section(text: str, max_chars: int = 2000) -> SectionClassific
 
         # Parse JSON response
         import json
+        import re
+
         # Handle markdown code blocks if present
         if "```" in result_text:
-            result_text = result_text.split("```")[1]
-            if result_text.startswith("json"):
-                result_text = result_text[4:]
+            # Extract content between ``` markers
+            code_block_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', result_text, re.DOTALL)
+            if code_block_match:
+                result_text = code_block_match.group(1)
+            else:
+                # Fallback: split and extract
+                parts = result_text.split("```")
+                if len(parts) >= 2:
+                    result_text = parts[1]
+                    if result_text.strip().startswith("json"):
+                        result_text = result_text.strip()[4:]
 
-        data = json.loads(result_text.strip())
+        # Try to find JSON object in the text
+        result_text = result_text.strip()
+        if not result_text.startswith("{"):
+            # Look for JSON object in the response
+            json_match = re.search(r'\{[^{}]*\}', result_text, re.DOTALL)
+            if json_match:
+                result_text = json_match.group(0)
+            else:
+                # No valid JSON found, return default
+                logger.warning(f"No valid JSON found in response: {result_text[:200]}")
+                return SectionClassification(
+                    section_type="general",
+                    semantic_tags=[],
+                    confidence=0.5,
+                )
+
+        data = json.loads(result_text)
 
         section_type = data.get("type", "general").lower()
         # Validate section type

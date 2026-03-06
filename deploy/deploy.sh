@@ -133,8 +133,16 @@ deploy() {
         log_info "Seeding initial data (fresh deployment)..."
         $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -m scripts.seed_data || true
         $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -m scripts.seed_compliance_rules || true
+
+        # Reindex to populate ChromaDB with tenant_id metadata
+        log_info "Reindexing contracts for vector search..."
+        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -m scripts.reindex_clauses || true
     else
         log_info "Skipping seed data (existing deployment - data preserved)"
+
+        # Always reindex on updates to ensure ChromaDB metadata is current
+        log_info "Reindexing contracts to apply latest schema changes..."
+        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -m scripts.reindex_clauses || true
     fi
 
     log_info "Deployment complete!"
@@ -150,6 +158,16 @@ seed() {
     $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -m scripts.seed_data || true
     $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -m scripts.seed_compliance_rules || true
     log_info "Seeding complete."
+}
+
+# Reindex contracts in ChromaDB (fixes Q&A and search issues)
+reindex() {
+    cd "$SCRIPT_DIR"
+    COMPOSE_CMD=$(get_compose_cmd)
+    log_info "Reindexing all contracts in ChromaDB..."
+    log_info "This updates vector embeddings with latest metadata (tenant_id, section types, etc.)"
+    $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -m scripts.reindex_clauses
+    log_info "Reindexing complete."
 }
 
 # Show logs
@@ -266,6 +284,9 @@ case "${1:-}" in
     seed)
         seed
         ;;
+    reindex)
+        reindex
+        ;;
     destroy)
         destroy
         ;;
@@ -275,7 +296,7 @@ case "${1:-}" in
     *)
         echo "CLM Platform Deployment"
         echo ""
-        echo "Usage: $0 {setup|deploy|logs|restart|stop|status|seed|destroy|backup}"
+        echo "Usage: $0 {setup|deploy|logs|restart|stop|status|seed|reindex|destroy|backup}"
         echo ""
         echo "Commands:"
         echo "  setup    - Initialize environment (creates .env from template)"
@@ -285,6 +306,7 @@ case "${1:-}" in
         echo "  stop     - Stop all services (preserves data volumes)"
         echo "  status   - Show service status"
         echo "  seed     - Manually seed demo data (use with caution)"
+        echo "  reindex  - Reindex contracts in ChromaDB (fixes Q&A issues)"
         echo "  backup   - Backup PostgreSQL and ChromaDB data"
         echo "  destroy  - DELETE ALL DATA (requires confirmation)"
         exit 1

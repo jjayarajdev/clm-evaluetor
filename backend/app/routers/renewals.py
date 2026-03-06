@@ -3,8 +3,10 @@
 from datetime import date, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
+import hashlib
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.responses import Response
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,6 +14,8 @@ from sqlalchemy.orm import selectinload
 from app.core.deps import CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models import Contract, ContractStatus, ContractSLA, SLAPerformance
+from app.models.obligation import Obligation
+from app.models.key_date import ContractKeyDate
 from app.schemas.renewal import (
     RenewalStatusUpdate,
     ContractRenewalInfo,
@@ -640,4 +644,242 @@ async def get_renewal_recommendation(
         obligation_compliance_rate=obligation_compliance,
         suggested_actions=suggested_actions,
         negotiation_points=negotiation_points if negotiation_points else None,
+    )
+
+
+def _generate_ics_uid(event_type: str, event_id: str, event_date: date) -> str:
+    """Generate a unique UID for an ICS event."""
+    data = f"{event_type}-{event_id}-{event_date.isoformat()}"
+    return hashlib.sha256(data.encode()).hexdigest()[:32] + "@clm.app"
+
+
+def _format_ics_date(d: date) -> str:
+    """Format a date for ICS (VALUE=DATE format)."""
+    return d.strftime("%Y%m%d")
+
+
+def _escape_ics_text(text: str) -> str:
+    """Escape text for ICS format."""
+    return text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+def _build_ics_event(
+    uid: str,
+    summary: str,
+    description: str,
+    event_date: date,
+    category: str = "CONTRACT",
+    alarm_days_before: int = 7,
+) -> str:
+    """Build a single VEVENT block."""
+    lines = [
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTAMP:{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}",
+        f"DTSTART;VALUE=DATE:{_format_ics_date(event_date)}",
+        f"DTEND;VALUE=DATE:{_format_ics_date(event_date + timedelta(days=1))}",
+        f"SUMMARY:{_escape_ics_text(summary)}",
+        f"DESCRIPTION:{_escape_ics_text(description)}",
+        f"CATEGORIES:{category}",
+        "STATUS:CONFIRMED",
+        "TRANSP:TRANSPARENT",
+    ]
+
+    # Add alarm if in future
+    if event_date > date.today():
+        alarm_date = event_date - timedelta(days=alarm_days_before)
+        if alarm_date >= date.today():
+            lines.extend([
+                "BEGIN:VALARM",
+                "ACTION:DISPLAY",
+                f"DESCRIPTION:Reminder: {_escape_ics_text(summary)}",
+                f"TRIGGER:-P{alarm_days_before}D",
+                "END:VALARM",
+            ])
+
+    lines.append("END:VEVENT")
+    return "\r\n".join(lines)
+
+
+@router.get("/export/calendar.ics")
+async def export_calendar_ics(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    include_expirations: bool = Query(True, description="Include contract expiration dates"),
+    include_notice_deadlines: bool = Query(True, description="Include notice deadlines"),
+    include_obligations: bool = Query(True, description="Include obligation deadlines"),
+    include_key_dates: bool = Query(True, description="Include key dates"),
+    days_ahead: int = Query(365, description="Number of days ahead to include", ge=30, le=730),
+):
+    """
+    Export contract deadlines and key dates as an ICS calendar file.
+
+    The exported calendar can be imported into Google Calendar, Outlook,
+    Apple Calendar, or any other calendar application that supports ICS format.
+
+    Returns events for:
+    - Contract expiration dates
+    - Notice deadlines (for auto-renewing contracts)
+    - Obligation deadlines
+    - Custom key dates
+    """
+    today = date.today()
+    cutoff = today + timedelta(days=days_ahead)
+
+    events: list[str] = []
+
+    # Get contracts with expiration dates
+    if include_expirations or include_notice_deadlines:
+        contracts_query = select(Contract).where(
+            and_(
+                Contract.status == ContractStatus.COMPLETED,
+                Contract.expiration_date.isnot(None),
+                Contract.expiration_date >= today,
+                Contract.expiration_date <= cutoff,
+            )
+        )
+        contracts_query = apply_tenant_filter(contracts_query, tenant_id)
+        result = await db.execute(contracts_query)
+        contracts = result.scalars().all()
+
+        for contract in contracts:
+            # Expiration date event
+            if include_expirations and contract.expiration_date:
+                uid = _generate_ics_uid("expiration", str(contract.id), contract.expiration_date)
+                summary = f"Contract Expires: {contract.counterparty or contract.filename}"
+                description = (
+                    f"Contract: {contract.filename}\\n"
+                    f"Counterparty: {contract.counterparty or 'N/A'}\\n"
+                    f"Type: {contract.contract_type.value if contract.contract_type else 'N/A'}\\n"
+                    f"Value: ${float(contract.contract_value):,.2f}" if contract.contract_value else ""
+                )
+                events.append(_build_ics_event(
+                    uid=uid,
+                    summary=summary,
+                    description=description,
+                    event_date=contract.expiration_date,
+                    category="CONTRACT_EXPIRATION",
+                    alarm_days_before=30,
+                ))
+
+            # Notice deadline event
+            if include_notice_deadlines and contract.notice_period_days and contract.expiration_date:
+                notice_date = contract.expiration_date - timedelta(days=contract.notice_period_days)
+                if today <= notice_date <= cutoff:
+                    uid = _generate_ics_uid("notice", str(contract.id), notice_date)
+                    summary = f"Notice Deadline: {contract.counterparty or contract.filename}"
+                    description = (
+                        f"Last day to provide notice for contract renewal/termination\\n"
+                        f"Contract: {contract.filename}\\n"
+                        f"Counterparty: {contract.counterparty or 'N/A'}\\n"
+                        f"Expiration: {contract.expiration_date.isoformat()}\\n"
+                        f"Auto-Renewal: {'Yes' if contract.auto_renewal else 'No'}"
+                    )
+                    events.append(_build_ics_event(
+                        uid=uid,
+                        summary=summary,
+                        description=description,
+                        event_date=notice_date,
+                        category="NOTICE_DEADLINE",
+                        alarm_days_before=14,
+                    ))
+
+    # Get obligation deadlines
+    if include_obligations:
+        obligations_query = select(Obligation).join(
+            Contract, Obligation.contract_id == Contract.id
+        ).where(
+            and_(
+                Obligation.deadline.isnot(None),
+                Obligation.deadline >= today,
+                Obligation.deadline <= cutoff,
+                Obligation.status != "completed",
+            )
+        )
+        if tenant_id is not None:
+            obligations_query = obligations_query.where(Contract.tenant_id == tenant_id)
+
+        result = await db.execute(obligations_query)
+        obligations = result.scalars().all()
+
+        for obl in obligations:
+            if obl.deadline:
+                uid = _generate_ics_uid("obligation", str(obl.id), obl.deadline)
+                priority = "CRITICAL: " if obl.is_critical else ""
+                summary = f"{priority}Obligation Due: {obl.description[:50]}..."
+                description = (
+                    f"Obligation: {obl.description}\\n"
+                    f"Type: {obl.obligation_type.value if obl.obligation_type else 'N/A'}\\n"
+                    f"Status: {obl.status.value if obl.status else 'pending'}\\n"
+                    f"Obligated Party: {obl.obligated_party or 'N/A'}"
+                )
+                events.append(_build_ics_event(
+                    uid=uid,
+                    summary=summary,
+                    description=description,
+                    event_date=obl.deadline,
+                    category="OBLIGATION",
+                    alarm_days_before=7,
+                ))
+
+    # Get key dates
+    if include_key_dates:
+        key_dates_query = select(ContractKeyDate).join(
+            Contract, ContractKeyDate.contract_id == Contract.id
+        ).where(
+            and_(
+                ContractKeyDate.event_date >= today,
+                ContractKeyDate.event_date <= cutoff,
+                ContractKeyDate.is_completed == False,
+            )
+        )
+        if tenant_id is not None:
+            key_dates_query = key_dates_query.where(Contract.tenant_id == tenant_id)
+
+        result = await db.execute(key_dates_query)
+        key_dates = result.scalars().all()
+
+        for kd in key_dates:
+            uid = _generate_ics_uid("keydate", str(kd.id), kd.event_date)
+            summary = f"Key Date: {kd.event_name}"
+            description = (
+                f"Event: {kd.event_name}\\n"
+                f"Type: {kd.event_type.value}\\n"
+                f"Description: {kd.description or 'N/A'}\\n"
+                f"Action Required: {kd.action_required or 'N/A'}"
+            )
+            events.append(_build_ics_event(
+                uid=uid,
+                summary=summary,
+                description=description,
+                event_date=kd.event_date,
+                category=kd.event_type.value.upper(),
+                alarm_days_before=kd.alert_days_before or 7,
+            ))
+
+    # Build full ICS file
+    ics_content = "\r\n".join([
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//CLM//Contract Lifecycle Management//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "X-WR-CALNAME:CLM Contract Deadlines",
+        "X-WR-TIMEZONE:UTC",
+    ])
+
+    if events:
+        ics_content += "\r\n" + "\r\n".join(events)
+
+    ics_content += "\r\nEND:VCALENDAR\r\n"
+
+    # Return as downloadable file
+    filename = f"clm-calendar-{today.isoformat()}.ics"
+    return Response(
+        content=ics_content,
+        media_type="text/calendar",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
     )

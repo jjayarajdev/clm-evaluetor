@@ -7,6 +7,7 @@ import {
   ClockIcon,
   ArrowPathIcon,
   CalendarDaysIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -121,11 +122,38 @@ function RenewalCard({ contract }: { contract: ContractRenewalInfo }) {
 
 export default function RenewalsPage() {
   const [selectedWindow, setSelectedWindow] = useState<string>('all')
+  const [isExporting, setIsExporting] = useState(false)
 
   const { data: calendar, isLoading, error } = useQuery({
     queryKey: ['renewal-calendar'],
     queryFn: () => api.getRenewalCalendar(),
   })
+
+  const handleExportCalendar = async () => {
+    setIsExporting(true)
+    try {
+      const blob = await api.exportCalendarICS({
+        include_expirations: true,
+        include_notice_deadlines: true,
+        include_obligations: true,
+        include_key_dates: true,
+        days_ahead: 365,
+      })
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `clm-calendar-${new Date().toISOString().split('T')[0]}.ics`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error('Failed to export calendar:', err)
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -173,12 +201,31 @@ export default function RenewalsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <PageHeader
-        title="Renewal Calendar"
-        description="Track contract renewals and notice deadlines"
-        icon={CalendarDaysIcon}
-        variant="bordered"
-      />
+      <div className="flex items-start justify-between">
+        <PageHeader
+          title="Renewal Calendar"
+          description="Track contract renewals and notice deadlines"
+          icon={CalendarDaysIcon}
+          variant="bordered"
+        />
+        <button
+          onClick={handleExportCalendar}
+          disabled={isExporting}
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors shadow-sm"
+        >
+          {isExporting ? (
+            <>
+              <LoadingSpinner size="sm" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <ArrowDownTrayIcon className="h-5 w-5" />
+              Export to Calendar
+            </>
+          )}
+        </button>
+      </div>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

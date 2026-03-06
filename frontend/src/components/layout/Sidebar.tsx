@@ -47,6 +47,8 @@ const bottomNavigation = [
 ]
 
 const adminNavigation = [
+  { name: 'Business Units', href: '/admin/business-units', icon: BuildingOffice2Icon, roles: ['admin', 'super_admin'] },
+  { name: 'External Users', href: '/admin/external-users', icon: UserGroupIcon, roles: ['admin', 'super_admin'] },
   { name: 'SLA Config', href: '/admin/sla-config', icon: CircleStackIcon, roles: ['admin'] },
   { name: 'Milestones', href: '/admin/milestone-config', icon: FlagIcon, roles: ['admin'] },
   { name: 'Scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },

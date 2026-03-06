@@ -1,12 +1,17 @@
 import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Cog6ToothIcon,
   BellIcon,
   ShieldCheckIcon,
   CloudIcon,
   PaintBrushIcon,
+  PlusIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
+import api from '@/lib/api'
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance'
 
@@ -150,49 +155,229 @@ function GeneralSettings() {
   )
 }
 
+interface NotificationRule {
+  id: string
+  name: string
+  description?: string
+  is_active: boolean
+  event_type: string
+  days_before: number
+  channels: string[]
+  priority: string
+  trigger_count: number
+}
+
+interface RuleTemplate {
+  name: string
+  description: string
+  event_type: string
+  days_before: number
+  channels: string[]
+  priority: string
+}
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  contract_expiration: 'Contract Expiration',
+  notice_deadline: 'Notice Deadline',
+  obligation_due: 'Obligation Due',
+  sla_breach: 'SLA Breach',
+  sla_warning: 'SLA Warning',
+  renewal_reminder: 'Renewal Reminder',
+  key_date: 'Key Date',
+  compliance_overdue: 'Compliance Overdue',
+}
+
+const PRIORITY_COLORS: Record<string, string> = {
+  low: 'bg-gray-100 text-gray-700',
+  normal: 'bg-blue-100 text-blue-700',
+  high: 'bg-amber-100 text-amber-700',
+  critical: 'bg-red-100 text-red-700',
+}
+
 function NotificationSettings() {
+  const queryClient = useQueryClient()
+  const [showTemplates, setShowTemplates] = useState(false)
+
+  const { data: rules, isLoading } = useQuery({
+    queryKey: ['notification-rules'],
+    queryFn: () => api.getNotificationRules({ activeOnly: false }) as Promise<NotificationRule[]>,
+  })
+
+  const { data: templates } = useQuery({
+    queryKey: ['notification-rule-templates'],
+    queryFn: () => api.getNotificationRuleTemplates() as Promise<RuleTemplate[]>,
+    enabled: showTemplates,
+  })
+
+  const toggleMutation = useMutation({
+    mutationFn: (ruleId: string) => api.toggleNotificationRule(ruleId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notification-rules'] }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (ruleId: string) => api.deleteNotificationRule(ruleId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notification-rules'] }),
+  })
+
+  const createFromTemplateMutation = useMutation({
+    mutationFn: (templateIndex: number) => api.createNotificationRuleFromTemplate(templateIndex),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notification-rules'] })
+      setShowTemplates(false)
+    },
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <LoadingSpinner size="md" />
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between py-3 border-b border-gray-200">
+    <div className="space-y-6">
+      {/* Header with Add Button */}
+      <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-900">Contract Expiration Alerts</p>
-          <p className="text-xs text-gray-500">Get notified before contracts expire</p>
+          <h3 className="text-sm font-medium text-gray-900">Notification Rules</h3>
+          <p className="text-xs text-gray-500">Configure when and how you receive notifications</p>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" defaultChecked className="sr-only peer" />
-          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-        </label>
+        <button
+          onClick={() => setShowTemplates(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700"
+        >
+          <PlusIcon className="h-4 w-4" />
+          Add Rule
+        </button>
       </div>
-      <div className="flex items-center justify-between py-3 border-b border-gray-200">
-        <div>
-          <p className="text-sm font-medium text-gray-900">Obligation Reminders</p>
-          <p className="text-xs text-gray-500">Reminders for upcoming obligations</p>
+
+      {/* Templates Modal */}
+      {showTemplates && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Choose a Rule Template
+            </h3>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {templates?.map((template, index) => (
+                <button
+                  key={index}
+                  onClick={() => createFromTemplateMutation.mutate(index)}
+                  className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-medium text-gray-900">{template.name}</p>
+                    <span className={cn(
+                      'px-2 py-0.5 rounded text-xs font-medium',
+                      PRIORITY_COLORS[template.priority] || PRIORITY_COLORS.normal
+                    )}>
+                      {template.priority}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500">{template.description}</p>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                    <span>{EVENT_TYPE_LABELS[template.event_type] || template.event_type}</span>
+                    <span>•</span>
+                    <span>{template.days_before} days before</span>
+                    <span>•</span>
+                    <span>{template.channels.join(', ')}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setShowTemplates(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" defaultChecked className="sr-only peer" />
-          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-        </label>
-      </div>
-      <div className="flex items-center justify-between py-3 border-b border-gray-200">
-        <div>
-          <p className="text-sm font-medium text-gray-900">High Risk Alerts</p>
-          <p className="text-xs text-gray-500">Notifications for high-risk clauses</p>
+      )}
+
+      {/* Rules List */}
+      {rules && rules.length > 0 ? (
+        <div className="space-y-3">
+          {rules.map((rule) => (
+            <div
+              key={rule.id}
+              className={cn(
+                'p-4 border rounded-lg transition-colors',
+                rule.is_active ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50'
+              )}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className={cn(
+                      'font-medium',
+                      rule.is_active ? 'text-gray-900' : 'text-gray-500'
+                    )}>
+                      {rule.name}
+                    </p>
+                    <span className={cn(
+                      'px-2 py-0.5 rounded text-xs font-medium',
+                      PRIORITY_COLORS[rule.priority] || PRIORITY_COLORS.normal
+                    )}>
+                      {rule.priority}
+                    </span>
+                    {!rule.is_active && (
+                      <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-xs">
+                        Disabled
+                      </span>
+                    )}
+                  </div>
+                  {rule.description && (
+                    <p className="text-sm text-gray-500 mb-2">{rule.description}</p>
+                  )}
+                  <div className="flex items-center gap-3 text-xs text-gray-400">
+                    <span className="px-2 py-0.5 bg-gray-100 rounded">
+                      {EVENT_TYPE_LABELS[rule.event_type] || rule.event_type}
+                    </span>
+                    <span>{rule.days_before} days before</span>
+                    <span>{rule.channels.join(', ')}</span>
+                    {rule.trigger_count > 0 && (
+                      <span className="text-green-600">
+                        Triggered {rule.trigger_count} times
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rule.is_active}
+                      onChange={() => toggleMutation.mutate(rule.id)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                  </label>
+                  <button
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this rule?')) {
+                        deleteMutation.mutate(rule.id)
+                      }
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" defaultChecked className="sr-only peer" />
-          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-        </label>
-      </div>
-      <div className="flex items-center justify-between py-3">
-        <div>
-          <p className="text-sm font-medium text-gray-900">Processing Complete</p>
-          <p className="text-xs text-gray-500">Notify when document processing finishes</p>
+      ) : (
+        <div className="text-center py-8 text-gray-500">
+          <BellIcon className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+          <p className="text-sm font-medium mb-1">No notification rules configured</p>
+          <p className="text-xs">Add rules to get notified about important contract events</p>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" className="sr-only peer" />
-          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-        </label>
-      </div>
+      )}
     </div>
   )
 }

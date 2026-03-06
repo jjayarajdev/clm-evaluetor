@@ -167,19 +167,21 @@ erDiagram
 
     Clause {
         uuid id PK
-        uuid tenant_id FK
         uuid contract_id FK
-        enum clause_type
-        string title
-        text content
-        int section_number
+        enum clause_type "31 types with AI classification"
+        text text
+        text summary
+        string section_number
         int page_number
-        decimal confidence_score
-        enum risk_level "low|medium|high"
-        text risk_notes
-        boolean is_standard
-        jsonb metadata
+        int char_start
+        int char_end
+        enum risk_level "low|medium|high|critical"
+        text risk_reason
+        decimal confidence_score "AI classification confidence"
+        text extracted_value
+        jsonb custom_fields
         timestamp created_at
+        timestamp updated_at
     }
 
     ContractParty {
@@ -199,28 +201,80 @@ erDiagram
     }
 ```
 
-### Clause Types
+### Clause Types (31 Types with AI Classification)
+
+```mermaid
+graph TB
+    subgraph LegalRisk["Legal/Risk Clauses"]
+        L1[indemnification]
+        L2[limitation_of_liability]
+        L3[termination]
+        L4[confidentiality]
+        L5[intellectual_property]
+        L6[payment_terms]
+        L7[warranty]
+        L8[force_majeure]
+        L9[non_compete]
+        L10[non_solicitation]
+        L11[data_protection]
+        L12[dispute_resolution]
+        L13[assignment]
+        L14[notice]
+        L15[governing_law]
+        L16[sla]
+        L17[auto_renewal]
+    end
+
+    subgraph Structural["Structural Clauses"]
+        S1[preamble]
+        S2[definitions]
+        S3[service_order]
+        S4[procedural]
+        S5[exhibit]
+    end
+
+    subgraph ITService["IT Service/Outsourcing"]
+        IT1[service_description]
+        IT2[service_level]
+        IT3[deliverable]
+        IT4[governance]
+        IT5[transition]
+        IT6[change_management]
+        IT7[support]
+        IT8[security]
+        IT9[personnel]
+        IT10[pricing]
+        IT11[risk_mitigation]
+        IT12[scope]
+        IT13[acceptance]
+    end
+
+    subgraph Fallback["Fallback"]
+        O1[other]
+    end
+```
+
+### AI Section Classification Mapping
+
+Clauses are classified using GPT-4o-mini semantic analysis. The AI section types map to ClauseType as follows:
 
 ```mermaid
 graph LR
-    subgraph ClauseTypes["17 Clause Types"]
-        C1[confidentiality]
-        C2[termination]
-        C3[indemnification]
-        C4[liability]
-        C5[ip_rights]
-        C6[payment]
-        C7[warranty]
-        C8[force_majeure]
-        C9[governing_law]
-        C10[dispute_resolution]
-        C11[assignment]
-        C12[notice]
-        C13[amendment]
-        C14[severability]
-        C15[entire_agreement]
-        C16[data_protection]
-        C17[audit_rights]
+    subgraph AISection["AI Section Types"]
+        A1[sla] --> CT1[SERVICE_LEVEL]
+        A2[governance] --> CT2[GOVERNANCE]
+        A3[liability] --> CT3[LIMITATION_OF_LIABILITY]
+        A4[payment] --> CT4[PAYMENT_TERMS]
+        A5[confidentiality] --> CT5[CONFIDENTIALITY]
+        A6[termination] --> CT6[TERMINATION]
+        A7[ip] --> CT7[INTELLECTUAL_PROPERTY]
+        A8[compliance] --> CT8[DATA_PROTECTION]
+        A9[scope] --> CT9[SCOPE]
+        A10[preamble] --> CT10[PREAMBLE]
+        A11[definitions] --> CT11[DEFINITIONS]
+        A12[exhibits] --> CT12[EXHIBIT]
+        A13[terms] --> CT13[PROCEDURAL]
+        A14[general] --> CT14[OTHER]
     end
 ```
 
@@ -888,16 +942,164 @@ erDiagram
     }
 ```
 
+### Notification Rules
+
+```mermaid
+erDiagram
+    NotificationRule {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        text description
+        enum event_type "contract_expiring|obligation_due|sla_breach|compliance_gap|renewal_notice|custom"
+        enum channel "email|teams|in_app|all"
+        jsonb conditions
+        jsonb recipients
+        int days_before
+        boolean is_active
+        uuid created_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+### Business Unit Hierarchy
+
+```mermaid
+erDiagram
+    Tenant ||--o{ BusinessUnit : "has units"
+    BusinessUnit ||--o{ BusinessUnit : "parent of"
+    BusinessUnit ||--o{ Contract : "owns"
+    BusinessUnit ||--o{ User : "members"
+
+    BusinessUnit {
+        uuid id PK
+        uuid tenant_id FK
+        uuid parent_id FK "optional, self-referencing"
+        string name
+        string code UK
+        text description
+        string department_type
+        uuid head_user_id FK
+        boolean is_active
+        int sort_order
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+### External User Access
+
+```mermaid
+erDiagram
+    Tenant ||--o{ ExternalUser : "has external users"
+    ExternalUser ||--o{ ContractShare : "has shares"
+    Contract ||--o{ ContractShare : "shared via"
+    ContractShare ||--o{ ContractComment : "has comments"
+
+    ExternalUser {
+        uuid id PK
+        uuid tenant_id FK
+        string email UK
+        string name
+        string company
+        string role
+        boolean is_active
+        timestamp last_login
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ContractShare {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK
+        uuid external_user_id FK
+        string access_token UK
+        enum permission "view|comment|download"
+        date expires_at
+        boolean is_active
+        uuid shared_by FK
+        timestamp created_at
+    }
+
+    ContractComment {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK
+        uuid share_id FK
+        uuid external_user_id FK
+        text comment_text
+        string section_reference
+        boolean is_resolved
+        uuid resolved_by FK
+        timestamp resolved_at
+        timestamp created_at
+    }
+```
+
+### Knowledge Graph
+
+```mermaid
+erDiagram
+    Contract ||--o{ KGEntity : "contains entities"
+    KGEntity ||--o{ KGRelationship : "source"
+    KGEntity ||--o{ KGRelationship : "target"
+
+    KGEntity {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK
+        enum entity_type "party|clause|obligation|sla|date|amount|term|risk|other"
+        string name
+        text description
+        jsonb properties
+        decimal confidence
+        timestamp created_at
+    }
+
+    KGRelationship {
+        uuid id PK
+        uuid tenant_id FK
+        uuid source_entity_id FK
+        uuid target_entity_id FK
+        enum relationship_type "defines|obligates|modifies|references|depends_on|conflicts_with|supersedes"
+        string label
+        decimal weight
+        jsonb properties
+        timestamp created_at
+    }
+```
+
+### Metric Snapshots
+
+```mermaid
+erDiagram
+    MetricSnapshot {
+        uuid id PK
+        uuid tenant_id FK
+        string metric_name
+        string metric_category
+        decimal metric_value
+        jsonb dimensions
+        jsonb breakdown
+        date snapshot_date
+        timestamp created_at
+    }
+```
+
 ---
 
 ## 7. Complete Entity Relationship Overview
 
 ```mermaid
 graph TB
-    subgraph MultiTenancy["Multi-Tenancy"]
+    subgraph MultiTenancy["Multi-Tenancy & Access"]
         T[Tenant]
         U[User]
         AL[AuditLog]
+        BU[BusinessUnit]
+        EU[ExternalUser]
     end
 
     subgraph ContractIntel["Contract Intelligence"]
@@ -906,6 +1108,8 @@ graph TB
         O[Obligation]
         CP[ContractParty]
         AM[Amendment]
+        KGE[KGEntity]
+        KGR[KGRelationship]
     end
 
     subgraph PostSigning["Post-Signing"]
@@ -942,14 +1146,20 @@ graph TB
         CLI[Client]
         SL[SuggestedLink]
         CLINK[ContractLink]
+        CS[ContractShare]
+        CC[ContractComment]
         N[Notification]
+        NR[NotificationRule]
         SJ[SchedulerJob]
+        MS[MetricSnapshot]
     end
 
     T --> U
     T --> C
     T --> ORG
     T --> CLI
+    T --> BU
+    T --> EU
 
     C --> CL
     C --> O
@@ -958,6 +1168,10 @@ graph TB
     C --> SLA
     C --> CG
     C --> RO
+    C --> KGE
+    C --> CS
+
+    KGE --> KGR
 
     SLA --> SLAP
     SLA --> SLAA
@@ -978,9 +1192,13 @@ graph TB
     SR --> SRESP
     SQ --> SRESP
 
+    EU --> CS
+    CS --> CC
+
     U --> RT
     U --> N
     U --> AL
+    U --> BU
 
     C --> SL
     C --> CLINK
@@ -1110,3 +1328,5 @@ sequenceDiagram
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2024-02-25 | Initial data model with Mermaid diagrams |
+| 1.1 | 2026-02-28 | Updated clause types to 31 categories, added AI classification mapping |
+| 1.2 | 2026-03-06 | Added Business Unit, External User, Contract Share/Comment, Knowledge Graph, Notification Rules, Metric Snapshots. Updated entity overview diagram. |

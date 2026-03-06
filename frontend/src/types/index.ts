@@ -146,12 +146,19 @@ export interface SourceReference {
   relevance_score: number | null
 }
 
+export interface Visualization {
+  chart_type: 'bar' | 'pie' | 'timeline' | 'table' | 'stat_cards'
+  title: string
+  data: any
+}
+
 export interface QueryResponse {
   answer: string
   confidence: number
   sources: SourceReference[]
   follow_up_questions: string[]
   session_id: string
+  visualizations?: Visualization[]
 }
 
 // Additional role type with viewer
@@ -465,6 +472,14 @@ export interface ObligationFullDetail {
   consequence_of_breach: string | null
   trigger_condition: string | null
   source_text: string | null
+
+  // Compliance tracking fields
+  rag_status: string | null
+  is_critical: boolean
+  compliance_notes: string | null
+  compliance_evidence: string | null
+  last_compliance_date: string | null
+  next_compliance_due: string | null
 
   clause_id: string | null
   clause_type: string | null

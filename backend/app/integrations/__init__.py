@@ -4,12 +4,14 @@ Provides clients for:
 - ServiceNow (incident management)
 - Salesforce (account and task management)
 - Email (SendGrid and SMTP)
+- Microsoft Teams (notifications via Power Automate)
 """
 
 from app.integrations.base import BaseIntegrationClient, MockIntegrationClient
 from app.integrations.servicenow import ServiceNowClient
 from app.integrations.salesforce import SalesforceClient
 from app.integrations.email import SendGridClient, SMTPClient, EmailService
+from app.integrations.teams import TeamsClient
 
 __all__ = [
     "BaseIntegrationClient",
@@ -19,4 +21,5 @@ __all__ = [
     "SendGridClient",
     "SMTPClient",
     "EmailService",
+    "TeamsClient",
 ]

@@ -416,6 +416,129 @@ async def store_extracted_clauses(
     return created_clauses
 
 
+async def classify_uncategorized_chunks(
+    db: AsyncSession,
+    contract_id: uuid.UUID,
+) -> int:
+    """Use AI to classify uncategorized chunks into proper clause types.
+
+    Sends each OTHER chunk to the LLM for classification.
+
+    Args:
+        db: Database session.
+        contract_id: Contract ID to process.
+
+    Returns:
+        Number of chunks classified.
+    """
+    from sqlalchemy import select
+    from app.services.orchestrator import get_orchestrator
+    from app.agents.base import extract_json_from_response
+
+    logger.info(f"Starting AI classification for contract {contract_id}")
+
+    # Find all OTHER clauses for this contract
+    result = await db.execute(
+        select(Clause).where(
+            Clause.contract_id == contract_id,
+            Clause.clause_type == ClauseType.OTHER,
+        )
+    )
+    other_clauses = result.scalars().all()
+
+    logger.info(f"Found {len(other_clauses)} uncategorized chunks to classify")
+
+    if not other_clauses:
+        return 0
+
+    orchestrator = get_orchestrator()
+    classified_count = 0
+
+    # Build classification prompt
+    clause_types_list = ", ".join(SUPPORTED_CLAUSE_TYPES.keys())
+
+    # Process in batches to reduce API calls
+    batch_size = 10
+    for i in range(0, len(other_clauses), batch_size):
+        batch = other_clauses[i:i + batch_size]
+
+        # Build batch prompt
+        chunks_text = ""
+        for idx, clause in enumerate(batch):
+            text_preview = (clause.text or "")[:500]
+            chunks_text += f"\n\nCHUNK {idx + 1}:\n{text_preview}"
+
+        prompt = f"""Classify each text chunk into ONE of these clause types:
+{clause_types_list}
+
+If the chunk contains SLA metrics, availability percentages, response times,
+performance targets, or measurement data - classify as SERVICE_LEVEL.
+
+If it doesn't fit any category, use OTHER.
+
+{chunks_text}
+
+Respond with JSON array:
+[{{"chunk": 1, "type": "SERVICE_LEVEL"}}, {{"chunk": 2, "type": "GOVERNANCE"}}, ...]"""
+
+        try:
+            logger.info(f"Sending batch {i//batch_size + 1} to LLM for classification")
+            response = await orchestrator.invoke_agent(
+                agent_name="clause_extraction",
+                prompt=prompt,
+                user_id="system",
+                contract_id=str(contract_id),
+            )
+            logger.info(f"LLM response received for batch {i//batch_size + 1}")
+
+            json_data = extract_json_from_response(response)
+            logger.info(f"Parsed JSON: {json_data}")
+            if json_data and isinstance(json_data, list):
+                for item in json_data:
+                    chunk_idx = item.get("chunk", 0) - 1
+                    clause_type_str = item.get("type", "OTHER").upper()
+
+                    if 0 <= chunk_idx < len(batch):
+                        # Map to enum
+                        new_type = ClauseType.OTHER
+                        for ct in ClauseType:
+                            if ct.name == clause_type_str:
+                                new_type = ct
+                                break
+
+                        if new_type != ClauseType.OTHER:
+                            batch[chunk_idx].clause_type = new_type
+                            classified_count += 1
+
+        except Exception as e:
+            logger.warning(f"Failed to classify batch {i}: {e}")
+
+    if classified_count > 0:
+        await db.flush()
+        logger.info(f"AI classified {classified_count} chunks for contract {contract_id}")
+
+    return classified_count
+
+
+# Keep old name for backwards compatibility
+async def reclassify_sla_chunks(
+    db: AsyncSession,
+    contract_id: uuid.UUID,
+) -> int:
+    """Backwards compatible wrapper for classify_uncategorized_chunks."""
+    import sys
+    logger.warning(f"[RECLASSIFY] Called for contract {contract_id}")
+    print(f"[RECLASSIFY] Called for contract {contract_id}", flush=True)
+    sys.stdout.flush()
+    try:
+        result = await classify_uncategorized_chunks(db, contract_id)
+        logger.warning(f"[RECLASSIFY] Completed with {result} reclassified")
+        return result
+    except Exception as e:
+        logger.exception(f"[RECLASSIFY] ERROR in classify_uncategorized_chunks: {e}")
+        return 0
+
+
 def register_clause_extraction_agent() -> None:
     """Register the clause extraction agent with the orchestrator."""
     config = get_clause_extraction_config()

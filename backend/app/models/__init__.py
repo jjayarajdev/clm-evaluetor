@@ -69,6 +69,11 @@ from app.models.notification import (
     NotificationStatus,
     RecipientType,
 )
+from app.models.notification_rule import (
+    NotificationRule,
+    RuleEventType,
+    NotificationChannel as RuleNotificationChannel,
+)
 from app.models.integration import (
     IntegrationConfig,
     IntegrationLog,

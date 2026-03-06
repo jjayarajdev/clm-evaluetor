@@ -589,6 +589,42 @@ class ApiClient {
     return response.data
   }
 
+  async uploadObligationEvidence(obligationId: string, data: {
+    evidence_description: string
+    evidence_date?: string
+    file?: File
+  }): Promise<unknown> {
+    const formData = new FormData()
+    formData.append('evidence_description', data.evidence_description)
+    if (data.evidence_date) {
+      formData.append('evidence_date', data.evidence_date)
+    }
+    if (data.file) {
+      formData.append('file', data.file)
+    }
+    const response = await this.client.post(`/obligations/${obligationId}/evidence`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  }
+
+  // Calendar export
+  async exportCalendarICS(options?: {
+    include_expirations?: boolean
+    include_notice_deadlines?: boolean
+    include_obligations?: boolean
+    include_key_dates?: boolean
+    days_ahead?: number
+  }): Promise<Blob> {
+    const response = await this.client.get('/renewals/export/calendar.ics', {
+      params: options,
+      responseType: 'blob',
+    })
+    return response.data
+  }
+
   // Amendment/Version endpoints
   async getContractVersions(contractId: string): Promise<unknown> {
     const response = await this.client.get(`/contracts/${contractId}/versions`)
@@ -1013,6 +1049,255 @@ class ApiClient {
       '/contracts/pending-suggestions',
       { params: { limit } }
     )
+    return response.data
+  }
+
+  // ============ BUSINESS UNITS ============
+
+  /**
+   * Get business units list with pagination.
+   */
+  async getBusinessUnits(params?: {
+    page?: number
+    page_size?: number
+    active_only?: boolean
+    parent_id?: string
+  }, tenantId?: string): Promise<import('@/types/business-unit').BusinessUnitListResponse> {
+    const config = tenantId ? { params, headers: { 'X-Tenant-ID': tenantId } } : { params }
+    const response = await this.client.get<import('@/types/business-unit').BusinessUnitListResponse>(
+      '/business-units',
+      config
+    )
+    return response.data
+  }
+
+  /**
+   * Get business units as a tree structure.
+   */
+  async getBusinessUnitsTree(tenantId?: string): Promise<import('@/types/business-unit').BusinessUnitTree[]> {
+    const config = tenantId ? { headers: { 'X-Tenant-ID': tenantId } } : {}
+    const response = await this.client.get<import('@/types/business-unit').BusinessUnitTree[]>(
+      '/business-units/tree',
+      config
+    )
+    return response.data
+  }
+
+  /**
+   * Get a single business unit by ID.
+   */
+  async getBusinessUnit(id: string, tenantId?: string): Promise<import('@/types/business-unit').BusinessUnit> {
+    const config = tenantId ? { headers: { 'X-Tenant-ID': tenantId } } : {}
+    const response = await this.client.get<import('@/types/business-unit').BusinessUnit>(
+      `/business-units/${id}`,
+      config
+    )
+    return response.data
+  }
+
+  /**
+   * Create a new business unit.
+   */
+  async createBusinessUnit(data: import('@/types/business-unit').BusinessUnitCreate, tenantId?: string): Promise<import('@/types/business-unit').BusinessUnit> {
+    const config = tenantId ? { headers: { 'X-Tenant-ID': tenantId } } : {}
+    const response = await this.client.post<import('@/types/business-unit').BusinessUnit>(
+      '/business-units',
+      data,
+      config
+    )
+    return response.data
+  }
+
+  /**
+   * Update a business unit.
+   */
+  async updateBusinessUnit(id: string, data: import('@/types/business-unit').BusinessUnitUpdate, tenantId?: string): Promise<import('@/types/business-unit').BusinessUnit> {
+    const config = tenantId ? { headers: { 'X-Tenant-ID': tenantId } } : {}
+    const response = await this.client.put<import('@/types/business-unit').BusinessUnit>(
+      `/business-units/${id}`,
+      data,
+      config
+    )
+    return response.data
+  }
+
+  /**
+   * Delete (deactivate) a business unit.
+   */
+  async deleteBusinessUnit(id: string, tenantId?: string): Promise<void> {
+    const config = tenantId ? { headers: { 'X-Tenant-ID': tenantId } } : {}
+    await this.client.delete(`/business-units/${id}`, config)
+  }
+
+  // ============ EXTERNAL USERS ============
+
+  /**
+   * Get external users list.
+   */
+  async getExternalUsers(params?: {
+    page?: number
+    page_size?: number
+    search?: string
+  }): Promise<{
+    items: Array<{
+      id: string
+      email: string
+      full_name?: string
+      company_name?: string
+      title?: string
+      phone?: string
+      is_active: boolean
+      invited_at?: string
+      last_access_at?: string
+      access_count: number
+      created_at: string
+    }>
+    total: number
+    page: number
+    page_size: number
+    pages: number
+  }> {
+    const response = await this.client.get('/external-users', { params })
+    return response.data
+  }
+
+  /**
+   * Create an external user.
+   */
+  async createExternalUser(data: {
+    email: string
+    full_name?: string
+    company_name?: string
+    title?: string
+    phone?: string
+  }): Promise<unknown> {
+    const response = await this.client.post('/external-users', data)
+    return response.data
+  }
+
+  /**
+   * Update an external user.
+   */
+  async updateExternalUser(id: string, data: {
+    email?: string
+    full_name?: string
+    company_name?: string
+    title?: string
+    phone?: string
+  }): Promise<unknown> {
+    const response = await this.client.put(`/external-users/${id}`, data)
+    return response.data
+  }
+
+  /**
+   * Delete (deactivate) an external user.
+   */
+  async deleteExternalUser(id: string): Promise<void> {
+    await this.client.delete(`/external-users/${id}`)
+  }
+
+  // ============ CONTRACT SHARING ============
+
+  /**
+   * Share a contract with an external user.
+   */
+  async shareContract(
+    contractId: string,
+    data: import('@/types/contract-share').ContractShareCreate
+  ): Promise<import('@/types/contract-share').ShareInviteResponse> {
+    const response = await this.client.post<import('@/types/contract-share').ShareInviteResponse>(
+      `/contracts/${contractId}/share`,
+      data
+    )
+    return response.data
+  }
+
+  /**
+   * List all shares for a contract.
+   */
+  async getContractShares(
+    contractId: string,
+    includeRevoked = false
+  ): Promise<import('@/types/contract-share').ContractShareListResponse> {
+    const response = await this.client.get<import('@/types/contract-share').ContractShareListResponse>(
+      `/contracts/${contractId}/shares`,
+      { params: { include_revoked: includeRevoked } }
+    )
+    return response.data
+  }
+
+  /**
+   * Revoke a contract share.
+   */
+  async revokeContractShare(contractId: string, shareId: string): Promise<void> {
+    await this.client.delete(`/contracts/${contractId}/shares/${shareId}`)
+  }
+
+  // ============================================================================
+  // Notification Rules endpoints
+  // ============================================================================
+
+  async getNotificationRules(options?: { eventType?: string; activeOnly?: boolean }): Promise<unknown[]> {
+    const response = await this.client.get('/notification-rules', {
+      params: {
+        event_type: options?.eventType,
+        active_only: options?.activeOnly ?? true,
+      },
+    })
+    return response.data
+  }
+
+  async getNotificationRuleTemplates(): Promise<unknown[]> {
+    const response = await this.client.get('/notification-rules/templates')
+    return response.data
+  }
+
+  async getNotificationRule(ruleId: string): Promise<unknown> {
+    const response = await this.client.get(`/notification-rules/${ruleId}`)
+    return response.data
+  }
+
+  async createNotificationRule(data: {
+    name: string
+    description?: string
+    event_type: string
+    days_before?: number
+    repeat_interval_days?: number
+    max_repeats?: number
+    channels?: string[]
+    notify_contract_owner?: boolean
+    notify_admin?: boolean
+    additional_recipients?: string[]
+    contract_types?: string[]
+    min_contract_value?: number
+    risk_levels?: string[]
+    priority?: string
+  }): Promise<unknown> {
+    const response = await this.client.post('/notification-rules', data)
+    return response.data
+  }
+
+  async createNotificationRuleFromTemplate(templateIndex: number): Promise<unknown> {
+    const response = await this.client.post(`/notification-rules/from-template/${templateIndex}`)
+    return response.data
+  }
+
+  async updateNotificationRule(ruleId: string, data: Record<string, unknown>): Promise<unknown> {
+    const response = await this.client.put(`/notification-rules/${ruleId}`, data)
+    return response.data
+  }
+
+  async deleteNotificationRule(ruleId: string): Promise<void> {
+    await this.client.delete(`/notification-rules/${ruleId}`)
+  }
+
+  async toggleNotificationRule(ruleId: string): Promise<unknown> {
+    const response = await this.client.post(`/notification-rules/${ruleId}/toggle`)
+    return response.data
+  }
+
+  async getNotificationRuleStats(): Promise<unknown> {
+    const response = await this.client.get('/notification-rules/summary/stats')
     return response.data
   }
 }

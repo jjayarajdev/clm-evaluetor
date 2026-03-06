@@ -16,6 +16,9 @@ import PostSigningPage from './pages/PostSigningPage'
 import SLAConfigPage from './pages/admin/SLAConfigPage'
 import MilestoneConfigPage from './pages/admin/MilestoneConfigPage'
 import SchedulerPage from './pages/admin/SchedulerPage'
+import BusinessUnitsPage from './pages/admin/BusinessUnitsPage'
+import ExternalUsersPage from './pages/admin/ExternalUsersPage'
+import ExternalContractPage from './pages/ExternalContractPage'
 import RenewalsPage from './pages/RenewalsPage'
 import VendorsPage from './pages/VendorsPage'
 import ReportsPage from './pages/ReportsPage'
@@ -48,6 +51,9 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      {/* External portal - no auth required */}
+      <Route path="/external/contracts/:token" element={<ExternalContractPage />} />
+      <Route path="/external/contracts" element={<ExternalContractPage />} />
 
       <Route
         path="/"
@@ -76,6 +82,8 @@ function App() {
         <Route path="admin/sla-config" element={<SLAConfigPage />} />
         <Route path="admin/milestone-config" element={<MilestoneConfigPage />} />
         <Route path="admin/scheduler" element={<SchedulerPage />} />
+        <Route path="admin/business-units" element={<BusinessUnitsPage />} />
+        <Route path="admin/external-users" element={<ExternalUsersPage />} />
         {/* Super Admin Routes */}
         <Route path="super-admin" element={<SuperAdminDashboardPage />} />
         <Route path="super-admin/tenants" element={<TenantManagementPage />} />

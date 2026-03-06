@@ -33,6 +33,7 @@ class QAResponse(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0, default=0.5)
     sources: list[SourceCitation] = []
     follow_up_questions: list[str] = []
+    visualizations: list[dict] = []
     clarification_needed: bool = False
     clarification_prompt: str | None = None
 
@@ -88,7 +89,12 @@ async def ask_question(
     tenant_id: str | None = None,
     n_results: int = 10,
 ) -> QAResponse:
-    """Ask a question about contracts using RAG.
+    """Ask a question about contracts using intent routing + RAG.
+
+    First detects whether the question maps to a structured database query
+    (renewals, obligations, risk, portfolio, SLAs). If so, queries PostgreSQL
+    directly for accurate, complete answers. Otherwise falls through to
+    RAG-based document Q&A.
 
     Args:
         question: The user's question.
@@ -102,6 +108,39 @@ async def ask_question(
     Returns:
         QAResponse with answer and sources.
     """
+    from app.agents.intent_router import detect_intent, handle_structured_query
+
+    # Step 1: Detect intent
+    intent = detect_intent(question)
+    logger.info(f"Q&A intent detected: '{intent}' for question: {question[:80]}")
+
+    # Step 2: Try structured query for non-document intents
+    if intent != "document_qa":
+        try:
+            from app.database import async_session_maker
+
+            async with async_session_maker() as db:
+                result = await handle_structured_query(
+                    intent=intent,
+                    question=question,
+                    db=db,
+                    tenant_id=tenant_id,
+                    contract_id=contract_id,
+                )
+
+                if result and result.get("answer"):
+                    logger.info(f"Structured query answered intent '{intent}' successfully")
+                    return QAResponse(
+                        answer=result["answer"],
+                        confidence=0.95,
+                        sources=[],
+                        follow_up_questions=result.get("follow_up_questions", []),
+                        visualizations=result.get("visualizations", []),
+                    )
+        except Exception as e:
+            logger.warning(f"Structured query failed, falling back to RAG: {e}")
+
+    # Step 3: Fall through to RAG-based document Q&A
     orchestrator = get_orchestrator()
 
     # Create search tool with RBAC context

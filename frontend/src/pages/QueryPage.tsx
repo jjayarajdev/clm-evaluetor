@@ -6,18 +6,102 @@ import {
   SparklesIcon,
   DocumentTextIcon,
   UserCircleIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline'
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  PieChart, Pie, Legend,
+} from 'recharts'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDate } from '@/lib/utils'
-import type { QueryResponse } from '@/types'
+import type { QueryResponse, Visualization } from '@/types'
+import ReactMarkdown from 'react-markdown'
 
 interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
   sources?: QueryResponse['sources']
+  followUps?: string[]
+  visualizations?: Visualization[]
   timestamp: Date
+}
+
+const PIE_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#64748b']
+
+function StatCards({ data }: { data: { cards: { label: string; value: string; color: string }[] } }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-3">
+      {data.cards.map((card, i) => (
+        <div key={i} className="bg-white rounded-lg border border-gray-200 p-3 text-center">
+          <p className="text-2xl font-bold" style={{ color: card.color }}>{card.value}</p>
+          <p className="text-xs text-gray-500 mt-1">{card.label}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function BarViz({ data, title }: { data: { name: string; count: number; fill: string }[]; title: string }) {
+  return (
+    <div className="my-3 bg-white rounded-lg border border-gray-200 p-4">
+      <p className="text-sm font-medium text-gray-700 mb-3">{title}</p>
+      <ResponsiveContainer width="100%" height={200}>
+        <BarChart data={data} layout="vertical" margin={{ left: 20, right: 20 }}>
+          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+          <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={110} />
+          <Tooltip />
+          <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+            {data.map((entry, i) => (
+              <Cell key={i} fill={entry.fill || '#3b82f6'} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function PieViz({ data, title }: { data: { name: string; value: number }[]; title: string }) {
+  return (
+    <div className="my-3 bg-white rounded-lg border border-gray-200 p-4">
+      <p className="text-sm font-medium text-gray-700 mb-3">{title}</p>
+      <ResponsiveContainer width="100%" height={220}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={50}
+            outerRadius={80}
+            paddingAngle={2}
+            dataKey="value"
+            label={({ name, value }) => `${name} (${value})`}
+          >
+            {data.map((_entry, i) => (
+              <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip />
+          <Legend iconType="circle" iconSize={8} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function VisualizationRenderer({ viz }: { viz: Visualization }) {
+  switch (viz.chart_type) {
+    case 'stat_cards':
+      return <StatCards data={viz.data} />
+    case 'bar':
+      return <BarViz data={viz.data} title={viz.title} />
+    case 'pie':
+      return <PieViz data={viz.data} title={viz.title} />
+    default:
+      return null
+  }
 }
 
 export default function QueryPage() {
@@ -58,6 +142,8 @@ export default function QueryPage() {
         role: 'assistant',
         content: response.answer,
         sources: response.sources,
+        followUps: response.follow_up_questions,
+        visualizations: response.visualizations,
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, assistantMessage])
@@ -93,12 +179,23 @@ export default function QueryPage() {
     setInput('')
   }
 
+  const handleFollowUp = (question: string) => {
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: question,
+      timestamp: new Date(),
+    }
+    setMessages((prev) => [...prev, userMessage])
+    queryMutation.mutate(question)
+  }
+
   const suggestedQuestions = [
-    'What are the key terms and conditions?',
-    'Are there any liability limitations?',
-    'What are the termination clauses?',
+    'What are my contracts up for renewal?',
+    'How many contracts do I have?',
+    'Show me my high risk contracts',
+    'What are my SLAs?',
     'What obligations do we have?',
-    'When does the contract expire?',
   ]
 
   return (
@@ -148,13 +245,24 @@ export default function QueryPage() {
             <h2 className="text-lg font-medium text-gray-900">Ask me anything</h2>
             <p className="text-sm text-gray-500 mt-2 max-w-md">
               I can help you understand your contracts, find specific clauses,
-              identify obligations, and answer questions about terms and conditions.
+              track renewals, monitor risks, and answer questions about your portfolio.
             </p>
             <div className="mt-6 flex flex-wrap gap-2 justify-center max-w-lg">
               {suggestedQuestions.map((question, idx) => (
                 <button
                   key={idx}
-                  onClick={() => setInput(question)}
+                  onClick={() => {
+                    setInput(question)
+                    // Auto-submit
+                    const userMessage: Message = {
+                      id: Date.now().toString(),
+                      role: 'user',
+                      content: question,
+                      timestamp: new Date(),
+                    }
+                    setMessages((prev) => [...prev, userMessage])
+                    queryMutation.mutate(question)
+                  }}
                   className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 transition-colors"
                 >
                   {question}
@@ -179,13 +287,28 @@ export default function QueryPage() {
                 )}
                 <div
                   className={cn(
-                    'max-w-2xl rounded-xl px-4 py-3',
+                    'rounded-xl px-4 py-3',
                     message.role === 'user'
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
+                      ? 'max-w-2xl bg-primary-600 text-white'
+                      : 'max-w-3xl bg-gray-50 text-gray-900 border border-gray-200'
                   )}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  {message.role === 'assistant' ? (
+                    <div className="text-sm prose prose-sm max-w-none prose-headings:text-gray-900 prose-strong:text-gray-900">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm">{message.content}</p>
+                  )}
+
+                  {/* Visualizations */}
+                  {message.visualizations && message.visualizations.length > 0 && (
+                    <div className="mt-3">
+                      {message.visualizations.map((viz, idx) => (
+                        <VisualizationRenderer key={idx} viz={viz} />
+                      ))}
+                    </div>
+                  )}
 
                   {/* Sources */}
                   {message.sources && message.sources.length > 0 && (
@@ -205,6 +328,26 @@ export default function QueryPage() {
                               {source.excerpt}
                             </p>
                           </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Follow-up questions */}
+                  {message.followUps && message.followUps.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-xs font-medium text-gray-500 mb-2">Drill down:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {message.followUps.map((q, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleFollowUp(q)}
+                            disabled={queryMutation.isPending}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-full border border-primary-200 transition-colors disabled:opacity-50"
+                          >
+                            <ChevronRightIcon className="h-3 w-3" />
+                            {q}
+                          </button>
                         ))}
                       </div>
                     </div>

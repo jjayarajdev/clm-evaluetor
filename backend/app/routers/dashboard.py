@@ -3500,7 +3500,7 @@ async def get_dashboard_insights(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InsightsResponse:
     """Get AI-generated insights for dashboard."""
-    from app.models.sla import ContractSLA
+    from app.models.sla import ContractSLA, SLAPerformance
 
     insights: list[InsightItem] = []
     today = date.today()
@@ -3532,10 +3532,10 @@ async def get_dashboard_insights(
             variant="info"
         ))
 
-    # 2. Compliance Alert - SLA breaches
-    sla_query = select(func.count(ContractSLA.id)).where(
-        ContractSLA.compliance_status == "red"
-    )
+    # 2. Compliance Alert - SLA breaches (count non-compliant SLA performances)
+    sla_query = select(func.count(SLAPerformance.id)).where(
+        SLAPerformance.is_compliant == False
+    ).join(ContractSLA)
     if tenant_id:
         sla_query = sla_query.join(Contract).where(Contract.tenant_id == tenant_id)
 
@@ -3553,7 +3553,7 @@ async def get_dashboard_insights(
 
     # 3. Overdue Obligations
     overdue_query = select(func.count(Obligation.id)).where(
-        Obligation.due_date < today,
+        Obligation.deadline < today,
         Obligation.status != ObligationStatus.COMPLETED
     )
     if tenant_id:
