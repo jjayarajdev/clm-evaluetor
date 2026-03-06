@@ -38,6 +38,9 @@ import type {
   SuggestedLinkReviewResponse,
   BatchReviewResponse,
   PendingSuggestionsResponse,
+  ChatSession,
+  ChatSessionDetail,
+  ChatMessageOut,
 } from '@/types'
 import type {
   PostSigningDashboard,
@@ -240,6 +243,48 @@ class ApiClient {
     const response = await this.client.get('/query/suggestions', {
       params: { contract_id: contractId },
     })
+    return response.data
+  }
+
+  // Chat session endpoints
+  async getChatSessions(): Promise<ChatSession[]> {
+    const response = await this.client.get<ChatSession[]>('/chat/sessions')
+    return response.data
+  }
+
+  async createChatSession(title?: string, contractId?: string): Promise<ChatSessionDetail> {
+    const response = await this.client.post<ChatSessionDetail>('/chat/sessions', {
+      title: title || 'New Chat',
+      contract_id: contractId || null,
+    })
+    return response.data
+  }
+
+  async getChatSession(sessionId: string): Promise<ChatSessionDetail> {
+    const response = await this.client.get<ChatSessionDetail>(`/chat/sessions/${sessionId}`)
+    return response.data
+  }
+
+  async deleteChatSession(sessionId: string): Promise<void> {
+    await this.client.delete(`/chat/sessions/${sessionId}`)
+  }
+
+  async updateChatSessionTitle(sessionId: string, title: string): Promise<ChatSession> {
+    const response = await this.client.patch<ChatSession>(`/chat/sessions/${sessionId}`, { title })
+    return response.data
+  }
+
+  async addChatMessage(sessionId: string, message: {
+    role: string
+    content: string
+    sources?: unknown[]
+    follow_ups?: string[]
+    visualizations?: unknown[]
+  }): Promise<ChatMessageOut> {
+    const response = await this.client.post<ChatMessageOut>(
+      `/chat/sessions/${sessionId}/messages`,
+      message,
+    )
     return response.data
   }
 

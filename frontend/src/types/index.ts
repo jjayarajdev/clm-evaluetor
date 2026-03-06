@@ -683,3 +683,28 @@ export interface PendingSuggestionsResponse {
   by_contract: Record<string, number>
   suggestions: SuggestedLink[]
 }
+
+// ============ CHAT SESSION TYPES ============
+
+export interface ChatSession {
+  id: string
+  title: string
+  contract_id: string | null
+  message_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ChatMessageOut {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  sources?: unknown[]
+  follow_ups?: string[]
+  visualizations?: Visualization[]
+  created_at: string
+}
+
+export interface ChatSessionDetail extends ChatSession {
+  messages: ChatMessageOut[]
+}

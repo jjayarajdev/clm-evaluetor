@@ -153,6 +153,8 @@ from app.models.regulatory_obligation import (
     RegulationType,
     ObligationCategory as RegulatoryObligationCategory,
 )
+# Chat Sessions
+from app.models.chat_session import ChatSession, ChatMessage
 # Knowledge Graph
 from app.models.knowledge_graph import (
     KGEntity,
@@ -340,6 +342,9 @@ __all__ = [
     "RegulatoryObligation",
     "RegulationType",
     "RegulatoryObligationCategory",
+    # Chat Sessions
+    "ChatSession",
+    "ChatMessage",
     # Knowledge Graph
     "KGEntity",
     "KGEntityType",

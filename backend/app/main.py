@@ -15,6 +15,8 @@ from app.routers import (
     organizations, relationships, kpis, improvements, surveys,
     # Business Unit & External Access
     business_units, external_users, external_portal,
+    # Chat Sessions
+    chat,
 )
 from app.services.vector_store import get_vector_store
 from app.services.orchestrator import get_orchestrator, initialize_default_agents
@@ -272,6 +274,7 @@ app.include_router(master_data_admin.router)
 app.include_router(scheduler_admin.router)
 app.include_router(metrics.router)
 app.include_router(knowledge_graph.router)
+app.include_router(chat.router)
 
 # Relationship Governance (Evaluetor features)
 app.include_router(organizations.router)
