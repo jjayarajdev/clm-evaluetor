@@ -2,7 +2,7 @@
 
 Detects whether a question should be answered from structured data (PostgreSQL)
 or from document content (ChromaDB RAG). Routes accordingly and formats
-human-readable responses with LLM-generated visualizations and follow-ups.
+concise executive summaries with rich LLM-generated visualizations.
 """
 
 import json
@@ -138,49 +138,61 @@ def detect_intent(question: str) -> str:
 # LLM enhancement: follow-ups + adaptive visualizations
 # ---------------------------------------------------------------------------
 
-_ENHANCE_PROMPT = """You are a contract analytics assistant. Given a structured query result,
-generate contextual follow-up questions and visualization specifications.
+_ENHANCE_PROMPT = """You are a contract analytics assistant. Given structured query results,
+generate contextual follow-up questions and RICH visualization specifications.
 
-AVAILABLE CHART TYPES (use the exact data format shown):
+The user wants VISUAL answers — charts and cards — not walls of text.
+Your job is to generate comprehensive visualizations that tell the full data story.
 
-1. stat_cards — Headline KPI cards (always include as first visualization)
+AVAILABLE CHART TYPES (use EXACT data formats):
+
+1. stat_cards — Headline KPI cards (ALWAYS include as first visualization)
    data: {"cards": [{"label": "Label", "value": "42", "color": "#hex"}]}
-   Use for: key summary numbers the user should see at a glance
+   Use for: 3-5 key numbers the user should see at a glance
 
-2. pie — Donut chart for proportional composition
+2. pie — Donut chart for proportional breakdowns
    data: [{"name": "Segment", "value": 10}]
-   Use for: showing how a whole breaks down (contract types, risk distribution)
-   Best when: 2-7 segments, user cares about relative proportions
+   Use when: showing how a whole breaks down into parts (2-7 segments)
 
-3. bar — Horizontal bar chart for comparisons
+3. bar — Horizontal bar chart for comparisons/rankings
    data: [{"name": "Category", "count": 5, "fill": "#hex"}]
-   Use for: comparing quantities, rankings, ordered categories
-   Best when: order matters (urgency levels, rankings by count)
+   Use when: comparing quantities, showing rankings, ordered categories
+
+4. table — Data table for detailed item listings
+   data: {"columns": ["Col1", "Col2", "Col3"], "rows": [["val1", "val2", "val3"]]}
+   Use when: showing specific items with multiple attributes (contracts, obligations, deadlines)
+   Keep to 5-8 rows maximum. Keep cell values SHORT (truncate long text).
 
 COLOR SEMANTICS:
 - Red (#ef4444): danger, critical, expired, overdue
 - Orange (#f97316): warning, high risk, urgent
 - Yellow (#eab308): caution, medium risk, upcoming
-- Green (#22c55e): safe, low risk, compliant, later
+- Green (#22c55e): safe, low risk, compliant, on track
 - Blue (#3b82f6): neutral, informational, totals
-- Purple (#8b5cf6): categories, types
+- Purple (#8b5cf6): categories, types, highlights
 - Teal (#06b6d4): secondary metrics
 
 RULES:
-- Generate exactly 3 follow-up questions that are specific to the data shown
-  (reference actual contract names, counterparties, risk levels, deadlines when relevant)
-- Follow-ups should lead to DIFFERENT types of analysis (not repeat the same query)
-- Include 2-3 visualizations maximum (always start with stat_cards)
-- Pick chart types that best represent the data shape — do NOT default to bar charts
+- Generate exactly 3 follow-up questions specific to the actual data
+  (reference contract names, counterparties, deadlines, numbers when relevant)
+- Follow-ups should lead to DIFFERENT types of analysis
+- Generate 3-4 visualizations:
+  1. ALWAYS start with stat_cards for headline KPIs
+  2. Add 1-2 charts (pie for distributions, bar for rankings/comparisons)
+  3. Add a table for the most important detail items (top obligations, contracts at risk, etc.)
+- Pick chart types that best represent the data shape
 - For distributions/composition → use pie
 - For ordered comparisons/rankings → use bar
-- Keep stat card values short (numbers, percentages, dollar amounts)
+- For detailed item listings → use table
+- Keep stat card values short (numbers, "$1.2M", "85%", not full sentences)
+- Table column headers should be short (1-2 words)
+- Table cell values should be concise
 
-Respond with ONLY valid JSON (no markdown, no explanation):
+Respond with ONLY valid JSON:
 {
   "follow_up_questions": ["question1", "question2", "question3"],
   "visualizations": [
-    {"chart_type": "stat_cards|bar|pie", "title": "...", "data": ...}
+    {"chart_type": "stat_cards|bar|pie|table", "title": "...", "data": ...}
   ]
 }"""
 
@@ -191,25 +203,16 @@ async def _enhance_with_llm(
     answer: str,
     data_summary: dict,
 ) -> tuple[list[str], list[dict]]:
-    """Use LLM to generate contextual follow-ups and adaptive visualizations.
-
-    Args:
-        intent: The detected intent category.
-        question: The user's original question.
-        answer: The formatted text answer.
-        data_summary: Condensed data summary for the LLM.
-
-    Returns:
-        Tuple of (follow_up_questions, visualizations).
-    """
+    """Use LLM to generate contextual follow-ups and adaptive visualizations."""
     try:
         client = AsyncOpenAI(api_key=settings.openai_api_key)
 
         user_message = (
             f"Intent: {intent}\n"
             f"User question: {question}\n\n"
-            f"Answer provided:\n{answer[:1500]}\n\n"
-            f"Data summary:\n{json.dumps(data_summary, indent=2, default=str)[:2000]}"
+            f"Short answer: {answer[:500]}\n\n"
+            f"Full data summary (use this to build visualizations):\n"
+            f"{json.dumps(data_summary, indent=2, default=str)[:3000]}"
         )
 
         response = await client.chat.completions.create(
@@ -219,13 +222,13 @@ async def _enhance_with_llm(
                 {"role": "user", "content": user_message},
             ],
             temperature=0.3,
-            max_tokens=1500,
+            max_tokens=2000,
             response_format={"type": "json_object"},
         )
 
         result = json.loads(response.choices[0].message.content)
         follow_ups = result.get("follow_up_questions", [])[:3]
-        visualizations = result.get("visualizations", [])[:3]
+        visualizations = result.get("visualizations", [])[:4]
 
         # Validate visualization structure
         valid_viz = []
@@ -235,12 +238,12 @@ async def _enhance_with_llm(
                 and "chart_type" in viz
                 and "title" in viz
                 and "data" in viz
-                and viz["chart_type"] in ("stat_cards", "bar", "pie")
+                and viz["chart_type"] in ("stat_cards", "bar", "pie", "table")
             ):
                 valid_viz.append(viz)
 
         if not valid_viz or not follow_ups:
-            logger.warning("LLM enhancement returned incomplete results, using fallback")
+            logger.warning("LLM enhancement incomplete, using fallback")
             return _fallback_enhancement(intent, data_summary)
 
         return follow_ups, valid_viz
@@ -255,7 +258,6 @@ def _fallback_enhancement(
     data_summary: dict,
 ) -> tuple[list[str], list[dict]]:
     """Heuristic fallback when LLM is unavailable."""
-    # Simple follow-ups per intent
     fallback_followups = {
         "renewals": [
             "Which contracts have auto-renewal clauses?",
@@ -284,11 +286,9 @@ def _fallback_enhancement(
         ],
     }
 
-    # Simple heuristic visualizations
     viz = []
     counts = data_summary.get("counts", {})
     if counts:
-        # Stat cards from counts
         cards = []
         colors = ["#3b82f6", "#8b5cf6", "#ef4444", "#22c55e", "#f97316", "#06b6d4"]
         for i, (label, value) in enumerate(list(counts.items())[:4]):
@@ -298,10 +298,14 @@ def _fallback_enhancement(
 
     distribution = data_summary.get("distribution", {})
     if distribution:
-        # Use pie for distributions
         pie_data = [{"name": k, "value": v} for k, v in distribution.items() if v > 0]
         if pie_data:
             viz.append({"chart_type": "pie", "title": "Distribution", "data": pie_data})
+
+    # Add table from detail_rows if available
+    detail = data_summary.get("detail_rows")
+    if detail and detail.get("columns") and detail.get("rows"):
+        viz.append({"chart_type": "table", "title": "Details", "data": detail})
 
     return fallback_followups.get(intent, []), viz
 
@@ -359,10 +363,9 @@ async def _handle_renewals(
     contract_id: str | None,
     question: str,
 ) -> dict[str, Any]:
-    """Query contracts up for renewal with actionable deadlines."""
+    """Query contracts up for renewal — concise summary + rich data."""
     today = date.today()
 
-    # Check if question is specifically about auto-renewal
     q_lower = question.lower()
     auto_renewal_filter = any(
         kw in q_lower for kw in ["auto-renewal", "auto renewal", "auto renew", "auto-renew"]
@@ -381,7 +384,6 @@ async def _handle_renewals(
     result = await db.execute(query)
     contracts = _dedup_contracts(result.scalars().all())
 
-    # Categorize
     expired, urgent, upcoming, later = [], [], [], []
     auto_renewal_count = 0
     total_value_at_risk = 0.0
@@ -391,12 +393,12 @@ async def _handle_renewals(
         if not exp:
             continue
 
+        risk_level = (c.risk_level.value if hasattr(c.risk_level, "value") else str(c.risk_level or "")).lower()
+        counterparty = _clean_counterparty(c.counterparty, c.filename)
+
         notice_date = None
         if c.notice_period_days:
             notice_date = exp - timedelta(days=c.notice_period_days)
-
-        risk_level = (c.risk_level.value if hasattr(c.risk_level, "value") else str(c.risk_level or "")).lower()
-        counterparty = _clean_counterparty(c.counterparty, c.filename)
 
         entry = {
             "filename": c.filename,
@@ -407,9 +409,8 @@ async def _handle_renewals(
             "notice_period_days": c.notice_period_days,
             "notice_deadline": str(notice_date) if notice_date else None,
             "notice_passed": notice_date < today if notice_date else None,
-            "value": f"{c.contract_value:,.2f} {c.currency or 'USD'}" if c.contract_value else None,
+            "value": f"{c.contract_value:,.0f}" if c.contract_value else None,
             "risk_level": risk_level,
-            "risk_score": c.risk_score,
         }
 
         if c.auto_renewal:
@@ -429,84 +430,54 @@ async def _handle_renewals(
         else:
             later.append(entry)
 
-    # Build natural language answer
+    # SHORT executive summary — not a list of every contract
+    total = len(contracts)
     parts = []
     if auto_renewal_filter:
-        parts.append(f"**Contracts with Auto-Renewal Clauses** (as of {today.strftime('%B %d, %Y')}):\n")
+        parts.append(f"You have **{auto_renewal_count} contracts with auto-renewal clauses** across your portfolio.")
     else:
-        parts.append(f"As of {today.strftime('%B %d, %Y')}, here is your renewal status:\n")
+        parts.append(f"You have **{total} contracts** with expiration dates.")
+
+    highlights = []
+    if expired:
+        highlights.append(f"**{len(expired)} expired**")
+    if urgent:
+        highlights.append(f"**{len(urgent)} expiring within 90 days**")
+    if upcoming:
+        highlights.append(f"**{len(upcoming)} due in 90–180 days**")
+    if later:
+        highlights.append(f"**{len(later)} beyond 180 days**")
+
+    if highlights:
+        parts.append(f"Breakdown: {', '.join(highlights)}.")
+
+    if urgent and total_value_at_risk > 0:
+        parts.append(f"Total value at risk in the next 90 days: **${total_value_at_risk:,.0f}**.")
 
     if expired:
-        parts.append(f"**EXPIRED ({len(expired)}):**")
-        for e in expired:
-            risk = _risk_badge(e.get("risk_level"))
-            parts.append(
-                f"  - **{e['filename']}** ({e['counterparty']}){risk}"
-                f" — expired {e['expiration']} ({abs(e['days_left'])} days ago)"
-            )
+        parts.append(f"\n⚠ {len(expired)} contract(s) have already expired and need immediate review.")
 
-    if urgent:
-        parts.append(f"\n**URGENT — Expiring within 90 days ({len(urgent)}):**")
-        for e in urgent:
-            notice_warning = ""
-            if e["notice_deadline"] and e["notice_passed"]:
-                notice_warning = f" **Notice deadline PASSED ({e['notice_deadline']})**"
-            elif e["notice_deadline"]:
-                notice_warning = f" Notice due by {e['notice_deadline']}"
-            auto = " (auto-renews)" if e["auto_renewal"] else ""
-            value = f" — {e['value']}" if e["value"] else ""
-            risk = _risk_badge(e.get("risk_level"))
-            parts.append(
-                f"  - **{e['filename']}** ({e['counterparty']}){risk}"
-                f" — expires {e['expiration']} ({e['days_left']} days){auto}{value}{notice_warning}"
-            )
+    # Build detail rows for table visualization
+    detail_rows = []
+    for e in (expired + urgent + upcoming + later):
+        status = "Expired" if e["days_left"] < 0 else f"{e['days_left']}d left"
+        auto = "Yes" if e["auto_renewal"] else "No"
+        detail_rows.append([
+            e["counterparty"][:25],
+            e["type"],
+            e["expiration"],
+            status,
+            auto,
+        ])
 
-    if upcoming:
-        parts.append(f"\n**UPCOMING — Expiring in 90-180 days ({len(upcoming)}):**")
-        for e in upcoming:
-            auto = " (auto-renews)" if e["auto_renewal"] else ""
-            value = f" — {e['value']}" if e["value"] else ""
-            notice_info = f" Notice due by {e['notice_deadline']}" if e["notice_deadline"] else ""
-            risk = _risk_badge(e.get("risk_level"))
-            parts.append(
-                f"  - **{e['filename']}** ({e['counterparty']}){risk}"
-                f" — expires {e['expiration']} ({e['days_left']} days){auto}{value}{notice_info}"
-            )
-
-    if later:
-        parts.append(f"\n**LATER — Beyond 180 days ({len(later)}):**")
-        for e in later:
-            auto = " (auto-renews)" if e["auto_renewal"] else ""
-            risk = _risk_badge(e.get("risk_level"))
-            parts.append(f"  - {e['filename']}{risk} — expires {e['expiration']}{auto}")
-
-    if not expired and not urgent and not upcoming and not later:
-        if auto_renewal_filter:
-            parts.append("No contracts with auto-renewal clauses found.")
-        else:
-            parts.append("No contracts with expiration dates found.")
-
-    # Action items
-    if urgent or expired:
-        parts.append("\n**Recommended actions:**")
-        if expired:
-            parts.append(f"  1. Review {len(expired)} expired contract(s) — decide whether to renegotiate or terminate")
-        if urgent:
-            for e in urgent:
-                if e.get("notice_passed"):
-                    parts.append(f"  - {e['filename']}: Notice deadline has passed — contact {e['counterparty']} immediately")
-                elif e.get("notice_deadline"):
-                    parts.append(f"  - {e['filename']}: Send renewal notice by {e['notice_deadline']}")
-
-    # Data summary for LLM enhancement
     data_summary = {
         "counts": {
+            "Total": total,
             "Expired": len(expired),
-            "Urgent (≤90 days)": len(urgent),
-            "Upcoming (90-180 days)": len(upcoming),
-            "Later (>180 days)": len(later),
-            "Auto-renewal": auto_renewal_count,
-            "Total contracts": len(contracts),
+            "Urgent (≤90d)": len(urgent),
+            "Upcoming (90-180d)": len(upcoming),
+            "Later (>180d)": len(later),
+            "Auto-Renewal": auto_renewal_count,
         },
         "distribution": {
             "Expired": len(expired),
@@ -515,20 +486,22 @@ async def _handle_renewals(
             "Later": len(later),
         },
         "value_at_risk_urgent": total_value_at_risk,
+        "detail_rows": {
+            "columns": ["Counterparty", "Type", "Expires", "Status", "Auto-Renew"],
+            "rows": detail_rows[:10],
+        },
         "urgent_contracts": [
-            {"name": e["filename"], "counterparty": e["counterparty"],
-             "days_left": e["days_left"], "risk": e["risk_level"]}
+            {"name": e["counterparty"], "days_left": e["days_left"], "risk": e["risk_level"]}
             for e in urgent
         ],
         "expired_contracts": [
-            {"name": e["filename"], "counterparty": e["counterparty"]}
+            {"name": e["counterparty"], "expired": e["expiration"]}
             for e in expired
         ],
     }
 
     return {
         "answer": "\n".join(parts),
-        "data": {"expired": expired, "urgent": urgent, "upcoming": upcoming, "later": later},
         "data_summary": data_summary,
         "intent": "renewals",
     }
@@ -544,11 +517,11 @@ async def _handle_obligations(
     contract_id: str | None,
     question: str,
 ) -> dict[str, Any]:
-    """Query obligations with deadlines and status."""
+    """Query obligations — concise summary + rich data for visualization."""
     today = date.today()
 
     query = (
-        select(Obligation, Contract.filename, Contract.tenant_id)
+        select(Obligation, Contract.filename, Contract.counterparty, Contract.tenant_id)
         .join(Contract, Obligation.contract_id == Contract.id)
         .order_by(Obligation.deadline.asc().nulls_last())
     )
@@ -560,35 +533,44 @@ async def _handle_obligations(
     result = await db.execute(query)
     rows = result.all()
 
-    # Deduplicate by description + contract filename
+    # Deduplicate
     seen = set()
     obligations = []
+    fname_map = {}
+    cp_map = {}
     for row in rows:
         o = row[0]
         fname = row[1]
+        cp_raw = row[2]
         key = (o.description[:80] if o.description else "", fname)
         if key not in seen:
             seen.add(key)
             obligations.append(o)
+            fname_map[o.id] = fname
+            cp_map[o.id] = _clean_counterparty(cp_raw, fname)
 
     overdue, due_soon, upcoming = [], [], []
     by_party: dict[str, int] = defaultdict(int)
     by_type: dict[str, int] = defaultdict(int)
+    by_status: dict[str, int] = defaultdict(int)
     critical_count = 0
 
     for o in obligations:
         party = o.obligated_party or "Unknown"
         by_party[party] += 1
-        by_type[o.obligation_type or "unclassified"] += 1
+        by_type[o.obligation_type or "Unclassified"] += 1
+        by_status[o.status or "unknown"] += 1
         if o.is_critical:
             critical_count += 1
 
         entry = {
-            "description": o.description[:120] if o.description else "No description",
+            "description": o.description[:80] if o.description else "No description",
+            "full_description": o.description[:120] if o.description else "No description",
             "status": o.status or "unknown",
             "deadline": str(o.deadline) if o.deadline else "No deadline",
             "obligated_party": party,
-            "priority": o.priority or "normal",
+            "contract": cp_map.get(o.id, "Unknown"),
+            "type": o.obligation_type or "Unclassified",
             "is_critical": o.is_critical,
         }
 
@@ -604,39 +586,50 @@ async def _handle_obligations(
         else:
             upcoming.append(entry)
 
+    # SHORT executive summary
+    total = len(obligations)
     parts = []
-    parts.append(f"**Obligation Summary** (as of {today.strftime('%B %d, %Y')}):\n")
+    parts.append(f"You have **{total} obligations** across your contracts.")
+
+    highlights = []
+    if overdue:
+        highlights.append(f"**{len(overdue)} overdue**")
+    if due_soon:
+        highlights.append(f"**{len(due_soon)} due within 30 days**")
+    if critical_count:
+        highlights.append(f"**{critical_count} marked critical**")
+
+    if highlights:
+        parts.append(f"Status: {', '.join(highlights)}.")
 
     if overdue:
-        parts.append(f"**OVERDUE ({len(overdue)}):**")
-        for o in overdue:
-            critical = " [CRITICAL]" if o["is_critical"] else ""
-            parts.append(
-                f"  - {o['description']} — due {o['deadline']}"
-                f" ({abs(o['days_left'])} days overdue){critical}"
-            )
-
-    if due_soon:
-        parts.append(f"\n**DUE WITHIN 30 DAYS ({len(due_soon)}):**")
-        for o in due_soon:
-            parts.append(f"  - {o['description']} — due {o['deadline']} ({o['days_left']} days)")
-
-    if upcoming:
-        parts.append(f"\n**UPCOMING ({len(upcoming)}):**")
-        for o in upcoming[:10]:
-            parts.append(f"  - {o['description']} — {o['deadline']}")
-        if len(upcoming) > 10:
-            parts.append(f"  ... and {len(upcoming) - 10} more")
+        parts.append(f"\n⚠ **{len(overdue)} obligation(s) are past deadline** and require immediate attention.")
 
     if not obligations:
-        parts.append("No obligations found.")
+        parts = ["No obligations found in your contracts."]
 
-    # Data summary for LLM
+    # Build detail rows for table
+    detail_rows = []
+    for e in (overdue + due_soon + upcoming):
+        status_label = e["status"]
+        if "days_left" in e:
+            if e["days_left"] < 0:
+                status_label = f"Overdue ({abs(e['days_left'])}d)"
+            else:
+                status_label = f"{e['days_left']}d left"
+        detail_rows.append([
+            e["description"][:40],
+            e["contract"][:20],
+            e["type"][:15],
+            e["deadline"],
+            status_label,
+        ])
+
     data_summary = {
         "counts": {
-            "Total Obligations": len(obligations),
+            "Total Obligations": total,
             "Overdue": len(overdue),
-            "Due within 30 days": len(due_soon),
+            "Due Within 30 Days": len(due_soon),
             "Upcoming": len(upcoming),
             "Critical": critical_count,
         },
@@ -647,11 +640,20 @@ async def _handle_obligations(
         },
         "by_party": dict(by_party),
         "by_type": dict(by_type),
+        "by_status": dict(by_status),
+        "detail_rows": {
+            "columns": ["Obligation", "Contract", "Type", "Deadline", "Status"],
+            "rows": detail_rows[:8],
+        },
+        "overdue_items": [
+            {"obligation": e["description"][:50], "contract": e["contract"],
+             "deadline": e["deadline"], "days_overdue": abs(e.get("days_left", 0))}
+            for e in overdue[:5]
+        ],
     }
 
     return {
         "answer": "\n".join(parts),
-        "data": {"overdue": overdue, "due_soon": due_soon, "upcoming": upcoming},
         "data_summary": data_summary,
         "intent": "obligations",
     }
@@ -667,7 +669,7 @@ async def _handle_risk(
     contract_id: str | None,
     question: str,
 ) -> dict[str, Any]:
-    """Query contracts by risk level."""
+    """Query contracts by risk level — concise summary + rich data."""
     query = (
         select(Contract)
         .where(Contract.risk_level.isnot(None))
@@ -691,7 +693,7 @@ async def _handle_risk(
             "counterparty": counterparty,
             "risk_level": level,
             "risk_score": c.risk_score,
-            "value": f"{c.contract_value:,.2f} {c.currency or 'USD'}" if c.contract_value else None,
+            "value": f"${c.contract_value:,.0f}" if c.contract_value else "N/A",
         }
         if level in by_level:
             by_level[level].append(entry)
@@ -703,28 +705,35 @@ async def _handle_risk(
             if level in ("critical", "high"):
                 high_risk_value += float(c.contract_value)
 
-    parts = []
-    parts.append("**Contract Risk Overview:**\n")
-
-    for level in ["critical", "high", "medium", "low"]:
-        items = by_level[level]
-        if items:
-            label = level.upper()
-            parts.append(f"**{label} RISK ({len(items)}):**")
-            for e in items:
-                score = f" (score: {e['risk_score']})" if e["risk_score"] else ""
-                value = f" — {e['value']}" if e["value"] else ""
-                parts.append(f"  - {e['filename']} with {e['counterparty']}{score}{value}")
-
     total = len(contracts)
     high_count = len(by_level["critical"]) + len(by_level["high"])
+
+    # SHORT executive summary
+    parts = []
+    parts.append(f"**{total} contracts** have been risk-assessed.")
+
     if high_count > 0:
-        parts.append(f"\n**{high_count} out of {total} contracts** require attention due to elevated risk.")
+        parts.append(f"**{high_count}** are at elevated risk (critical or high).")
+        if high_risk_value > 0:
+            parts.append(f"Combined value at risk: **${high_risk_value:,.0f}**.")
+    else:
+        parts.append("No contracts are at critical or high risk.")
 
     if not contracts:
-        parts.append("No contracts with risk assessments found.")
+        parts = ["No contracts with risk assessments found."]
 
-    # Data summary for LLM
+    # Detail rows for table
+    detail_rows = []
+    for level in ["critical", "high", "medium", "low"]:
+        for e in by_level[level]:
+            score_str = str(e["risk_score"]) if e["risk_score"] else "—"
+            detail_rows.append([
+                e["counterparty"][:25],
+                level.capitalize(),
+                score_str,
+                e["value"],
+            ])
+
     data_summary = {
         "counts": {
             "Total Assessed": total,
@@ -741,16 +750,18 @@ async def _handle_risk(
         },
         "total_portfolio_value": total_value,
         "high_risk_value": high_risk_value,
+        "detail_rows": {
+            "columns": ["Contract", "Risk Level", "Score", "Value"],
+            "rows": detail_rows[:8],
+        },
         "high_risk_contracts": [
-            {"name": e["filename"], "counterparty": e["counterparty"],
-             "score": e["risk_score"], "value": e["value"]}
+            {"name": e["counterparty"], "score": e["risk_score"], "value": e["value"]}
             for e in (by_level["critical"] + by_level["high"])
         ],
     }
 
     return {
         "answer": "\n".join(parts),
-        "data": by_level,
         "data_summary": data_summary,
         "intent": "risk",
     }
@@ -766,7 +777,7 @@ async def _handle_portfolio(
     contract_id: str | None,
     question: str,
 ) -> dict[str, Any]:
-    """Portfolio-level summary."""
+    """Portfolio-level summary — concise + rich data."""
     base_filter = []
     if tenant_id:
         base_filter.append(Contract.tenant_id == tenant_id)
@@ -792,40 +803,59 @@ async def _handle_portfolio(
         for c in contracts
     ))
 
+    # Count expiring soon
+    today = date.today()
+    expiring_90d = sum(
+        1 for c in contracts
+        if c.expiration_date and 0 < (c.expiration_date - today).days <= 90
+    )
+
+    # SHORT executive summary
     parts = []
-    parts.append("**Contract Portfolio Summary:**\n")
-    parts.append(f"**Total contracts:** {total}")
-    parts.append(f"**Total portfolio value:** ${total_value:,.2f}\n")
+    parts.append(f"Your portfolio contains **{total} contracts** worth **${total_value:,.0f}** total.")
 
-    parts.append("**By type:**")
-    for t, count in sorted(by_type.items(), key=lambda x: x[1], reverse=True):
-        parts.append(f"  - {t}: {count}")
+    type_top = sorted(by_type.items(), key=lambda x: x[1], reverse=True)[:3]
+    if type_top:
+        type_str = ", ".join(f"{t} ({c})" for t, c in type_top)
+        parts.append(f"Top types: {type_str}.")
 
-    parts.append("\n**By status:**")
-    for s, count in sorted(by_status.items(), key=lambda x: x[1], reverse=True):
-        parts.append(f"  - {s}: {count}")
+    high_risk = by_risk.get("critical", 0) + by_risk.get("high", 0)
+    if high_risk:
+        parts.append(f"**{high_risk}** at elevated risk.")
+    if expiring_90d:
+        parts.append(f"**{expiring_90d}** expiring within 90 days.")
 
-    parts.append("\n**By risk level:**")
-    for r, count in sorted(by_risk.items()):
-        parts.append(f"  - {r}: {count}")
+    if not contracts:
+        parts = ["No contracts found in your portfolio."]
 
-    # Data summary for LLM
+    # Detail rows
+    detail_rows = []
+    for c in contracts:
+        ctype = c.contract_type.value if hasattr(c.contract_type, "value") else str(c.contract_type or "—")
+        risk = c.risk_level.value if hasattr(c.risk_level, "value") else str(c.risk_level or "—")
+        cp = _clean_counterparty(c.counterparty, c.filename)
+        val = f"${c.contract_value:,.0f}" if c.contract_value else "—"
+        detail_rows.append([cp[:25], ctype, risk.capitalize(), val])
+
     data_summary = {
         "counts": {
             "Total Contracts": total,
             "Portfolio Value": f"${total_value:,.0f}",
             "Contract Types": len(by_type),
-            "High/Critical Risk": by_risk.get("critical", 0) + by_risk.get("high", 0),
+            "Expiring (90d)": expiring_90d,
         },
         "by_type": by_type,
         "by_status": by_status,
         "by_risk": by_risk,
         "total_value": total_value,
+        "detail_rows": {
+            "columns": ["Counterparty", "Type", "Risk", "Value"],
+            "rows": detail_rows[:8],
+        },
     }
 
     return {
         "answer": "\n".join(parts),
-        "data": {"total": total, "total_value": total_value, "by_type": by_type, "by_status": by_status, "by_risk": by_risk},
         "data_summary": data_summary,
         "intent": "portfolio",
     }
@@ -841,7 +871,7 @@ async def _handle_sla(
     contract_id: str | None,
     question: str,
 ) -> dict[str, Any]:
-    """Query SLA metrics from knowledge graph entities."""
+    """Query SLA metrics — concise summary + rich data."""
     from app.models.knowledge_graph import KGEntity, KGEntityType
 
     query = select(KGEntity).where(KGEntity.entity_type == KGEntityType.SLA_METRIC)
@@ -875,32 +905,42 @@ async def _handle_sla(
         by_contract[fname].append({
             "metric": e.name,
             "target": target,
-            "source": e.source_text[:100] if e.source_text else None,
+            "source": e.source_text[:80] if e.source_text else None,
         })
-
-    parts = []
-    parts.append("**SLA Metrics Across Your Contracts:**\n")
-
-    if by_contract:
-        for fname, metrics in sorted(by_contract.items()):
-            parts.append(f"**{fname}:**")
-            for m in metrics:
-                target = f" — Target: {m['target']}" if m["target"] else ""
-                parts.append(f"  - {m['metric']}{target}")
-    else:
-        parts.append("No SLA metrics found in your contracts.")
 
     total_slas = sum(len(m) for m in by_contract.values())
 
-    # Data summary for LLM
+    # SHORT executive summary
+    parts = []
+    if total_slas > 0:
+        parts.append(f"Found **{total_slas} SLA metrics** across **{len(by_contract)} contracts**.")
+        if with_targets:
+            parts.append(f"**{with_targets}** have defined targets, **{total_slas - with_targets}** are missing targets.")
+    else:
+        parts.append("No SLA metrics found in your contracts.")
+
+    # Detail rows
+    detail_rows = []
+    for fname, metrics in sorted(by_contract.items()):
+        for m in metrics:
+            detail_rows.append([
+                fname.rsplit(".", 1)[0][:25],
+                m["metric"][:30],
+                str(m["target"])[:20] if m["target"] else "Not defined",
+            ])
+
     data_summary = {
         "counts": {
             "Total SLA Metrics": total_slas,
             "Contracts with SLAs": len(by_contract),
-            "With Targets Defined": with_targets,
+            "With Targets": with_targets,
             "Missing Targets": total_slas - with_targets,
         },
         "sla_per_contract": {fname: len(metrics) for fname, metrics in by_contract.items()},
+        "detail_rows": {
+            "columns": ["Contract", "Metric", "Target"],
+            "rows": detail_rows[:8],
+        },
         "sample_metrics": [
             {"contract": fname, "metric": m["metric"], "target": m["target"]}
             for fname, metrics in list(by_contract.items())[:3]
@@ -910,7 +950,6 @@ async def _handle_sla(
 
     return {
         "answer": "\n".join(parts),
-        "data": {"by_contract": dict(by_contract)},
         "data_summary": data_summary,
         "intent": "sla",
     }
