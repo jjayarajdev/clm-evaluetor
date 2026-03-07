@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -27,6 +28,145 @@ from app.schemas.suggested_link import (
 )
 
 router = APIRouter(prefix="/api/contracts", tags=["Suggested Links"])
+
+
+# ============ ESTABLISHED CONTRACT LINKS ============
+
+
+class ContractLinkBrief(BaseModel):
+    """Brief contract info for link display."""
+
+    id: str
+    filename: str
+    contract_type: str | None = None
+    counterparty: str | None = None
+    effective_date: str | None = None
+    expiration_date: str | None = None
+    risk_level: str | None = None
+    status: str | None = None
+
+
+class ContractLinkOut(BaseModel):
+    """An established link between two contracts."""
+
+    id: str
+    link_type: str
+    link_description: str | None = None
+    direction: str  # "parent" or "child"
+    effective_date: str | None = None
+    reference_number: str | None = None
+    is_active: bool = True
+    linked_contract: ContractLinkBrief
+    created_at: str | None = None
+
+
+class ContractLinksResponse(BaseModel):
+    """Response for established contract links."""
+
+    links: list[ContractLinkOut]
+    total: int
+
+
+@router.get("/{contract_id}/links", response_model=ContractLinksResponse)
+async def get_contract_links(
+    contract_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ContractLinksResponse:
+    """Get established (approved) contract links for a contract.
+
+    Returns both parent and child links with related contract details.
+    """
+    contract_uuid = uuid.UUID(contract_id)
+
+    # Verify contract exists
+    contract = await db.get(Contract, contract_uuid)
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
+    # Get links where this contract is the parent
+    child_query = (
+        select(ContractLink)
+        .where(
+            ContractLink.parent_contract_id == contract_uuid,
+            ContractLink.is_active == True,
+        )
+        .options(selectinload(ContractLink.child_contract))
+    )
+    child_result = await db.execute(child_query)
+    child_links = child_result.scalars().all()
+
+    # Get links where this contract is the child
+    parent_query = (
+        select(ContractLink)
+        .where(
+            ContractLink.child_contract_id == contract_uuid,
+            ContractLink.is_active == True,
+        )
+        .options(selectinload(ContractLink.parent_contract))
+    )
+    parent_result = await db.execute(parent_query)
+    parent_links = parent_result.scalars().all()
+
+    links_out = []
+
+    for link in child_links:
+        c = link.child_contract
+        links_out.append(ContractLinkOut(
+            id=str(link.id),
+            link_type=link.link_type if isinstance(link.link_type, str) else link.link_type.value,
+            link_description=link.link_description,
+            direction="child",
+            effective_date=str(link.effective_date) if link.effective_date else None,
+            reference_number=link.reference_number,
+            is_active=link.is_active,
+            linked_contract=ContractLinkBrief(
+                id=str(c.id),
+                filename=c.filename,
+                contract_type=c.contract_type.value if c.contract_type else None,
+                counterparty=c.counterparty,
+                effective_date=str(c.effective_date) if c.effective_date else None,
+                expiration_date=str(c.expiration_date) if c.expiration_date else None,
+                risk_level=c.risk_level.value if c.risk_level else None,
+                status=c.status.value if c.status else None,
+            ),
+            created_at=str(link.created_at) if link.created_at else None,
+        ))
+
+    for link in parent_links:
+        c = link.parent_contract
+        links_out.append(ContractLinkOut(
+            id=str(link.id),
+            link_type=link.link_type if isinstance(link.link_type, str) else link.link_type.value,
+            link_description=link.link_description,
+            direction="parent",
+            effective_date=str(link.effective_date) if link.effective_date else None,
+            reference_number=link.reference_number,
+            is_active=link.is_active,
+            linked_contract=ContractLinkBrief(
+                id=str(c.id),
+                filename=c.filename,
+                contract_type=c.contract_type.value if c.contract_type else None,
+                counterparty=c.counterparty,
+                effective_date=str(c.effective_date) if c.effective_date else None,
+                expiration_date=str(c.expiration_date) if c.expiration_date else None,
+                risk_level=c.risk_level.value if c.risk_level else None,
+                status=c.status.value if c.status else None,
+            ),
+            created_at=str(link.created_at) if link.created_at else None,
+        ))
+
+    return ContractLinksResponse(
+        links=links_out,
+        total=len(links_out),
+    )
+
+
+# ============ SUGGESTED CONTRACT LINKS ============
 
 
 @router.get("/{contract_id}/suggested-links", response_model=SuggestedLinksListResponse)

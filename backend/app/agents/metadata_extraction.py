@@ -67,6 +67,19 @@ class ExtractedMetadata(BaseModel):
 
 METADATA_EXTRACTION_PROMPT = """You are a contract metadata extraction specialist. Your task is to extract structured information from contract text with high accuracy.
 
+CRITICAL FIRST STEP — TEMPLATE DETECTION:
+Before extracting ANY fields, determine if this document is a TEMPLATE or an EXECUTED/SIGNED contract.
+
+TEMPLATE INDICATORS (if ANY of these are present, this is a template):
+- Bracketed placeholders: "[Company Name]", "[VENDOR]", "[CLIENT]", "[FULL LEGAL NAME]", "[Party A]"
+- Underline blanks: "___________" or "____" for names/dates
+- Generic role references used AS party names: "Contractor", "Service Provider", "Supplier", "Client" (without an actual company name)
+- Instruction text: "Insert company name here", "to be completed", "fill in"
+- No specific signatures, dates, or company names anywhere in the document
+- Document title contains "Template" or "Form"
+
+IF THIS IS A TEMPLATE: Set counterparty to null with confidence 0.0. Set parties to an empty list. Still extract contract_type, jurisdiction, and any other fields that are defined in the template.
+
 Extract the following fields from the provided contract text:
 
 1. **contract_type**: Classify the contract as one of:
@@ -80,13 +93,18 @@ Extract the following fields from the provided contract text:
 
 2. **counterparty**: Extract ONLY the legal entity name of the other contracting party.
    RULES:
-   - Extract ONLY the company/organization name (e.g., "Acme Corporation", "TechServices Inc.")
-   - DO NOT include addresses, city, state, zip codes, or any location information
-   - DO NOT use template placeholders like "the ones in the RFP", "[Company Name]", "Party A/B", "Client", "Vendor"
-   - If the document is a template with placeholders, set counterparty to null with confidence 0.0
+   - A valid counterparty is a REAL COMPANY NAME like "Acme Corporation", "TechServices Inc.", "CareerSource Heartland"
    - Look for legal entity suffixes: Inc., LLC, Ltd., Corp., Corporation, BV, GmbH, LP, LLP, PLC
    - In "between X and Y" clauses, extract the party that is NOT the document owner/drafter
    - Extract the SHORT legal name only, not the full address block
+   - DO NOT include addresses, city, state, zip codes
+   INVALID counterparty values (MUST return null instead):
+   - Template placeholders: "[Company Name]", "Party A", "Party B", "[VENDOR]"
+   - Generic terms: "Contractor", "Service Provider", "Supplier", "Client", "Customer", "Vendor"
+   - Sentence fragments: "the terms of any SOW", "attached hereto as Exhibit A", "the ones in the RFP"
+   - Document references: "this Agreement", "the Contract", "SDLC", "PMI Agreement"
+   - Anything that is NOT a proper company/organization name
+   If you are not confident this is a real company name, set value to null and confidence to 0.0.
 
 3. **effective_date**: When the contract takes effect (ISO format: YYYY-MM-DD)
    Look for phrases like: "effective as of", "dated", "entered into on", "commences on"
@@ -102,7 +120,8 @@ Extract the following fields from the provided contract text:
 
 7. **jurisdiction**: The governing law jurisdiction (e.g., "State of Delaware", "England and Wales", "Netherlands")
 
-8. **parties**: List ALL actual party names mentioned in the contract (not generic terms)
+8. **parties**: List ALL actual party names mentioned in the contract (not generic terms).
+   ONLY include real company/organization names. Do NOT include generic labels like "Client" or "Vendor".
 
 For each field, provide:
 - The extracted value (MUST be actual names, not placeholders)
@@ -236,11 +255,31 @@ async def extract_metadata(
     orchestrator = get_orchestrator()
 
     # Prepare the extraction request
-    # Include beginning (parties, effective date) + search for term/expiration sections
-    text_sample = _prepare_metadata_text(contract_text)
+    # Use semantic section selection when contract_id is available (better for large docs)
+    if contract_id:
+        text_sample = await prepare_metadata_text_semantic(
+            contract_id, contract_text, max_length=30000
+        )
+    else:
+        text_sample = _prepare_metadata_text(contract_text)
+
+    # Extract filename hint if contract_id available
+    filename_hint = ""
+    if contract_id:
+        try:
+            from app.agents.metadata_extraction import extract_counterparty_from_filename
+            # Try to get filename from DB context
+            from app.database import async_session_maker
+            from app.models.contract import Contract as ContractModel
+            async with async_session_maker() as session:
+                c = await session.get(ContractModel, uuid.UUID(contract_id))
+                if c and c.filename:
+                    filename_hint = f"\nDocument filename: {c.filename}\n(Use the filename as a hint for counterparty and contract type, but always verify against the actual document text.)\n"
+        except Exception:
+            pass
 
     query = f"""Extract metadata from the following contract text:
-
+{filename_hint}
 ---
 {text_sample}
 ---
@@ -325,10 +364,16 @@ async def _clean_counterparty_with_llm(value: str) -> str | None:
                     "content": """Extract ONLY the legal company/organization name from the given text.
 
 Rules:
-- Return ONLY the company name (e.g., "Acme Corporation", "TechServices Inc.")
+- Return ONLY the company name (e.g., "Acme Corporation", "TechServices Inc.", "CareerSource Heartland")
+- A valid company name is a proper noun, often with a legal suffix (Inc., LLC, Ltd., Corp., etc.)
 - Remove any addresses, cities, states, zip codes
-- If the text is a template placeholder (e.g., "[Company Name]", "the ones in the RFP", "Party A"), return: NULL
-- If no valid company name exists, return: NULL
+- Return NULL if the text is any of these:
+  * Template placeholder: "[Company Name]", "[VENDOR]", "Party A/B"
+  * Generic role: "Contractor", "Service Provider", "Supplier", "Client", "Vendor"
+  * Sentence fragment: "the terms of any SOW", "attached hereto as Exhibit A", "the ones in the RFP"
+  * Document reference: "this Agreement", "the Contract", "PMI Agreement", "SDLC"
+  * Any text that is NOT a proper company/organization name
+- If you are uncertain whether it's a real company name, return: NULL
 - Return the name only, nothing else."""
                 },
                 {
@@ -354,7 +399,7 @@ Rules:
 
 
 def _is_generic_counterparty(value: str | None) -> bool:
-    """Quick check if a counterparty value is obviously generic."""
+    """Quick check if a counterparty value is obviously generic or garbage."""
     if not value:
         return True
 
@@ -363,14 +408,42 @@ def _is_generic_counterparty(value: str | None) -> bool:
     if len(value_lower) < 3:
         return True
 
-    # Only check obvious generic terms - let LLM handle the rest
+    # Exact match generic terms
     generic_terms = [
         "the parties", "parties", "party a", "party b", "company", "client",
         "customer", "vendor", "provider", "the company", "the client",
-        "unknown", "n/a", "none", "null", "tbd",
+        "unknown", "n/a", "none", "null", "tbd", "contractor", "supplier",
+        "service provider", "the vendor", "the contractor", "the supplier",
+        "the service provider", "the customer", "recipient", "discloser",
     ]
 
-    return value_lower in generic_terms
+    if value_lower in generic_terms:
+        return True
+
+    # Sentence fragment patterns (garbage extractions)
+    garbage_indicators = [
+        "the terms of", "attached hereto", "the ones in the", "pursuant to",
+        "in accordance with", "as set forth", "as defined in", "hereinafter",
+        "notwithstanding", "subject to", "exhibit a", "exhibit b", "schedule",
+        "this agreement", "the contract", "the agreement", "any sow",
+        "[", "]",  # Template brackets
+        "___",  # Template blanks
+        "insert ", "fill in", "to be completed",
+    ]
+
+    for indicator in garbage_indicators:
+        if indicator in value_lower:
+            return True
+
+    # Too long to be a company name (likely a sentence fragment)
+    if len(value_lower) > 80:
+        return True
+
+    # No uppercase letter at all (company names always have capitals)
+    if value == value_lower and not any(c.isupper() for c in value):
+        return True
+
+    return False
 
 
 def extract_counterparty_from_filename(filename: str) -> str | None:

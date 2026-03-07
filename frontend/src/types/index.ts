@@ -606,6 +606,36 @@ export interface UserWithTenant extends User {
   tenant_name?: string
 }
 
+// ============ ESTABLISHED CONTRACT LINKS ============
+
+export interface ContractLinkBrief {
+  id: string
+  filename: string
+  contract_type: string | null
+  counterparty: string | null
+  effective_date: string | null
+  expiration_date: string | null
+  risk_level: string | null
+  status: string | null
+}
+
+export interface ContractLinkOut {
+  id: string
+  link_type: string
+  link_description: string | null
+  direction: 'parent' | 'child'
+  effective_date: string | null
+  reference_number: string | null
+  is_active: boolean
+  linked_contract: ContractLinkBrief
+  created_at: string | null
+}
+
+export interface ContractLinksResponse {
+  links: ContractLinkOut[]
+  total: number
+}
+
 // ============ SUGGESTED CONTRACT LINKS ============
 
 export type LinkType =

@@ -1034,6 +1034,18 @@ class ApiClient {
     return response.data
   }
 
+  // ============ ESTABLISHED CONTRACT LINKS ============
+
+  /**
+   * Get established (approved) contract links for a contract.
+   */
+  async getContractLinks(contractId: string): Promise<import('@/types').ContractLinksResponse> {
+    const response = await this.client.get<import('@/types').ContractLinksResponse>(
+      `/contracts/${contractId}/links`
+    )
+    return response.data
+  }
+
   // ============ SUGGESTED CONTRACT LINKS ============
 
   /**
