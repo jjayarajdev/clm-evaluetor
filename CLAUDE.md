@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CLM (Contract Lifecycle Management) is a strategic initiative to build an AI-native contract management platform positioned as an "AI Legal Engineer." The platform combines contract intelligence (AI-powered extraction and analysis) with relationship governance (Evaluetor-style KPI perception scoring and business relationship management). It aims to disrupt legacy CLM vendors (DocuSign, Icertis, Ironclad, Sirion, Agiloft) through rapid time-to-value, agentic AI workflows, and modern architecture.
 
-**Current State:** Phases 0-10 complete. ~305 API endpoints, 39 routers, 35 services, 8 AI agents, 45 model files, 50+ database tables.
+**Current State:** Phases 0-10 complete. ~310 API endpoints, 41 routers, 36 services, 9 AI agents, 48 model files, 55+ database tables.
 
 ## Implementation Progress
 
@@ -15,10 +15,10 @@ CLM (Contract Lifecycle Management) is a strategic initiative to build an AI-nat
 | 0 | Project Setup (Docker, PostgreSQL, ChromaDB, Agent Squad) | ✅ Complete |
 | 1 | Core Backend Infrastructure (Auth, RBAC, Audit) | ✅ Complete |
 | 2 | Document Ingestion Pipeline (Upload, Parse, Chunk, Index) | ✅ Complete |
-| 3 | AI Skills (6 Agents: Metadata, Clause, Obligation, Risk, Renewal, Q&A) | ✅ Complete |
+| 3 | AI Skills (9 Agents: Metadata, Clause, Obligation, Risk, Renewal, Q&A, SLA, Schema, Intent Router) | ✅ Complete |
 | 4 | Backend API Endpoints (Contracts, Dashboards, Query) | ✅ Complete |
 | 5 | Frontend Foundation (React, Routing, Auth UI, Components) | ✅ Complete |
-| 6 | Frontend Features (Upload, Contract Viewer, Dashboards, Chat) | ✅ Complete |
+| 6 | Frontend Features (Upload, Contract Viewer, Dashboards, Chat, Chat History) | ✅ Complete |
 | 7 | Integration & Delivery (Docker, Seed Data, Docs) | 🔄 Partial |
 | 8 | Post-Signing Management (Compliance, SLA, Renewals, Vendor Scoring) | ✅ Complete |
 | 9 | Relationship Governance (Evaluetor: KPIs, Perception, Improvements) | ✅ Complete |
@@ -164,6 +164,7 @@ This ensures local dev (which auto-creates enums) and Docker (which uses migrati
 6. **Renewal Monitoring Agent:** Detect auto-renewal, notice periods, calculate deadlines
 7. **SLA Extraction Agent:** Extract SLA metrics, targets, and penalty terms
 8. **Schema Extraction Agent:** Custom extraction based on user-defined schemas
+9. **Intent Router Agent:** Structured query routing for renewals, obligations, risk, portfolio, and SLA queries with LLM-enhanced visualizations
 
 ## Strategic Differentiators
 

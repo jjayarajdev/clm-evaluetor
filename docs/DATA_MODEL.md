@@ -11,10 +11,11 @@ Comprehensive data model documentation with Mermaid diagrams for the Contract Li
 3. [Post-Signing Management](#3-post-signing-management)
 4. [Relationship Governance](#4-relationship-governance-evaluetor-features)
 5. [Compliance Module](#5-compliance-module)
-6. [Supporting Entities](#6-supporting-entities)
-7. [Complete Overview](#7-complete-entity-relationship-overview)
-8. [Data Flow Diagrams](#8-data-flow-diagrams)
-9. [Key Design Decisions](#9-key-design-decisions)
+6. [Chat](#6-chat)
+7. [Supporting Entities](#7-supporting-entities)
+8. [Complete Overview](#8-complete-entity-relationship-overview)
+9. [Data Flow Diagrams](#9-data-flow-diagrams)
+10. [Key Design Decisions](#10-key-design-decisions)
 
 ---
 
@@ -823,7 +824,67 @@ graph TB
 
 ---
 
-## 6. Supporting Entities
+## 6. Chat
+
+### Chat Sessions & Messages
+
+```mermaid
+erDiagram
+    TENANTS ||--o{ CHAT_SESSIONS : has
+    USERS ||--o{ CHAT_SESSIONS : owns
+    CONTRACTS ||--o{ CHAT_SESSIONS : scopes
+    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
+
+    CHAT_SESSIONS {
+        uuid id PK
+        uuid tenant_id FK
+        uuid user_id FK
+        string title
+        uuid contract_id FK "nullable"
+        datetime created_at
+        datetime updated_at
+    }
+
+    CHAT_MESSAGES {
+        uuid id PK
+        uuid session_id FK
+        string role "user or assistant"
+        text content
+        json sources "nullable"
+        json follow_ups "nullable"
+        json visualizations "nullable"
+        datetime created_at
+    }
+```
+
+**Chat Sessions** - Persistent conversation sessions per user per tenant
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| tenant_id | UUID | FK to tenants (multi-tenant isolation) |
+| user_id | UUID | FK to users (session owner) |
+| title | VARCHAR(255) | Auto-generated from first message |
+| contract_id | UUID | Optional FK to contracts (scoped queries) |
+| created_at | TIMESTAMP | Session creation time |
+| updated_at | TIMESTAMP | Last activity time |
+
+**Chat Messages** - Individual messages within a session
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| session_id | UUID | FK to chat_sessions |
+| role | VARCHAR(20) | 'user' or 'assistant' |
+| content | TEXT | Message text |
+| sources | JSON | Source references for AI answers |
+| follow_ups | JSON | Suggested follow-up questions |
+| visualizations | JSON | Chart/table visualization specs |
+| created_at | TIMESTAMP | Message timestamp |
+
+---
+
+## 7. Supporting Entities
 
 ### Client Management
 
@@ -1090,7 +1151,7 @@ erDiagram
 
 ---
 
-## 7. Complete Entity Relationship Overview
+## 8. Complete Entity Relationship Overview
 
 ```mermaid
 graph TB
@@ -1142,6 +1203,11 @@ graph TB
         RO[RegulatoryObligation]
     end
 
+    subgraph Chat["Chat"]
+        CSESS[ChatSession]
+        CMSG[ChatMessage]
+    end
+
     subgraph Supporting["Supporting"]
         CLI[Client]
         SL[SuggestedLink]
@@ -1160,6 +1226,7 @@ graph TB
     T --> CLI
     T --> BU
     T --> EU
+    T --> CSESS
 
     C --> CL
     C --> O
@@ -1170,6 +1237,7 @@ graph TB
     C --> RO
     C --> KGE
     C --> CS
+    C --> CSESS
 
     KGE --> KGR
 
@@ -1199,6 +1267,9 @@ graph TB
     U --> N
     U --> AL
     U --> BU
+    U --> CSESS
+
+    CSESS --> CMSG
 
     C --> SL
     C --> CLINK
@@ -1206,7 +1277,7 @@ graph TB
 
 ---
 
-## 8. Data Flow Diagrams
+## 9. Data Flow Diagrams
 
 ### Contract Processing Pipeline
 
@@ -1287,7 +1358,7 @@ sequenceDiagram
 
 ---
 
-## 9. Key Design Decisions
+## 10. Key Design Decisions
 
 ### Files & Documents
 
@@ -1330,3 +1401,4 @@ sequenceDiagram
 | 1.0 | 2024-02-25 | Initial data model with Mermaid diagrams |
 | 1.1 | 2026-02-28 | Updated clause types to 31 categories, added AI classification mapping |
 | 1.2 | 2026-03-06 | Added Business Unit, External User, Contract Share/Comment, Knowledge Graph, Notification Rules, Metric Snapshots. Updated entity overview diagram. |
+| 1.3 | 2026-03-07 | Added Chat Sessions and Chat Messages entities. Updated entity overview diagram. |
