@@ -1,0 +1,705 @@
+{
+  "schema_id": "franchise_agreement_v1",
+  "contract_type": "franchise",
+  "version": "1.0.0",
+  "description": "Franchise Agreement - covers franchise grants, territory rights, royalty structures, operational standards, IP usage, and franchisor-franchisee obligations for single-unit, multi-unit, and area development franchise arrangements",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 10000,
+  "required_sections": ["franchise_identification", "financial_terms", "territory_rights", "term_and_renewal"],
+
+  "sections": {
+    "franchise_identification": {
+      "description": "Franchisor and franchisee identification, franchise system details, and agreement basics",
+      "priority": 10,
+      "max_context_chars": 12000,
+      "fields": {
+        "agreement_title": {
+          "type": "string",
+          "description": "Official title of the franchise agreement",
+          "required": true,
+          "extraction_hints": ["Franchise Agreement", "Franchise License Agreement", "Unit Franchise Agreement", "Area Development Agreement", "Title at top of document"]
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date the franchise agreement becomes effective or is executed",
+          "required": true,
+          "extraction_hints": ["effective as of", "effective date", "dated as of", "executed on", "entered into as of"]
+        },
+        "franchisor_name": {
+          "type": "string",
+          "description": "Full legal name of the franchisor entity granting the franchise",
+          "required": true,
+          "extraction_hints": ["Franchisor", "the Company", "Licensor", "the franchisor entity", "franchisor party"]
+        },
+        "franchisor_address": {
+          "type": "string",
+          "description": "Principal business address of the franchisor",
+          "extraction_hints": ["principal office", "franchisor address", "located at", "principal place of business"]
+        },
+        "franchisor_state_of_incorporation": {
+          "type": "string",
+          "description": "State or jurisdiction where the franchisor entity is incorporated or organized",
+          "extraction_hints": ["organized under the laws of", "incorporated in", "a corporation organized", "a limited liability company formed"]
+        },
+        "franchisee_name": {
+          "type": "string",
+          "description": "Full legal name of the franchisee entity or individual receiving the franchise grant",
+          "required": true,
+          "extraction_hints": ["Franchisee", "the Operator", "the Developer", "franchisee party", "the franchisee entity"]
+        },
+        "franchisee_address": {
+          "type": "string",
+          "description": "Principal business or residential address of the franchisee",
+          "extraction_hints": ["franchisee address", "located at", "residing at", "principal address"]
+        },
+        "franchisee_entity_type": {
+          "type": "enum",
+          "description": "Legal entity type of the franchisee",
+          "enum_values": ["individual", "corporation", "LLC", "partnership", "trust"],
+          "extraction_hints": ["corporation", "limited liability company", "LLC", "partnership", "individual", "sole proprietor"]
+        },
+        "franchise_system_name": {
+          "type": "string",
+          "description": "Name of the franchise system, brand, or concept being franchised",
+          "required": true,
+          "extraction_hints": ["the System", "franchise system", "franchise concept", "the Brand", "operating under the name", "known as"]
+        },
+        "franchise_type": {
+          "type": "enum",
+          "description": "Type of franchise arrangement being granted",
+          "enum_values": ["single_unit", "multi_unit", "area_development", "master_franchise", "conversion"],
+          "extraction_hints": ["single unit", "multi-unit", "area development", "master franchise", "sub-franchise", "conversion franchise"]
+        },
+        "franchise_number": {
+          "type": "string",
+          "description": "Unique franchise unit number or identifier assigned by the franchisor",
+          "extraction_hints": ["franchise number", "unit number", "store number", "location number", "franchise ID"]
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "State or jurisdiction whose laws govern the franchise agreement",
+          "extraction_hints": ["governed by the laws of", "governing law", "construed in accordance with", "laws of the State of"]
+        },
+        "jurisdiction": {
+          "type": "string",
+          "description": "Courts or venue for disputes arising under the franchise agreement",
+          "extraction_hints": ["exclusive jurisdiction", "venue shall be", "submit to the jurisdiction", "courts located in"]
+        },
+        "fdd_receipt_date": {
+          "type": "date",
+          "description": "Date the franchisee received the Franchise Disclosure Document (FDD)",
+          "extraction_hints": ["FDD receipt", "Franchise Disclosure Document", "disclosure document", "received the FDD", "disclosure receipt"]
+        }
+      }
+    },
+
+    "financial_terms": {
+      "description": "Franchise fees, ongoing royalties, advertising contributions, and financial obligations",
+      "priority": 10,
+      "max_context_chars": 15000,
+      "fields": {
+        "initial_franchise_fee": {
+          "type": "string",
+          "description": "One-time initial franchise fee payable upon signing or opening",
+          "required": true,
+          "extraction_hints": ["initial franchise fee", "franchise fee", "initial fee", "upfront fee", "one-time fee", "payable upon execution"]
+        },
+        "initial_fee_payment_terms": {
+          "type": "string",
+          "description": "Payment schedule or terms for the initial franchise fee",
+          "extraction_hints": ["due upon signing", "payable in installments", "due at execution", "fee payment schedule", "payable upon"]
+        },
+        "initial_fee_refundable": {
+          "type": "boolean",
+          "description": "Whether the initial franchise fee is refundable in whole or in part",
+          "extraction_hints": ["non-refundable", "refundable", "shall not be refunded", "no refund", "fully earned upon payment"]
+        },
+        "ongoing_royalty_rate": {
+          "type": "string",
+          "description": "Ongoing royalty percentage or amount payable to the franchisor on gross sales",
+          "required": true,
+          "extraction_hints": ["royalty fee", "continuing royalty", "royalty rate", "percent of gross sales", "ongoing royalty", "monthly royalty"]
+        },
+        "royalty_calculation_basis": {
+          "type": "string",
+          "description": "The revenue or sales metric on which royalties are calculated",
+          "extraction_hints": ["gross sales", "gross revenue", "net sales", "net revenue", "total revenue", "royalty base", "calculated on"]
+        },
+        "royalty_payment_frequency": {
+          "type": "enum",
+          "description": "How often royalty payments are due to the franchisor",
+          "enum_values": ["weekly", "bi_weekly", "monthly", "quarterly"],
+          "extraction_hints": ["paid weekly", "paid monthly", "due on the", "payable each", "bi-weekly", "on or before the"]
+        },
+        "royalty_payment_method": {
+          "type": "enum",
+          "description": "Required method for royalty payment transmission",
+          "enum_values": ["ACH", "EFT", "wire_transfer", "check", "auto_debit"],
+          "extraction_hints": ["electronic funds transfer", "EFT", "ACH", "wire transfer", "automatic debit", "auto-debit"]
+        },
+        "minimum_royalty_amount": {
+          "type": "string",
+          "description": "Minimum royalty payment due regardless of actual sales volume",
+          "extraction_hints": ["minimum royalty", "minimum fee", "floor", "not less than", "minimum monthly payment"]
+        },
+        "advertising_fund_contribution_rate": {
+          "type": "string",
+          "description": "Percentage of gross sales contributed to the national or brand advertising fund",
+          "required": true,
+          "extraction_hints": ["advertising fund", "ad fund", "brand fund", "national advertising", "marketing fund", "advertising contribution"]
+        },
+        "local_advertising_requirement": {
+          "type": "string",
+          "description": "Minimum percentage or amount the franchisee must spend on local advertising",
+          "extraction_hints": ["local advertising", "local marketing", "local ad spend", "local promotion", "spend locally"]
+        },
+        "advertising_cooperative_membership": {
+          "type": "string",
+          "description": "Requirements for participating in regional or local advertising cooperatives",
+          "extraction_hints": ["advertising cooperative", "ad cooperative", "marketing cooperative", "co-op", "regional advertising"]
+        },
+        "technology_fee": {
+          "type": "string",
+          "description": "Ongoing fee for proprietary technology systems, POS, or software platforms",
+          "extraction_hints": ["technology fee", "tech fee", "system fee", "POS fee", "software fee", "IT fee", "technology charge"]
+        },
+        "minimum_revenue_requirement": {
+          "type": "string",
+          "description": "Minimum gross revenue or sales the franchisee must achieve within a specified period",
+          "extraction_hints": ["minimum revenue", "minimum sales", "minimum gross sales", "performance threshold", "minimum volume"]
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency in which all franchise fees and payments are denominated",
+          "extraction_hints": ["USD", "US Dollars", "dollars", "United States currency"]
+        },
+        "late_payment_penalty": {
+          "type": "string",
+          "description": "Penalty rate or fee charged for late payment of royalties or other fees",
+          "extraction_hints": ["late fee", "late payment", "interest on overdue", "penalty for late", "past due", "per annum interest"]
+        }
+      }
+    },
+
+    "territory_rights": {
+      "description": "Territory designation, exclusivity provisions, protected areas, and market rights",
+      "priority": 9,
+      "max_context_chars": 12000,
+      "fields": {
+        "territory_description": {
+          "type": "string",
+          "description": "Geographic description or boundaries of the franchisee's designated territory",
+          "required": true,
+          "extraction_hints": ["Territory", "designated territory", "franchise territory", "geographic area", "territory boundaries", "described in Exhibit"]
+        },
+        "territory_exclusivity": {
+          "type": "enum",
+          "description": "Whether the territory grant is exclusive, non-exclusive, or protected",
+          "enum_values": ["exclusive", "non_exclusive", "protected"],
+          "required": true,
+          "extraction_hints": ["exclusive territory", "non-exclusive", "protected territory", "exclusive area", "exclusive right"]
+        },
+        "territory_exclusivity_conditions": {
+          "type": "string",
+          "description": "Conditions or performance requirements that must be met to maintain territory exclusivity",
+          "extraction_hints": ["maintain exclusivity", "exclusivity conditions", "performance requirements", "loss of exclusivity", "exclusivity contingent"]
+        },
+        "franchisor_reserved_rights": {
+          "type": "array",
+          "description": "Rights the franchisor reserves within or adjacent to the franchisee's territory",
+          "items_type": "string",
+          "extraction_hints": ["reserves the right", "franchisor may", "reserved rights", "notwithstanding the exclusivity", "franchisor retains"]
+        },
+        "right_of_first_refusal": {
+          "type": "string",
+          "description": "Franchisee's right of first refusal for new franchise units in adjacent areas",
+          "extraction_hints": ["right of first refusal", "ROFR", "first right", "first opportunity", "option to develop"]
+        },
+        "online_sales_rights": {
+          "type": "string",
+          "description": "Rights and restrictions regarding e-commerce, online sales, and digital ordering within or outside the territory",
+          "extraction_hints": ["online sales", "e-commerce", "internet sales", "digital orders", "online ordering", "website sales"]
+        },
+        "delivery_area_rights": {
+          "type": "string",
+          "description": "Rights to deliver products or services beyond the designated territory boundaries",
+          "extraction_hints": ["delivery area", "delivery zone", "deliver outside", "delivery rights", "catering territory"]
+        },
+        "relocation_rights": {
+          "type": "string",
+          "description": "Franchisee's rights and conditions for relocating the franchise unit within the territory",
+          "extraction_hints": ["relocation", "relocate the unit", "move the franchise", "change of location", "relocation rights"]
+        }
+      }
+    },
+
+    "operations_standards": {
+      "description": "Operational requirements, quality standards, training, staffing, and approved supplier mandates",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "operations_manual_compliance": {
+          "type": "string",
+          "description": "Requirement to comply with the franchisor's confidential operations manual",
+          "required": true,
+          "extraction_hints": ["Operations Manual", "operating manual", "franchise manual", "system standards manual", "comply with the Manual"]
+        },
+        "operating_hours_requirement": {
+          "type": "string",
+          "description": "Minimum or required hours and days of operation for the franchise unit",
+          "extraction_hints": ["operating hours", "hours of operation", "minimum hours", "business hours", "days per week", "open for business"]
+        },
+        "staffing_requirements": {
+          "type": "string",
+          "description": "Minimum staffing levels, designated manager requirements, and employee qualifications",
+          "extraction_hints": ["staffing", "minimum staff", "designated manager", "on-site manager", "qualified personnel", "staffing levels"]
+        },
+        "owner_operator_requirement": {
+          "type": "boolean",
+          "description": "Whether the franchise owner must be personally involved in day-to-day operations",
+          "extraction_hints": ["owner-operator", "personally supervise", "devote full time", "hands-on", "active management", "principal operator"]
+        },
+        "initial_training_program": {
+          "type": "object",
+          "description": "Details of the franchisor's mandatory initial training program",
+          "properties": {
+            "duration": {
+              "type": "string",
+              "description": "Length of the initial training program"
+            },
+            "location": {
+              "type": "string",
+              "description": "Where training is conducted"
+            },
+            "cost_responsibility": {
+              "type": "string",
+              "description": "Who bears the cost of training, travel, and lodging"
+            },
+            "attendees_required": {
+              "type": "string",
+              "description": "Who is required to attend the initial training"
+            }
+          },
+          "extraction_hints": ["initial training", "training program", "training course", "must complete training", "pre-opening training", "training at franchisor's"]
+        },
+        "ongoing_training_requirements": {
+          "type": "string",
+          "description": "Requirements for continuing education, refresher courses, or annual training sessions",
+          "extraction_hints": ["ongoing training", "continuing education", "refresher training", "annual training", "additional training", "supplemental training"]
+        },
+        "quality_standards": {
+          "type": "string",
+          "description": "Product and service quality standards the franchisee must maintain",
+          "extraction_hints": ["quality standards", "quality control", "product quality", "service standards", "brand standards", "system standards"]
+        },
+        "approved_suppliers": {
+          "type": "string",
+          "description": "Requirements to purchase products, supplies, or equipment from franchisor-approved suppliers only",
+          "required": true,
+          "extraction_hints": ["approved suppliers", "designated suppliers", "authorized suppliers", "purchase from", "approved vendor", "supply chain"]
+        },
+        "product_sourcing_restrictions": {
+          "type": "string",
+          "description": "Restrictions on sourcing products or ingredients outside the approved supply chain",
+          "extraction_hints": ["sourcing restrictions", "may not purchase", "exclusively from", "alternative suppliers", "supply requirements"]
+        },
+        "menu_or_product_compliance": {
+          "type": "string",
+          "description": "Requirements to offer only approved products, menu items, or services as designated by the franchisor",
+          "extraction_hints": ["approved menu", "approved products", "product line", "required products", "menu compliance", "authorized products"]
+        },
+        "uniform_and_appearance_standards": {
+          "type": "string",
+          "description": "Requirements for employee uniforms, grooming, and appearance standards",
+          "extraction_hints": ["uniform", "dress code", "appearance standards", "grooming", "employee attire", "uniform standards"]
+        },
+        "customer_service_standards": {
+          "type": "string",
+          "description": "Required customer service protocols, response times, and complaint handling procedures",
+          "extraction_hints": ["customer service", "guest satisfaction", "complaint handling", "customer experience", "service protocols"]
+        },
+        "technology_systems_required": {
+          "type": "string",
+          "description": "Mandatory technology systems, POS hardware, software, or platforms the franchisee must use",
+          "extraction_hints": ["POS system", "point of sale", "technology platform", "required software", "computer system", "designated system"]
+        }
+      }
+    },
+
+    "intellectual_property": {
+      "description": "Trademark usage rights, trade secrets, proprietary systems, and brand identity requirements",
+      "priority": 9,
+      "max_context_chars": 12000,
+      "fields": {
+        "licensed_trademarks": {
+          "type": "array",
+          "description": "List of trademarks, service marks, and trade names licensed to the franchisee",
+          "items_type": "string",
+          "required": true,
+          "extraction_hints": ["Marks", "trademarks", "service marks", "trade names", "Licensed Marks", "the Marks"]
+        },
+        "trademark_usage_restrictions": {
+          "type": "string",
+          "description": "Restrictions and guidelines on how the franchisee may use the licensed trademarks",
+          "extraction_hints": ["use of Marks", "trademark guidelines", "permitted use of", "may only use", "brand guidelines", "usage restrictions"]
+        },
+        "trademark_ownership_acknowledgment": {
+          "type": "string",
+          "description": "Franchisee's acknowledgment that all trademark rights belong exclusively to the franchisor",
+          "extraction_hints": ["acknowledges ownership", "sole and exclusive owner", "all rights in the Marks", "goodwill inures", "franchisor owns"]
+        },
+        "trade_secrets_definition": {
+          "type": "string",
+          "description": "Definition and scope of the franchisor's trade secrets and confidential information",
+          "extraction_hints": ["trade secrets", "Confidential Information", "proprietary information", "confidential methods", "secret recipes", "proprietary formulas"]
+        },
+        "confidentiality_obligations": {
+          "type": "string",
+          "description": "Franchisee's obligations to maintain confidentiality of trade secrets and proprietary information",
+          "extraction_hints": ["maintain confidentiality", "shall not disclose", "protect confidential", "confidentiality obligations", "non-disclosure"]
+        },
+        "confidentiality_survival_period": {
+          "type": "string",
+          "description": "Duration for which confidentiality obligations survive termination or expiration of the agreement",
+          "extraction_hints": ["survive termination", "survival period", "indefinitely", "continue after", "obligations shall survive"]
+        },
+        "proprietary_systems": {
+          "type": "string",
+          "description": "Description of proprietary operating systems, methods, or processes licensed to the franchisee",
+          "extraction_hints": ["proprietary system", "the System", "franchise system", "operating system", "business methods", "proprietary methods"]
+        },
+        "brand_identity_standards": {
+          "type": "string",
+          "description": "Requirements for maintaining brand identity including colors, logos, signage design, and marketing materials",
+          "extraction_hints": ["brand standards", "brand identity", "brand guidelines", "color scheme", "logo usage", "corporate identity", "visual identity"]
+        },
+        "social_media_policy": {
+          "type": "string",
+          "description": "Restrictions and guidelines for the franchisee's use of social media under the brand",
+          "extraction_hints": ["social media", "online presence", "social media policy", "digital marketing", "social media accounts", "online reviews"]
+        },
+        "infringement_reporting_obligation": {
+          "type": "string",
+          "description": "Franchisee's obligation to report unauthorized use or infringement of the franchisor's marks",
+          "extraction_hints": ["report infringement", "notify of infringement", "unauthorized use", "protect the Marks", "infringement notice"]
+        }
+      }
+    },
+
+    "term_and_renewal": {
+      "description": "Initial franchise term, renewal rights, conditions for renewal, and transfer provisions",
+      "priority": 10,
+      "max_context_chars": 15000,
+      "fields": {
+        "initial_term_years": {
+          "type": "integer",
+          "description": "Length of the initial franchise term in years",
+          "required": true,
+          "extraction_hints": ["initial term", "term of this Agreement", "franchise term", "period of", "years from the date"]
+        },
+        "term_commencement_trigger": {
+          "type": "string",
+          "description": "Event that triggers the start of the franchise term",
+          "extraction_hints": ["term commences", "term begins", "effective date", "date of opening", "commencement of operations"]
+        },
+        "number_of_renewal_options": {
+          "type": "integer",
+          "description": "Number of successive renewal terms available to the franchisee",
+          "extraction_hints": ["renewal options", "successive terms", "additional terms", "right to renew", "renewal periods"]
+        },
+        "renewal_term_years": {
+          "type": "integer",
+          "description": "Duration of each renewal term in years",
+          "extraction_hints": ["renewal term", "each renewal", "additional period of", "successive term of"]
+        },
+        "renewal_notice_period_days": {
+          "type": "integer",
+          "description": "Number of days prior to expiration that the franchisee must provide written notice of intent to renew",
+          "extraction_hints": ["renewal notice", "prior written notice", "days before expiration", "notice of renewal", "not less than"]
+        },
+        "renewal_conditions": {
+          "type": "array",
+          "description": "Conditions the franchisee must satisfy in order to exercise renewal rights",
+          "items_type": "string",
+          "extraction_hints": ["conditions for renewal", "renewal requirements", "not in default", "current agreement", "renovation", "sign then-current form"]
+        },
+        "renewal_fee": {
+          "type": "string",
+          "description": "Fee payable upon exercise of the renewal option",
+          "extraction_hints": ["renewal fee", "renewal franchise fee", "fee upon renewal", "payable at renewal"]
+        },
+        "transfer_permitted": {
+          "type": "boolean",
+          "description": "Whether the franchisee may transfer or assign the franchise agreement to a third party",
+          "extraction_hints": ["transfer", "assignment", "may transfer", "assignable", "right to transfer", "shall not transfer"]
+        },
+        "transfer_conditions": {
+          "type": "array",
+          "description": "Conditions that must be satisfied for an approved transfer of the franchise",
+          "items_type": "string",
+          "extraction_hints": ["transfer conditions", "consent to transfer", "conditions of transfer", "transferee qualifications", "transfer requirements"]
+        },
+        "transfer_fee": {
+          "type": "string",
+          "description": "Fee payable to the franchisor upon an approved transfer of the franchise",
+          "extraction_hints": ["transfer fee", "assignment fee", "fee for transfer", "payable upon transfer"]
+        },
+        "franchisor_right_of_first_refusal_on_transfer": {
+          "type": "string",
+          "description": "Franchisor's right to match a third-party offer and acquire the franchise unit before a transfer",
+          "extraction_hints": ["right of first refusal", "ROFR on transfer", "match the offer", "purchase on same terms", "first right to acquire"]
+        }
+      }
+    },
+
+    "termination": {
+      "description": "Termination rights, causes, cure periods, post-termination obligations, and restrictive covenants",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "termination_by_franchisor_with_cure": {
+          "type": "object",
+          "description": "Grounds for franchisor termination that allow the franchisee a cure period",
+          "properties": {
+            "grounds": {
+              "type": "array",
+              "description": "Events or breaches that trigger termination with a cure opportunity",
+              "items_type": "string"
+            },
+            "cure_period_days": {
+              "type": "integer",
+              "description": "Number of days the franchisee has to cure the breach after notice"
+            }
+          },
+          "extraction_hints": ["terminate with cure", "cure period", "days to cure", "right to cure", "notice and opportunity to cure", "curable default"]
+        },
+        "termination_by_franchisor_without_cure": {
+          "type": "array",
+          "description": "Grounds for immediate termination by the franchisor with no cure opportunity",
+          "items_type": "string",
+          "extraction_hints": ["immediate termination", "without opportunity to cure", "terminate immediately", "no cure period", "automatic termination"]
+        },
+        "termination_by_franchisee": {
+          "type": "string",
+          "description": "Grounds and process by which the franchisee may terminate the agreement",
+          "extraction_hints": ["franchisee may terminate", "termination by franchisee", "franchisee termination rights", "right of franchisee to terminate"]
+        },
+        "termination_upon_insolvency": {
+          "type": "string",
+          "description": "Termination rights triggered by bankruptcy, insolvency, or receivership of either party",
+          "extraction_hints": ["insolvency", "bankruptcy", "receivership", "insolvent", "Chapter 7", "Chapter 11", "liquidation"]
+        },
+        "post_termination_de_identification": {
+          "type": "string",
+          "description": "Obligation to remove all franchisor branding, signage, and trade dress from the premises after termination",
+          "required": true,
+          "extraction_hints": ["de-identification", "remove all signs", "cease using the Marks", "remove branding", "de-brand", "within days after termination"]
+        },
+        "post_termination_payment_obligations": {
+          "type": "string",
+          "description": "Financial obligations that continue or become due upon termination",
+          "extraction_hints": ["amounts owed", "unpaid fees", "outstanding royalties", "liquidated damages", "remaining payments", "accelerated payments"]
+        },
+        "return_of_materials": {
+          "type": "string",
+          "description": "Obligation to return the operations manual, proprietary materials, and confidential information",
+          "extraction_hints": ["return the Manual", "return all materials", "return confidential", "return of proprietary", "deliver to franchisor"]
+        },
+        "non_compete_during_term": {
+          "type": "string",
+          "description": "Restriction on the franchisee operating or having an interest in a competing business during the franchise term",
+          "extraction_hints": ["non-compete", "covenant not to compete", "shall not engage", "competing business", "during the term"]
+        },
+        "non_compete_post_termination": {
+          "type": "object",
+          "description": "Post-termination or post-expiration non-compete covenant restrictions",
+          "properties": {
+            "duration_months": {
+              "type": "integer",
+              "description": "Duration of the post-termination non-compete period in months"
+            },
+            "geographic_radius_miles": {
+              "type": "number",
+              "description": "Geographic radius in miles from the former franchise location"
+            },
+            "restricted_activities": {
+              "type": "string",
+              "description": "Activities or businesses that are restricted during the non-compete period"
+            }
+          },
+          "extraction_hints": ["post-termination non-compete", "after termination", "for a period of", "within a radius of", "miles of the premises", "similar business"]
+        },
+        "non_solicitation": {
+          "type": "string",
+          "description": "Restrictions on soliciting employees or customers of the franchise system after termination",
+          "extraction_hints": ["non-solicitation", "shall not solicit", "not hire employees", "customer solicitation", "employee solicitation"]
+        }
+      }
+    },
+
+    "obligations_and_reporting": {
+      "description": "Ongoing reporting obligations, audit rights, inspection rights, and insurance requirements",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "financial_reporting_requirements": {
+          "type": "object",
+          "description": "Required financial statements and reports the franchisee must submit to the franchisor",
+          "properties": {
+            "reports_required": {
+              "type": "array",
+              "description": "Types of financial reports required",
+              "items_type": "string"
+            },
+            "frequency": {
+              "type": "string",
+              "description": "How often reports must be submitted"
+            },
+            "submission_deadline": {
+              "type": "string",
+              "description": "Deadline for submitting each report after the reporting period"
+            }
+          },
+          "required": true,
+          "extraction_hints": ["financial statements", "profit and loss", "P&L", "balance sheet", "income statement", "financial reports", "submit to franchisor"]
+        },
+        "pos_reporting_requirements": {
+          "type": "string",
+          "description": "Requirements for real-time or periodic reporting of POS data and transaction records",
+          "extraction_hints": ["POS data", "point of sale reporting", "transaction data", "daily sales reports", "electronic reporting"]
+        },
+        "franchisor_audit_rights": {
+          "type": "object",
+          "description": "Franchisor's right to audit the franchisee's books, records, and operations",
+          "properties": {
+            "notice_period_days": {
+              "type": "integer",
+              "description": "Days of advance notice required before an audit"
+            },
+            "audit_scope": {
+              "type": "string",
+              "description": "What records and operations the franchisor may audit"
+            },
+            "cost_responsibility": {
+              "type": "string",
+              "description": "Who bears the cost of audits, including if underreporting is found"
+            }
+          },
+          "extraction_hints": ["audit rights", "right to audit", "inspect books", "examine records", "audit the franchisee", "access to records"]
+        },
+        "underreporting_penalties": {
+          "type": "string",
+          "description": "Penalties or consequences if an audit reveals underreporting of sales or royalties",
+          "extraction_hints": ["underreporting", "deficiency", "understatement", "pay the deficiency", "audit reveals", "reimburse audit costs"]
+        },
+        "site_inspection_rights": {
+          "type": "string",
+          "description": "Franchisor's right to conduct unannounced or scheduled inspections of the franchise premises",
+          "extraction_hints": ["site inspection", "inspect the premises", "right to inspect", "unannounced visits", "periodic inspections", "mystery shopper"]
+        },
+        "record_retention_period_years": {
+          "type": "integer",
+          "description": "Number of years the franchisee must retain financial and operational records",
+          "extraction_hints": ["record retention", "maintain records", "retain for", "keep records for", "years after"]
+        },
+        "general_liability_insurance": {
+          "type": "string",
+          "description": "Required commercial general liability insurance coverage minimum",
+          "required": true,
+          "extraction_hints": ["general liability", "commercial general liability", "CGL", "liability insurance", "minimum coverage"]
+        },
+        "property_insurance": {
+          "type": "string",
+          "description": "Required property insurance coverage for the franchise premises and equipment",
+          "extraction_hints": ["property insurance", "building insurance", "contents insurance", "fire insurance", "all-risk"]
+        },
+        "workers_compensation_insurance": {
+          "type": "string",
+          "description": "Required workers compensation insurance for franchise employees",
+          "extraction_hints": ["workers compensation", "workers comp", "worker's compensation", "statutory coverage"]
+        },
+        "business_interruption_insurance": {
+          "type": "string",
+          "description": "Required business interruption or loss of income insurance coverage",
+          "extraction_hints": ["business interruption", "loss of income", "business income insurance", "interruption coverage"]
+        },
+        "additional_insured_requirement": {
+          "type": "string",
+          "description": "Requirement to name the franchisor as an additional insured on all policies",
+          "extraction_hints": ["additional insured", "name as additional insured", "add franchisor", "certificate of insurance", "proof of insurance"]
+        },
+        "compliance_with_laws": {
+          "type": "string",
+          "description": "General obligation to comply with all applicable federal, state, and local laws and regulations",
+          "extraction_hints": ["comply with all laws", "applicable laws", "regulatory compliance", "permits and licenses", "legal compliance"]
+        }
+      }
+    },
+
+    "real_estate": {
+      "description": "Site selection, lease requirements, build-out specifications, and premises-related obligations",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "site_selection_process": {
+          "type": "string",
+          "description": "Process and responsibilities for selecting and approving the franchise location",
+          "required": true,
+          "extraction_hints": ["site selection", "location approval", "approved site", "site criteria", "select a location", "franchisor approval of site"]
+        },
+        "site_approval_required": {
+          "type": "boolean",
+          "description": "Whether the franchisor must approve the proposed franchise location before the franchisee proceeds",
+          "extraction_hints": ["site approval", "prior written approval", "franchisor must approve", "location must be approved", "consent to site"]
+        },
+        "site_selection_deadline": {
+          "type": "string",
+          "description": "Deadline by which the franchisee must identify and secure an approved site",
+          "extraction_hints": ["site selection deadline", "locate a site within", "months after execution", "deadline for site", "time to secure site"]
+        },
+        "lease_approval_required": {
+          "type": "boolean",
+          "description": "Whether the franchisor must review and approve the franchisee's lease agreement for the premises",
+          "extraction_hints": ["lease approval", "approve the lease", "review the lease", "lease must be approved", "submit the lease"]
+        },
+        "lease_required_provisions": {
+          "type": "array",
+          "description": "Specific provisions that must be included in the franchisee's lease at the franchisor's requirement",
+          "items_type": "string",
+          "extraction_hints": ["lease provisions", "lease must include", "collateral assignment", "franchisor's right to assume", "lease riders", "lease addendum"]
+        },
+        "build_out_specifications": {
+          "type": "string",
+          "description": "Franchisor's specifications and standards for the construction, renovation, or build-out of the franchise premises",
+          "extraction_hints": ["build-out", "buildout", "construction specifications", "design specifications", "build to specifications", "prototype plans"]
+        },
+        "build_out_deadline": {
+          "type": "string",
+          "description": "Deadline by which the franchise premises must be fully constructed and ready to open",
+          "extraction_hints": ["build-out deadline", "construction deadline", "complete construction within", "opening deadline", "must open within"]
+        },
+        "opening_deadline": {
+          "type": "string",
+          "description": "Final deadline by which the franchise unit must be open for business",
+          "extraction_hints": ["opening deadline", "must open by", "commence operations within", "grand opening", "open for business by"]
+        },
+        "signage_requirements": {
+          "type": "string",
+          "description": "Requirements for exterior and interior signage including design, size, and placement specifications",
+          "extraction_hints": ["signage", "signs", "exterior signage", "interior signage", "sign specifications", "sign package", "monument sign"]
+        },
+        "renovation_and_refurbishment_obligations": {
+          "type": "string",
+          "description": "Periodic obligations to renovate, remodel, or refurbish the franchise premises to current brand standards",
+          "extraction_hints": ["renovation", "remodel", "refurbish", "upgrade the premises", "bring into compliance", "refresh", "modernization"]
+        },
+        "franchisor_design_approval": {
+          "type": "string",
+          "description": "Requirement for franchisor approval of architectural plans, designs, and contractor selection",
+          "extraction_hints": ["design approval", "approve plans", "architectural plans", "submit drawings", "approve contractors", "construction plans"]
+        }
+      }
+    }
+  }
+}

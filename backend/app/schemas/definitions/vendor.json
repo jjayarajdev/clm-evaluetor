@@ -1,0 +1,561 @@
+{
+  "schema_id": "vendor_v1",
+  "contract_type": "Vendor",
+  "version": "1.0.0",
+  "description": "Vendor/Procurement Agreement - governs the purchase of goods or services from a vendor or supplier",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 6000,
+  "required_sections": ["vendor_metadata", "pricing_and_payment", "risk_and_liability"],
+
+  "sections": {
+    "vendor_metadata": {
+      "description": "Basic agreement identification, party information, and governing provisions",
+      "priority": 10,
+      "max_context_chars": 10000,
+      "fields": {
+        "agreement_title": {
+          "type": "string",
+          "description": "Official title of the vendor agreement",
+          "required": true,
+          "extraction_hints": ["Agreement", "Contract", "Purchase Agreement", "Vendor Agreement", "Title at top of document"]
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date the agreement becomes effective",
+          "required": true,
+          "extraction_hints": ["effective as of", "effective date", "commencing on"]
+        },
+        "expiration_date": {
+          "type": "date",
+          "description": "Date the agreement expires",
+          "extraction_hints": ["expires on", "expiration date", "termination date", "valid until", "ending on"]
+        },
+        "vendor_name": {
+          "type": "string",
+          "description": "Full legal name of the vendor or supplier",
+          "required": true,
+          "extraction_hints": ["Vendor", "Supplier", "Seller", "Provider", "Contractor"]
+        },
+        "vendor_address": {
+          "type": "string",
+          "description": "Registered or principal address of the vendor",
+          "extraction_hints": ["principal place of business", "located at", "with offices at"]
+        },
+        "vendor_tax_id": {
+          "type": "string",
+          "description": "Vendor's tax identification number",
+          "extraction_hints": ["Tax ID", "EIN", "TIN", "tax identification number", "VAT number"]
+        },
+        "buyer_name": {
+          "type": "string",
+          "description": "Full legal name of the buyer or purchasing organization",
+          "required": true,
+          "extraction_hints": ["Buyer", "Purchaser", "Customer", "Client", "Company"]
+        },
+        "buyer_address": {
+          "type": "string",
+          "description": "Registered or principal address of the buyer",
+          "extraction_hints": ["principal place of business", "located at", "with offices at"]
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern the agreement",
+          "extraction_hints": ["governed by the laws of", "governing law", "laws of the State of"]
+        },
+        "jurisdiction": {
+          "type": "string",
+          "description": "Courts or venue for resolving disputes",
+          "extraction_hints": ["exclusive jurisdiction", "venue shall be", "courts located in", "submit to jurisdiction"]
+        }
+      }
+    },
+
+    "products_and_services": {
+      "description": "Details of products or services being procured, including specifications and acceptance criteria",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "items_or_services": {
+          "type": "array",
+          "description": "List of products or services being purchased",
+          "items_type": "object",
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "Description of the item or service",
+              "required": true
+            },
+            "quantity": {
+              "type": "string",
+              "description": "Quantity ordered or estimated volume"
+            },
+            "unit_price": {
+              "type": "string",
+              "description": "Price per unit"
+            },
+            "total_price": {
+              "type": "string",
+              "description": "Total price for the line item"
+            },
+            "delivery_date": {
+              "type": "date",
+              "description": "Expected or committed delivery date",
+              "extraction_hints": ["deliver by", "delivery date", "ship by", "due date"]
+            }
+          }
+        },
+        "specifications_reference": {
+          "type": "string",
+          "description": "Reference to detailed specifications document or exhibit",
+          "extraction_hints": ["specifications", "Exhibit", "Schedule", "Attachment", "as described in"]
+        },
+        "acceptance_criteria": {
+          "type": "string",
+          "description": "Criteria that must be met for goods or services to be accepted",
+          "extraction_hints": ["acceptance criteria", "acceptance testing", "deemed accepted", "acceptance period"]
+        },
+        "warranty_period_months": {
+          "type": "integer",
+          "description": "Length of warranty period in months",
+          "extraction_hints": ["warranty period", "warranted for", "months from delivery", "year warranty"]
+        },
+        "quality_standards": {
+          "type": "object",
+          "description": "Quality standards and certifications required",
+          "properties": {
+            "iso_certifications": {
+              "type": "array",
+              "description": "Required ISO certifications",
+              "items_type": "string",
+              "extraction_hints": ["ISO 9001", "ISO 27001", "ISO 14001", "certified to"]
+            },
+            "other_standards": {
+              "type": "array",
+              "description": "Other quality standards or certifications required",
+              "items_type": "string",
+              "extraction_hints": ["SOC 2", "CMMI", "Six Sigma", "industry standard", "best practices"]
+            }
+          }
+        }
+      }
+    },
+
+    "pricing_and_payment": {
+      "description": "Financial terms including pricing structure, payment terms, and invoicing requirements",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "total_contract_value": {
+          "type": "string",
+          "description": "Total value of the contract or estimated spend",
+          "extraction_hints": ["total value", "aggregate amount", "not to exceed", "total contract price", "maximum value"]
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency for all financial amounts",
+          "extraction_hints": ["USD", "EUR", "GBP", "United States Dollars", "currency"]
+        },
+        "pricing_model": {
+          "type": "enum",
+          "description": "Type of pricing structure",
+          "enum_values": ["fixed", "variable", "cost_plus", "volume_discount"],
+          "extraction_hints": ["fixed price", "time and materials", "cost plus", "volume discount", "unit pricing"]
+        },
+        "price_escalation_clause": {
+          "type": "string",
+          "description": "Provisions for price increases over the contract term",
+          "extraction_hints": ["price increase", "price escalation", "CPI adjustment", "annual increase", "price adjustment"]
+        },
+        "price_protection_period": {
+          "type": "string",
+          "description": "Period during which prices are guaranteed not to increase",
+          "extraction_hints": ["price protection", "price hold", "prices fixed for", "no increase for"]
+        },
+        "payment_terms_days": {
+          "type": "integer",
+          "description": "Number of days after invoice for payment to be due",
+          "extraction_hints": ["net 30", "net 60", "days after receipt of invoice", "payment due within"]
+        },
+        "payment_method": {
+          "type": "string",
+          "description": "Accepted methods of payment",
+          "extraction_hints": ["wire transfer", "ACH", "check", "electronic funds transfer", "payment method"]
+        },
+        "early_payment_discount": {
+          "type": "string",
+          "description": "Discount offered for early payment",
+          "extraction_hints": ["2/10 net 30", "early payment discount", "prompt payment discount"]
+        },
+        "late_payment_interest_rate": {
+          "type": "string",
+          "description": "Interest rate charged on late payments",
+          "extraction_hints": ["interest on overdue", "late payment interest", "per annum", "1.5% per month"]
+        },
+        "invoicing_requirements": {
+          "type": "string",
+          "description": "Requirements for invoice format, content, and submission",
+          "extraction_hints": ["invoice shall include", "invoicing requirements", "submit invoices to", "invoice format"]
+        },
+        "purchase_order_required": {
+          "type": "boolean",
+          "description": "Whether a purchase order is required before goods or services are provided",
+          "extraction_hints": ["purchase order", "PO required", "valid purchase order", "PO number"]
+        }
+      }
+    },
+
+    "delivery_and_logistics": {
+      "description": "Delivery terms, shipping, inspection, and return provisions",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "delivery_terms": {
+          "type": "string",
+          "description": "Delivery terms, typically using Incoterms",
+          "extraction_hints": ["FOB", "CIF", "DDP", "EXW", "Incoterms", "delivery terms", "shipping terms"]
+        },
+        "shipping_method": {
+          "type": "string",
+          "description": "Required or preferred shipping method",
+          "extraction_hints": ["shipped via", "freight", "ground shipping", "air freight", "carrier"]
+        },
+        "delivery_location": {
+          "type": "string",
+          "description": "Location where goods or services must be delivered",
+          "extraction_hints": ["deliver to", "delivery address", "ship to", "point of delivery"]
+        },
+        "lead_time_days": {
+          "type": "integer",
+          "description": "Standard lead time in days from order to delivery",
+          "extraction_hints": ["lead time", "delivery within", "days from order", "turnaround time"]
+        },
+        "partial_delivery_allowed": {
+          "type": "boolean",
+          "description": "Whether partial shipments or deliveries are permitted",
+          "extraction_hints": ["partial delivery", "partial shipment", "split shipment", "delivered in installments"]
+        },
+        "packaging_requirements": {
+          "type": "string",
+          "description": "Requirements for packaging and labeling",
+          "extraction_hints": ["packaging", "labeling requirements", "packed in accordance", "shipping labels"]
+        },
+        "inspection_period_days": {
+          "type": "integer",
+          "description": "Number of days the buyer has to inspect goods after delivery",
+          "extraction_hints": ["inspection period", "days to inspect", "examine within", "inspection rights"]
+        },
+        "rejection_process": {
+          "type": "string",
+          "description": "Process for rejecting non-conforming goods or services",
+          "extraction_hints": ["reject", "non-conforming", "defective goods", "notice of rejection", "right to refuse"]
+        },
+        "return_policy": {
+          "type": "string",
+          "description": "Policy for returning goods",
+          "extraction_hints": ["return", "RMA", "return authorization", "restocking fee", "return merchandise"]
+        }
+      }
+    },
+
+    "warranties_and_representations": {
+      "description": "Product and service warranties, fitness for purpose, and remedy provisions",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "product_warranty": {
+          "type": "object",
+          "description": "Details of the product or service warranty",
+          "properties": {
+            "duration": {
+              "type": "string",
+              "description": "Length of the warranty period",
+              "extraction_hints": ["warranty period", "warranted for", "12 months", "one year"]
+            },
+            "scope": {
+              "type": "string",
+              "description": "What is covered by the warranty",
+              "extraction_hints": ["warrants that", "free from defects", "conform to specifications", "merchantable quality"]
+            },
+            "exclusions": {
+              "type": "array",
+              "description": "What is excluded from warranty coverage",
+              "items_type": "string",
+              "extraction_hints": ["warranty does not cover", "excluded from warranty", "normal wear and tear", "misuse"]
+            }
+          }
+        },
+        "fitness_for_purpose": {
+          "type": "string",
+          "description": "Warranty that goods or services are fit for their intended purpose",
+          "extraction_hints": ["fit for purpose", "fitness for a particular purpose", "suitable for intended use"]
+        },
+        "compliance_with_specifications": {
+          "type": "string",
+          "description": "Warranty that goods or services comply with agreed specifications",
+          "extraction_hints": ["comply with specifications", "conform to", "meet the requirements", "in accordance with"]
+        },
+        "defect_remedy": {
+          "type": "enum",
+          "description": "Remedy available when a defect is found",
+          "enum_values": ["repair", "replace", "refund"],
+          "extraction_hints": ["repair or replace", "refund", "at vendor's option", "remedy", "cure the defect"]
+        },
+        "warranty_claim_process": {
+          "type": "string",
+          "description": "Process for submitting warranty claims",
+          "extraction_hints": ["warranty claim", "notify vendor", "claim process", "submit a claim"]
+        },
+        "recall_obligations": {
+          "type": "string",
+          "description": "Vendor obligations in the event of a product recall",
+          "extraction_hints": ["recall", "product recall", "safety recall", "corrective action"]
+        }
+      }
+    },
+
+    "risk_and_liability": {
+      "description": "Risk allocation, indemnification, liability limits, and insurance requirements",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "indemnification": {
+          "type": "object",
+          "description": "Indemnification provisions",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "description": "Scope of indemnification obligations",
+              "extraction_hints": ["indemnify and hold harmless", "defend and indemnify", "indemnification"]
+            },
+            "cap": {
+              "type": "string",
+              "description": "Cap on indemnification obligations if any",
+              "extraction_hints": ["indemnification cap", "maximum indemnity", "aggregate indemnification"]
+            }
+          }
+        },
+        "limitation_of_liability": {
+          "type": "object",
+          "description": "Limitations on liability",
+          "properties": {
+            "type": {
+              "type": "enum",
+              "description": "Type of liability limitation",
+              "enum_values": ["fees_paid", "fixed_amount", "multiple_of_fees", "unlimited", "insurance_limit"],
+              "extraction_hints": ["liability shall not exceed", "aggregate liability", "limited to fees paid"]
+            },
+            "amount": {
+              "type": "string",
+              "description": "Specific cap amount or formula",
+              "extraction_hints": ["not exceed", "maximum liability", "capped at", "limited to"]
+            }
+          }
+        },
+        "insurance_requirements": {
+          "type": "array",
+          "description": "Insurance policies the vendor must maintain",
+          "items_type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Type of insurance required",
+              "required": true,
+              "extraction_hints": ["general liability", "professional liability", "workers compensation", "product liability", "cyber liability"]
+            },
+            "minimum_coverage": {
+              "type": "string",
+              "description": "Minimum coverage amount required",
+              "required": true,
+              "extraction_hints": ["not less than", "minimum of", "at least", "per occurrence"]
+            }
+          }
+        },
+        "force_majeure_clause": {
+          "type": "string",
+          "description": "Force majeure provisions and qualifying events",
+          "extraction_hints": ["force majeure", "act of God", "beyond reasonable control", "unforeseeable circumstances"]
+        },
+        "consequential_damages_excluded": {
+          "type": "boolean",
+          "description": "Whether consequential, incidental, or indirect damages are excluded",
+          "extraction_hints": ["consequential damages", "indirect damages", "incidental damages", "special damages", "lost profits excluded"]
+        }
+      }
+    },
+
+    "compliance_and_ethics": {
+      "description": "Regulatory compliance, ethical standards, and audit provisions",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "anti_bribery_compliance": {
+          "type": "string",
+          "description": "Anti-bribery and anti-corruption compliance requirements",
+          "extraction_hints": ["anti-bribery", "FCPA", "UK Bribery Act", "anti-corruption", "no bribes"]
+        },
+        "sanctions_compliance": {
+          "type": "string",
+          "description": "Sanctions and export control compliance requirements",
+          "extraction_hints": ["sanctions", "export controls", "OFAC", "restricted parties", "trade compliance"]
+        },
+        "environmental_compliance": {
+          "type": "string",
+          "description": "Environmental regulations and sustainability requirements",
+          "extraction_hints": ["environmental", "sustainability", "RoHS", "REACH", "carbon footprint", "green procurement"]
+        },
+        "labor_standards": {
+          "type": "string",
+          "description": "Labor and human rights standards requirements",
+          "extraction_hints": ["labor standards", "child labor", "forced labor", "fair labor", "modern slavery", "human rights"]
+        },
+        "supply_chain_transparency": {
+          "type": "string",
+          "description": "Requirements for supply chain visibility and transparency",
+          "extraction_hints": ["supply chain transparency", "subcontractor disclosure", "source of materials", "conflict minerals"]
+        },
+        "data_protection": {
+          "type": "string",
+          "description": "Data protection and privacy compliance requirements",
+          "extraction_hints": ["data protection", "GDPR", "CCPA", "personal data", "privacy", "data processing agreement"]
+        },
+        "audit_rights": {
+          "type": "string",
+          "description": "Buyer's right to audit vendor operations, records, or facilities",
+          "extraction_hints": ["right to audit", "inspection rights", "access to records", "audit upon notice"]
+        },
+        "certification_requirements": {
+          "type": "array",
+          "description": "Required certifications the vendor must maintain",
+          "items_type": "string",
+          "extraction_hints": ["certified", "certification", "accreditation", "ISO", "SOC", "maintain certification"]
+        }
+      }
+    },
+
+    "relationship_management": {
+      "description": "Governance structure, performance management, and relationship terms",
+      "priority": 7,
+      "max_context_chars": 10000,
+      "fields": {
+        "key_contacts": {
+          "type": "array",
+          "description": "Key contacts or account representatives for each party",
+          "items_type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "description": "Role or title (e.g., Account Manager, Contract Manager)",
+              "required": true
+            },
+            "party": {
+              "type": "string",
+              "description": "Which party this contact belongs to"
+            },
+            "name": {
+              "type": "string",
+              "description": "Name of the contact if specified"
+            },
+            "responsibilities": {
+              "type": "string",
+              "description": "Key responsibilities of this contact"
+            }
+          },
+          "extraction_hints": ["account manager", "relationship manager", "primary contact", "designated representative"]
+        },
+        "governance_meetings_frequency": {
+          "type": "string",
+          "description": "How often governance or steering committee meetings are held",
+          "extraction_hints": ["governance meeting", "steering committee", "quarterly business review", "QBR", "regular meetings"]
+        },
+        "performance_review_frequency": {
+          "type": "string",
+          "description": "How often vendor performance is formally reviewed",
+          "extraction_hints": ["performance review", "annual review", "vendor assessment", "performance evaluation"]
+        },
+        "scorecard_metrics": {
+          "type": "array",
+          "description": "Metrics used to evaluate vendor performance on a scorecard",
+          "items_type": "string",
+          "extraction_hints": ["scorecard", "KPI", "performance metric", "evaluation criteria", "measured on"]
+        },
+        "preferred_vendor_status": {
+          "type": "string",
+          "description": "Whether the vendor has preferred or strategic vendor status",
+          "extraction_hints": ["preferred vendor", "strategic supplier", "preferred supplier", "approved vendor"]
+        },
+        "exclusivity_arrangement": {
+          "type": "string",
+          "description": "Any exclusivity provisions for either party",
+          "extraction_hints": ["exclusive", "sole source", "exclusivity", "non-exclusive", "sole supplier"]
+        },
+        "subcontracting_restrictions": {
+          "type": "string",
+          "description": "Restrictions on the vendor's ability to subcontract work",
+          "extraction_hints": ["subcontract", "subcontractor", "assign or delegate", "shall not subcontract without", "prior written consent"]
+        }
+      }
+    },
+
+    "termination": {
+      "description": "Termination rights, procedures, and post-termination obligations",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "termination_for_convenience": {
+          "type": "object",
+          "description": "Right to terminate without cause",
+          "properties": {
+            "notice_days": {
+              "type": "integer",
+              "description": "Number of days written notice required for termination for convenience",
+              "extraction_hints": ["days written notice", "days prior notice", "notice of termination"]
+            },
+            "permitted_party": {
+              "type": "string",
+              "description": "Which party has the right to terminate for convenience",
+              "extraction_hints": ["either party", "buyer may terminate", "at any time"]
+            }
+          }
+        },
+        "termination_for_cause": {
+          "type": "object",
+          "description": "Right to terminate for material breach or other cause",
+          "properties": {
+            "grounds": {
+              "type": "array",
+              "description": "Grounds that constitute cause for termination",
+              "items_type": "string",
+              "extraction_hints": ["material breach", "insolvency", "bankruptcy", "failure to perform", "breach of warranty"]
+            },
+            "cure_period_days": {
+              "type": "integer",
+              "description": "Number of days to cure a breach before termination takes effect",
+              "extraction_hints": ["cure period", "days to cure", "remedy within", "right to cure"]
+            }
+          }
+        },
+        "effects_of_termination": {
+          "type": "string",
+          "description": "Consequences and obligations upon termination",
+          "extraction_hints": ["upon termination", "effects of termination", "following termination", "surviving provisions"]
+        },
+        "transition_assistance_required": {
+          "type": "boolean",
+          "description": "Whether the vendor must provide transition assistance after termination",
+          "extraction_hints": ["transition assistance", "transition services", "orderly transition", "transition period"]
+        },
+        "inventory_buyback": {
+          "type": "string",
+          "description": "Provisions for buying back inventory or work-in-progress upon termination",
+          "extraction_hints": ["inventory buyback", "purchase remaining inventory", "work in progress", "raw materials"]
+        },
+        "wind_down_period_days": {
+          "type": "integer",
+          "description": "Number of days for an orderly wind-down of services or obligations",
+          "extraction_hints": ["wind-down period", "transition period", "wind down", "days to complete"]
+        }
+      }
+    }
+  }
+}

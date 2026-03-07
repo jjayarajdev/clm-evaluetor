@@ -1,0 +1,1387 @@
+{
+  "schema_id": "employment_v1",
+  "contract_type": "employment",
+  "version": "1.0.0",
+  "description": "Employment Agreement - comprehensive employment contract covering compensation, benefits, covenants, and termination",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 6000,
+  "required_sections": [
+    "employee_metadata",
+    "compensation",
+    "restrictive_covenants",
+    "termination"
+  ],
+  "sections": {
+    "employee_metadata": {
+      "description": "Employee and employer identification, role details, and employment terms",
+      "priority": 10,
+      "max_context_chars": 10000,
+      "fields": {
+        "employee_name": {
+          "type": "string",
+          "description": "Full legal name of the employee",
+          "required": true,
+          "extraction_hints": [
+            "Employee",
+            "employee's name",
+            "hereinafter referred to as"
+          ]
+        },
+        "employee_title": {
+          "type": "string",
+          "description": "Job title or position of the employee",
+          "required": true,
+          "extraction_hints": [
+            "position of",
+            "title of",
+            "role of",
+            "serving as"
+          ]
+        },
+        "department": {
+          "type": "string",
+          "description": "Department or division the employee is assigned to",
+          "extraction_hints": [
+            "department",
+            "division",
+            "group",
+            "business unit"
+          ]
+        },
+        "reporting_to": {
+          "type": "string",
+          "description": "Name or title of the employee's direct supervisor or manager",
+          "extraction_hints": [
+            "report to",
+            "reporting to",
+            "supervisor",
+            "manager",
+            "direct report"
+          ]
+        },
+        "employment_type": {
+          "type": "enum",
+          "description": "Classification of the employment arrangement",
+          "enum_values": [
+            "full_time",
+            "part_time",
+            "contract",
+            "temporary"
+          ],
+          "extraction_hints": [
+            "full-time",
+            "part-time",
+            "contract basis",
+            "temporary position"
+          ],
+          "example_values": [
+            "full_time",
+            "part_time"
+          ]
+        },
+        "start_date": {
+          "type": "date",
+          "description": "Date the employment commences",
+          "required": true,
+          "extraction_hints": [
+            "start date",
+            "commencement date",
+            "effective date",
+            "beginning on"
+          ]
+        },
+        "probation_period_months": {
+          "type": "integer",
+          "description": "Length of the probationary period in months",
+          "extraction_hints": [
+            "probationary period",
+            "probation",
+            "introductory period",
+            "trial period"
+          ],
+          "example_values": [
+            "3",
+            "6",
+            "12"
+          ]
+        },
+        "work_location": {
+          "type": "string",
+          "description": "Primary work location or office address",
+          "extraction_hints": [
+            "work location",
+            "office location",
+            "place of work",
+            "principal office",
+            "based at"
+          ]
+        },
+        "remote_work_allowed": {
+          "type": "boolean",
+          "description": "Whether the employee is permitted to work remotely",
+          "extraction_hints": [
+            "remote work",
+            "work from home",
+            "telecommute",
+            "hybrid",
+            "remote arrangement"
+          ]
+        },
+        "employer_legal_name": {
+          "type": "string",
+          "description": "Full legal name of the employing entity",
+          "required": true,
+          "extraction_hints": [
+            "Employer",
+            "Company",
+            "hereinafter referred to as",
+            "a corporation organized"
+          ]
+        },
+        "employer_address": {
+          "type": "string",
+          "description": "Registered or principal business address of the employer",
+          "extraction_hints": [
+            "principal place of business",
+            "located at",
+            "with offices at",
+            "registered address"
+          ]
+        }
+      }
+    },
+    "compensation": {
+      "description": "Salary, bonuses, equity, and all forms of monetary compensation",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "base_salary": {
+          "type": "number",
+          "description": "Annual base salary amount",
+          "required": true,
+          "extraction_hints": [
+            "base salary",
+            "annual salary",
+            "base compensation",
+            "annual rate of"
+          ],
+          "example_values": [
+            "85000",
+            "120000",
+            "250000"
+          ]
+        },
+        "salary_currency": {
+          "type": "string",
+          "description": "Currency in which the salary is denominated",
+          "extraction_hints": [
+            "USD",
+            "dollars",
+            "EUR",
+            "GBP"
+          ],
+          "example_values": [
+            "USD",
+            "EUR",
+            "GBP",
+            "CAD"
+          ]
+        },
+        "pay_frequency": {
+          "type": "enum",
+          "description": "How often the employee is paid",
+          "enum_values": [
+            "monthly",
+            "biweekly",
+            "weekly"
+          ],
+          "extraction_hints": [
+            "paid monthly",
+            "biweekly",
+            "semi-monthly",
+            "paid weekly",
+            "payroll schedule"
+          ],
+          "example_values": [
+            "monthly",
+            "biweekly"
+          ]
+        },
+        "bonus_structure": {
+          "type": "object",
+          "description": "Annual or periodic bonus arrangement",
+          "properties": {
+            "type": {
+              "type": "enum",
+              "description": "Type of bonus program",
+              "enum_values": [
+                "annual_discretionary",
+                "annual_target",
+                "quarterly",
+                "project_based",
+                "performance",
+                "retention"
+              ],
+              "extraction_hints": [
+                "annual bonus",
+                "incentive bonus",
+                "performance bonus",
+                "discretionary bonus"
+              ]
+            },
+            "target_percentage": {
+              "type": "number",
+              "description": "Target bonus as a percentage of base salary",
+              "extraction_hints": [
+                "target bonus of",
+                "up to",
+                "percent of base salary"
+              ],
+              "example_values": [
+                "10",
+                "15",
+                "20",
+                "30",
+                "50"
+              ]
+            },
+            "conditions": {
+              "type": "string",
+              "description": "Conditions or criteria that must be met for bonus eligibility",
+              "extraction_hints": [
+                "subject to",
+                "based on",
+                "contingent upon",
+                "performance criteria"
+              ]
+            }
+          }
+        },
+        "equity_grants": {
+          "type": "object",
+          "description": "Stock options, RSUs, or other equity compensation",
+          "properties": {
+            "type": {
+              "type": "enum",
+              "description": "Type of equity award",
+              "enum_values": [
+                "stock_options",
+                "restricted_stock_units",
+                "restricted_stock",
+                "phantom_equity",
+                "profit_interests",
+                "stock_appreciation_rights"
+              ],
+              "extraction_hints": [
+                "stock options",
+                "RSU",
+                "restricted stock",
+                "equity grant",
+                "option grant"
+              ]
+            },
+            "vesting_schedule": {
+              "type": "string",
+              "description": "Schedule over which equity vests",
+              "extraction_hints": [
+                "vesting schedule",
+                "vest over",
+                "vesting period",
+                "shall vest"
+              ],
+              "example_values": [
+                "4 years with 1-year cliff",
+                "3-year monthly vesting",
+                "25% per year"
+              ]
+            },
+            "cliff_months": {
+              "type": "integer",
+              "description": "Number of months before initial vesting (cliff period)",
+              "extraction_hints": [
+                "cliff",
+                "initial vesting",
+                "first vest"
+              ],
+              "example_values": [
+                "6",
+                "12",
+                "18"
+              ]
+            },
+            "shares_or_units": {
+              "type": "integer",
+              "description": "Number of shares, options, or units granted",
+              "extraction_hints": [
+                "shares",
+                "units",
+                "options to purchase",
+                "grant of"
+              ],
+              "example_values": [
+                "1000",
+                "5000",
+                "10000",
+                "50000"
+              ]
+            }
+          }
+        },
+        "commission_structure": {
+          "type": "string",
+          "description": "Commission or variable pay arrangement details",
+          "extraction_hints": [
+            "commission",
+            "variable compensation",
+            "sales incentive",
+            "commission plan",
+            "commission rate"
+          ]
+        },
+        "overtime_eligibility": {
+          "type": "boolean",
+          "description": "Whether the employee is eligible for overtime pay (non-exempt status)",
+          "extraction_hints": [
+            "overtime",
+            "non-exempt",
+            "exempt",
+            "FLSA",
+            "Fair Labor Standards Act",
+            "overtime eligible"
+          ]
+        },
+        "salary_review_frequency": {
+          "type": "string",
+          "description": "How often salary is reviewed for potential adjustments",
+          "extraction_hints": [
+            "salary review",
+            "compensation review",
+            "annual review",
+            "merit increase"
+          ],
+          "example_values": [
+            "annually",
+            "semi-annually",
+            "at each anniversary"
+          ]
+        },
+        "signing_bonus": {
+          "type": "number",
+          "description": "One-time signing or sign-on bonus amount",
+          "extraction_hints": [
+            "signing bonus",
+            "sign-on bonus",
+            "commencement bonus",
+            "one-time payment upon start"
+          ],
+          "example_values": [
+            "5000",
+            "10000",
+            "25000",
+            "50000"
+          ]
+        }
+      }
+    },
+    "benefits": {
+      "description": "Health, retirement, leave, and other employee benefits",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "health_insurance": {
+          "type": "boolean",
+          "description": "Whether employer-sponsored health/medical insurance is provided",
+          "extraction_hints": [
+            "health insurance",
+            "medical insurance",
+            "medical coverage",
+            "health plan",
+            "group health"
+          ]
+        },
+        "dental_insurance": {
+          "type": "boolean",
+          "description": "Whether employer-sponsored dental insurance is provided",
+          "extraction_hints": [
+            "dental insurance",
+            "dental coverage",
+            "dental plan"
+          ]
+        },
+        "vision_insurance": {
+          "type": "boolean",
+          "description": "Whether employer-sponsored vision insurance is provided",
+          "extraction_hints": [
+            "vision insurance",
+            "vision coverage",
+            "vision plan"
+          ]
+        },
+        "life_insurance": {
+          "type": "boolean",
+          "description": "Whether employer-sponsored life insurance is provided",
+          "extraction_hints": [
+            "life insurance",
+            "group life",
+            "life coverage",
+            "AD&D"
+          ]
+        },
+        "disability_insurance": {
+          "type": "boolean",
+          "description": "Whether short-term or long-term disability insurance is provided",
+          "extraction_hints": [
+            "disability insurance",
+            "short-term disability",
+            "long-term disability",
+            "STD",
+            "LTD"
+          ]
+        },
+        "retirement_plan": {
+          "type": "object",
+          "description": "Employer-sponsored retirement or pension plan",
+          "properties": {
+            "type": {
+              "type": "enum",
+              "description": "Type of retirement plan",
+              "enum_values": [
+                "401k",
+                "403b",
+                "pension",
+                "simple_ira",
+                "sep_ira",
+                "roth_401k",
+                "defined_benefit",
+                "defined_contribution"
+              ],
+              "extraction_hints": [
+                "401(k)",
+                "pension plan",
+                "retirement plan",
+                "403(b)",
+                "SIMPLE IRA"
+              ]
+            },
+            "employer_match_percent": {
+              "type": "number",
+              "description": "Employer matching contribution as a percentage of employee contribution or salary",
+              "extraction_hints": [
+                "employer match",
+                "company match",
+                "matching contribution",
+                "match up to"
+              ],
+              "example_values": [
+                "3",
+                "4",
+                "5",
+                "6",
+                "50",
+                "100"
+              ]
+            },
+            "vesting_schedule": {
+              "type": "string",
+              "description": "Vesting schedule for employer contributions",
+              "extraction_hints": [
+                "vesting",
+                "fully vested",
+                "graded vesting",
+                "cliff vesting"
+              ],
+              "example_values": [
+                "immediate",
+                "3-year graded",
+                "5-year cliff",
+                "6-year graded"
+              ]
+            }
+          }
+        },
+        "paid_time_off_days": {
+          "type": "integer",
+          "description": "Number of paid vacation or PTO days per year",
+          "extraction_hints": [
+            "paid time off",
+            "PTO",
+            "vacation days",
+            "annual leave",
+            "vacation entitlement"
+          ],
+          "example_values": [
+            "10",
+            "15",
+            "20",
+            "25",
+            "30"
+          ]
+        },
+        "sick_leave_days": {
+          "type": "integer",
+          "description": "Number of paid sick leave days per year",
+          "extraction_hints": [
+            "sick leave",
+            "sick days",
+            "sick time",
+            "illness days"
+          ],
+          "example_values": [
+            "5",
+            "7",
+            "10",
+            "12"
+          ]
+        },
+        "parental_leave": {
+          "type": "object",
+          "description": "Maternity, paternity, or parental leave provisions",
+          "properties": {
+            "duration": {
+              "type": "string",
+              "description": "Length of parental leave available",
+              "extraction_hints": [
+                "parental leave",
+                "maternity leave",
+                "paternity leave",
+                "family leave"
+              ],
+              "example_values": [
+                "12 weeks",
+                "16 weeks",
+                "6 months"
+              ]
+            },
+            "paid_or_unpaid": {
+              "type": "enum",
+              "description": "Whether parental leave is paid, unpaid, or partially paid",
+              "enum_values": [
+                "paid",
+                "unpaid",
+                "partially_paid"
+              ],
+              "extraction_hints": [
+                "paid parental",
+                "unpaid leave",
+                "paid at full salary",
+                "partial pay"
+              ]
+            }
+          }
+        },
+        "education_assistance": {
+          "type": "string",
+          "description": "Tuition reimbursement or education assistance benefit details",
+          "extraction_hints": [
+            "tuition reimbursement",
+            "education assistance",
+            "professional development",
+            "tuition assistance",
+            "continuing education"
+          ]
+        },
+        "relocation_assistance": {
+          "type": "string",
+          "description": "Relocation benefits or moving expense reimbursement details",
+          "extraction_hints": [
+            "relocation",
+            "moving expenses",
+            "relocation assistance",
+            "relocation package",
+            "moving allowance"
+          ]
+        },
+        "other_benefits": {
+          "type": "array",
+          "description": "Additional benefits not covered by specific fields above",
+          "items_type": "string",
+          "extraction_hints": [
+            "additional benefits",
+            "perquisites",
+            "perks",
+            "fringe benefits",
+            "wellness program",
+            "gym membership",
+            "cell phone allowance",
+            "car allowance"
+          ]
+        }
+      }
+    },
+    "duties_and_responsibilities": {
+      "description": "Job description, key responsibilities, performance expectations, and scope of role",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "job_description": {
+          "type": "string",
+          "description": "Overall description of the employee's role and responsibilities",
+          "extraction_hints": [
+            "duties",
+            "responsibilities",
+            "position involves",
+            "role includes",
+            "shall perform"
+          ]
+        },
+        "key_responsibilities": {
+          "type": "array",
+          "description": "List of specific duties and responsibilities of the employee",
+          "items_type": "string",
+          "extraction_hints": [
+            "responsibilities include",
+            "duties shall include",
+            "expected to",
+            "responsible for"
+          ]
+        },
+        "performance_metrics": {
+          "type": "string",
+          "description": "Criteria or metrics used to evaluate employee performance",
+          "extraction_hints": [
+            "performance objectives",
+            "performance metrics",
+            "KPIs",
+            "performance evaluation",
+            "measured by",
+            "performance goals"
+          ]
+        },
+        "travel_requirements": {
+          "type": "object",
+          "description": "Business travel expectations for the role",
+          "properties": {
+            "percentage": {
+              "type": "integer",
+              "description": "Expected travel as a percentage of work time",
+              "extraction_hints": [
+                "travel up to",
+                "percent travel",
+                "travel approximately"
+              ],
+              "example_values": [
+                "10",
+                "25",
+                "50",
+                "75"
+              ]
+            },
+            "domestic_international": {
+              "type": "enum",
+              "description": "Whether travel is domestic, international, or both",
+              "enum_values": [
+                "domestic",
+                "international",
+                "both"
+              ],
+              "extraction_hints": [
+                "domestic travel",
+                "international travel",
+                "travel domestically and internationally"
+              ]
+            }
+          }
+        },
+        "supervisory_responsibilities": {
+          "type": "string",
+          "description": "Direct reports or teams the employee is expected to manage",
+          "extraction_hints": [
+            "supervise",
+            "manage a team",
+            "direct reports",
+            "oversee",
+            "lead a team of",
+            "management responsibilities"
+          ]
+        },
+        "budget_authority": {
+          "type": "string",
+          "description": "Financial authority or budget management responsibilities",
+          "extraction_hints": [
+            "budget authority",
+            "spending authority",
+            "financial authority",
+            "authorized to approve",
+            "budget responsibility"
+          ],
+          "example_values": [
+            "Up to $50,000",
+            "$1M departmental budget",
+            "No independent spending authority"
+          ]
+        }
+      }
+    },
+    "restrictive_covenants": {
+      "description": "Non-compete, non-solicitation, non-disparagement, and garden leave provisions",
+      "priority": 10,
+      "max_context_chars": 15000,
+      "fields": {
+        "non_compete": {
+          "type": "object",
+          "description": "Non-competition covenant restricting post-employment activities",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a non-compete clause is present in the agreement",
+              "required": true,
+              "extraction_hints": [
+                "non-compete",
+                "non-competition",
+                "covenant not to compete",
+                "shall not compete",
+                "restrictive covenant"
+              ]
+            },
+            "duration_months": {
+              "type": "integer",
+              "description": "Duration of the non-compete restriction in months after termination",
+              "extraction_hints": [
+                "for a period of",
+                "months following",
+                "years after termination"
+              ],
+              "example_values": [
+                "6",
+                "12",
+                "18",
+                "24"
+              ]
+            },
+            "geographic_scope": {
+              "type": "string",
+              "description": "Geographic area covered by the non-compete restriction",
+              "extraction_hints": [
+                "within a radius of",
+                "in the state of",
+                "within the United States",
+                "worldwide",
+                "geographic area"
+              ],
+              "example_values": [
+                "United States",
+                "50-mile radius",
+                "State of California",
+                "Worldwide"
+              ]
+            },
+            "activity_restrictions": {
+              "type": "string",
+              "description": "Specific activities or industries the employee is restricted from engaging in",
+              "extraction_hints": [
+                "shall not engage in",
+                "competing business",
+                "similar business",
+                "competitive activity",
+                "same industry"
+              ]
+            }
+          }
+        },
+        "non_solicitation": {
+          "type": "object",
+          "description": "Non-solicitation covenant restricting solicitation of clients or employees",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a non-solicitation clause is present in the agreement",
+              "required": true,
+              "extraction_hints": [
+                "non-solicitation",
+                "shall not solicit",
+                "not recruit",
+                "not induce"
+              ]
+            },
+            "duration_months": {
+              "type": "integer",
+              "description": "Duration of the non-solicitation restriction in months after termination",
+              "extraction_hints": [
+                "for a period of",
+                "months following termination",
+                "years after"
+              ],
+              "example_values": [
+                "6",
+                "12",
+                "18",
+                "24"
+              ]
+            },
+            "scope": {
+              "type": "string",
+              "description": "Scope of the non-solicitation including what parties or relationships are covered",
+              "extraction_hints": [
+                "clients",
+                "customers",
+                "employees",
+                "contractors",
+                "vendors",
+                "business relationships"
+              ],
+              "example_values": [
+                "Clients and employees",
+                "Customers serviced in the last 12 months",
+                "All employees and independent contractors"
+              ]
+            }
+          }
+        },
+        "non_disparagement": {
+          "type": "boolean",
+          "description": "Whether a non-disparagement clause exists prohibiting negative statements",
+          "extraction_hints": [
+            "non-disparagement",
+            "shall not disparage",
+            "not make negative statements",
+            "not make derogatory",
+            "refrain from disparaging"
+          ]
+        },
+        "garden_leave": {
+          "type": "object",
+          "description": "Garden leave provision where employee remains employed but not working during notice period",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a garden leave clause is present",
+              "extraction_hints": [
+                "garden leave",
+                "gardening leave",
+                "paid leave during notice"
+              ]
+            },
+            "duration_months": {
+              "type": "integer",
+              "description": "Maximum duration of garden leave in months",
+              "extraction_hints": [
+                "garden leave for up to",
+                "period of garden leave"
+              ],
+              "example_values": [
+                "1",
+                "3",
+                "6"
+              ]
+            },
+            "compensation_during": {
+              "type": "string",
+              "description": "Compensation and benefits provided during the garden leave period",
+              "extraction_hints": [
+                "full salary during",
+                "base salary and benefits",
+                "continued compensation"
+              ],
+              "example_values": [
+                "Full base salary and benefits",
+                "Base salary only",
+                "50% of base salary"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "intellectual_property": {
+      "description": "Invention assignment, work-for-hire, and intellectual property ownership provisions",
+      "priority": 9,
+      "max_context_chars": 10000,
+      "fields": {
+        "invention_assignment": {
+          "type": "boolean",
+          "description": "Whether the employee assigns all work-related inventions and IP to the employer",
+          "required": true,
+          "extraction_hints": [
+            "invention assignment",
+            "assign to the Company",
+            "all inventions",
+            "hereby assigns",
+            "intellectual property assignment",
+            "rights to inventions"
+          ]
+        },
+        "prior_inventions_excluded": {
+          "type": "boolean",
+          "description": "Whether the employee can exclude previously created inventions from the assignment",
+          "extraction_hints": [
+            "prior inventions",
+            "excluded inventions",
+            "Exhibit",
+            "Schedule",
+            "pre-existing inventions",
+            "inventions made prior"
+          ]
+        },
+        "work_for_hire": {
+          "type": "boolean",
+          "description": "Whether works created in the scope of employment are deemed work-for-hire",
+          "extraction_hints": [
+            "work for hire",
+            "work made for hire",
+            "works created in the scope",
+            "shall be considered work for hire"
+          ]
+        },
+        "moral_rights_waiver": {
+          "type": "boolean",
+          "description": "Whether the employee waives moral rights in created works",
+          "extraction_hints": [
+            "moral rights",
+            "waiver of moral rights",
+            "droit moral",
+            "waives any moral rights"
+          ]
+        },
+        "ip_section_reference": {
+          "type": "string",
+          "description": "Section or article number where IP provisions are located in the agreement",
+          "extraction_hints": [
+            "Section",
+            "Article",
+            "Paragraph"
+          ]
+        },
+        "open_source_policy": {
+          "type": "boolean",
+          "description": "Whether the agreement addresses the employee's use of or contribution to open source software",
+          "extraction_hints": [
+            "open source",
+            "open-source",
+            "OSS",
+            "open source contributions",
+            "publicly available code"
+          ]
+        }
+      }
+    },
+    "confidentiality": {
+      "description": "Confidential information obligations, definitions, and survival terms",
+      "priority": 9,
+      "max_context_chars": 12000,
+      "fields": {
+        "confidential_info_definition": {
+          "type": "string",
+          "description": "How confidential information is defined in the agreement",
+          "extraction_hints": [
+            "Confidential Information means",
+            "shall mean",
+            "includes but is not limited to",
+            "defined as",
+            "proprietary information"
+          ]
+        },
+        "obligations": {
+          "type": "array",
+          "description": "Specific confidentiality obligations imposed on the employee",
+          "items_type": "string",
+          "extraction_hints": [
+            "shall not disclose",
+            "shall protect",
+            "maintain the confidentiality",
+            "use reasonable efforts",
+            "not use except for",
+            "obligation to safeguard"
+          ]
+        },
+        "survival_period_years": {
+          "type": "integer",
+          "description": "Number of years the confidentiality obligation survives after termination of employment",
+          "extraction_hints": [
+            "survive for",
+            "years following termination",
+            "perpetuity",
+            "indefinitely",
+            "shall continue for"
+          ],
+          "example_values": [
+            "1",
+            "2",
+            "3",
+            "5",
+            "99"
+          ]
+        },
+        "return_of_materials_required": {
+          "type": "boolean",
+          "description": "Whether the employee must return all confidential materials upon termination",
+          "extraction_hints": [
+            "return all",
+            "return or destroy",
+            "surrender all",
+            "return of materials",
+            "return of property",
+            "return all documents"
+          ]
+        },
+        "exceptions": {
+          "type": "array",
+          "description": "Exceptions to the definition of confidential information",
+          "items_type": "string",
+          "extraction_hints": [
+            "shall not include",
+            "does not include",
+            "excluding",
+            "exception",
+            "publicly available",
+            "independently developed"
+          ]
+        },
+        "permitted_disclosures": {
+          "type": "array",
+          "description": "Circumstances under which disclosure of confidential information is permitted",
+          "items_type": "string",
+          "extraction_hints": [
+            "may disclose",
+            "permitted to disclose",
+            "required by law",
+            "court order",
+            "governmental authority",
+            "whistleblower"
+          ]
+        }
+      }
+    },
+    "termination": {
+      "description": "Termination rights, notice periods, severance, and change-of-control provisions",
+      "priority": 9,
+      "max_context_chars": 18000,
+      "fields": {
+        "at_will": {
+          "type": "boolean",
+          "description": "Whether the employment is at-will, meaning either party can terminate at any time without cause",
+          "required": true,
+          "extraction_hints": [
+            "at-will",
+            "at will",
+            "employment at will",
+            "terminated at any time",
+            "with or without cause"
+          ]
+        },
+        "notice_period_days_employer": {
+          "type": "integer",
+          "description": "Number of days advance written notice the employer must provide for termination without cause",
+          "extraction_hints": [
+            "employer shall provide",
+            "Company shall give",
+            "days' prior written notice by the Company",
+            "notice of termination"
+          ],
+          "example_values": [
+            "14",
+            "30",
+            "60",
+            "90"
+          ]
+        },
+        "notice_period_days_employee": {
+          "type": "integer",
+          "description": "Number of days advance written notice the employee must provide for voluntary resignation",
+          "extraction_hints": [
+            "employee shall provide",
+            "Employee shall give",
+            "days' prior written notice of resignation",
+            "notice of resignation"
+          ],
+          "example_values": [
+            "14",
+            "30",
+            "60",
+            "90"
+          ]
+        },
+        "termination_for_cause_grounds": {
+          "type": "array",
+          "description": "Specific grounds that constitute cause for immediate termination",
+          "items_type": "string",
+          "extraction_hints": [
+            "Cause shall mean",
+            "for Cause",
+            "terminated for cause",
+            "grounds for termination",
+            "cause is defined as"
+          ],
+          "example_values": [
+            "Willful misconduct",
+            "Material breach",
+            "Conviction of a felony",
+            "Gross negligence",
+            "Fraud",
+            "Breach of fiduciary duty"
+          ]
+        },
+        "severance_package": {
+          "type": "object",
+          "description": "Severance pay and benefits upon qualifying termination",
+          "properties": {
+            "weeks_per_year": {
+              "type": "number",
+              "description": "Weeks of severance pay provided per year of service",
+              "extraction_hints": [
+                "weeks of pay",
+                "weeks per year of service",
+                "severance equal to"
+              ],
+              "example_values": [
+                "1",
+                "2",
+                "4"
+              ]
+            },
+            "conditions": {
+              "type": "string",
+              "description": "Conditions that must be met to receive severance",
+              "extraction_hints": [
+                "conditioned upon",
+                "subject to execution of",
+                "release of claims",
+                "separation agreement",
+                "general release"
+              ],
+              "example_values": [
+                "Execution of a general release of claims",
+                "Compliance with post-employment obligations"
+              ]
+            },
+            "cap": {
+              "type": "string",
+              "description": "Maximum severance amount or duration",
+              "extraction_hints": [
+                "not to exceed",
+                "maximum of",
+                "capped at",
+                "up to a maximum"
+              ],
+              "example_values": [
+                "12 months base salary",
+                "52 weeks",
+                "$500,000"
+              ]
+            }
+          }
+        },
+        "change_of_control_provisions": {
+          "type": "object",
+          "description": "Protections triggered by acquisition, merger, or change of control",
+          "properties": {
+            "acceleration": {
+              "type": "string",
+              "description": "Whether and how equity vesting accelerates upon change of control",
+              "extraction_hints": [
+                "accelerated vesting",
+                "single trigger",
+                "double trigger",
+                "change of control",
+                "change in control",
+                "acceleration of vesting"
+              ],
+              "example_values": [
+                "100% single-trigger acceleration",
+                "Double-trigger: requires termination within 12 months",
+                "12 months additional vesting"
+              ]
+            },
+            "enhanced_severance": {
+              "type": "string",
+              "description": "Enhanced severance benefits if terminated in connection with change of control",
+              "extraction_hints": [
+                "enhanced severance",
+                "change of control severance",
+                "CIC severance",
+                "in connection with a change of control"
+              ],
+              "example_values": [
+                "18 months base salary plus target bonus",
+                "24 months salary",
+                "2x annual compensation"
+              ]
+            }
+          }
+        },
+        "resignation_conditions": {
+          "type": "string",
+          "description": "Conditions or requirements for voluntary resignation, including good reason definitions",
+          "extraction_hints": [
+            "Good Reason",
+            "constructive termination",
+            "resignation for good reason",
+            "material diminution",
+            "relocation beyond"
+          ],
+          "example_values": [
+            "Good Reason includes material diminution of duties, reduction of salary by more than 10%, or required relocation beyond 50 miles"
+          ]
+        }
+      }
+    },
+    "compliance": {
+      "description": "Pre-employment conditions, workplace policies, and regulatory compliance requirements",
+      "priority": 7,
+      "max_context_chars": 10000,
+      "fields": {
+        "background_check_required": {
+          "type": "boolean",
+          "description": "Whether the offer is contingent upon passing a background check",
+          "extraction_hints": [
+            "background check",
+            "background investigation",
+            "criminal background",
+            "contingent upon satisfactory completion",
+            "pre-employment screening"
+          ]
+        },
+        "drug_testing": {
+          "type": "boolean",
+          "description": "Whether pre-employment or ongoing drug testing is required",
+          "extraction_hints": [
+            "drug test",
+            "drug screening",
+            "substance abuse",
+            "drug-free workplace",
+            "pre-employment drug"
+          ]
+        },
+        "conflict_of_interest_policy": {
+          "type": "boolean",
+          "description": "Whether the employee must comply with a conflict of interest policy",
+          "extraction_hints": [
+            "conflict of interest",
+            "outside employment",
+            "outside activities",
+            "competing interests",
+            "fiduciary obligations"
+          ]
+        },
+        "code_of_conduct": {
+          "type": "boolean",
+          "description": "Whether the employee must acknowledge and comply with a code of conduct or ethics policy",
+          "extraction_hints": [
+            "code of conduct",
+            "code of ethics",
+            "employee handbook",
+            "company policies",
+            "workplace policies"
+          ]
+        },
+        "regulatory_licenses_required": {
+          "type": "array",
+          "description": "Professional licenses, certifications, or regulatory registrations required to perform the role",
+          "items_type": "string",
+          "extraction_hints": [
+            "license",
+            "certification",
+            "registration",
+            "professional qualification",
+            "bar admission",
+            "CPA",
+            "Series 7"
+          ],
+          "example_values": [
+            "State bar admission",
+            "CPA license",
+            "Series 7 and Series 63",
+            "Professional Engineering license"
+          ]
+        },
+        "e_verify_required": {
+          "type": "boolean",
+          "description": "Whether employment eligibility verification through E-Verify or equivalent is required",
+          "extraction_hints": [
+            "E-Verify",
+            "employment eligibility",
+            "I-9",
+            "work authorization",
+            "right to work"
+          ]
+        },
+        "export_control_compliance": {
+          "type": "boolean",
+          "description": "Whether the role is subject to export control regulations such as ITAR or EAR",
+          "extraction_hints": [
+            "export control",
+            "ITAR",
+            "EAR",
+            "deemed export",
+            "U.S. person"
+          ]
+        }
+      }
+    },
+    "dispute_resolution": {
+      "description": "Governing law, jurisdiction, arbitration, and dispute resolution mechanisms",
+      "priority": 6,
+      "max_context_chars": 8000,
+      "fields": {
+        "governing_law": {
+          "type": "string",
+          "description": "State or jurisdiction whose laws govern the agreement",
+          "required": true,
+          "extraction_hints": [
+            "governed by the laws of",
+            "governing law",
+            "construed in accordance with the laws of"
+          ],
+          "example_values": [
+            "State of Delaware",
+            "State of California",
+            "State of New York",
+            "England and Wales"
+          ]
+        },
+        "jurisdiction": {
+          "type": "string",
+          "description": "Courts or venue with jurisdiction over disputes arising from the agreement",
+          "extraction_hints": [
+            "exclusive jurisdiction",
+            "venue shall be",
+            "submit to the jurisdiction",
+            "courts located in"
+          ],
+          "example_values": [
+            "State and federal courts in New York County, New York",
+            "Courts of Santa Clara County, California"
+          ]
+        },
+        "arbitration_required": {
+          "type": "boolean",
+          "description": "Whether disputes must be resolved through binding arbitration rather than litigation",
+          "extraction_hints": [
+            "binding arbitration",
+            "shall be arbitrated",
+            "agree to arbitrate",
+            "mandatory arbitration",
+            "submit to arbitration"
+          ]
+        },
+        "arbitration_body": {
+          "type": "string",
+          "description": "Organization that administers the arbitration proceedings",
+          "extraction_hints": [
+            "JAMS",
+            "AAA",
+            "American Arbitration Association",
+            "administered by",
+            "in accordance with the rules of"
+          ],
+          "example_values": [
+            "American Arbitration Association (AAA)",
+            "JAMS",
+            "International Chamber of Commerce (ICC)"
+          ]
+        },
+        "class_action_waiver": {
+          "type": "boolean",
+          "description": "Whether the employee waives the right to participate in class or collective actions",
+          "extraction_hints": [
+            "class action waiver",
+            "waive any right to bring",
+            "individual basis only",
+            "collective action waiver",
+            "class or representative action"
+          ]
+        }
+      }
+    }
+  }
+}

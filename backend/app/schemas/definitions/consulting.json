@@ -1,0 +1,566 @@
+{
+  "schema_id": "consulting_v1",
+  "contract_type": "consulting",
+  "version": "1.0.0",
+  "description": "Consulting/Professional Services Agreement - engagement terms for advisory, implementation, or managed services",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 5000,
+  "required_sections": ["engagement_metadata", "scope_of_services", "fees_and_expenses", "intellectual_property"],
+
+  "sections": {
+    "engagement_metadata": {
+      "description": "Core identification details of the consulting engagement and the contracting parties",
+      "priority": 10,
+      "max_context_chars": 10000,
+      "fields": {
+        "agreement_title": {
+          "type": "string",
+          "description": "Official title of the consulting or professional services agreement",
+          "required": true,
+          "extraction_hints": ["Consulting Agreement", "Professional Services Agreement", "Statement of Work", "Engagement Letter"]
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date the agreement becomes effective",
+          "required": true,
+          "extraction_hints": ["effective as of", "effective date", "commencing on", "entered into as of"]
+        },
+        "client_name": {
+          "type": "string",
+          "description": "Full legal name of the client engaging the consultant",
+          "required": true,
+          "extraction_hints": ["Client", "Company", "the Company", "party of the first part"]
+        },
+        "consultant_name": {
+          "type": "string",
+          "description": "Full legal name of the consultant or consulting firm",
+          "required": true,
+          "extraction_hints": ["Consultant", "Advisor", "Service Provider", "Contractor"]
+        },
+        "consultant_type": {
+          "type": "enum",
+          "description": "Whether the consultant is an individual or a firm",
+          "enum_values": ["individual", "firm"],
+          "extraction_hints": ["an individual", "a corporation", "a limited liability company", "a sole proprietor"]
+        },
+        "engagement_type": {
+          "type": "enum",
+          "description": "Primary nature of the consulting engagement",
+          "enum_values": ["advisory", "implementation", "staff_augmentation", "managed_services"],
+          "extraction_hints": ["advisory services", "implementation", "staff augmentation", "managed services", "consulting services"]
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern the agreement",
+          "extraction_hints": ["governed by the laws of", "governing law", "in accordance with the laws of"]
+        },
+        "jurisdiction": {
+          "type": "string",
+          "description": "Courts or venue for dispute resolution",
+          "extraction_hints": ["exclusive jurisdiction", "venue shall be", "courts of", "submit to the jurisdiction"]
+        }
+      }
+    },
+
+    "scope_of_services": {
+      "description": "Detailed description of the engagement scope, deliverables, milestones, and boundaries",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "engagement_description": {
+          "type": "string",
+          "description": "High-level description of the consulting engagement and its objectives",
+          "required": true,
+          "extraction_hints": ["scope of services", "engagement overview", "consultant shall provide", "services include"]
+        },
+        "deliverables": {
+          "type": "array",
+          "description": "Specific work products or outputs the consultant must produce",
+          "items_type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name or identifier of the deliverable",
+              "required": true
+            },
+            "description": {
+              "type": "string",
+              "description": "Detailed description of what the deliverable entails"
+            },
+            "due_date": {
+              "type": "date",
+              "description": "Date by which the deliverable must be completed",
+              "extraction_hints": ["due by", "to be delivered by", "completion date"]
+            },
+            "acceptance_criteria": {
+              "type": "string",
+              "description": "Criteria the client will use to accept or reject the deliverable",
+              "extraction_hints": ["acceptance criteria", "deemed accepted", "acceptance period", "review period"]
+            }
+          }
+        },
+        "milestones": {
+          "type": "array",
+          "description": "Key project milestones that may trigger payments or phase transitions",
+          "items_type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name or identifier of the milestone"
+            },
+            "date": {
+              "type": "date",
+              "description": "Target date for milestone completion"
+            },
+            "payment_trigger": {
+              "type": "boolean",
+              "description": "Whether reaching this milestone triggers a payment",
+              "extraction_hints": ["payment upon completion", "milestone payment", "payable upon"]
+            }
+          }
+        },
+        "out_of_scope_items": {
+          "type": "array",
+          "description": "Items or activities explicitly excluded from the engagement scope",
+          "items_type": "string",
+          "extraction_hints": ["out of scope", "not included", "excluded from", "does not include"]
+        },
+        "change_request_process": {
+          "type": "string",
+          "description": "Process for requesting changes to the scope of services",
+          "extraction_hints": ["change order", "change request", "scope change", "amendment process", "written approval"]
+        },
+        "assumptions": {
+          "type": "array",
+          "description": "Key assumptions underlying the engagement scope and timeline",
+          "items_type": "string",
+          "extraction_hints": ["assumes", "assumption", "predicated on", "contingent upon"]
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "External dependencies required for successful delivery",
+          "items_type": "string",
+          "extraction_hints": ["dependent on", "requires", "client shall provide", "prerequisite"]
+        }
+      }
+    },
+
+    "team_and_resources": {
+      "description": "Personnel assignments, qualifications, and resource allocation for the engagement",
+      "priority": 8,
+      "max_context_chars": 10000,
+      "fields": {
+        "key_personnel": {
+          "type": "array",
+          "description": "Named individuals assigned to the engagement with their roles and allocation",
+          "items_type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Full name of the key person"
+            },
+            "role": {
+              "type": "string",
+              "description": "Role or title on the engagement (e.g., Project Lead, Senior Consultant)"
+            },
+            "allocation_percent": {
+              "type": "number",
+              "description": "Percentage of time allocated to this engagement (0-100)",
+              "extraction_hints": ["full-time", "part-time", "50%", "dedicated"]
+            },
+            "replacement_restrictions": {
+              "type": "string",
+              "description": "Restrictions on replacing this individual",
+              "extraction_hints": ["may not be replaced without", "prior written consent", "key person"]
+            }
+          }
+        },
+        "minimum_qualifications": {
+          "type": "string",
+          "description": "Minimum qualifications or certifications required for engagement personnel",
+          "extraction_hints": ["qualifications", "certified", "minimum experience", "years of experience"]
+        },
+        "background_checks_required": {
+          "type": "boolean",
+          "description": "Whether background checks are required for engagement personnel",
+          "extraction_hints": ["background check", "security clearance", "screening", "vetting"]
+        },
+        "client_approval_for_substitution": {
+          "type": "boolean",
+          "description": "Whether client approval is needed before substituting personnel",
+          "extraction_hints": ["prior written consent", "client approval", "shall not substitute without"]
+        },
+        "subcontracting_allowed": {
+          "type": "boolean",
+          "description": "Whether the consultant may subcontract portions of the work",
+          "extraction_hints": ["subcontract", "subcontractor", "third party", "delegate", "assign"]
+        },
+        "on_site_requirements": {
+          "type": "string",
+          "description": "Requirements for on-site presence at client facilities",
+          "extraction_hints": ["on-site", "on site", "client premises", "work location", "remote"]
+        },
+        "travel_requirements": {
+          "type": "string",
+          "description": "Expected travel obligations for the engagement",
+          "extraction_hints": ["travel", "travel required", "out-of-town", "domestic travel", "international travel"]
+        }
+      }
+    },
+
+    "fees_and_expenses": {
+      "description": "Compensation structure, billing rates, expense policies, and payment terms",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "fee_structure": {
+          "type": "enum",
+          "description": "Primary fee arrangement for the engagement",
+          "enum_values": ["fixed_price", "time_and_materials", "retainer", "milestone_based", "blended"],
+          "required": true,
+          "extraction_hints": ["fixed fee", "time and materials", "T&M", "retainer", "milestone-based", "blended rate"]
+        },
+        "hourly_rates": {
+          "type": "array",
+          "description": "Hourly billing rates by role or seniority level",
+          "items_type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "description": "Role or level (e.g., Partner, Senior Consultant, Analyst)"
+            },
+            "rate": {
+              "type": "number",
+              "description": "Hourly rate in the applicable currency"
+            }
+          }
+        },
+        "daily_rates": {
+          "type": "array",
+          "description": "Daily billing rates by role or seniority level",
+          "items_type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "description": "Role or level"
+            },
+            "rate": {
+              "type": "number",
+              "description": "Daily rate in the applicable currency"
+            }
+          }
+        },
+        "fixed_fee_amount": {
+          "type": "number",
+          "description": "Total fixed fee amount for the engagement if applicable",
+          "extraction_hints": ["fixed fee of", "total fee", "lump sum", "not to exceed"]
+        },
+        "retainer_amount": {
+          "type": "number",
+          "description": "Monthly or periodic retainer amount if applicable",
+          "extraction_hints": ["monthly retainer", "retainer fee", "retainer amount"]
+        },
+        "retainer_frequency": {
+          "type": "string",
+          "description": "How often the retainer is paid (e.g., monthly, quarterly)",
+          "extraction_hints": ["monthly", "quarterly", "per month", "per quarter"]
+        },
+        "rate_card_reference": {
+          "type": "string",
+          "description": "Reference to an attached rate card exhibit or schedule",
+          "extraction_hints": ["rate card", "Exhibit", "Schedule", "Appendix", "attached hereto"]
+        },
+        "rate_escalation": {
+          "type": "string",
+          "description": "Provisions for annual or periodic rate increases",
+          "extraction_hints": ["rate increase", "escalation", "annual adjustment", "CPI", "cost of living"]
+        },
+        "expense_reimbursement": {
+          "type": "object",
+          "description": "Policies for reimbursement of consultant expenses",
+          "properties": {
+            "travel": {
+              "type": "string",
+              "description": "Travel expense reimbursement policy",
+              "extraction_hints": ["travel expenses", "airfare", "transportation"]
+            },
+            "meals": {
+              "type": "string",
+              "description": "Meal expense reimbursement policy",
+              "extraction_hints": ["meals", "per diem", "food"]
+            },
+            "lodging": {
+              "type": "string",
+              "description": "Lodging expense reimbursement policy",
+              "extraction_hints": ["hotel", "lodging", "accommodation"]
+            },
+            "limits": {
+              "type": "string",
+              "description": "Overall limits or caps on reimbursable expenses",
+              "extraction_hints": ["not to exceed", "maximum", "cap on expenses", "expense limit"]
+            }
+          }
+        },
+        "expense_approval_threshold": {
+          "type": "number",
+          "description": "Dollar amount above which individual expenses require prior client approval",
+          "extraction_hints": ["prior approval", "approval required for expenses exceeding", "pre-approval"]
+        },
+        "invoicing_frequency": {
+          "type": "string",
+          "description": "How often the consultant submits invoices",
+          "extraction_hints": ["monthly invoices", "bi-weekly", "upon completion", "invoiced monthly"]
+        },
+        "payment_terms_days": {
+          "type": "integer",
+          "description": "Number of days after invoice receipt within which payment is due",
+          "extraction_hints": ["net 30", "net 45", "net 60", "within days of receipt", "due within"]
+        },
+        "late_payment_interest": {
+          "type": "string",
+          "description": "Interest rate or penalty applied to overdue payments",
+          "extraction_hints": ["late payment", "interest rate", "per annum", "per month", "1.5%"]
+        }
+      }
+    },
+
+    "intellectual_property": {
+      "description": "Ownership of work product, pre-existing IP, and licensing provisions",
+      "priority": 9,
+      "max_context_chars": 12000,
+      "fields": {
+        "work_product_ownership": {
+          "type": "enum",
+          "description": "Who owns the intellectual property created during the engagement",
+          "enum_values": ["client", "consultant", "joint"],
+          "required": true,
+          "extraction_hints": ["work product", "shall be the sole property of", "work made for hire", "owns all right, title"]
+        },
+        "pre_existing_ip_retained_by_consultant": {
+          "type": "boolean",
+          "description": "Whether the consultant retains ownership of their pre-existing IP and tools",
+          "extraction_hints": ["pre-existing", "prior work", "consultant's tools", "background IP", "retains ownership"]
+        },
+        "license_to_pre_existing_ip": {
+          "type": "string",
+          "description": "License granted to the client to use any pre-existing IP incorporated into deliverables",
+          "extraction_hints": ["non-exclusive license", "royalty-free", "perpetual license", "license to use"]
+        },
+        "moral_rights_waiver": {
+          "type": "boolean",
+          "description": "Whether the consultant waives moral rights in the work product",
+          "extraction_hints": ["moral rights", "waives", "droit moral"]
+        },
+        "invention_disclosure": {
+          "type": "string",
+          "description": "Requirements for disclosing inventions made during the engagement",
+          "extraction_hints": ["invention disclosure", "promptly disclose", "inventions", "discoveries"]
+        },
+        "open_source_restrictions": {
+          "type": "string",
+          "description": "Restrictions on the use of open source software in deliverables",
+          "extraction_hints": ["open source", "open-source", "GPL", "copyleft", "OSS"]
+        }
+      }
+    },
+
+    "confidentiality": {
+      "description": "Non-disclosure obligations, confidential information definitions, and survival terms",
+      "priority": 8,
+      "max_context_chars": 10000,
+      "fields": {
+        "confidential_info_definition": {
+          "type": "string",
+          "description": "Definition of what constitutes confidential information under the agreement",
+          "extraction_hints": ["Confidential Information means", "confidential information includes", "proprietary information"]
+        },
+        "non_disclosure_obligations": {
+          "type": "string",
+          "description": "Core obligations regarding treatment and protection of confidential information",
+          "extraction_hints": ["shall not disclose", "shall maintain in confidence", "use commercially reasonable efforts", "protect"]
+        },
+        "survival_period_years": {
+          "type": "number",
+          "description": "Number of years confidentiality obligations survive after termination",
+          "extraction_hints": ["survive for", "years after termination", "perpetual", "indefinitely"]
+        },
+        "return_or_destruction_timeline_days": {
+          "type": "integer",
+          "description": "Number of days after termination within which confidential information must be returned or destroyed",
+          "extraction_hints": ["return or destroy", "within days", "upon termination", "promptly return"]
+        },
+        "exceptions": {
+          "type": "array",
+          "description": "Exceptions to the confidentiality obligations",
+          "items_type": "string",
+          "extraction_hints": ["publicly available", "independently developed", "required by law", "prior knowledge", "received from a third party"]
+        }
+      }
+    },
+
+    "representations_and_warranties": {
+      "description": "Professional standards, compliance representations, insurance requirements, and contractor status",
+      "priority": 7,
+      "max_context_chars": 10000,
+      "fields": {
+        "professional_standard_of_care": {
+          "type": "string",
+          "description": "Standard of care to which the consultant's work will be held",
+          "extraction_hints": ["professional manner", "industry standards", "standard of care", "best practices", "workmanlike manner"]
+        },
+        "compliance_with_laws": {
+          "type": "string",
+          "description": "Representation that services will comply with applicable laws and regulations",
+          "extraction_hints": ["comply with all applicable laws", "in accordance with", "regulations"]
+        },
+        "no_conflict_of_interest": {
+          "type": "string",
+          "description": "Representation that the engagement does not create a conflict of interest",
+          "extraction_hints": ["no conflict of interest", "does not conflict", "no obligation that would prevent"]
+        },
+        "insurance_requirements": {
+          "type": "object",
+          "description": "Insurance coverage the consultant must maintain during the engagement",
+          "properties": {
+            "professional_indemnity_amount": {
+              "type": "string",
+              "description": "Required professional indemnity / errors & omissions coverage amount",
+              "extraction_hints": ["professional indemnity", "errors and omissions", "E&O", "professional liability"]
+            },
+            "general_liability_amount": {
+              "type": "string",
+              "description": "Required commercial general liability coverage amount",
+              "extraction_hints": ["general liability", "CGL", "commercial general liability"]
+            }
+          }
+        },
+        "consultant_status": {
+          "type": "object",
+          "description": "Confirmation that the consultant is an independent contractor, not an employee",
+          "properties": {
+            "independent_contractor_not_employee": {
+              "type": "boolean",
+              "description": "Whether the agreement explicitly states the consultant is an independent contractor",
+              "extraction_hints": ["independent contractor", "not an employee", "nothing herein shall be construed", "employer-employee"]
+            }
+          }
+        }
+      }
+    },
+
+    "non_compete_and_solicitation": {
+      "description": "Restrictive covenants including non-solicitation, non-competition, and exclusivity terms",
+      "priority": 8,
+      "max_context_chars": 10000,
+      "fields": {
+        "non_solicitation_of_employees": {
+          "type": "object",
+          "description": "Restrictions on soliciting or hiring the other party's employees",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a non-solicitation of employees clause exists",
+              "extraction_hints": ["shall not solicit", "shall not hire", "non-solicitation"]
+            },
+            "duration_months": {
+              "type": "integer",
+              "description": "Duration of the non-solicitation restriction in months",
+              "extraction_hints": ["months", "year", "during the term and for"]
+            }
+          }
+        },
+        "non_solicitation_of_clients": {
+          "type": "object",
+          "description": "Restrictions on soliciting the other party's clients or customers",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a non-solicitation of clients clause exists"
+            },
+            "duration_months": {
+              "type": "integer",
+              "description": "Duration of the non-solicitation restriction in months"
+            }
+          }
+        },
+        "non_compete": {
+          "type": "object",
+          "description": "Restrictions on the consultant competing with the client",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a non-compete clause exists",
+              "extraction_hints": ["shall not compete", "non-compete", "competitive activity", "competing business"]
+            },
+            "duration_months": {
+              "type": "integer",
+              "description": "Duration of the non-compete restriction in months",
+              "extraction_hints": ["months", "year", "during the term and for"]
+            },
+            "geographic_scope": {
+              "type": "string",
+              "description": "Geographic area covered by the non-compete restriction",
+              "extraction_hints": ["within", "territory", "United States", "worldwide", "state of"]
+            }
+          }
+        },
+        "exclusivity_arrangement": {
+          "type": "string",
+          "description": "Whether either party has exclusivity obligations and their scope",
+          "extraction_hints": ["exclusive", "exclusivity", "sole provider", "shall not engage any other"]
+        }
+      }
+    },
+
+    "termination": {
+      "description": "Termination rights, notice requirements, cure periods, and post-termination obligations",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "termination_for_convenience_notice_days": {
+          "type": "integer",
+          "description": "Number of days' written notice required to terminate the agreement without cause",
+          "extraction_hints": ["terminate for convenience", "without cause", "days prior written notice", "at any time upon"]
+        },
+        "termination_for_cause_grounds": {
+          "type": "array",
+          "description": "Specific grounds that constitute cause for termination",
+          "items_type": "string",
+          "extraction_hints": ["material breach", "insolvency", "bankruptcy", "failure to perform", "for cause"]
+        },
+        "cure_period_days": {
+          "type": "integer",
+          "description": "Number of days the breaching party has to cure a breach after notice",
+          "extraction_hints": ["cure period", "days to cure", "opportunity to remedy", "right to cure"]
+        },
+        "payment_on_termination": {
+          "type": "object",
+          "description": "What the consultant is entitled to be paid upon termination",
+          "properties": {
+            "for_work_completed": {
+              "type": "boolean",
+              "description": "Whether the consultant is paid for work completed up to the termination date",
+              "extraction_hints": ["work performed through", "services rendered", "pro rata", "for work completed"]
+            },
+            "for_expenses_incurred": {
+              "type": "boolean",
+              "description": "Whether the consultant is reimbursed for expenses incurred up to termination",
+              "extraction_hints": ["expenses incurred", "out-of-pocket", "reimbursable expenses"]
+            }
+          }
+        },
+        "wind_down_obligations": {
+          "type": "string",
+          "description": "Obligations of the consultant during the transition or wind-down period",
+          "extraction_hints": ["transition", "wind-down", "orderly transition", "transition assistance", "transition period"]
+        },
+        "knowledge_transfer_required": {
+          "type": "boolean",
+          "description": "Whether the consultant must perform knowledge transfer upon termination",
+          "extraction_hints": ["knowledge transfer", "training", "handover", "transition of knowledge", "documentation of work"]
+        }
+      }
+    }
+  }
+}

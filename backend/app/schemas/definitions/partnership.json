@@ -1,0 +1,475 @@
+{
+  "schema_id": "partnership_v1",
+  "contract_type": "partnership",
+  "version": "1.0.0",
+  "description": "Partnership / Joint Venture Agreement - governs formation, governance, profit sharing, and dissolution of business partnerships",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 5000,
+  "required_sections": ["partnership_metadata", "partners", "governance", "financial_provisions"],
+
+  "sections": {
+    "partnership_metadata": {
+      "description": "Basic agreement identification and formation details",
+      "priority": 10,
+      "max_context_chars": 10000,
+      "fields": {
+        "agreement_title": {
+          "type": "string",
+          "description": "Official title of the partnership or joint venture agreement",
+          "required": true,
+          "extraction_hints": ["Agreement", "Partnership Agreement", "Joint Venture Agreement", "Title at top of document"]
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date the partnership agreement becomes effective",
+          "required": true,
+          "extraction_hints": ["effective as of", "effective date", "commencing on", "entered into as of"]
+        },
+        "partnership_name": {
+          "type": "string",
+          "description": "Legal name of the partnership or joint venture entity",
+          "required": true,
+          "extraction_hints": ["the Partnership", "shall be known as", "doing business as", "d/b/a"]
+        },
+        "partnership_type": {
+          "type": "enum",
+          "description": "Legal structure of the partnership",
+          "enum_values": ["general", "limited", "LLP", "joint_venture"],
+          "extraction_hints": ["general partnership", "limited partnership", "limited liability partnership", "joint venture"]
+        },
+        "formation_jurisdiction": {
+          "type": "string",
+          "description": "State or country where the partnership is formed or registered",
+          "extraction_hints": ["formed under the laws of", "organized in", "registered in", "state of formation"]
+        },
+        "registered_office": {
+          "type": "string",
+          "description": "Principal office or registered address of the partnership",
+          "extraction_hints": ["principal place of business", "registered office", "principal office", "located at"]
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern the agreement",
+          "extraction_hints": ["governed by the laws of", "governing law", "construed in accordance with"]
+        },
+        "term_years": {
+          "type": "integer",
+          "description": "Duration of the partnership in years",
+          "extraction_hints": ["term of", "shall continue for", "period of", "years from the effective date"]
+        },
+        "purpose_of_partnership": {
+          "type": "string",
+          "description": "Stated business purpose or objective of the partnership",
+          "extraction_hints": ["purpose of the Partnership", "formed for the purpose of", "business purpose", "scope of business"]
+        }
+      }
+    },
+
+    "partners": {
+      "description": "Details of each partner including contributions and ownership",
+      "priority": 10,
+      "max_context_chars": 15000,
+      "fields": {
+        "partners": {
+          "type": "array",
+          "description": "List of all partners in the partnership or joint venture",
+          "required": true,
+          "items_type": "object",
+          "properties": {
+            "legal_name": {
+              "type": "string",
+              "description": "Full legal name of the partner",
+              "required": true,
+              "extraction_hints": ["party", "partner name", "hereinafter referred to as"]
+            },
+            "partner_type": {
+              "type": "enum",
+              "description": "Role classification of the partner",
+              "enum_values": ["general", "limited", "managing"],
+              "extraction_hints": ["general partner", "limited partner", "managing partner"]
+            },
+            "capital_contribution_amount": {
+              "type": "number",
+              "description": "Monetary value of the partner's initial capital contribution",
+              "extraction_hints": ["capital contribution", "initial contribution", "shall contribute", "investment of"]
+            },
+            "capital_contribution_type": {
+              "type": "enum",
+              "description": "Form of the capital contribution",
+              "enum_values": ["cash", "property", "services"],
+              "extraction_hints": ["in cash", "in the form of", "property contribution", "services rendered"]
+            },
+            "ownership_percentage": {
+              "type": "number",
+              "description": "Percentage ownership interest in the partnership",
+              "extraction_hints": ["ownership interest", "partnership interest", "% interest", "percentage interest"]
+            },
+            "voting_rights_percentage": {
+              "type": "number",
+              "description": "Percentage of voting rights held by the partner",
+              "extraction_hints": ["voting rights", "voting interest", "voting power", "entitled to vote"]
+            },
+            "address": {
+              "type": "string",
+              "description": "Business or registered address of the partner",
+              "extraction_hints": ["address", "principal place of business", "located at", "residing at"]
+            }
+          }
+        }
+      }
+    },
+
+    "governance": {
+      "description": "Management structure, decision-making, and governance provisions",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "management_structure": {
+          "type": "enum",
+          "description": "How the partnership is managed",
+          "enum_values": ["partner_managed", "manager_managed"],
+          "extraction_hints": ["managed by the partners", "manager-managed", "partner-managed", "management of the Partnership"]
+        },
+        "managing_partner": {
+          "type": "string",
+          "description": "Name of the designated managing partner, if any",
+          "extraction_hints": ["managing partner", "appointed as manager", "shall serve as managing partner"]
+        },
+        "decision_making": {
+          "type": "enum",
+          "description": "Default voting threshold for partnership decisions",
+          "enum_values": ["unanimous", "majority", "supermajority"],
+          "extraction_hints": ["unanimous consent", "majority vote", "supermajority", "two-thirds", "75%"]
+        },
+        "matters_requiring_unanimous_consent": {
+          "type": "array",
+          "description": "List of decisions that require agreement of all partners",
+          "items_type": "string",
+          "extraction_hints": ["require unanimous consent", "consent of all partners", "shall not without the approval of all"]
+        },
+        "meetings_frequency": {
+          "type": "string",
+          "description": "How often partnership meetings are held",
+          "extraction_hints": ["meetings shall be held", "meet at least", "quarterly meetings", "annual meeting"]
+        },
+        "quorum_requirement": {
+          "type": "string",
+          "description": "Minimum attendance or representation required for valid meetings",
+          "extraction_hints": ["quorum", "constitutes a quorum", "shall constitute a quorum", "present in person or by proxy"]
+        },
+        "board_or_committee_structure": {
+          "type": "string",
+          "description": "Description of any advisory boards, steering committees, or management committees",
+          "extraction_hints": ["management committee", "advisory board", "steering committee", "board of directors", "executive committee"]
+        },
+        "deadlock_resolution_mechanism": {
+          "type": "string",
+          "description": "Process for resolving deadlocks or impasses in partner decision-making",
+          "extraction_hints": ["deadlock", "impasse", "tie-breaking", "casting vote", "mediation", "buy-sell", "shotgun clause"]
+        }
+      }
+    },
+
+    "financial_provisions": {
+      "description": "Profit/loss allocation, distributions, capital calls, and accounting",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "profit_sharing_ratio": {
+          "type": "string",
+          "description": "Ratio or formula for allocating profits among partners",
+          "required": true,
+          "extraction_hints": ["profits shall be shared", "profit allocation", "share of profits", "distributed in proportion to"]
+        },
+        "loss_sharing_ratio": {
+          "type": "string",
+          "description": "Ratio or formula for allocating losses among partners",
+          "extraction_hints": ["losses shall be borne", "loss allocation", "share of losses", "losses in proportion to"]
+        },
+        "distribution_frequency": {
+          "type": "string",
+          "description": "How often profits are distributed to partners",
+          "extraction_hints": ["distributions shall be made", "quarterly distributions", "annual distribution", "distributed on a monthly basis"]
+        },
+        "distribution_priority": {
+          "type": "array",
+          "description": "Waterfall or priority order for distributing partnership proceeds",
+          "items_type": "string",
+          "extraction_hints": ["distribution waterfall", "order of priority", "first, to", "second, to", "thereafter"]
+        },
+        "capital_call_provisions": {
+          "type": "string",
+          "description": "Rules and process for requesting additional capital from partners",
+          "extraction_hints": ["capital call", "additional capital contributions", "may require partners to contribute", "funding notice"]
+        },
+        "additional_capital_contribution_obligations": {
+          "type": "string",
+          "description": "Whether and under what circumstances partners must contribute additional capital",
+          "extraction_hints": ["obligated to contribute additional", "further capital contributions", "no partner shall be required to contribute additional"]
+        },
+        "reserves_policy": {
+          "type": "string",
+          "description": "Policy for maintaining cash reserves before distributions",
+          "extraction_hints": ["reserves", "reserve fund", "retained for operating expenses", "working capital reserve"]
+        },
+        "fiscal_year_end": {
+          "type": "string",
+          "description": "End date of the partnership's fiscal year",
+          "extraction_hints": ["fiscal year", "fiscal year shall end", "calendar year", "December 31"]
+        },
+        "accounting_method": {
+          "type": "enum",
+          "description": "Accounting method used by the partnership",
+          "enum_values": ["accrual", "cash"],
+          "extraction_hints": ["accrual method", "cash method", "accounting method", "kept on an accrual basis"]
+        },
+        "audit_requirements": {
+          "type": "string",
+          "description": "Requirements for financial audits of the partnership",
+          "extraction_hints": ["audit", "audited financial statements", "independent auditor", "annual audit"]
+        },
+        "tax_treatment": {
+          "type": "enum",
+          "description": "How the partnership is treated for tax purposes",
+          "enum_values": ["pass_through", "entity_level"],
+          "extraction_hints": ["pass-through", "partnership taxation", "K-1", "taxed as a partnership", "entity-level tax"]
+        }
+      }
+    },
+
+    "operations": {
+      "description": "Scope of business, territory, exclusivity, and operational commitments",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "scope_of_business": {
+          "type": "string",
+          "description": "Description of the business activities the partnership will conduct",
+          "extraction_hints": ["scope of business", "business of the Partnership", "engaged in the business of", "activities of the Partnership"]
+        },
+        "territory": {
+          "type": "string",
+          "description": "Geographic territory in which the partnership operates",
+          "extraction_hints": ["territory", "geographic scope", "operating area", "regions", "worldwide"]
+        },
+        "exclusivity_obligations": {
+          "type": "string",
+          "description": "Whether partners are restricted from engaging in competing activities",
+          "extraction_hints": ["exclusivity", "exclusive basis", "devote full time", "shall not engage in competing"]
+        },
+        "non_compete_during_term": {
+          "type": "string",
+          "description": "Non-compete restrictions applicable during the partnership term",
+          "extraction_hints": ["non-compete", "shall not compete", "competitive activity", "during the term"]
+        },
+        "key_person_provisions": {
+          "type": "string",
+          "description": "Requirements for specific individuals to remain involved in the partnership",
+          "extraction_hints": ["key person", "key man", "key individual", "essential personnel", "named individuals"]
+        },
+        "employees_and_staffing": {
+          "type": "string",
+          "description": "Provisions regarding employees, hiring, and staffing of the partnership",
+          "extraction_hints": ["employees", "staffing", "personnel", "hiring", "employment of staff"]
+        },
+        "resource_commitments": {
+          "type": "array",
+          "description": "Specific resources each partner commits to the partnership",
+          "items_type": "object",
+          "properties": {
+            "partner": {
+              "type": "string",
+              "description": "Name of the partner committing the resource"
+            },
+            "resource_type": {
+              "type": "string",
+              "description": "Type of resource committed (e.g., personnel, equipment, technology, facilities)"
+            },
+            "description": {
+              "type": "string",
+              "description": "Details of the resource commitment"
+            }
+          }
+        }
+      }
+    },
+
+    "intellectual_property": {
+      "description": "IP ownership, licensing, and technology contributions",
+      "priority": 7,
+      "max_context_chars": 10000,
+      "fields": {
+        "background_ip_ownership": {
+          "type": "string",
+          "description": "Treatment of intellectual property each partner brings to the partnership",
+          "extraction_hints": ["background IP", "pre-existing IP", "brought IP", "owned prior to", "background intellectual property"]
+        },
+        "jointly_developed_ip": {
+          "type": "string",
+          "description": "Ownership and rights to IP created jointly during the partnership",
+          "extraction_hints": ["jointly developed", "joint IP", "created during the partnership", "developed jointly", "co-owned"]
+        },
+        "ip_licensing_between_partners": {
+          "type": "string",
+          "description": "License grants between partners for use of each other's IP",
+          "extraction_hints": ["license to use", "grants a license", "right to use", "licensed IP", "cross-license"]
+        },
+        "brand_usage_rights": {
+          "type": "string",
+          "description": "Rights to use partnership or partner trademarks and branding",
+          "extraction_hints": ["trademark", "brand usage", "trade name", "logo", "branding rights"]
+        },
+        "technology_contributions": {
+          "type": "string",
+          "description": "Technology, software, or know-how contributed by partners",
+          "extraction_hints": ["technology contribution", "know-how", "proprietary technology", "software", "technical expertise"]
+        }
+      }
+    },
+
+    "transfer_and_exit": {
+      "description": "Transfer restrictions, buyout provisions, and exit mechanisms",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "transfer_restrictions": {
+          "type": "string",
+          "description": "Restrictions on transferring or assigning partnership interests",
+          "extraction_hints": ["transfer of interest", "assignment", "shall not transfer", "prohibited from selling", "consent required for transfer"]
+        },
+        "right_of_first_refusal": {
+          "type": "string",
+          "description": "Right of existing partners to purchase interests before outside parties",
+          "extraction_hints": ["right of first refusal", "ROFR", "first offer", "right to purchase", "offer to existing partners"]
+        },
+        "tag_along_rights": {
+          "type": "string",
+          "description": "Right of minority partners to join in a sale by majority partners",
+          "extraction_hints": ["tag-along", "tag along", "co-sale right", "right to participate in sale"]
+        },
+        "drag_along_rights": {
+          "type": "string",
+          "description": "Right of majority partners to compel minority partners to join a sale",
+          "extraction_hints": ["drag-along", "drag along", "compel sale", "force sale", "bring-along"]
+        },
+        "buyout_provisions": {
+          "type": "object",
+          "description": "Terms for buying out a departing or removed partner",
+          "properties": {
+            "trigger_events": {
+              "type": "array",
+              "description": "Events that trigger a buyout right or obligation",
+              "items_type": "string",
+              "extraction_hints": ["upon death", "disability", "retirement", "breach", "bankruptcy", "withdrawal"]
+            },
+            "valuation_method": {
+              "type": "string",
+              "description": "Method for determining the value of the departing partner's interest",
+              "extraction_hints": ["fair market value", "book value", "appraised value", "agreed valuation", "independent appraiser"]
+            },
+            "payment_terms": {
+              "type": "string",
+              "description": "How and when the buyout amount is paid",
+              "extraction_hints": ["lump sum", "installment payments", "paid over", "within 90 days", "promissory note"]
+            }
+          }
+        },
+        "lock_up_period_months": {
+          "type": "integer",
+          "description": "Minimum period during which partners cannot transfer their interests",
+          "extraction_hints": ["lock-up", "lock up period", "holding period", "may not transfer for", "restricted period"]
+        },
+        "voluntary_withdrawal_notice_days": {
+          "type": "integer",
+          "description": "Number of days notice required for a partner to voluntarily withdraw",
+          "extraction_hints": ["notice of withdrawal", "days prior written notice", "withdraw upon", "voluntary withdrawal"]
+        },
+        "involuntary_removal_grounds": {
+          "type": "string",
+          "description": "Grounds upon which a partner may be involuntarily removed",
+          "extraction_hints": ["removed for cause", "expulsion", "involuntary removal", "grounds for removal", "expelled from the Partnership"]
+        }
+      }
+    },
+
+    "dissolution": {
+      "description": "Events triggering dissolution, winding up, and post-dissolution provisions",
+      "priority": 7,
+      "max_context_chars": 12000,
+      "fields": {
+        "dissolution_events": {
+          "type": "array",
+          "description": "Events or circumstances that trigger dissolution of the partnership",
+          "items_type": "string",
+          "extraction_hints": ["dissolved upon", "dissolution event", "partnership shall dissolve", "terminated upon", "wound up"]
+        },
+        "winding_up_process": {
+          "type": "string",
+          "description": "Process and responsibilities for winding up partnership affairs",
+          "extraction_hints": ["winding up", "wind up", "liquidation", "liquidating partner", "winding down"]
+        },
+        "asset_distribution_priority": {
+          "type": "string",
+          "description": "Priority order for distributing partnership assets upon dissolution",
+          "extraction_hints": ["distribution of assets", "order of distribution", "creditors first", "return of capital", "liquidation proceeds"]
+        },
+        "survival_clauses": {
+          "type": "string",
+          "description": "Provisions that survive the dissolution or termination of the partnership",
+          "extraction_hints": ["survive dissolution", "survival", "shall survive termination", "surviving provisions"]
+        },
+        "non_compete_post_dissolution": {
+          "type": "object",
+          "description": "Non-compete restrictions applicable after the partnership ends",
+          "properties": {
+            "duration_months": {
+              "type": "integer",
+              "description": "Duration of the post-dissolution non-compete period in months",
+              "extraction_hints": ["months following dissolution", "for a period of", "non-compete period"]
+            },
+            "geographic_scope": {
+              "type": "string",
+              "description": "Geographic area covered by the post-dissolution non-compete",
+              "extraction_hints": ["within the territory", "geographic scope", "within a radius of", "within the following areas"]
+            }
+          }
+        }
+      }
+    },
+
+    "liability_and_indemnification": {
+      "description": "Partner liability, indemnification, insurance, and liability limits",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "partner_liability": {
+          "type": "enum",
+          "description": "How liability is allocated among partners",
+          "enum_values": ["joint_and_several", "proportional"],
+          "extraction_hints": ["joint and several", "jointly and severally", "proportional liability", "liable in proportion to"]
+        },
+        "indemnification_obligations": {
+          "type": "string",
+          "description": "Obligations of the partnership or partners to indemnify each other",
+          "extraction_hints": ["indemnify", "hold harmless", "indemnification", "defend and indemnify", "indemnified party"]
+        },
+        "insurance_requirements": {
+          "type": "string",
+          "description": "Insurance coverage the partnership or partners must maintain",
+          "extraction_hints": ["insurance", "maintain insurance", "general liability insurance", "errors and omissions", "coverage of at least"]
+        },
+        "limitation_of_liability": {
+          "type": "string",
+          "description": "Caps or limitations on partner liability",
+          "extraction_hints": ["limitation of liability", "liability shall not exceed", "cap on liability", "maximum liability", "exclude consequential damages"]
+        },
+        "capital_contribution_as_maximum_loss": {
+          "type": "string",
+          "description": "Whether a partner's maximum loss is limited to their capital contribution",
+          "extraction_hints": ["limited to capital contribution", "loss shall not exceed", "maximum exposure", "risk limited to investment", "limited partner's liability"]
+        }
+      }
+    }
+  }
+}

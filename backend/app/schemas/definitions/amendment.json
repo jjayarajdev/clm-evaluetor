@@ -1,0 +1,416 @@
+{
+  "schema_id": "amendment_v1",
+  "contract_type": "amendment",
+  "version": "1.0.0",
+  "description": "Contract Amendment - modifications to an existing agreement's terms, scope, or commercial provisions",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 4000,
+  "required_sections": ["amendment_metadata", "scope_of_changes", "ratification"],
+
+  "sections": {
+    "amendment_metadata": {
+      "description": "Core identification details of the amendment and the original agreement it modifies",
+      "priority": 10,
+      "max_context_chars": 10000,
+      "fields": {
+        "amendment_title": {
+          "type": "string",
+          "description": "Official title of the amendment document",
+          "required": true,
+          "extraction_hints": ["Amendment to", "First Amendment", "Second Amendment", "Amendment No."]
+        },
+        "amendment_number": {
+          "type": "string",
+          "description": "Sequential number of this amendment (e.g., '1', '2', 'Third')",
+          "extraction_hints": ["Amendment No.", "Amendment Number", "First Amendment", "Second Amendment"]
+        },
+        "amendment_date": {
+          "type": "date",
+          "description": "Date the amendment was executed or made effective",
+          "required": true,
+          "extraction_hints": ["dated as of", "effective as of", "entered into on"]
+        },
+        "original_agreement_title": {
+          "type": "string",
+          "description": "Title of the original agreement being amended",
+          "required": true,
+          "extraction_hints": ["that certain", "original agreement", "the Agreement dated"]
+        },
+        "original_agreement_date": {
+          "type": "date",
+          "description": "Effective date or execution date of the original agreement",
+          "extraction_hints": ["dated", "effective", "entered into on"]
+        },
+        "original_agreement_id": {
+          "type": "string",
+          "description": "Reference number or identifier of the original agreement",
+          "extraction_hints": ["Agreement No.", "Contract No.", "Reference No."]
+        },
+        "parties": {
+          "type": "array",
+          "description": "Parties to the amendment (should match original agreement parties)",
+          "items_type": "object",
+          "properties": {
+            "legal_name": {
+              "type": "string",
+              "description": "Full legal name of the party",
+              "required": true
+            },
+            "role": {
+              "type": "string",
+              "description": "Party's role in the contract (e.g., Client, Provider, Licensor, Licensee)",
+              "extraction_hints": ["hereinafter referred to as", "party of the first part"]
+            }
+          }
+        },
+        "effective_date_of_changes": {
+          "type": "date",
+          "description": "Date when the amended terms take effect (may differ from amendment execution date)",
+          "extraction_hints": ["changes shall take effect on", "effective as of", "commencing on"]
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern the amendment",
+          "extraction_hints": ["governed by the laws of", "governing law", "in accordance with the laws of"]
+        }
+      }
+    },
+
+    "scope_of_changes": {
+      "description": "Detailed inventory of all sections and provisions being modified, added, or removed",
+      "priority": 10,
+      "max_context_chars": 15000,
+      "fields": {
+        "sections_amended": {
+          "type": "array",
+          "description": "List of existing sections that are being modified",
+          "required": true,
+          "items_type": "object",
+          "properties": {
+            "original_section": {
+              "type": "string",
+              "description": "Section number or title in the original agreement being changed",
+              "required": true
+            },
+            "change_type": {
+              "type": "enum",
+              "description": "Nature of the change being made to this section",
+              "enum_values": ["added", "modified", "deleted", "replaced"],
+              "required": true
+            },
+            "summary_of_change": {
+              "type": "string",
+              "description": "Brief summary describing what was changed and how",
+              "extraction_hints": ["is hereby amended to read", "is deleted and replaced with", "shall be modified"]
+            }
+          }
+        },
+        "new_sections_added": {
+          "type": "array",
+          "description": "Entirely new sections introduced by this amendment",
+          "items_type": "object",
+          "properties": {
+            "section_number": {
+              "type": "string",
+              "description": "New section number or identifier"
+            },
+            "title": {
+              "type": "string",
+              "description": "Title of the new section"
+            },
+            "description": {
+              "type": "string",
+              "description": "Brief description of what the new section covers"
+            }
+          }
+        },
+        "sections_deleted": {
+          "type": "array",
+          "description": "Sections from the original agreement that are entirely removed",
+          "items_type": "string",
+          "extraction_hints": ["is hereby deleted", "is removed in its entirety", "shall be of no further force or effect"]
+        }
+      }
+    },
+
+    "commercial_changes": {
+      "description": "Modifications to pricing, fees, payment terms, and other financial provisions",
+      "priority": 9,
+      "max_context_chars": 12000,
+      "fields": {
+        "pricing_changes": {
+          "type": "object",
+          "description": "Changes to the contract's pricing structure or amounts",
+          "properties": {
+            "original_value": {
+              "type": "string",
+              "description": "Original contract value or pricing before the amendment",
+              "extraction_hints": ["previously set at", "original price", "was"]
+            },
+            "new_value": {
+              "type": "string",
+              "description": "New contract value or pricing after the amendment",
+              "extraction_hints": ["amended to", "new price", "shall be", "is hereby changed to"]
+            },
+            "change_reason": {
+              "type": "string",
+              "description": "Stated reason for the pricing change",
+              "extraction_hints": ["due to", "as a result of", "in consideration of"]
+            }
+          }
+        },
+        "payment_term_changes": {
+          "type": "string",
+          "description": "Changes to payment timing, milestones, or invoicing terms",
+          "extraction_hints": ["payment terms", "invoicing", "net days", "due within"]
+        },
+        "additional_fees": {
+          "type": "string",
+          "description": "New fees introduced by the amendment",
+          "extraction_hints": ["additional fee", "new charge", "surcharge", "premium"]
+        },
+        "reduced_fees": {
+          "type": "string",
+          "description": "Fees reduced or eliminated by the amendment",
+          "extraction_hints": ["reduced to", "waived", "eliminated", "discount"]
+        },
+        "total_contract_value_change": {
+          "type": "string",
+          "description": "Net impact on total contract value (increase or decrease amount)",
+          "extraction_hints": ["total value", "aggregate amount", "not to exceed"]
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency for all financial amounts referenced in the amendment",
+          "extraction_hints": ["USD", "EUR", "GBP", "dollars", "euros"]
+        }
+      }
+    },
+
+    "term_changes": {
+      "description": "Modifications to contract duration, renewal provisions, and expiration terms",
+      "priority": 9,
+      "max_context_chars": 10000,
+      "fields": {
+        "original_expiration_date": {
+          "type": "date",
+          "description": "Expiration date of the contract before this amendment",
+          "extraction_hints": ["originally set to expire", "was scheduled to terminate", "prior expiration date"]
+        },
+        "new_expiration_date": {
+          "type": "date",
+          "description": "Updated expiration date after the amendment",
+          "extraction_hints": ["extended to", "new expiration date", "shall now expire on"]
+        },
+        "term_extension_months": {
+          "type": "integer",
+          "description": "Number of months the contract term is being extended",
+          "extraction_hints": ["extended by", "additional months", "further period of"]
+        },
+        "new_renewal_terms": {
+          "type": "string",
+          "description": "Updated auto-renewal or renewal option provisions",
+          "extraction_hints": ["renewal", "auto-renew", "successive periods", "renewal option"]
+        },
+        "new_notice_period_days": {
+          "type": "integer",
+          "description": "Updated number of days required for termination or non-renewal notice",
+          "extraction_hints": ["notice period", "days prior written notice", "advance notice"]
+        },
+        "early_termination_changes": {
+          "type": "string",
+          "description": "Changes to early termination rights, fees, or conditions",
+          "extraction_hints": ["early termination", "termination fee", "termination for convenience"]
+        }
+      }
+    },
+
+    "scope_changes": {
+      "description": "Modifications to the services, deliverables, geographies, or volumes covered by the contract",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "services_added": {
+          "type": "array",
+          "description": "New services or deliverables added to the contract scope",
+          "items_type": "string",
+          "extraction_hints": ["additional services", "new deliverables", "expanded scope", "shall also include"]
+        },
+        "services_removed": {
+          "type": "array",
+          "description": "Services or deliverables removed from the contract scope",
+          "items_type": "string",
+          "extraction_hints": ["removed from scope", "no longer included", "discontinued", "eliminated"]
+        },
+        "services_modified": {
+          "type": "array",
+          "description": "Existing services whose scope or specifications have been changed",
+          "items_type": "object",
+          "properties": {
+            "service": {
+              "type": "string",
+              "description": "Name or identifier of the service being modified"
+            },
+            "original_scope": {
+              "type": "string",
+              "description": "Description of the service scope before the amendment"
+            },
+            "new_scope": {
+              "type": "string",
+              "description": "Description of the updated service scope after the amendment"
+            }
+          }
+        },
+        "geography_changes": {
+          "type": "string",
+          "description": "Changes to geographic coverage, territories, or service regions",
+          "extraction_hints": ["territory", "region", "geographic scope", "expanded to include", "limited to"]
+        },
+        "volume_changes": {
+          "type": "string",
+          "description": "Changes to volume commitments, capacity, or quantity thresholds",
+          "extraction_hints": ["volume", "quantity", "minimum commitment", "capacity", "units"]
+        }
+      }
+    },
+
+    "sla_changes": {
+      "description": "Modifications to service level agreements, performance metrics, and associated penalties",
+      "priority": 7,
+      "max_context_chars": 10000,
+      "fields": {
+        "sla_metrics_changed": {
+          "type": "array",
+          "description": "Existing SLA metrics whose targets or definitions have been updated",
+          "items_type": "object",
+          "properties": {
+            "metric_name": {
+              "type": "string",
+              "description": "Name of the SLA metric being changed (e.g., uptime, response time)"
+            },
+            "original_target": {
+              "type": "string",
+              "description": "Original target value before the amendment"
+            },
+            "new_target": {
+              "type": "string",
+              "description": "Updated target value after the amendment"
+            }
+          }
+        },
+        "new_sla_metrics_added": {
+          "type": "array",
+          "description": "New SLA metrics introduced by this amendment",
+          "items_type": "string",
+          "extraction_hints": ["new service level", "additional KPI", "new metric", "shall also measure"]
+        },
+        "sla_metrics_removed": {
+          "type": "array",
+          "description": "SLA metrics that are removed or no longer tracked",
+          "items_type": "string",
+          "extraction_hints": ["removed from SLA", "no longer measured", "discontinued metric"]
+        },
+        "penalty_changes": {
+          "type": "string",
+          "description": "Changes to SLA penalty or service credit structures",
+          "extraction_hints": ["service credit", "penalty", "liquidated damages", "SLA credit"]
+        }
+      }
+    },
+
+    "legal_changes": {
+      "description": "Modifications to legal clauses including liability, indemnification, compliance, and data protection",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "liability_changes": {
+          "type": "string",
+          "description": "Changes to limitation of liability caps, exclusions, or carve-outs",
+          "extraction_hints": ["limitation of liability", "liability cap", "aggregate liability", "shall not exceed"]
+        },
+        "indemnification_changes": {
+          "type": "string",
+          "description": "Changes to indemnification obligations, scope, or procedures",
+          "extraction_hints": ["indemnify", "indemnification", "hold harmless", "defend"]
+        },
+        "insurance_changes": {
+          "type": "string",
+          "description": "Changes to insurance coverage requirements or minimum amounts",
+          "extraction_hints": ["insurance", "coverage", "policy", "minimum coverage amount"]
+        },
+        "compliance_changes": {
+          "type": "string",
+          "description": "Changes to regulatory compliance obligations or certifications",
+          "extraction_hints": ["compliance", "regulatory", "certification", "audit rights"]
+        },
+        "ip_ownership_changes": {
+          "type": "string",
+          "description": "Changes to intellectual property ownership, licensing, or usage rights",
+          "extraction_hints": ["intellectual property", "IP ownership", "license grant", "work product"]
+        },
+        "confidentiality_changes": {
+          "type": "string",
+          "description": "Changes to confidentiality obligations, definitions, or survival periods",
+          "extraction_hints": ["confidential information", "non-disclosure", "confidentiality", "survival"]
+        },
+        "data_protection_changes": {
+          "type": "string",
+          "description": "Changes to data protection, privacy, or data processing provisions",
+          "extraction_hints": ["data protection", "GDPR", "personal data", "data processing", "privacy"]
+        }
+      }
+    },
+
+    "ratification": {
+      "description": "Confirmation clauses, preservation of unchanged terms, and execution details",
+      "priority": 6,
+      "max_context_chars": 8000,
+      "fields": {
+        "all_other_terms_remain": {
+          "type": "boolean",
+          "description": "Whether the amendment confirms all other terms of the original agreement remain unchanged",
+          "extraction_hints": ["all other terms and conditions", "remain in full force and effect", "unchanged", "except as modified herein"]
+        },
+        "entire_agreement_updated": {
+          "type": "boolean",
+          "description": "Whether this amendment updates the entire agreement clause",
+          "extraction_hints": ["entire agreement", "constitutes the entire", "supersedes"]
+        },
+        "supersedes_prior_amendments": {
+          "type": "boolean",
+          "description": "Whether this amendment supersedes any prior amendments on the same subject matter",
+          "extraction_hints": ["supersedes", "replaces all prior amendments", "prior amendments"]
+        },
+        "counterparts_allowed": {
+          "type": "boolean",
+          "description": "Whether the amendment may be executed in counterparts",
+          "extraction_hints": ["counterparts", "each of which shall be deemed an original", "executed in counterparts"]
+        },
+        "signatory_names": {
+          "type": "array",
+          "description": "Names and details of individuals who signed the amendment",
+          "items_type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Full name of the signatory"
+            },
+            "title": {
+              "type": "string",
+              "description": "Official title or position of the signatory"
+            },
+            "party": {
+              "type": "string",
+              "description": "Which party the signatory represents"
+            },
+            "date": {
+              "type": "date",
+              "description": "Date the signatory executed the amendment"
+            }
+          }
+        }
+      }
+    }
+  }
+}

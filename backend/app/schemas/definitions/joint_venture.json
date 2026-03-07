@@ -1,0 +1,1067 @@
+{
+  "schema_id": "joint_venture_agreement_v1",
+  "name": "Joint Venture Agreement Extraction Schema",
+  "contract_type": "joint_venture",
+  "version": "1.0.0",
+  "description": "Joint Venture Agreement - governs formation, governance, capital contributions, IP rights, operations, and exit mechanisms for a jointly owned business venture between two or more parties",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 8000,
+  "required_sections": ["venture_formation", "parties_and_contributions", "ownership_and_governance", "financial_management"],
+
+  "sections": {
+    "venture_formation": {
+      "description": "Core formation details of the joint venture including entity structure, jurisdiction, and business purpose",
+      "priority": 10,
+      "max_context_chars": 12000,
+      "fields": {
+        "agreement_title": {
+          "type": "string",
+          "description": "Official title of the joint venture agreement",
+          "required": true,
+          "extraction_hints": ["Joint Venture Agreement", "JV Agreement", "Agreement", "Title at top of document"]
+        },
+        "jv_entity_name": {
+          "type": "string",
+          "description": "Legal name of the joint venture entity to be formed or operating name of the venture",
+          "required": true,
+          "extraction_hints": ["the Joint Venture", "the JV Company", "shall be known as", "doing business as", "d/b/a", "JV Entity"]
+        },
+        "entity_type": {
+          "type": "enum",
+          "description": "Legal form of the joint venture entity",
+          "enum_values": ["LLC", "corporation", "limited_partnership", "general_partnership", "LLP", "contractual_jv", "consortium", "special_purpose_vehicle"],
+          "required": true,
+          "extraction_hints": ["limited liability company", "corporation", "limited partnership", "contractual joint venture", "consortium", "SPV", "special purpose vehicle", "organized as"]
+        },
+        "formation_jurisdiction": {
+          "type": "string",
+          "description": "State, province, or country where the JV entity is formed or registered",
+          "required": true,
+          "extraction_hints": ["formed under the laws of", "organized in", "incorporated in", "registered in", "state of formation", "jurisdiction of organization"]
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date the joint venture agreement becomes effective",
+          "required": true,
+          "extraction_hints": ["effective as of", "effective date", "commencing on", "entered into as of", "dated as of"]
+        },
+        "signing_date": {
+          "type": "date",
+          "description": "Date the agreement was executed by the parties",
+          "extraction_hints": ["signed on", "executed on", "dated", "executed as of the date"]
+        },
+        "business_purpose": {
+          "type": "string",
+          "description": "Primary business purpose, objectives, and scope of activities for the joint venture",
+          "required": true,
+          "extraction_hints": ["purpose of the Joint Venture", "formed for the purpose of", "business purpose", "objectives of the JV", "scope of the venture", "established to"]
+        },
+        "registered_address": {
+          "type": "string",
+          "description": "Principal office or registered address of the joint venture entity",
+          "extraction_hints": ["principal place of business", "registered office", "principal office", "located at", "headquartered at", "registered agent"]
+        },
+        "territory_of_operations": {
+          "type": "string",
+          "description": "Geographic territory or markets in which the joint venture is authorized to operate",
+          "extraction_hints": ["territory", "geographic scope", "operating territory", "market area", "regions", "worldwide", "shall operate in"]
+        },
+        "regulatory_approvals_required": {
+          "type": "array",
+          "description": "List of governmental or regulatory approvals required before the JV can commence operations",
+          "items_type": "string",
+          "extraction_hints": ["regulatory approval", "government consent", "antitrust clearance", "merger control", "conditions precedent", "HSR filing", "CFIUS", "foreign investment approval"]
+        },
+        "conditions_precedent": {
+          "type": "array",
+          "description": "Conditions that must be satisfied before the JV becomes effective or closes",
+          "items_type": "string",
+          "extraction_hints": ["conditions precedent", "closing conditions", "shall not be effective until", "subject to", "contingent upon", "prior to closing"]
+        }
+      }
+    },
+
+    "parties_and_contributions": {
+      "description": "Details of each JV partner including identity, contributions of capital, IP, and other assets, and valuation methodology",
+      "priority": 10,
+      "max_context_chars": 18000,
+      "fields": {
+        "jv_partners": {
+          "type": "array",
+          "description": "List of all parties forming the joint venture with their details and contributions",
+          "required": true,
+          "items_type": "object",
+          "properties": {
+            "legal_name": {
+              "type": "string",
+              "description": "Full legal name of the JV partner",
+              "required": true,
+              "extraction_hints": ["party", "partner", "venturer", "hereinafter referred to as"]
+            },
+            "short_name": {
+              "type": "string",
+              "description": "Short name or defined term used throughout the agreement",
+              "extraction_hints": ["hereinafter", "referred to as", "also known as"]
+            },
+            "entity_type": {
+              "type": "string",
+              "description": "Legal entity type of the partner (e.g., corporation, LLC, GmbH)",
+              "extraction_hints": ["a corporation", "a limited liability company", "organized under", "a company incorporated"]
+            },
+            "jurisdiction_of_incorporation": {
+              "type": "string",
+              "description": "State or country where the JV partner is incorporated or organized",
+              "extraction_hints": ["incorporated in", "organized under the laws of", "a Delaware corporation", "registered in"]
+            },
+            "address": {
+              "type": "string",
+              "description": "Principal business address of the JV partner",
+              "extraction_hints": ["address", "principal place of business", "located at", "with offices at"]
+            },
+            "authorized_representative": {
+              "type": "string",
+              "description": "Name and title of the person authorized to act on behalf of the JV partner",
+              "extraction_hints": ["authorized representative", "duly authorized", "signed by", "represented by"]
+            }
+          }
+        },
+        "capital_contributions": {
+          "type": "array",
+          "description": "Detailed breakdown of each partner's capital contributions to the JV",
+          "required": true,
+          "items_type": "object",
+          "properties": {
+            "partner_name": {
+              "type": "string",
+              "description": "Name of the contributing partner",
+              "required": true
+            },
+            "cash_contribution": {
+              "type": "number",
+              "description": "Monetary cash contribution amount",
+              "extraction_hints": ["cash contribution", "initial capital", "shall contribute", "invest", "in cash"]
+            },
+            "cash_contribution_currency": {
+              "type": "string",
+              "description": "Currency of the cash contribution",
+              "extraction_hints": ["USD", "EUR", "GBP", "dollars", "euros"]
+            },
+            "ip_contribution_description": {
+              "type": "string",
+              "description": "Description of intellectual property contributed (patents, trade secrets, know-how, software)",
+              "extraction_hints": ["intellectual property", "patents", "trade secrets", "know-how", "technology", "software license", "proprietary technology"]
+            },
+            "ip_contribution_valuation": {
+              "type": "number",
+              "description": "Agreed monetary valuation of the IP contribution",
+              "extraction_hints": ["valued at", "IP valuation", "appraised value of the intellectual property"]
+            },
+            "asset_contribution_description": {
+              "type": "string",
+              "description": "Description of physical or tangible assets contributed (equipment, real estate, inventory)",
+              "extraction_hints": ["equipment", "real property", "assets", "machinery", "facilities", "inventory", "tangible assets"]
+            },
+            "asset_contribution_valuation": {
+              "type": "number",
+              "description": "Agreed monetary valuation of the contributed assets",
+              "extraction_hints": ["valued at", "fair market value", "appraised at", "asset valuation"]
+            },
+            "services_contribution_description": {
+              "type": "string",
+              "description": "Description of services, personnel, or expertise contributed in lieu of cash",
+              "extraction_hints": ["services", "personnel", "expertise", "management services", "technical support", "sweat equity"]
+            },
+            "total_contribution_value": {
+              "type": "number",
+              "description": "Total agreed value of all contributions from this partner",
+              "extraction_hints": ["total contribution", "aggregate contribution", "total value", "combined value"]
+            },
+            "contribution_schedule": {
+              "type": "string",
+              "description": "Timeline or milestones for making the contributions",
+              "extraction_hints": ["contribution schedule", "payable on", "due upon", "within 30 days", "installments", "at closing"]
+            }
+          }
+        },
+        "valuation_methodology": {
+          "type": "string",
+          "description": "Method used to value non-cash contributions (independent appraisal, agreed value, book value)",
+          "extraction_hints": ["valuation", "appraised by", "independent valuation", "fair market value determination", "agreed upon value", "valuation methodology"]
+        },
+        "total_jv_capitalization": {
+          "type": "number",
+          "description": "Total initial capitalization of the joint venture from all partners combined",
+          "extraction_hints": ["total capitalization", "initial capital", "aggregate contributions", "total funding"]
+        },
+        "capitalization_currency": {
+          "type": "string",
+          "description": "Currency of the total JV capitalization",
+          "extraction_hints": ["USD", "EUR", "United States Dollars"]
+        }
+      }
+    },
+
+    "ownership_and_governance": {
+      "description": "Equity ownership percentages, board composition, voting rights, management committee structure, and officer appointments",
+      "priority": 10,
+      "max_context_chars": 18000,
+      "fields": {
+        "equity_split": {
+          "type": "array",
+          "description": "Ownership percentage or equity interest allocated to each JV partner",
+          "required": true,
+          "items_type": "object",
+          "properties": {
+            "partner_name": {
+              "type": "string",
+              "description": "Name of the JV partner",
+              "required": true
+            },
+            "ownership_percentage": {
+              "type": "number",
+              "description": "Percentage of equity ownership in the JV",
+              "required": true,
+              "extraction_hints": ["ownership interest", "equity interest", "% interest", "percentage interest", "shares"]
+            },
+            "share_class": {
+              "type": "string",
+              "description": "Class of shares or units held if applicable",
+              "extraction_hints": ["Class A", "Class B", "common shares", "preferred units", "membership units"]
+            }
+          }
+        },
+        "board_composition": {
+          "type": "object",
+          "description": "Structure and composition of the JV board of directors or governing board",
+          "required": true,
+          "properties": {
+            "total_board_seats": {
+              "type": "integer",
+              "description": "Total number of seats on the JV board of directors",
+              "extraction_hints": ["board shall consist of", "total directors", "board members", "board seats"]
+            },
+            "seat_allocation": {
+              "type": "array",
+              "description": "Number of board seats allocated to each partner",
+              "items_type": "object",
+              "properties": {
+                "partner_name": {
+                  "type": "string",
+                  "description": "Name of the partner entitled to appoint directors"
+                },
+                "seats": {
+                  "type": "integer",
+                  "description": "Number of board seats allocated"
+                }
+              },
+              "extraction_hints": ["shall appoint", "entitled to designate", "nominate", "board representatives"]
+            },
+            "independent_directors": {
+              "type": "integer",
+              "description": "Number of independent or mutually agreed directors on the board",
+              "extraction_hints": ["independent director", "mutually agreed director", "neutral director", "independent member"]
+            },
+            "chairperson_appointment": {
+              "type": "string",
+              "description": "Which partner appoints the chairperson and any rotation provisions",
+              "extraction_hints": ["chairperson", "chairman", "chair of the board", "rotating chair", "appointed by"]
+            },
+            "board_meeting_frequency": {
+              "type": "string",
+              "description": "How often board meetings are required to be held",
+              "extraction_hints": ["board shall meet", "meetings per year", "quarterly meetings", "monthly meetings", "at least"]
+            },
+            "board_quorum": {
+              "type": "string",
+              "description": "Quorum requirement for valid board meetings",
+              "extraction_hints": ["quorum", "constitutes a quorum", "majority of directors", "present in person or by proxy"]
+            }
+          }
+        },
+        "voting_rights": {
+          "type": "object",
+          "description": "Voting thresholds and mechanisms for JV decision-making",
+          "properties": {
+            "ordinary_resolution_threshold": {
+              "type": "string",
+              "description": "Voting threshold for ordinary business decisions",
+              "extraction_hints": ["simple majority", "majority vote", "more than 50%", "ordinary resolution", "ordinary course"]
+            },
+            "special_resolution_threshold": {
+              "type": "string",
+              "description": "Voting threshold for significant or extraordinary decisions",
+              "extraction_hints": ["supermajority", "two-thirds", "75%", "special resolution", "qualified majority", "unanimous"]
+            },
+            "partner_veto_rights": {
+              "type": "array",
+              "description": "Matters over which individual partners hold veto rights",
+              "items_type": "string",
+              "extraction_hints": ["veto right", "consent of each party", "approval of both partners", "shall not without the consent of"]
+            }
+          }
+        },
+        "reserved_matters": {
+          "type": "array",
+          "description": "List of significant decisions requiring unanimous consent or supermajority approval",
+          "items_type": "string",
+          "required": true,
+          "extraction_hints": ["reserved matters", "require unanimous consent", "consent of all partners", "shall not without approval", "major decisions", "fundamental matters", "protective provisions"]
+        },
+        "management_committee": {
+          "type": "object",
+          "description": "Structure of any management or operating committee below the board level",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a management committee is established",
+              "extraction_hints": ["management committee", "operating committee", "executive committee", "steering committee"]
+            },
+            "composition": {
+              "type": "string",
+              "description": "How the management committee is composed and members appointed",
+              "extraction_hints": ["committee shall consist of", "each party shall appoint", "management representatives"]
+            },
+            "authority_scope": {
+              "type": "string",
+              "description": "Scope of authority delegated to the management committee",
+              "extraction_hints": ["authority to", "responsible for", "delegated authority", "day-to-day management", "operational decisions"]
+            },
+            "meeting_frequency": {
+              "type": "string",
+              "description": "How often the management committee meets",
+              "extraction_hints": ["shall meet", "monthly", "bi-weekly", "as needed"]
+            }
+          }
+        },
+        "officer_appointments": {
+          "type": "array",
+          "description": "Key officer positions in the JV and which partner has the right to appoint each",
+          "items_type": "object",
+          "properties": {
+            "position": {
+              "type": "string",
+              "description": "Officer title (CEO, CFO, COO, General Manager, etc.)",
+              "extraction_hints": ["Chief Executive Officer", "CEO", "General Manager", "CFO", "COO", "Managing Director"]
+            },
+            "appointing_partner": {
+              "type": "string",
+              "description": "Name of the partner with the right to appoint this officer",
+              "extraction_hints": ["appointed by", "nominated by", "designated by", "selected by"]
+            },
+            "appointment_term": {
+              "type": "string",
+              "description": "Term of office and any rotation provisions for this position",
+              "extraction_hints": ["term of", "serve for", "rotating", "annual appointment"]
+            }
+          }
+        },
+        "anti_dilution_protection": {
+          "type": "string",
+          "description": "Provisions protecting partners from dilution of their ownership interest",
+          "extraction_hints": ["anti-dilution", "dilution protection", "preemptive rights", "pro rata rights", "maintain proportional interest", "right to participate"]
+        }
+      }
+    },
+
+    "financial_management": {
+      "description": "Funding obligations, banking arrangements, accounting standards, profit and loss allocation, and distribution policies",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "additional_funding_obligations": {
+          "type": "string",
+          "description": "Whether and how partners may be required to make additional capital contributions beyond initial commitments",
+          "extraction_hints": ["additional capital", "capital call", "further contributions", "additional funding", "funding notice", "pro rata basis"]
+        },
+        "failure_to_fund_consequences": {
+          "type": "string",
+          "description": "Consequences if a partner fails to meet a capital call or funding obligation",
+          "extraction_hints": ["failure to contribute", "default on capital call", "dilution", "forfeiture", "default interest", "non-contributing partner"]
+        },
+        "banking_arrangements": {
+          "type": "string",
+          "description": "Requirements for JV bank accounts, signatory authority, and cash management",
+          "extraction_hints": ["bank account", "banking", "signatory", "authorized signers", "separate account", "cash management"]
+        },
+        "accounting_standards": {
+          "type": "enum",
+          "description": "Accounting standards or framework used by the JV for financial reporting",
+          "enum_values": ["US_GAAP", "IFRS", "local_GAAP"],
+          "extraction_hints": ["GAAP", "IFRS", "generally accepted accounting principles", "International Financial Reporting Standards", "accounting standards"]
+        },
+        "fiscal_year_end": {
+          "type": "string",
+          "description": "End date of the JV's fiscal year",
+          "extraction_hints": ["fiscal year", "fiscal year shall end", "calendar year", "December 31", "financial year"]
+        },
+        "profit_allocation_method": {
+          "type": "string",
+          "description": "Formula or method for allocating profits among JV partners",
+          "required": true,
+          "extraction_hints": ["profits shall be allocated", "profit sharing", "share of profits", "distributed in proportion to", "profit allocation"]
+        },
+        "loss_allocation_method": {
+          "type": "string",
+          "description": "Formula or method for allocating losses among JV partners",
+          "required": true,
+          "extraction_hints": ["losses shall be allocated", "loss sharing", "share of losses", "bear losses in proportion to", "loss allocation"]
+        },
+        "distribution_policy": {
+          "type": "string",
+          "description": "Policy governing when and how profits are distributed to partners",
+          "extraction_hints": ["distributions shall be made", "quarterly distributions", "annual distribution", "distribute available cash", "distributable profits"]
+        },
+        "distribution_waterfall": {
+          "type": "array",
+          "description": "Priority order or waterfall for distributing JV proceeds to partners",
+          "items_type": "string",
+          "extraction_hints": ["distribution waterfall", "order of priority", "first, to", "second, to", "thereafter", "distribution priority"]
+        },
+        "minimum_cash_reserve": {
+          "type": "string",
+          "description": "Minimum cash reserve or working capital the JV must maintain before making distributions",
+          "extraction_hints": ["cash reserve", "minimum reserve", "working capital", "retained for operations", "reserve fund", "before any distribution"]
+        },
+        "budget_approval_process": {
+          "type": "string",
+          "description": "Process for preparing and approving the annual operating budget and capital budget",
+          "extraction_hints": ["annual budget", "budget approval", "operating budget", "capital budget", "business plan approval", "approved by the board"]
+        },
+        "audit_requirements": {
+          "type": "string",
+          "description": "Requirements for financial audits, appointment of auditors, and audit frequency",
+          "extraction_hints": ["audit", "audited financial statements", "independent auditor", "annual audit", "Big Four", "certified public accountant"]
+        },
+        "financial_reporting_obligations": {
+          "type": "array",
+          "description": "Required financial reports and their delivery schedule to JV partners",
+          "items_type": "object",
+          "properties": {
+            "report_type": {
+              "type": "string",
+              "description": "Type of financial report (e.g., monthly P&L, quarterly balance sheet, annual audited statements)",
+              "extraction_hints": ["monthly financial statements", "quarterly report", "annual report", "management accounts"]
+            },
+            "frequency": {
+              "type": "string",
+              "description": "How often the report must be delivered",
+              "extraction_hints": ["monthly", "quarterly", "annually", "within 30 days"]
+            },
+            "delivery_deadline": {
+              "type": "string",
+              "description": "Deadline for delivering the report after the reporting period ends",
+              "extraction_hints": ["within", "days after", "no later than"]
+            }
+          }
+        },
+        "tax_treatment": {
+          "type": "string",
+          "description": "Tax treatment and elections for the JV entity (pass-through, entity-level, tax partnership)",
+          "extraction_hints": ["tax treatment", "pass-through", "partnership taxation", "K-1", "taxed as", "tax elections", "tax matters partner"]
+        },
+        "transfer_pricing_provisions": {
+          "type": "string",
+          "description": "Rules for pricing transactions between the JV and its partners or their affiliates",
+          "extraction_hints": ["transfer pricing", "arm's length", "related party transactions", "affiliate transactions", "intercompany pricing", "fair market value"]
+        }
+      }
+    },
+
+    "operations": {
+      "description": "Scope of operations, business plan requirements, key personnel commitments, and non-compete restrictions",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "scope_of_operations": {
+          "type": "string",
+          "description": "Permitted and restricted business activities of the joint venture",
+          "required": true,
+          "extraction_hints": ["scope of business", "business of the JV", "engaged in", "activities of the Joint Venture", "permitted activities", "shall be limited to"]
+        },
+        "business_plan_requirement": {
+          "type": "object",
+          "description": "Requirements for developing and maintaining a JV business plan",
+          "properties": {
+            "initial_plan_required": {
+              "type": "boolean",
+              "description": "Whether an initial business plan must be adopted at formation",
+              "extraction_hints": ["initial business plan", "business plan attached", "Exhibit", "Schedule"]
+            },
+            "update_frequency": {
+              "type": "string",
+              "description": "How often the business plan must be updated",
+              "extraction_hints": ["annual business plan", "updated annually", "revised each year", "three-year plan"]
+            },
+            "approval_process": {
+              "type": "string",
+              "description": "Who must approve the business plan and any changes",
+              "extraction_hints": ["approved by the board", "unanimous approval", "consent of both partners"]
+            }
+          }
+        },
+        "key_personnel": {
+          "type": "array",
+          "description": "Key personnel that partners are required to make available or assign to the JV",
+          "items_type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "description": "Position or role of the key person",
+              "extraction_hints": ["key person", "named individual", "essential personnel"]
+            },
+            "providing_partner": {
+              "type": "string",
+              "description": "Partner responsible for providing this person"
+            },
+            "commitment_type": {
+              "type": "enum",
+              "description": "Whether the person is full-time, part-time, or advisory",
+              "enum_values": ["full_time", "part_time", "advisory", "as_needed"]
+            },
+            "replacement_provisions": {
+              "type": "string",
+              "description": "Process for replacing a key person who departs",
+              "extraction_hints": ["replacement", "substitute", "successor", "equivalent qualifications"]
+            }
+          }
+        },
+        "secondment_provisions": {
+          "type": "string",
+          "description": "Terms for partners seconding employees to the JV including costs, duration, and reporting lines",
+          "extraction_hints": ["secondment", "seconded employees", "assigned personnel", "loaned employees", "on loan from", "reporting to"]
+        },
+        "non_compete_restrictions": {
+          "type": "object",
+          "description": "Restrictions on partners competing with the JV during the term",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "description": "Activities or markets in which partners are restricted from competing",
+              "extraction_hints": ["non-compete", "shall not compete", "competitive activity", "restricted from engaging"]
+            },
+            "geographic_scope": {
+              "type": "string",
+              "description": "Geographic area covered by the non-compete",
+              "extraction_hints": ["within the territory", "geographic scope", "worldwide", "in the markets where"]
+            },
+            "exceptions": {
+              "type": "array",
+              "description": "Permitted activities or carve-outs from the non-compete",
+              "items_type": "string",
+              "extraction_hints": ["except for", "carve-out", "excluded activities", "existing business", "pre-existing operations"]
+            },
+            "duration": {
+              "type": "string",
+              "description": "Duration of the non-compete restriction",
+              "extraction_hints": ["during the term", "for the duration of", "and for a period of", "following termination"]
+            }
+          }
+        },
+        "non_solicitation_restrictions": {
+          "type": "string",
+          "description": "Restrictions on partners soliciting JV employees, customers, or suppliers",
+          "extraction_hints": ["non-solicitation", "shall not solicit", "shall not hire", "shall not recruit", "customers of the JV"]
+        },
+        "exclusivity_obligations": {
+          "type": "string",
+          "description": "Whether the JV is the exclusive vehicle for the partners in the defined business scope",
+          "extraction_hints": ["exclusive", "sole vehicle", "exclusive channel", "exclusively through the JV", "exclusive basis", "shall not engage"]
+        },
+        "reporting_to_partners": {
+          "type": "string",
+          "description": "Operational reporting obligations of JV management to the partners",
+          "extraction_hints": ["operational reports", "management reports", "reporting obligations", "keep the partners informed", "periodic updates"]
+        }
+      }
+    },
+
+    "intellectual_property": {
+      "description": "Background IP rights, foreground IP ownership, licensing arrangements, and IP treatment upon termination",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "background_ip": {
+          "type": "array",
+          "description": "Pre-existing intellectual property each partner contributes or makes available to the JV",
+          "items_type": "object",
+          "properties": {
+            "partner_name": {
+              "type": "string",
+              "description": "Name of the partner owning the background IP"
+            },
+            "ip_description": {
+              "type": "string",
+              "description": "Description of the background IP (patents, trademarks, trade secrets, software, know-how)",
+              "extraction_hints": ["background IP", "pre-existing IP", "brought IP", "owned prior to", "background intellectual property"]
+            },
+            "ownership_retained": {
+              "type": "boolean",
+              "description": "Whether the partner retains ownership of their background IP",
+              "extraction_hints": ["shall retain ownership", "remains the property of", "does not transfer"]
+            },
+            "license_to_jv": {
+              "type": "string",
+              "description": "Nature of the license granted to the JV for this background IP (exclusive, non-exclusive, royalty-free)",
+              "extraction_hints": ["license to the JV", "grants a license", "non-exclusive license", "royalty-free", "right to use"]
+            }
+          }
+        },
+        "foreground_ip_ownership": {
+          "type": "string",
+          "description": "Ownership rules for intellectual property created by or within the joint venture during its term",
+          "required": true,
+          "extraction_hints": ["foreground IP", "JV IP", "developed IP", "created during", "jointly developed", "IP generated by the JV", "owned by the JV"]
+        },
+        "improvement_ip": {
+          "type": "string",
+          "description": "Ownership and rights to improvements made to a partner's background IP during the JV",
+          "extraction_hints": ["improvements", "enhancements", "modifications to background IP", "derivative works", "improvements to"]
+        },
+        "ip_licensing_to_partners": {
+          "type": "string",
+          "description": "License rights granted back to partners for JV-developed IP during and after the venture",
+          "extraction_hints": ["license back", "grant-back", "license to partners", "right to use JV IP", "sublicense"]
+        },
+        "ip_licensing_to_third_parties": {
+          "type": "string",
+          "description": "Rules governing licensing of JV IP to third parties",
+          "extraction_hints": ["third party license", "sublicensing", "license to third parties", "commercialization rights"]
+        },
+        "ip_registration_responsibility": {
+          "type": "string",
+          "description": "Which party is responsible for filing and maintaining IP registrations (patents, trademarks)",
+          "extraction_hints": ["filing", "registration", "patent prosecution", "trademark registration", "maintain IP registrations", "responsible for filing"]
+        },
+        "ip_protection_obligations": {
+          "type": "string",
+          "description": "Obligations regarding protection of JV intellectual property including enforcement against infringement",
+          "extraction_hints": ["protect IP", "enforce IP rights", "infringement", "defend against", "IP enforcement", "protect the intellectual property"]
+        },
+        "ip_ownership_upon_termination": {
+          "type": "string",
+          "description": "How JV-developed IP is allocated or divided among partners upon dissolution or termination",
+          "required": true,
+          "extraction_hints": ["upon termination", "upon dissolution", "IP allocation", "revert to", "divided between", "IP upon winding up", "post-termination IP rights"]
+        },
+        "confidential_information": {
+          "type": "object",
+          "description": "Treatment of confidential information exchanged between partners and the JV",
+          "properties": {
+            "definition": {
+              "type": "string",
+              "description": "Definition of what constitutes confidential information",
+              "extraction_hints": ["Confidential Information means", "confidential information shall include", "proprietary information"]
+            },
+            "permitted_disclosures": {
+              "type": "array",
+              "description": "Permitted exceptions to confidentiality obligations",
+              "items_type": "string",
+              "extraction_hints": ["except", "excluding", "does not include", "permitted disclosure", "required by law"]
+            },
+            "survival_period": {
+              "type": "string",
+              "description": "How long confidentiality obligations survive after termination of the JV",
+              "extraction_hints": ["survive termination", "shall survive for", "years following", "perpetual confidentiality"]
+            }
+          }
+        }
+      }
+    },
+
+    "transfer_and_exit": {
+      "description": "Transfer restrictions on JV interests, rights of first refusal, tag-along/drag-along rights, and put/call option mechanisms",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "transfer_restrictions": {
+          "type": "string",
+          "description": "General restrictions on transferring, assigning, or encumbering JV interests",
+          "required": true,
+          "extraction_hints": ["transfer of interest", "assignment", "shall not transfer", "prohibited from selling", "consent required", "restrictions on transfer", "may not sell, assign"]
+        },
+        "permitted_transfers": {
+          "type": "array",
+          "description": "Transfers that are permitted without consent (e.g., to affiliates, subsidiaries)",
+          "items_type": "string",
+          "extraction_hints": ["permitted transfer", "affiliate transfer", "transfer to a subsidiary", "wholly-owned", "without consent"]
+        },
+        "lock_up_period_months": {
+          "type": "integer",
+          "description": "Minimum period during which partners cannot transfer their JV interests",
+          "extraction_hints": ["lock-up", "lock up period", "holding period", "may not transfer for", "restricted period", "minimum holding"]
+        },
+        "right_of_first_refusal": {
+          "type": "object",
+          "description": "Right of existing partners to purchase interests before they are offered to third parties",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a right of first refusal exists",
+              "extraction_hints": ["right of first refusal", "ROFR"]
+            },
+            "notice_period_days": {
+              "type": "integer",
+              "description": "Number of days the selling partner must give notice before selling to a third party",
+              "extraction_hints": ["days notice", "offer period", "notice of intent to sell"]
+            },
+            "exercise_period_days": {
+              "type": "integer",
+              "description": "Number of days the non-selling partner has to exercise the ROFR",
+              "extraction_hints": ["exercise period", "days to accept", "right to match", "respond within"]
+            },
+            "matching_right": {
+              "type": "boolean",
+              "description": "Whether the non-selling partner can match a third-party offer",
+              "extraction_hints": ["match the offer", "right to match", "same terms and conditions"]
+            }
+          }
+        },
+        "right_of_first_offer": {
+          "type": "string",
+          "description": "Right of a partner to make the first offer to purchase before the selling partner solicits third parties",
+          "extraction_hints": ["right of first offer", "ROFO", "first offer", "offer first to", "before soliciting third parties"]
+        },
+        "tag_along_rights": {
+          "type": "object",
+          "description": "Right of minority partners to participate in a sale by a majority partner on the same terms",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether tag-along rights are provided",
+              "extraction_hints": ["tag-along", "tag along", "co-sale right"]
+            },
+            "threshold_percentage": {
+              "type": "number",
+              "description": "Ownership threshold that triggers tag-along rights",
+              "extraction_hints": ["if a partner holding more than", "controlling interest", "majority sale"]
+            },
+            "terms": {
+              "type": "string",
+              "description": "Key terms and conditions of the tag-along right",
+              "extraction_hints": ["same terms and conditions", "pro rata", "right to participate in sale"]
+            }
+          }
+        },
+        "drag_along_rights": {
+          "type": "object",
+          "description": "Right of majority partners to compel minority partners to join in a sale of the entire JV",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether drag-along rights are provided",
+              "extraction_hints": ["drag-along", "drag along", "compel sale"]
+            },
+            "threshold_percentage": {
+              "type": "number",
+              "description": "Ownership threshold required to exercise drag-along rights",
+              "extraction_hints": ["partners holding at least", "supermajority", "75% or more"]
+            },
+            "minimum_price_protection": {
+              "type": "string",
+              "description": "Any minimum price or valuation floor protecting the dragged partner",
+              "extraction_hints": ["minimum price", "fair market value", "floor price", "not less than"]
+            }
+          }
+        },
+        "put_option": {
+          "type": "object",
+          "description": "Right of a partner to require the other partner(s) or the JV to purchase their interest",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a put option exists",
+              "extraction_hints": ["put option", "right to put", "require purchase of"]
+            },
+            "trigger_events": {
+              "type": "array",
+              "description": "Events that trigger the put option",
+              "items_type": "string",
+              "extraction_hints": ["upon occurrence of", "triggered by", "in the event of", "change of control", "material breach"]
+            },
+            "exercise_price_methodology": {
+              "type": "string",
+              "description": "How the put option exercise price is determined",
+              "extraction_hints": ["fair market value", "formula price", "book value", "appraised value", "put price"]
+            }
+          }
+        },
+        "call_option": {
+          "type": "object",
+          "description": "Right of a partner to require another partner to sell their interest",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a call option exists",
+              "extraction_hints": ["call option", "right to call", "right to acquire", "option to purchase"]
+            },
+            "trigger_events": {
+              "type": "array",
+              "description": "Events that trigger the call option",
+              "items_type": "string",
+              "extraction_hints": ["upon occurrence of", "triggered by", "in the event of", "material breach", "insolvency"]
+            },
+            "exercise_price_methodology": {
+              "type": "string",
+              "description": "How the call option exercise price is determined",
+              "extraction_hints": ["fair market value", "formula price", "book value", "discounted value", "call price"]
+            }
+          }
+        },
+        "shotgun_buy_sell": {
+          "type": "string",
+          "description": "Whether a shotgun or Russian roulette buy-sell mechanism exists for resolving deadlocks or exits",
+          "extraction_hints": ["shotgun clause", "buy-sell", "Russian roulette", "offer to buy or sell", "reciprocal buy-sell", "Texas shoot-out"]
+        }
+      }
+    },
+
+    "term_and_dissolution": {
+      "description": "Duration of the JV, events triggering dissolution, winding up procedures, and post-dissolution asset distribution",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "initial_term": {
+          "type": "string",
+          "description": "Initial duration or term of the joint venture",
+          "required": true,
+          "extraction_hints": ["initial term", "term of", "shall continue for", "period of", "years from the effective date", "duration"]
+        },
+        "renewal_provisions": {
+          "type": "string",
+          "description": "Whether and how the JV term may be extended or renewed",
+          "extraction_hints": ["renewal", "extended", "renewed for successive", "automatic renewal", "option to extend", "continuation"]
+        },
+        "termination_for_convenience": {
+          "type": "object",
+          "description": "Right of a partner to terminate the JV without cause",
+          "properties": {
+            "permitted": {
+              "type": "boolean",
+              "description": "Whether termination for convenience is allowed",
+              "extraction_hints": ["terminate for convenience", "without cause", "at any time upon notice"]
+            },
+            "notice_period_days": {
+              "type": "integer",
+              "description": "Days of advance notice required for convenience termination",
+              "extraction_hints": ["days prior written notice", "advance notice", "notice period"]
+            },
+            "minimum_term_before_exit": {
+              "type": "string",
+              "description": "Minimum period the JV must operate before a convenience termination is allowed",
+              "extraction_hints": ["not before", "after the first", "minimum term", "earliest exit date"]
+            }
+          }
+        },
+        "termination_for_cause_events": {
+          "type": "array",
+          "description": "Events or defaults that entitle a partner to terminate the JV for cause",
+          "items_type": "string",
+          "required": true,
+          "extraction_hints": ["terminate for cause", "event of default", "material breach", "insolvency", "bankruptcy", "change of control", "failure to perform"]
+        },
+        "cure_period_days": {
+          "type": "integer",
+          "description": "Number of days a defaulting partner has to cure a breach before termination may occur",
+          "extraction_hints": ["cure period", "days to cure", "right to remedy", "opportunity to cure", "within 30 days"]
+        },
+        "dissolution_triggers": {
+          "type": "array",
+          "description": "Events that automatically trigger dissolution of the JV",
+          "items_type": "string",
+          "extraction_hints": ["dissolved upon", "dissolution event", "shall dissolve", "automatic dissolution", "terminated upon", "cease to exist"]
+        },
+        "winding_up_procedures": {
+          "type": "string",
+          "description": "Process and responsibilities for winding up JV affairs after dissolution",
+          "extraction_hints": ["winding up", "wind up", "liquidation", "liquidator", "winding down", "wind-up period", "orderly dissolution"]
+        },
+        "winding_up_period": {
+          "type": "string",
+          "description": "Maximum time allowed for completing the winding up process",
+          "extraction_hints": ["winding up period", "completed within", "wind-up shall not exceed", "months to wind up"]
+        },
+        "asset_distribution_upon_dissolution": {
+          "type": "string",
+          "description": "Priority order and method for distributing JV assets to partners upon dissolution",
+          "required": true,
+          "extraction_hints": ["distribution of assets", "order of distribution", "creditors first", "return of capital", "liquidation proceeds", "remaining assets"]
+        },
+        "post_termination_non_compete": {
+          "type": "object",
+          "description": "Non-compete restrictions that apply to partners after the JV is terminated or dissolved",
+          "properties": {
+            "duration_months": {
+              "type": "integer",
+              "description": "Duration of the post-termination non-compete period in months",
+              "extraction_hints": ["months following termination", "for a period of", "non-compete period", "years after dissolution"]
+            },
+            "geographic_scope": {
+              "type": "string",
+              "description": "Geographic area covered by the post-termination non-compete",
+              "extraction_hints": ["within the territory", "geographic scope", "within the markets"]
+            },
+            "restricted_activities": {
+              "type": "string",
+              "description": "Activities from which partners are restricted after termination",
+              "extraction_hints": ["shall not engage in", "restricted activities", "competitive business", "similar business"]
+            }
+          }
+        },
+        "survival_clauses": {
+          "type": "array",
+          "description": "Provisions of the agreement that survive its termination or expiration",
+          "items_type": "string",
+          "extraction_hints": ["survive termination", "survival", "shall survive", "surviving provisions", "continue in effect"]
+        }
+      }
+    },
+
+    "dispute_resolution": {
+      "description": "Governing law, dispute resolution mechanisms including mediation, arbitration, and deadlock resolution procedures",
+      "priority": 7,
+      "max_context_chars": 12000,
+      "fields": {
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern the interpretation and enforcement of the agreement",
+          "required": true,
+          "extraction_hints": ["governed by the laws of", "governing law", "construed in accordance with", "laws of the State of"]
+        },
+        "dispute_resolution_method": {
+          "type": "enum",
+          "description": "Primary method for resolving disputes between JV partners",
+          "enum_values": ["negotiation", "mediation", "arbitration", "litigation", "tiered", "expert_determination"],
+          "required": true,
+          "extraction_hints": ["dispute resolution", "resolved by", "submit to arbitration", "court of competent jurisdiction", "mediation then arbitration"]
+        },
+        "escalation_procedure": {
+          "type": "object",
+          "description": "Internal escalation steps required before formal dispute resolution",
+          "properties": {
+            "initial_resolution_level": {
+              "type": "string",
+              "description": "First level of internal discussion (e.g., project managers, management committee)",
+              "extraction_hints": ["project managers", "management committee", "operational level", "first attempt to resolve"]
+            },
+            "senior_executive_escalation": {
+              "type": "string",
+              "description": "Escalation to senior executives or CEOs if initial resolution fails",
+              "extraction_hints": ["senior executives", "CEO", "senior management", "escalated to", "executive level"]
+            },
+            "escalation_period_days": {
+              "type": "integer",
+              "description": "Number of days for each level of internal escalation before proceeding to formal resolution",
+              "extraction_hints": ["within 30 days", "business days", "escalation period", "days to resolve"]
+            }
+          }
+        },
+        "mediation_provisions": {
+          "type": "object",
+          "description": "Requirements for mediation as a step in dispute resolution",
+          "properties": {
+            "required": {
+              "type": "boolean",
+              "description": "Whether mediation is a mandatory step before arbitration or litigation",
+              "extraction_hints": ["shall first submit to mediation", "mandatory mediation", "prior to arbitration"]
+            },
+            "mediation_body": {
+              "type": "string",
+              "description": "Institution or organization administering the mediation",
+              "extraction_hints": ["JAMS", "AAA", "CEDR", "ICC mediation", "mediation rules of"]
+            },
+            "mediation_location": {
+              "type": "string",
+              "description": "Location where mediation proceedings will take place",
+              "extraction_hints": ["mediation shall take place in", "venue for mediation", "mediation in"]
+            },
+            "mediation_period_days": {
+              "type": "integer",
+              "description": "Maximum days allowed for the mediation process",
+              "extraction_hints": ["within 60 days", "mediation period", "days of mediation"]
+            }
+          }
+        },
+        "arbitration_provisions": {
+          "type": "object",
+          "description": "Terms governing arbitration of disputes",
+          "properties": {
+            "arbitration_body": {
+              "type": "string",
+              "description": "Institution administering the arbitration",
+              "extraction_hints": ["ICC", "AAA", "LCIA", "SIAC", "JAMS", "International Chamber of Commerce", "American Arbitration Association"]
+            },
+            "arbitration_rules": {
+              "type": "string",
+              "description": "Rules governing the arbitration proceedings",
+              "extraction_hints": ["rules of", "arbitration rules", "ICC Rules", "UNCITRAL Rules", "commercial arbitration rules"]
+            },
+            "arbitration_seat": {
+              "type": "string",
+              "description": "Seat or legal place of arbitration",
+              "extraction_hints": ["seat of arbitration", "place of arbitration", "arbitration shall be held in", "venue"]
+            },
+            "language_of_arbitration": {
+              "type": "string",
+              "description": "Language in which arbitration proceedings are conducted",
+              "extraction_hints": ["language of arbitration", "proceedings in English", "conducted in"]
+            },
+            "number_of_arbitrators": {
+              "type": "integer",
+              "description": "Number of arbitrators on the arbitral panel",
+              "extraction_hints": ["single arbitrator", "three arbitrators", "panel of", "tribunal of"]
+            },
+            "arbitrator_selection_method": {
+              "type": "string",
+              "description": "How arbitrators are selected or appointed",
+              "extraction_hints": ["each party shall appoint", "mutually agreed", "appointed by the institution", "presiding arbitrator"]
+            },
+            "binding": {
+              "type": "boolean",
+              "description": "Whether the arbitration award is final and binding",
+              "extraction_hints": ["final and binding", "binding arbitration", "no right of appeal", "enforceable"]
+            }
+          }
+        },
+        "deadlock_resolution": {
+          "type": "object",
+          "description": "Mechanism for resolving deadlocks in JV governance (board or partner level)",
+          "required": true,
+          "properties": {
+            "definition_of_deadlock": {
+              "type": "string",
+              "description": "How a deadlock is defined under the agreement",
+              "extraction_hints": ["deadlock means", "deadlock shall exist", "inability to reach agreement", "if the board cannot agree"]
+            },
+            "resolution_steps": {
+              "type": "array",
+              "description": "Sequential steps for resolving a deadlock",
+              "items_type": "string",
+              "extraction_hints": ["refer to senior executives", "mediation", "expert determination", "buy-sell", "casting vote", "deadlock resolution steps"]
+            },
+            "ultimate_remedy": {
+              "type": "string",
+              "description": "Final remedy if the deadlock cannot be resolved (e.g., buy-sell, dissolution, expert determination)",
+              "extraction_hints": ["if deadlock persists", "final remedy", "buy-sell mechanism", "dissolution", "winding up", "put/call", "shotgun"]
+            },
+            "deadlock_resolution_period_days": {
+              "type": "integer",
+              "description": "Total number of days allowed for the entire deadlock resolution process",
+              "extraction_hints": ["within 90 days", "deadlock period", "resolution period", "days to resolve"]
+            }
+          }
+        },
+        "expert_determination": {
+          "type": "string",
+          "description": "Provisions for using an independent expert to resolve specific technical or valuation disputes",
+          "extraction_hints": ["expert determination", "independent expert", "expert shall determine", "binding expert opinion", "technical dispute"]
+        },
+        "interim_relief": {
+          "type": "string",
+          "description": "Rights of parties to seek interim or injunctive relief from courts notwithstanding arbitration clauses",
+          "extraction_hints": ["injunctive relief", "interim measures", "preliminary injunction", "temporary restraining order", "notwithstanding the foregoing", "seek equitable relief"]
+        }
+      }
+    }
+  }
+}

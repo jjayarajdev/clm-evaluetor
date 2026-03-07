@@ -1,0 +1,472 @@
+{
+  "schema_id": "lease_v1",
+  "contract_type": "lease",
+  "version": "1.0.0",
+  "description": "Commercial Lease / Real Estate Agreement - covers office, retail, industrial, and warehouse property leases",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 6000,
+  "required_sections": ["lease_metadata", "term_and_rent", "renewal_and_options"],
+
+  "sections": {
+    "lease_metadata": {
+      "description": "Basic lease identification, parties, and property information",
+      "priority": 10,
+      "max_context_chars": 10000,
+      "fields": {
+        "lease_title": {
+          "type": "string",
+          "description": "Official title of the lease agreement",
+          "required": true,
+          "extraction_hints": ["Lease Agreement", "Commercial Lease", "Office Lease", "Title at top of document"]
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date the lease agreement is executed or becomes effective",
+          "required": true,
+          "extraction_hints": ["effective as of", "effective date", "dated as of", "executed on"]
+        },
+        "landlord_name": {
+          "type": "string",
+          "description": "Full legal name of the landlord or property owner",
+          "required": true,
+          "extraction_hints": ["Landlord", "Lessor", "Owner", "Property Owner", "the Landlord"]
+        },
+        "tenant_name": {
+          "type": "string",
+          "description": "Full legal name of the tenant or lessee",
+          "required": true,
+          "extraction_hints": ["Tenant", "Lessee", "Renter", "the Tenant"]
+        },
+        "property_address": {
+          "type": "string",
+          "description": "Full street address of the leased property or premises",
+          "required": true,
+          "extraction_hints": ["located at", "property address", "premises", "situated at", "known as"]
+        },
+        "property_type": {
+          "type": "enum",
+          "description": "Type or classification of the leased property",
+          "enum_values": ["office", "retail", "industrial", "warehouse", "mixed_use"],
+          "extraction_hints": ["office space", "retail space", "industrial", "warehouse", "mixed-use", "commercial"]
+        },
+        "total_square_footage": {
+          "type": "string",
+          "description": "Total rentable or usable square footage of the leased premises",
+          "extraction_hints": ["square feet", "sq ft", "SF", "rentable area", "usable area", "square footage"]
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern the lease",
+          "extraction_hints": ["governed by the laws of", "governing law", "construed in accordance with", "laws of the State of"]
+        }
+      }
+    },
+
+    "term_and_rent": {
+      "description": "Lease term duration and rent structure including escalations",
+      "priority": 10,
+      "max_context_chars": 15000,
+      "fields": {
+        "commencement_date": {
+          "type": "date",
+          "description": "Date the lease term begins and tenant may occupy the premises",
+          "required": true,
+          "extraction_hints": ["commencement date", "lease commencement", "term begins", "start date", "commencing on"]
+        },
+        "expiration_date": {
+          "type": "date",
+          "description": "Date the lease term ends",
+          "required": true,
+          "extraction_hints": ["expiration date", "lease expiration", "term ends", "termination date", "ending on"]
+        },
+        "lease_term_months": {
+          "type": "integer",
+          "description": "Total length of the initial lease term in months",
+          "extraction_hints": ["lease term", "term of", "months", "years", "duration of the lease"]
+        },
+        "base_rent_monthly": {
+          "type": "string",
+          "description": "Monthly base rent amount",
+          "required": true,
+          "extraction_hints": ["base rent", "monthly rent", "rent per month", "monthly base rent", "rent shall be"]
+        },
+        "rent_currency": {
+          "type": "string",
+          "description": "Currency in which rent is denominated",
+          "extraction_hints": ["USD", "dollars", "US Dollars", "EUR", "GBP"]
+        },
+        "rent_escalation": {
+          "type": "object",
+          "description": "Rent escalation or increase mechanism over the lease term",
+          "properties": {
+            "type": {
+              "type": "enum",
+              "description": "Method by which rent is escalated",
+              "enum_values": ["fixed_percent", "CPI", "market_review"]
+            },
+            "rate": {
+              "type": "string",
+              "description": "Escalation rate or percentage per period"
+            },
+            "frequency": {
+              "type": "string",
+              "description": "How often rent escalations occur"
+            }
+          },
+          "extraction_hints": ["rent escalation", "annual increase", "rent adjustment", "CPI adjustment", "market rate", "rent increase", "percent per annum"]
+        },
+        "rent_free_period_months": {
+          "type": "integer",
+          "description": "Number of months of rent abatement or free rent at the start of the lease",
+          "extraction_hints": ["rent-free", "rent abatement", "free rent", "rent holiday", "abatement period"]
+        },
+        "security_deposit": {
+          "type": "string",
+          "description": "Security deposit amount required from the tenant",
+          "extraction_hints": ["security deposit", "deposit", "security", "refundable deposit"]
+        },
+        "security_deposit_return_conditions": {
+          "type": "string",
+          "description": "Conditions and timeline for return of the security deposit",
+          "extraction_hints": ["return of deposit", "deposit refund", "deposit return", "within days after", "less any deductions"]
+        },
+        "first_month_due_date": {
+          "type": "date",
+          "description": "Date by which the first month's rent payment is due",
+          "extraction_hints": ["first month's rent", "first payment due", "due upon signing", "due on commencement"]
+        }
+      }
+    },
+
+    "additional_costs": {
+      "description": "Operating expenses, taxes, insurance, and other costs beyond base rent",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "cam_charges": {
+          "type": "string",
+          "description": "Common Area Maintenance charges and how they are calculated or allocated",
+          "extraction_hints": ["CAM", "common area maintenance", "common area charges", "CAM charges", "operating costs"]
+        },
+        "property_taxes_responsibility": {
+          "type": "string",
+          "description": "Which party is responsible for property taxes and how they are allocated",
+          "extraction_hints": ["property taxes", "real estate taxes", "tax responsibility", "tax escalation", "pro rata share"]
+        },
+        "insurance_responsibility": {
+          "type": "string",
+          "description": "Which party is responsible for various insurance coverages on the property",
+          "extraction_hints": ["insurance responsibility", "landlord insurance", "tenant insurance", "building insurance"]
+        },
+        "utilities_responsibility": {
+          "type": "string",
+          "description": "Which party is responsible for utility costs and how they are metered or allocated",
+          "extraction_hints": ["utilities", "electricity", "water", "gas", "utility costs", "separately metered", "sub-metered"]
+        },
+        "janitorial_responsibility": {
+          "type": "string",
+          "description": "Which party is responsible for janitorial and cleaning services",
+          "extraction_hints": ["janitorial", "cleaning", "custodial", "janitorial services", "cleaning services"]
+        },
+        "repairs_and_maintenance": {
+          "type": "object",
+          "description": "Allocation of repair and maintenance responsibilities between landlord and tenant",
+          "properties": {
+            "landlord_responsibility": {
+              "type": "string",
+              "description": "Repairs and maintenance items that are the landlord's responsibility"
+            },
+            "tenant_responsibility": {
+              "type": "string",
+              "description": "Repairs and maintenance items that are the tenant's responsibility"
+            }
+          },
+          "extraction_hints": ["repairs", "maintenance", "landlord shall maintain", "tenant shall maintain", "structural repairs", "non-structural repairs"]
+        },
+        "capital_improvements_responsibility": {
+          "type": "string",
+          "description": "Which party is responsible for capital improvements and major renovations",
+          "extraction_hints": ["capital improvements", "capital expenditures", "major repairs", "structural improvements", "capital costs"]
+        },
+        "operating_expense_cap_percent": {
+          "type": "number",
+          "description": "Maximum annual percentage increase cap on operating expenses charged to tenant",
+          "extraction_hints": ["expense cap", "cap on operating expenses", "controllable expenses", "annual cap", "shall not increase by more than"]
+        }
+      }
+    },
+
+    "use_and_restrictions": {
+      "description": "Permitted uses, exclusivity rights, and restrictions on the leased premises",
+      "priority": 8,
+      "max_context_chars": 10000,
+      "fields": {
+        "permitted_use": {
+          "type": "string",
+          "description": "Permitted use or purpose for the leased premises",
+          "required": true,
+          "extraction_hints": ["permitted use", "premises shall be used", "solely for the purpose of", "use of premises", "general office"]
+        },
+        "exclusive_use_rights": {
+          "type": "string",
+          "description": "Exclusive use rights granted to the tenant within the property or development",
+          "extraction_hints": ["exclusive use", "exclusive right", "shall not lease to", "exclusivity"]
+        },
+        "prohibited_uses": {
+          "type": "array",
+          "description": "Uses that are expressly prohibited on the leased premises",
+          "items_type": "string",
+          "extraction_hints": ["prohibited use", "shall not use", "not permitted", "prohibited activities", "restricted uses"]
+        },
+        "signage_rights": {
+          "type": "string",
+          "description": "Tenant's rights to install signage on or near the premises",
+          "extraction_hints": ["signage", "signs", "tenant signage", "building signage", "monument sign", "directory listing"]
+        },
+        "parking_spaces_allocated": {
+          "type": "string",
+          "description": "Number of parking spaces allocated to the tenant and any associated costs",
+          "extraction_hints": ["parking", "parking spaces", "parking stalls", "reserved parking", "unreserved parking"]
+        },
+        "storage_space_included": {
+          "type": "string",
+          "description": "Whether additional storage space is included and its location or size",
+          "extraction_hints": ["storage", "storage space", "storage area", "additional storage"]
+        },
+        "hours_of_operation": {
+          "type": "string",
+          "description": "Building hours of operation and after-hours access policies",
+          "extraction_hints": ["hours of operation", "building hours", "business hours", "after-hours access", "24-hour access"]
+        },
+        "noise_restrictions": {
+          "type": "string",
+          "description": "Restrictions on noise levels or noisy activities on the premises",
+          "extraction_hints": ["noise", "noise restrictions", "quiet enjoyment", "sound levels", "noise ordinance"]
+        },
+        "hazardous_materials_prohibited": {
+          "type": "string",
+          "description": "Restrictions on hazardous, toxic, or dangerous materials on the premises",
+          "extraction_hints": ["hazardous materials", "hazardous substances", "toxic materials", "environmental", "Hazmat"]
+        }
+      }
+    },
+
+    "alterations_and_improvements": {
+      "description": "Tenant improvement allowances, alteration rights, and restoration obligations",
+      "priority": 7,
+      "max_context_chars": 10000,
+      "fields": {
+        "tenant_improvement_allowance": {
+          "type": "string",
+          "description": "Dollar amount or per-square-foot allowance provided by landlord for tenant build-out",
+          "extraction_hints": ["tenant improvement allowance", "TI allowance", "build-out allowance", "improvement allowance", "TIA", "per square foot allowance"]
+        },
+        "approval_required_for_alterations": {
+          "type": "string",
+          "description": "Whether landlord approval is required for tenant alterations and the approval process",
+          "extraction_hints": ["prior written consent", "landlord approval", "consent to alterations", "approval required", "not unreasonably withhold"]
+        },
+        "restoration_required_on_exit": {
+          "type": "string",
+          "description": "Whether the tenant must restore the premises to original condition upon lease expiration",
+          "extraction_hints": ["restoration", "restore to original", "surrender condition", "removal of alterations", "return premises"]
+        },
+        "ownership_of_improvements": {
+          "type": "string",
+          "description": "Who owns tenant improvements and fixtures upon installation or lease expiration",
+          "extraction_hints": ["ownership of improvements", "fixtures", "improvements shall become", "property of landlord", "trade fixtures"]
+        },
+        "construction_standards": {
+          "type": "string",
+          "description": "Required construction standards, permits, and compliance requirements for alterations",
+          "extraction_hints": ["construction standards", "building codes", "permits required", "ADA compliant", "building standards"]
+        }
+      }
+    },
+
+    "renewal_and_options": {
+      "description": "Renewal rights, expansion/contraction options, and assignment/sublease provisions",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "renewal_option_exists": {
+          "type": "boolean",
+          "description": "Whether the tenant has an option to renew the lease",
+          "required": true,
+          "extraction_hints": ["option to renew", "renewal option", "right to renew", "extend the term"]
+        },
+        "renewal_notice_period_days": {
+          "type": "integer",
+          "description": "Number of days before expiration that tenant must provide renewal notice",
+          "extraction_hints": ["renewal notice", "days prior to expiration", "notice to renew", "written notice"]
+        },
+        "renewal_term_months": {
+          "type": "integer",
+          "description": "Duration of each renewal term in months",
+          "extraction_hints": ["renewal term", "renewal period", "additional term", "extended term"]
+        },
+        "renewal_rent_terms": {
+          "type": "string",
+          "description": "How rent is determined during the renewal period",
+          "extraction_hints": ["renewal rent", "fair market value", "market rate", "rent during renewal", "renewal rate"]
+        },
+        "right_of_first_refusal": {
+          "type": "string",
+          "description": "Tenant's right of first refusal for additional or adjacent space",
+          "extraction_hints": ["right of first refusal", "ROFR", "first right", "first refusal", "adjacent space"]
+        },
+        "expansion_option": {
+          "type": "string",
+          "description": "Tenant's option to expand into additional space within the property",
+          "extraction_hints": ["expansion option", "right to expand", "expansion space", "additional space", "expand the premises"]
+        },
+        "contraction_option": {
+          "type": "string",
+          "description": "Tenant's option to reduce the size of the leased premises",
+          "extraction_hints": ["contraction option", "right to contract", "reduce the premises", "give back space", "downsizing option"]
+        },
+        "purchase_option": {
+          "type": "string",
+          "description": "Tenant's option to purchase the leased property",
+          "extraction_hints": ["purchase option", "option to purchase", "right to buy", "option to buy", "purchase right"]
+        },
+        "sublease_allowed": {
+          "type": "string",
+          "description": "Whether the tenant is permitted to sublease all or part of the premises",
+          "extraction_hints": ["sublease", "sublet", "subletting", "sub-lease", "sublease rights"]
+        },
+        "assignment_allowed": {
+          "type": "string",
+          "description": "Whether the tenant is permitted to assign the lease to another party",
+          "extraction_hints": ["assignment", "assign the lease", "transfer of lease", "assignable"]
+        },
+        "landlord_consent_required": {
+          "type": "string",
+          "description": "Whether landlord consent is required for sublease or assignment and the standard applied",
+          "extraction_hints": ["landlord consent", "prior consent", "not unreasonably withheld", "consent required", "written consent"]
+        }
+      }
+    },
+
+    "insurance_and_liability": {
+      "description": "Insurance requirements, indemnification, and liability provisions",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "tenant_insurance_required": {
+          "type": "object",
+          "description": "Types and minimum amounts of insurance the tenant must maintain",
+          "properties": {
+            "general_liability": {
+              "type": "string",
+              "description": "Required commercial general liability insurance coverage minimum"
+            },
+            "property_insurance": {
+              "type": "string",
+              "description": "Required property or contents insurance coverage minimum"
+            },
+            "workers_compensation": {
+              "type": "string",
+              "description": "Required workers compensation insurance coverage"
+            },
+            "umbrella_liability": {
+              "type": "string",
+              "description": "Required umbrella or excess liability insurance coverage"
+            },
+            "business_interruption": {
+              "type": "string",
+              "description": "Required business interruption insurance coverage"
+            }
+          },
+          "extraction_hints": ["tenant shall maintain", "insurance requirements", "minimum coverage", "certificate of insurance", "additional insured"]
+        },
+        "landlord_insurance": {
+          "type": "string",
+          "description": "Insurance coverages maintained by the landlord on the building or property",
+          "extraction_hints": ["landlord insurance", "building insurance", "landlord shall maintain", "property insurance"]
+        },
+        "indemnification": {
+          "type": "string",
+          "description": "Indemnification obligations between landlord and tenant",
+          "extraction_hints": ["indemnify", "indemnification", "hold harmless", "defend and indemnify", "indemnity"]
+        },
+        "waiver_of_subrogation": {
+          "type": "string",
+          "description": "Whether the parties waive subrogation rights against each other",
+          "extraction_hints": ["waiver of subrogation", "subrogation", "waive any right of recovery", "release from liability"]
+        },
+        "environmental_liability": {
+          "type": "string",
+          "description": "Allocation of liability for environmental contamination or remediation",
+          "extraction_hints": ["environmental liability", "environmental contamination", "remediation", "environmental condition", "pre-existing contamination"]
+        },
+        "ADA_compliance_responsibility": {
+          "type": "string",
+          "description": "Which party is responsible for Americans with Disabilities Act compliance",
+          "extraction_hints": ["ADA", "Americans with Disabilities Act", "accessibility", "ADA compliance", "disability access"]
+        }
+      }
+    },
+
+    "default_and_remedies": {
+      "description": "Default events, cure periods, remedies, and force majeure provisions",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "tenant_default_events": {
+          "type": "array",
+          "description": "Events that constitute a default by the tenant",
+          "items_type": "string",
+          "required": true,
+          "extraction_hints": ["event of default", "tenant default", "default shall occur", "failure to pay", "breach of covenant"]
+        },
+        "cure_period_days": {
+          "type": "integer",
+          "description": "Number of days the defaulting party has to cure a default before remedies apply",
+          "extraction_hints": ["cure period", "days to cure", "right to cure", "grace period", "notice and cure"]
+        },
+        "landlord_remedies": {
+          "type": "object",
+          "description": "Remedies available to the landlord upon tenant default",
+          "properties": {
+            "eviction": {
+              "type": "string",
+              "description": "Landlord's right to terminate the lease and evict the tenant"
+            },
+            "acceleration": {
+              "type": "string",
+              "description": "Landlord's right to accelerate remaining rent obligations"
+            },
+            "damages": {
+              "type": "string",
+              "description": "Landlord's right to recover damages from the tenant"
+            }
+          },
+          "extraction_hints": ["landlord remedies", "landlord may", "terminate the lease", "re-enter", "accelerate", "recover damages", "eviction"]
+        },
+        "landlord_default_events": {
+          "type": "array",
+          "description": "Events that constitute a default by the landlord",
+          "items_type": "string",
+          "extraction_hints": ["landlord default", "landlord failure", "landlord breach", "failure to provide"]
+        },
+        "tenant_remedies": {
+          "type": "string",
+          "description": "Remedies available to the tenant upon landlord default",
+          "extraction_hints": ["tenant remedies", "tenant may", "rent abatement", "self-help", "offset rent", "terminate the lease"]
+        },
+        "force_majeure": {
+          "type": "string",
+          "description": "Force majeure clause covering events beyond the control of either party",
+          "extraction_hints": ["force majeure", "act of God", "beyond the control", "unavoidable delay", "excused performance"]
+        },
+        "holdover_rent_percentage": {
+          "type": "string",
+          "description": "Percentage of base rent charged if tenant holds over beyond the lease term",
+          "extraction_hints": ["holdover", "holdover rent", "holdover tenant", "percent of rent", "150%", "200%", "month-to-month"]
+        }
+      }
+    }
+  }
+}

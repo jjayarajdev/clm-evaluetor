@@ -1,0 +1,535 @@
+{
+  "schema_id": "supply_v1",
+  "contract_type": "supply",
+  "version": "1.0.0",
+  "description": "Supply / Distribution Agreement - governs the purchase, delivery, and quality of goods between supplier and buyer",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 5000,
+  "required_sections": ["supply_metadata", "products", "pricing", "ordering_and_delivery"],
+
+  "sections": {
+    "supply_metadata": {
+      "description": "Basic agreement identification and party information",
+      "priority": 10,
+      "max_context_chars": 10000,
+      "fields": {
+        "agreement_title": {
+          "type": "string",
+          "description": "Official title of the supply or distribution agreement",
+          "required": true,
+          "extraction_hints": ["Agreement", "Supply Agreement", "Distribution Agreement", "Title at top of document"]
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date the agreement becomes effective",
+          "required": true,
+          "extraction_hints": ["effective as of", "effective date", "commencing on", "entered into as of"]
+        },
+        "expiration_date": {
+          "type": "date",
+          "description": "Date the agreement expires or ends",
+          "extraction_hints": ["expires on", "expiration date", "termination date", "shall remain in effect until"]
+        },
+        "supplier_name": {
+          "type": "string",
+          "description": "Full legal name of the supplier or manufacturer",
+          "required": true,
+          "extraction_hints": ["Supplier", "Manufacturer", "Seller", "Vendor", "hereinafter referred to as"]
+        },
+        "buyer_name": {
+          "type": "string",
+          "description": "Full legal name of the buyer or distributor",
+          "required": true,
+          "extraction_hints": ["Buyer", "Purchaser", "Distributor", "Customer", "hereinafter referred to as"]
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern the agreement",
+          "extraction_hints": ["governed by the laws of", "governing law", "construed in accordance with"]
+        },
+        "jurisdiction": {
+          "type": "string",
+          "description": "Courts or venue for disputes arising under the agreement",
+          "extraction_hints": ["exclusive jurisdiction", "venue shall be", "submit to the jurisdiction of"]
+        },
+        "territory": {
+          "type": "string",
+          "description": "Geographic territory covered by the supply or distribution arrangement",
+          "extraction_hints": ["territory", "geographic scope", "within the territory of", "applicable region"]
+        },
+        "exclusivity": {
+          "type": "enum",
+          "description": "Whether the supply or distribution arrangement is exclusive",
+          "enum_values": ["exclusive", "non_exclusive"],
+          "extraction_hints": ["exclusive", "non-exclusive", "sole supplier", "exclusive distributor", "right to appoint other"]
+        }
+      }
+    },
+
+    "products": {
+      "description": "Products covered, specifications, and product lifecycle provisions",
+      "priority": 10,
+      "max_context_chars": 15000,
+      "fields": {
+        "products_covered": {
+          "type": "array",
+          "description": "List of products subject to the agreement",
+          "required": true,
+          "items_type": "object",
+          "properties": {
+            "product_name": {
+              "type": "string",
+              "description": "Name of the product",
+              "required": true,
+              "extraction_hints": ["product", "item", "goods", "product name"]
+            },
+            "sku": {
+              "type": "string",
+              "description": "Stock keeping unit or part number",
+              "extraction_hints": ["SKU", "part number", "item number", "product code"]
+            },
+            "description": {
+              "type": "string",
+              "description": "Description of the product",
+              "extraction_hints": ["product description", "specification", "details"]
+            },
+            "specifications_reference": {
+              "type": "string",
+              "description": "Reference to detailed product specifications document or exhibit",
+              "extraction_hints": ["specifications", "Exhibit", "Schedule", "Appendix", "as described in"]
+            },
+            "minimum_order_quantity": {
+              "type": "integer",
+              "description": "Minimum quantity per order for this product",
+              "extraction_hints": ["minimum order", "MOQ", "minimum quantity", "minimum purchase"]
+            },
+            "lead_time_days": {
+              "type": "integer",
+              "description": "Standard lead time in days from order to delivery",
+              "extraction_hints": ["lead time", "delivery within", "days after receipt of order", "turnaround time"]
+            }
+          }
+        },
+        "product_modifications_process": {
+          "type": "string",
+          "description": "Process for modifying product specifications or design",
+          "extraction_hints": ["product modification", "change in specifications", "engineering change", "design modification", "prior written consent"]
+        },
+        "new_product_inclusion_process": {
+          "type": "string",
+          "description": "Process for adding new products to the agreement",
+          "extraction_hints": ["new products", "additional products", "product addition", "amendment to include", "added by mutual agreement"]
+        },
+        "product_discontinuation_notice_days": {
+          "type": "integer",
+          "description": "Days of advance notice required before discontinuing a product",
+          "extraction_hints": ["discontinuation notice", "end of life", "product discontinuation", "days notice before discontinuing", "last time buy"]
+        }
+      }
+    },
+
+    "pricing": {
+      "description": "Pricing structure, adjustments, discounts, and rebates",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "price_list_reference": {
+          "type": "string",
+          "description": "Reference to the applicable price list, exhibit, or schedule",
+          "extraction_hints": ["price list", "Exhibit", "Schedule", "pricing schedule", "as set forth in"]
+        },
+        "pricing_model": {
+          "type": "enum",
+          "description": "Method used to determine product pricing",
+          "enum_values": ["fixed", "cost_plus", "market_based", "index_linked", "volume_tiered"],
+          "extraction_hints": ["fixed price", "cost plus", "market price", "index-linked", "tiered pricing", "volume-based"]
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency in which prices are quoted and payments are made",
+          "extraction_hints": ["USD", "EUR", "GBP", "currency", "denominated in", "payable in"]
+        },
+        "price_adjustment_frequency": {
+          "type": "string",
+          "description": "How often prices may be adjusted or reviewed",
+          "extraction_hints": ["price adjustment", "annual review", "price review", "adjusted annually", "revised quarterly"]
+        },
+        "price_adjustment_mechanism": {
+          "type": "string",
+          "description": "Mechanism or formula for adjusting prices over time",
+          "extraction_hints": ["CPI", "cost index", "price escalation", "inflation adjustment", "raw material cost changes", "price increase shall not exceed"]
+        },
+        "price_protection_period_months": {
+          "type": "integer",
+          "description": "Period in months during which prices are fixed and cannot be changed",
+          "extraction_hints": ["price protection", "prices shall remain fixed", "price freeze", "no price increase for", "months from effective date"]
+        },
+        "most_favored_customer_clause": {
+          "type": "string",
+          "description": "Clause ensuring the buyer receives the most favorable pricing available",
+          "extraction_hints": ["most favored customer", "MFC", "most favored nation", "best price", "no less favorable"]
+        },
+        "volume_discounts": {
+          "type": "array",
+          "description": "Discount tiers based on purchase volume",
+          "items_type": "object",
+          "properties": {
+            "tier": {
+              "type": "string",
+              "description": "Volume tier or threshold description",
+              "extraction_hints": ["tier", "volume level", "units", "above", "between"]
+            },
+            "discount_percent": {
+              "type": "number",
+              "description": "Discount percentage applicable to the tier",
+              "extraction_hints": ["% discount", "percent off", "reduction of"]
+            }
+          }
+        },
+        "rebate_structure": {
+          "type": "string",
+          "description": "Structure and terms of any volume rebates or retrospective discounts",
+          "extraction_hints": ["rebate", "retrospective discount", "year-end rebate", "volume rebate", "earned upon achieving"]
+        }
+      }
+    },
+
+    "ordering_and_delivery": {
+      "description": "Order process, forecasting, delivery terms, and logistics",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "ordering_process": {
+          "type": "string",
+          "description": "Process for placing purchase orders",
+          "extraction_hints": ["purchase order", "ordering process", "order placement", "submit orders", "PO"]
+        },
+        "forecast_requirements": {
+          "type": "object",
+          "description": "Requirements for providing demand forecasts to the supplier",
+          "properties": {
+            "frequency": {
+              "type": "string",
+              "description": "How often forecasts must be provided",
+              "extraction_hints": ["monthly forecast", "quarterly forecast", "rolling forecast", "forecast frequency"]
+            },
+            "binding_period": {
+              "type": "string",
+              "description": "Period for which forecasts become binding commitments",
+              "extraction_hints": ["binding forecast", "firm period", "committed period", "binding window"]
+            }
+          }
+        },
+        "minimum_annual_purchase_commitment": {
+          "type": "string",
+          "description": "Minimum annual purchase volume or value the buyer commits to",
+          "extraction_hints": ["minimum annual purchase", "annual commitment", "minimum volume", "guaranteed minimum", "take-or-pay"]
+        },
+        "maximum_order_quantity": {
+          "type": "string",
+          "description": "Maximum quantity that can be ordered in a single order or period",
+          "extraction_hints": ["maximum order", "order cap", "maximum quantity", "not to exceed"]
+        },
+        "delivery_terms_incoterms": {
+          "type": "string",
+          "description": "Applicable Incoterms or delivery terms",
+          "extraction_hints": ["Incoterms", "FOB", "CIF", "DDP", "EXW", "DAP", "delivery terms"]
+        },
+        "delivery_schedule": {
+          "type": "string",
+          "description": "Agreed delivery schedule or lead time commitments",
+          "extraction_hints": ["delivery schedule", "ship within", "delivery date", "lead time", "delivery window"]
+        },
+        "partial_shipment_allowed": {
+          "type": "boolean",
+          "description": "Whether partial shipments are permitted",
+          "extraction_hints": ["partial shipment", "partial delivery", "split shipment", "ship in installments"]
+        },
+        "packaging_requirements": {
+          "type": "string",
+          "description": "Requirements for how products must be packaged",
+          "extraction_hints": ["packaging", "packing requirements", "packaging standards", "packaged in accordance with"]
+        },
+        "labeling_requirements": {
+          "type": "string",
+          "description": "Requirements for product labeling and marking",
+          "extraction_hints": ["labeling", "marking", "label requirements", "product labels", "bar code"]
+        },
+        "transportation_responsibility": {
+          "type": "string",
+          "description": "Which party is responsible for arranging and paying for transportation",
+          "extraction_hints": ["transportation", "freight", "shipping costs", "carrier", "freight charges"]
+        },
+        "risk_of_loss_transfer_point": {
+          "type": "string",
+          "description": "Point at which risk of loss or damage transfers from supplier to buyer",
+          "extraction_hints": ["risk of loss", "title passes", "risk transfers", "title and risk", "upon delivery"]
+        }
+      }
+    },
+
+    "quality_and_compliance": {
+      "description": "Quality standards, inspection, testing, and regulatory compliance",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "quality_standards": {
+          "type": "string",
+          "description": "Quality management standards the supplier must maintain",
+          "extraction_hints": ["ISO 9001", "GMP", "quality standards", "quality management system", "quality assurance"]
+        },
+        "inspection_rights": {
+          "type": "string",
+          "description": "Buyer's right to inspect products or supplier facilities",
+          "extraction_hints": ["inspection", "right to inspect", "audit rights", "facility inspection", "quality audit"]
+        },
+        "testing_requirements": {
+          "type": "string",
+          "description": "Testing that must be performed on products before or after delivery",
+          "extraction_hints": ["testing", "quality testing", "acceptance testing", "product testing", "test results"]
+        },
+        "acceptance_period_days": {
+          "type": "integer",
+          "description": "Number of days the buyer has to accept or reject delivered products",
+          "extraction_hints": ["acceptance period", "inspection period", "days to accept", "days to reject", "deemed accepted"]
+        },
+        "rejection_process": {
+          "type": "string",
+          "description": "Process for rejecting non-conforming products",
+          "extraction_hints": ["rejection", "non-conforming", "reject notice", "return of goods", "RMA"]
+        },
+        "defect_rate_threshold": {
+          "type": "string",
+          "description": "Maximum acceptable defect rate for delivered products",
+          "extraction_hints": ["defect rate", "AQL", "acceptable quality level", "defect threshold", "parts per million"]
+        },
+        "corrective_action_process": {
+          "type": "string",
+          "description": "Process for supplier corrective actions when quality issues arise",
+          "extraction_hints": ["corrective action", "CAPA", "root cause analysis", "corrective and preventive", "remedial action"]
+        },
+        "recall_obligations": {
+          "type": "string",
+          "description": "Obligations and responsibilities in the event of a product recall",
+          "extraction_hints": ["recall", "product recall", "voluntary recall", "mandatory recall", "recall costs"]
+        },
+        "traceability_requirements": {
+          "type": "string",
+          "description": "Requirements for product traceability through the supply chain",
+          "extraction_hints": ["traceability", "lot tracking", "batch number", "serial number", "track and trace"]
+        },
+        "regulatory_compliance": {
+          "type": "array",
+          "description": "Regulatory frameworks and standards the products must comply with",
+          "items_type": "string",
+          "extraction_hints": ["regulatory", "FDA", "CE marking", "REACH", "RoHS", "UL", "comply with applicable laws"]
+        },
+        "certificates_of_analysis_required": {
+          "type": "boolean",
+          "description": "Whether certificates of analysis or conformance must accompany shipments",
+          "extraction_hints": ["certificate of analysis", "COA", "certificate of conformance", "COC", "test certificate"]
+        }
+      }
+    },
+
+    "inventory_and_planning": {
+      "description": "Inventory management, safety stock, and demand planning provisions",
+      "priority": 7,
+      "max_context_chars": 10000,
+      "fields": {
+        "safety_stock_requirements": {
+          "type": "string",
+          "description": "Requirements for maintaining safety stock levels",
+          "extraction_hints": ["safety stock", "buffer stock", "minimum inventory", "stock levels", "maintain inventory of"]
+        },
+        "consignment_arrangement": {
+          "type": "string",
+          "description": "Whether products are held on consignment and the applicable terms",
+          "extraction_hints": ["consignment", "consigned inventory", "consignment stock", "title retained", "paid upon consumption"]
+        },
+        "vendor_managed_inventory": {
+          "type": "string",
+          "description": "Whether the supplier manages inventory levels at the buyer's location",
+          "extraction_hints": ["VMI", "vendor managed inventory", "supplier managed inventory", "replenishment", "inventory management"]
+        },
+        "buffer_stock_days": {
+          "type": "integer",
+          "description": "Number of days of buffer stock the supplier must maintain",
+          "extraction_hints": ["buffer stock", "days of supply", "weeks of supply", "inventory buffer", "stock cover"]
+        },
+        "demand_planning_process": {
+          "type": "string",
+          "description": "Collaborative demand planning process between supplier and buyer",
+          "extraction_hints": ["demand planning", "S&OP", "sales and operations planning", "collaborative planning", "demand review"]
+        },
+        "capacity_reservation": {
+          "type": "string",
+          "description": "Whether the supplier reserves manufacturing capacity for the buyer",
+          "extraction_hints": ["capacity reservation", "reserved capacity", "dedicated capacity", "production capacity", "capacity commitment"]
+        },
+        "raw_material_sourcing_restrictions": {
+          "type": "string",
+          "description": "Restrictions or requirements on sourcing of raw materials",
+          "extraction_hints": ["raw material", "approved suppliers", "sourcing restrictions", "conflict minerals", "material sourcing"]
+        }
+      }
+    },
+
+    "warranties": {
+      "description": "Product warranties, remedies, and warranty claim process",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "product_warranty_months": {
+          "type": "integer",
+          "description": "Duration of the product warranty in months",
+          "extraction_hints": ["warranty period", "months from delivery", "months from acceptance", "warranted for", "warranty duration"]
+        },
+        "warranty_scope": {
+          "type": "string",
+          "description": "Scope of what the warranty covers",
+          "extraction_hints": ["warrants that", "free from defects", "conform to specifications", "merchantability", "fit for purpose"]
+        },
+        "warranty_exclusions": {
+          "type": "string",
+          "description": "Exclusions or limitations to the warranty coverage",
+          "extraction_hints": ["warranty shall not apply", "excluded from warranty", "misuse", "unauthorized modification", "normal wear and tear"]
+        },
+        "defect_remedy": {
+          "type": "enum",
+          "description": "Primary remedy available for defective products",
+          "enum_values": ["repair", "replace", "refund", "credit"],
+          "extraction_hints": ["repair or replace", "refund", "credit", "remedy", "at Supplier's option"]
+        },
+        "warranty_claim_process": {
+          "type": "string",
+          "description": "Process for submitting and handling warranty claims",
+          "extraction_hints": ["warranty claim", "claim process", "notify Supplier", "return material", "RMA process"]
+        },
+        "shelf_life_guarantee": {
+          "type": "string",
+          "description": "Minimum remaining shelf life guaranteed at time of delivery",
+          "extraction_hints": ["shelf life", "remaining shelf life", "expiration date", "best before", "minimum shelf life at delivery"]
+        },
+        "fitness_for_purpose_warranty": {
+          "type": "string",
+          "description": "Warranty that products are fit for the buyer's intended purpose",
+          "extraction_hints": ["fit for purpose", "fitness for a particular purpose", "suitable for intended use", "fit for the purpose"]
+        }
+      }
+    },
+
+    "liability_and_insurance": {
+      "description": "Product liability, indemnification, insurance, and force majeure",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "product_liability": {
+          "type": "string",
+          "description": "Allocation of product liability between supplier and buyer",
+          "extraction_hints": ["product liability", "liable for injury", "liable for damage", "strict liability", "product defect claims"]
+        },
+        "indemnification_for_defects": {
+          "type": "string",
+          "description": "Supplier's obligation to indemnify the buyer for claims arising from defective products",
+          "extraction_hints": ["indemnify", "hold harmless", "defend and indemnify", "claims arising from defects", "product defect indemnification"]
+        },
+        "indemnification_for_ip_infringement": {
+          "type": "string",
+          "description": "Supplier's obligation to indemnify the buyer for intellectual property infringement claims",
+          "extraction_hints": ["IP indemnification", "patent infringement", "intellectual property claims", "infringement indemnity", "defend against IP claims"]
+        },
+        "recall_cost_responsibility": {
+          "type": "string",
+          "description": "Which party bears the costs of a product recall",
+          "extraction_hints": ["recall costs", "cost of recall", "recall expenses", "recall responsibility", "bear all costs associated with recall"]
+        },
+        "limitation_of_liability": {
+          "type": "string",
+          "description": "Caps or limitations on liability between the parties",
+          "extraction_hints": ["limitation of liability", "aggregate liability", "shall not exceed", "consequential damages", "indirect damages"]
+        },
+        "insurance_requirements": {
+          "type": "object",
+          "description": "Insurance coverage each party must maintain",
+          "properties": {
+            "product_liability_amount": {
+              "type": "string",
+              "description": "Minimum product liability insurance coverage amount",
+              "extraction_hints": ["product liability insurance", "products liability", "per occurrence", "in the aggregate"]
+            },
+            "general_liability_amount": {
+              "type": "string",
+              "description": "Minimum commercial general liability insurance coverage amount",
+              "extraction_hints": ["general liability insurance", "CGL", "commercial general liability", "per occurrence"]
+            }
+          }
+        },
+        "force_majeure": {
+          "type": "string",
+          "description": "Force majeure provisions including qualifying events and obligations during force majeure",
+          "extraction_hints": ["force majeure", "act of God", "beyond reasonable control", "epidemic", "pandemic", "natural disaster", "excused from performance"]
+        }
+      }
+    },
+
+    "term_and_termination": {
+      "description": "Agreement duration, renewal, termination rights, and transition",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "initial_term_months": {
+          "type": "integer",
+          "description": "Duration of the initial agreement term in months",
+          "extraction_hints": ["initial term", "term of", "period of", "months from the effective date", "years from"]
+        },
+        "auto_renewal": {
+          "type": "boolean",
+          "description": "Whether the agreement automatically renews at the end of the term",
+          "extraction_hints": ["auto-renew", "automatically renew", "successive periods", "unless either party provides notice"]
+        },
+        "renewal_term": {
+          "type": "string",
+          "description": "Duration of each renewal term",
+          "extraction_hints": ["renewal term", "additional period", "successive terms of", "renewed for"]
+        },
+        "termination_for_convenience_notice_days": {
+          "type": "integer",
+          "description": "Days of notice required to terminate without cause",
+          "extraction_hints": ["termination for convenience", "without cause", "days prior written notice", "terminate upon notice"]
+        },
+        "termination_for_cause_grounds": {
+          "type": "string",
+          "description": "Grounds that constitute cause for termination",
+          "extraction_hints": ["termination for cause", "material breach", "insolvency", "bankruptcy", "failure to cure"]
+        },
+        "minimum_purchase_shortfall_as_cause": {
+          "type": "string",
+          "description": "Whether failure to meet minimum purchase commitments constitutes cause for termination",
+          "extraction_hints": ["failure to meet minimum", "purchase shortfall", "minimum commitment", "shortfall in purchases", "below minimum"]
+        },
+        "effects_of_termination": {
+          "type": "string",
+          "description": "Consequences and obligations that apply upon termination",
+          "extraction_hints": ["upon termination", "effects of termination", "following termination", "obligations survive", "accrued rights"]
+        },
+        "last_time_buy_rights": {
+          "type": "string",
+          "description": "Buyer's right to place a final order before termination takes effect",
+          "extraction_hints": ["last time buy", "final order", "last order", "end-of-life purchase", "final purchase opportunity"]
+        },
+        "transition_period_days": {
+          "type": "integer",
+          "description": "Number of days for transition to an alternative supplier after termination",
+          "extraction_hints": ["transition period", "transition assistance", "wind-down period", "transition support", "days following termination"]
+        },
+        "inventory_buyback_obligation": {
+          "type": "string",
+          "description": "Whether the supplier must buy back unsold inventory upon termination",
+          "extraction_hints": ["inventory buyback", "repurchase inventory", "buy back", "unsold inventory", "return of inventory"]
+        }
+      }
+    }
+  }
+}

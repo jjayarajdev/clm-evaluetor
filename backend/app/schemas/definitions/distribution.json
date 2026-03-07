@@ -1,0 +1,692 @@
+{
+  "schema_id": "distribution_agreement_v1",
+  "contract_type": "distribution",
+  "version": "1.0.0",
+  "description": "Distribution Agreement - governs the appointment, rights, and obligations of a distributor to market, promote, and sell a supplier's products within a defined territory",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 8000,
+  "required_sections": ["parties_and_appointment", "territory_and_exclusivity", "products_and_pricing", "ordering_and_fulfillment"],
+
+  "sections": {
+    "parties_and_appointment": {
+      "description": "Supplier and distributor identification, appointment scope, and authorized sales channels",
+      "priority": 10,
+      "max_context_chars": 12000,
+      "fields": {
+        "agreement_title": {
+          "type": "string",
+          "description": "Official title of the distribution agreement",
+          "required": true,
+          "extraction_hints": ["Distribution Agreement", "Distributorship Agreement", "Authorized Distributor Agreement", "Title at top of document"]
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date the distribution agreement becomes effective",
+          "required": true,
+          "extraction_hints": ["effective as of", "effective date", "commencing on", "entered into as of", "dated"]
+        },
+        "supplier_name": {
+          "type": "string",
+          "description": "Full legal name of the supplier, manufacturer, or principal appointing the distributor",
+          "required": true,
+          "extraction_hints": ["Supplier", "Manufacturer", "Principal", "Company", "Vendor", "hereinafter referred to as"]
+        },
+        "supplier_address": {
+          "type": "string",
+          "description": "Registered or principal business address of the supplier",
+          "extraction_hints": ["principal place of business", "having its offices at", "located at", "registered address", "with offices at"]
+        },
+        "supplier_jurisdiction_of_incorporation": {
+          "type": "string",
+          "description": "State or country where the supplier entity is incorporated or organized",
+          "extraction_hints": ["incorporated under the laws of", "organized under", "a corporation organized in", "formed in"]
+        },
+        "distributor_name": {
+          "type": "string",
+          "description": "Full legal name of the appointed distributor",
+          "required": true,
+          "extraction_hints": ["Distributor", "Authorized Distributor", "Reseller", "Dealer", "hereinafter referred to as"]
+        },
+        "distributor_address": {
+          "type": "string",
+          "description": "Registered or principal business address of the distributor",
+          "extraction_hints": ["principal place of business", "having its offices at", "located at", "registered address"]
+        },
+        "appointment_type": {
+          "type": "enum",
+          "description": "Nature of the distributor's appointment by the supplier",
+          "enum_values": ["authorized_distributor", "authorized_reseller", "value_added_reseller", "master_distributor", "exclusive_dealer"],
+          "extraction_hints": ["appointed as", "authorized distributor", "authorized reseller", "value-added reseller", "VAR", "master distributor", "exclusive dealer"]
+        },
+        "authorized_channels": {
+          "type": "array",
+          "description": "Sales channels through which the distributor is authorized to sell the products",
+          "items_type": "string",
+          "extraction_hints": ["authorized channels", "distribution channels", "retail", "wholesale", "e-commerce", "online", "direct sales", "brick-and-mortar", "channel partners"]
+        },
+        "authorized_customer_segments": {
+          "type": "array",
+          "description": "Customer types or market segments the distributor is authorized to serve",
+          "items_type": "string",
+          "extraction_hints": ["customer segments", "target market", "end users", "enterprise customers", "government", "commercial", "consumer", "authorized to sell to"]
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern the distribution agreement",
+          "extraction_hints": ["governed by the laws of", "governing law", "construed in accordance with", "laws of the State of"]
+        },
+        "dispute_resolution_method": {
+          "type": "enum",
+          "description": "Method for resolving disputes arising under the agreement",
+          "enum_values": ["litigation", "arbitration", "mediation_then_arbitration", "mediation_then_litigation"],
+          "extraction_hints": ["arbitration", "mediation", "litigation", "dispute resolution", "submit to arbitration", "exclusive jurisdiction", "ICC", "AAA", "JAMS"]
+        }
+      }
+    },
+
+    "territory_and_exclusivity": {
+      "description": "Geographic territory definition, exclusivity grants, sub-distribution rights, and territorial restrictions",
+      "priority": 10,
+      "max_context_chars": 12000,
+      "fields": {
+        "territory_definition": {
+          "type": "string",
+          "description": "Detailed description of the geographic territory granted to the distributor",
+          "required": true,
+          "extraction_hints": ["Territory", "geographic territory", "territory shall mean", "the following countries", "the following states", "within the territory of"]
+        },
+        "exclusivity_type": {
+          "type": "enum",
+          "description": "Whether the distribution rights are exclusive, sole, or non-exclusive within the territory",
+          "required": true,
+          "enum_values": ["exclusive", "sole", "non_exclusive"],
+          "extraction_hints": ["exclusive", "non-exclusive", "sole distributor", "exclusive distributor", "right to appoint other distributors", "sole and exclusive"]
+        },
+        "supplier_direct_sales_reserved": {
+          "type": "boolean",
+          "description": "Whether the supplier retains the right to sell directly in the distributor's territory",
+          "extraction_hints": ["supplier reserves the right to sell directly", "direct sales by Supplier", "retained right to sell", "house accounts", "reserved accounts"]
+        },
+        "reserved_accounts": {
+          "type": "array",
+          "description": "List of customer accounts reserved by the supplier and excluded from the distributor's appointment",
+          "items_type": "string",
+          "extraction_hints": ["reserved accounts", "house accounts", "excluded accounts", "named accounts", "Supplier shall retain", "accounts listed in Exhibit"]
+        },
+        "sub_distribution_rights": {
+          "type": "string",
+          "description": "Whether the distributor may appoint sub-distributors or sub-agents within the territory",
+          "extraction_hints": ["sub-distributor", "sub-agent", "appoint sub-distributors", "sub-distribution", "right to sub-distribute", "sub-license", "may not appoint"]
+        },
+        "online_sales_territory_restrictions": {
+          "type": "string",
+          "description": "Restrictions on selling products online to customers outside the assigned territory",
+          "extraction_hints": ["online sales", "e-commerce sales outside territory", "internet sales", "passive sales", "active sales", "selling outside the territory online"]
+        },
+        "cross_border_sales_restrictions": {
+          "type": "string",
+          "description": "Restrictions on the distributor selling or shipping products across borders outside the territory",
+          "extraction_hints": ["cross-border", "export outside territory", "shall not sell outside", "territorial restriction", "no sales outside the Territory"]
+        },
+        "territory_expansion_conditions": {
+          "type": "string",
+          "description": "Conditions under which the territory may be expanded or additional territories granted",
+          "extraction_hints": ["territory expansion", "additional territories", "expand the territory", "right of first refusal for adjacent", "territory growth"]
+        }
+      }
+    },
+
+    "products_and_pricing": {
+      "description": "Product catalog, pricing structure, price adjustments, minimum order quantities, and resale pricing",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "products_covered": {
+          "type": "array",
+          "description": "List of products the distributor is authorized to distribute",
+          "required": true,
+          "items_type": "object",
+          "properties": {
+            "product_name": {
+              "type": "string",
+              "description": "Name or designation of the product",
+              "required": true,
+              "extraction_hints": ["product", "item", "goods", "product name", "product line"]
+            },
+            "sku_or_part_number": {
+              "type": "string",
+              "description": "Stock keeping unit, part number, or catalog reference",
+              "extraction_hints": ["SKU", "part number", "item number", "product code", "catalog number"]
+            },
+            "product_description": {
+              "type": "string",
+              "description": "Brief description of the product",
+              "extraction_hints": ["product description", "specification", "details", "as described in"]
+            }
+          }
+        },
+        "product_schedule_reference": {
+          "type": "string",
+          "description": "Reference to an exhibit, schedule, or appendix listing the covered products",
+          "extraction_hints": ["Product Schedule", "Exhibit A", "Schedule 1", "Appendix", "as set forth in", "attached hereto"]
+        },
+        "new_product_addition_process": {
+          "type": "string",
+          "description": "Process for adding new products to the agreement over time",
+          "extraction_hints": ["new products", "additional products", "product addition", "added by mutual agreement", "amendment to product schedule"]
+        },
+        "product_discontinuation_notice_days": {
+          "type": "integer",
+          "description": "Number of days advance notice the supplier must give before discontinuing a product",
+          "extraction_hints": ["product discontinuation", "end of life", "discontinuation notice", "days notice before discontinuing", "product withdrawal"]
+        },
+        "distributor_purchase_price": {
+          "type": "string",
+          "description": "Wholesale or transfer price at which the distributor purchases products from the supplier",
+          "required": true,
+          "extraction_hints": ["purchase price", "wholesale price", "transfer price", "distributor price", "price to Distributor", "net price"]
+        },
+        "pricing_model": {
+          "type": "enum",
+          "description": "Method used to determine distributor purchase pricing",
+          "enum_values": ["fixed_price_list", "cost_plus_margin", "discount_off_list", "volume_tiered", "market_based"],
+          "extraction_hints": ["fixed price list", "cost plus", "discount off list price", "MSRP less", "tiered pricing", "volume discount"]
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency in which prices are quoted and invoiced",
+          "extraction_hints": ["USD", "EUR", "GBP", "currency", "denominated in", "payable in", "quoted in"]
+        },
+        "price_adjustment_mechanism": {
+          "type": "string",
+          "description": "Mechanism, frequency, and limitations on supplier's ability to adjust prices",
+          "extraction_hints": ["price adjustment", "price increase", "annual review", "price revision", "CPI", "not more than once per", "advance notice of price change"]
+        },
+        "price_protection_period_days": {
+          "type": "integer",
+          "description": "Number of days of price protection on existing inventory after a price change",
+          "extraction_hints": ["price protection", "inventory price protection", "price protection period", "existing inventory", "stock protection"]
+        },
+        "minimum_order_quantity": {
+          "type": "string",
+          "description": "Minimum quantity per order the distributor must place",
+          "extraction_hints": ["minimum order quantity", "MOQ", "minimum order", "minimum purchase quantity", "orders of no less than"]
+        },
+        "suggested_resale_price": {
+          "type": "string",
+          "description": "Manufacturer's suggested retail price or recommended resale price",
+          "extraction_hints": ["MSRP", "suggested retail price", "recommended resale price", "list price", "SRP", "RRP"]
+        },
+        "resale_price_restrictions": {
+          "type": "string",
+          "description": "Whether the supplier imposes restrictions or guidelines on the distributor's resale pricing",
+          "extraction_hints": ["resale price", "resale pricing", "pricing discretion", "may not sell below", "minimum advertised price", "MAP policy", "free to set its own prices"]
+        },
+        "volume_discount_structure": {
+          "type": "array",
+          "description": "Discount tiers based on purchase volume",
+          "items_type": "object",
+          "properties": {
+            "tier_threshold": {
+              "type": "string",
+              "description": "Volume or revenue threshold for the discount tier",
+              "extraction_hints": ["tier", "volume level", "units", "above", "between"]
+            },
+            "discount_percentage": {
+              "type": "number",
+              "description": "Discount percentage applicable to the tier",
+              "extraction_hints": ["% discount", "percent off", "reduction of"]
+            }
+          }
+        },
+        "rebate_program": {
+          "type": "string",
+          "description": "Structure and terms of any volume rebates, retrospective discounts, or incentive programs",
+          "extraction_hints": ["rebate", "retrospective discount", "year-end rebate", "volume rebate", "incentive rebate", "earned upon achieving"]
+        }
+      }
+    },
+
+    "ordering_and_fulfillment": {
+      "description": "Order process, lead times, shipping terms, delivery logistics, and acceptance procedures",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "ordering_process": {
+          "type": "string",
+          "description": "Process and method for the distributor to place purchase orders with the supplier",
+          "required": true,
+          "extraction_hints": ["purchase order", "ordering process", "order placement", "submit orders", "PO", "order submission"]
+        },
+        "order_acceptance_process": {
+          "type": "string",
+          "description": "Supplier's process for accepting, rejecting, or confirming purchase orders",
+          "extraction_hints": ["order acceptance", "order confirmation", "order acknowledgment", "right to reject orders", "accept or reject within"]
+        },
+        "lead_time_days": {
+          "type": "integer",
+          "description": "Standard lead time in calendar days from order acceptance to shipment",
+          "extraction_hints": ["lead time", "delivery within", "days after receipt of order", "turnaround time", "ship within"]
+        },
+        "expedited_order_availability": {
+          "type": "string",
+          "description": "Whether expedited or rush orders are available and associated fees or conditions",
+          "extraction_hints": ["expedited order", "rush order", "expedited shipment", "rush delivery", "expedite fee", "priority fulfillment"]
+        },
+        "forecast_requirements": {
+          "type": "object",
+          "description": "Requirements for the distributor to provide demand forecasts to the supplier",
+          "properties": {
+            "frequency": {
+              "type": "string",
+              "description": "How often forecasts must be submitted",
+              "extraction_hints": ["monthly forecast", "quarterly forecast", "rolling forecast", "forecast frequency"]
+            },
+            "horizon_months": {
+              "type": "integer",
+              "description": "Number of months the forecast must cover",
+              "extraction_hints": ["forecast horizon", "months ahead", "rolling months", "month forecast window"]
+            },
+            "binding_period": {
+              "type": "string",
+              "description": "Portion of the forecast that becomes a binding purchase commitment",
+              "extraction_hints": ["binding forecast", "firm orders", "committed period", "binding window", "firm commitment"]
+            }
+          }
+        },
+        "delivery_terms_incoterms": {
+          "type": "string",
+          "description": "Applicable Incoterms or delivery terms governing risk and cost allocation",
+          "required": true,
+          "extraction_hints": ["Incoterms", "FOB", "CIF", "DDP", "EXW", "DAP", "FCA", "delivery terms", "Incoterms 2020"]
+        },
+        "shipping_method": {
+          "type": "string",
+          "description": "Specified or preferred method of shipping products to the distributor",
+          "extraction_hints": ["shipping method", "mode of transport", "freight", "air freight", "ocean freight", "ground shipment", "carrier"]
+        },
+        "freight_cost_responsibility": {
+          "type": "string",
+          "description": "Which party bears the cost of freight and shipping",
+          "extraction_hints": ["freight costs", "shipping costs", "transportation costs", "freight charges", "shipping at Distributor's expense", "prepaid freight"]
+        },
+        "risk_of_loss_transfer": {
+          "type": "string",
+          "description": "Point at which risk of loss or damage to products transfers from supplier to distributor",
+          "extraction_hints": ["risk of loss", "title passes", "risk transfers", "title and risk", "upon delivery to carrier"]
+        },
+        "partial_shipments_allowed": {
+          "type": "boolean",
+          "description": "Whether the supplier may fulfill orders through partial shipments",
+          "extraction_hints": ["partial shipment", "partial delivery", "split shipment", "ship in installments", "back-order"]
+        },
+        "inspection_period_days": {
+          "type": "integer",
+          "description": "Number of days the distributor has to inspect and accept or reject delivered products",
+          "extraction_hints": ["inspection period", "acceptance period", "days to inspect", "days to accept or reject", "deemed accepted after"]
+        },
+        "defective_product_return_process": {
+          "type": "string",
+          "description": "Process for returning defective, damaged, or non-conforming products to the supplier",
+          "extraction_hints": ["return process", "RMA", "return material authorization", "defective goods", "non-conforming products", "return of defective"]
+        }
+      }
+    },
+
+    "payment_terms": {
+      "description": "Payment methods, credit terms, invoicing procedures, currency, and late payment consequences",
+      "priority": 9,
+      "max_context_chars": 12000,
+      "fields": {
+        "payment_terms_days": {
+          "type": "integer",
+          "description": "Number of days from invoice date within which payment must be made",
+          "required": true,
+          "extraction_hints": ["net 30", "net 60", "net 45", "payment within", "days from date of invoice", "payment terms"]
+        },
+        "accepted_payment_methods": {
+          "type": "array",
+          "description": "Payment methods accepted by the supplier",
+          "items_type": "string",
+          "extraction_hints": ["wire transfer", "ACH", "check", "letter of credit", "L/C", "payment method", "electronic funds transfer"]
+        },
+        "credit_limit": {
+          "type": "string",
+          "description": "Maximum credit limit extended to the distributor",
+          "extraction_hints": ["credit limit", "credit line", "maximum outstanding", "credit exposure", "aggregate outstanding balance"]
+        },
+        "credit_approval_required": {
+          "type": "boolean",
+          "description": "Whether the supplier requires credit approval before accepting orders",
+          "extraction_hints": ["credit approval", "credit check", "credit review", "subject to credit approval", "satisfactory credit"]
+        },
+        "invoicing_schedule": {
+          "type": "string",
+          "description": "When and how invoices are issued by the supplier",
+          "extraction_hints": ["invoice upon shipment", "invoiced", "billing", "invoice date", "invoiced at time of", "monthly invoicing"]
+        },
+        "early_payment_discount": {
+          "type": "string",
+          "description": "Discount offered for early payment before the standard due date",
+          "extraction_hints": ["early payment discount", "2/10 net 30", "prompt payment discount", "cash discount", "if paid within"]
+        },
+        "late_payment_interest_rate": {
+          "type": "string",
+          "description": "Interest rate or penalty applied to overdue payments",
+          "extraction_hints": ["late payment interest", "overdue interest", "past due", "interest at", "per month", "per annum", "lesser of"]
+        },
+        "right_to_suspend_on_nonpayment": {
+          "type": "string",
+          "description": "Supplier's right to suspend deliveries or terminate upon distributor's failure to pay",
+          "extraction_hints": ["suspend shipments", "withhold deliveries", "suspend supply", "right to suspend", "failure to pay", "overdue balance"]
+        },
+        "currency_exchange_risk": {
+          "type": "string",
+          "description": "Which party bears the risk of currency exchange rate fluctuations",
+          "extraction_hints": ["currency risk", "exchange rate", "currency fluctuation", "foreign exchange", "FX risk", "exchange rate risk"]
+        }
+      }
+    },
+
+    "performance_obligations": {
+      "description": "Minimum purchase requirements, sales targets, marketing obligations, reporting duties, and training",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "minimum_annual_purchase_commitment": {
+          "type": "string",
+          "description": "Minimum annual purchase volume or revenue the distributor must achieve",
+          "required": true,
+          "extraction_hints": ["minimum annual purchase", "annual commitment", "minimum volume", "guaranteed minimum", "minimum purchase obligation", "annual minimum"]
+        },
+        "sales_targets": {
+          "type": "array",
+          "description": "Specific sales targets or quotas by period, product line, or customer segment",
+          "items_type": "object",
+          "properties": {
+            "period": {
+              "type": "string",
+              "description": "Time period for the sales target",
+              "extraction_hints": ["year 1", "annual", "quarterly", "fiscal year"]
+            },
+            "target_amount": {
+              "type": "string",
+              "description": "Target revenue or unit volume",
+              "extraction_hints": ["target", "quota", "goal", "objective"]
+            }
+          }
+        },
+        "consequence_of_missing_targets": {
+          "type": "string",
+          "description": "Consequences if the distributor fails to meet minimum purchase or sales targets",
+          "extraction_hints": ["failure to meet minimum", "shortfall", "right to convert to non-exclusive", "lose exclusivity", "terminate if minimum not met", "make-good payment"]
+        },
+        "marketing_spending_obligation": {
+          "type": "string",
+          "description": "Minimum marketing or advertising spend the distributor must invest in the territory",
+          "extraction_hints": ["marketing spend", "advertising obligation", "marketing budget", "promotional spending", "minimum marketing expenditure", "percent of revenue on marketing"]
+        },
+        "marketing_plan_submission": {
+          "type": "string",
+          "description": "Requirements to submit annual or quarterly marketing plans for supplier approval",
+          "extraction_hints": ["marketing plan", "annual marketing plan", "submit marketing plan", "marketing strategy", "promotional plan"]
+        },
+        "co_op_marketing_fund": {
+          "type": "string",
+          "description": "Cooperative marketing fund contributions and reimbursement terms",
+          "extraction_hints": ["co-op fund", "cooperative advertising", "MDF", "market development fund", "co-op marketing", "marketing allowance"]
+        },
+        "trade_show_participation": {
+          "type": "string",
+          "description": "Obligations to participate in industry trade shows, exhibitions, or conferences",
+          "extraction_hints": ["trade show", "exhibition", "conference", "industry event", "participate in trade shows"]
+        },
+        "sales_reporting_requirements": {
+          "type": "object",
+          "description": "Requirements for the distributor to report sales data to the supplier",
+          "properties": {
+            "reporting_frequency": {
+              "type": "string",
+              "description": "How often sales reports must be submitted",
+              "extraction_hints": ["monthly reports", "quarterly reports", "sales reporting frequency", "report within"]
+            },
+            "report_contents": {
+              "type": "string",
+              "description": "Data elements that must be included in sales reports",
+              "extraction_hints": ["units sold", "revenue by product", "customer names", "inventory levels", "sell-through data", "point-of-sale data"]
+            }
+          }
+        },
+        "inventory_reporting_requirements": {
+          "type": "string",
+          "description": "Requirements for the distributor to report inventory levels to the supplier",
+          "extraction_hints": ["inventory report", "stock levels", "inventory on hand", "inventory reporting", "report current inventory"]
+        },
+        "dedicated_sales_staff_requirement": {
+          "type": "string",
+          "description": "Requirements to employ dedicated sales personnel for the supplier's products",
+          "extraction_hints": ["dedicated sales staff", "dedicated personnel", "sales representatives", "product specialists", "dedicated team", "minimum number of sales staff"]
+        },
+        "training_obligations": {
+          "type": "string",
+          "description": "Requirements for distributor staff to complete product training or certification",
+          "extraction_hints": ["training", "product training", "certification", "trained personnel", "training program", "complete training", "qualified staff"]
+        },
+        "customer_support_obligations": {
+          "type": "string",
+          "description": "Level of after-sales support or customer service the distributor must provide to end customers",
+          "extraction_hints": ["customer support", "after-sales service", "technical support", "customer service", "first-line support", "help desk"]
+        }
+      }
+    },
+
+    "intellectual_property": {
+      "description": "Trademark usage, marketing materials, brand guidelines, co-branding, and IP protection obligations",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "trademark_license_grant": {
+          "type": "string",
+          "description": "Grant of rights to use the supplier's trademarks, trade names, and logos for distribution purposes",
+          "required": true,
+          "extraction_hints": ["trademark license", "right to use trademarks", "licensed marks", "use of Supplier's trademarks", "trademark usage", "trade name"]
+        },
+        "trademark_usage_guidelines": {
+          "type": "string",
+          "description": "Guidelines and restrictions on how the supplier's trademarks and logos may be used",
+          "extraction_hints": ["trademark guidelines", "brand guidelines", "logo usage", "style guide", "use trademarks in accordance with", "branding standards"]
+        },
+        "marketing_material_approval": {
+          "type": "string",
+          "description": "Whether the distributor must obtain supplier approval before using marketing materials",
+          "extraction_hints": ["prior written approval", "marketing material approval", "approve all marketing", "submit for approval", "review and approve"]
+        },
+        "supplier_provided_marketing_materials": {
+          "type": "string",
+          "description": "Marketing materials, samples, or collateral the supplier will provide to the distributor",
+          "extraction_hints": ["marketing materials", "sales literature", "brochures", "product samples", "promotional materials", "supplied at no charge"]
+        },
+        "co_branding_rights": {
+          "type": "string",
+          "description": "Rights and restrictions regarding co-branding products or materials",
+          "extraction_hints": ["co-branding", "joint branding", "co-branded", "Distributor's name and Supplier's name", "private label", "white label"]
+        },
+        "private_labeling_rights": {
+          "type": "string",
+          "description": "Whether the distributor may sell products under its own brand or private label",
+          "extraction_hints": ["private label", "white label", "own brand", "Distributor's brand", "relabeling", "rebranding"]
+        },
+        "ip_ownership_statement": {
+          "type": "string",
+          "description": "Statement confirming supplier's ownership of all intellectual property in the products",
+          "extraction_hints": ["IP ownership", "intellectual property remains", "all rights reserved", "proprietary rights", "Supplier retains all"]
+        },
+        "ip_infringement_notification": {
+          "type": "string",
+          "description": "Distributor's obligation to notify the supplier of any IP infringement discovered in the territory",
+          "extraction_hints": ["notify of infringement", "report infringement", "counterfeit", "IP violation", "infringing products", "unauthorized use"]
+        },
+        "non_compete_on_ip": {
+          "type": "string",
+          "description": "Restrictions on the distributor developing or distributing competing products using similar IP",
+          "extraction_hints": ["non-compete", "competing products", "shall not develop", "shall not distribute competing", "competitive products"]
+        }
+      }
+    },
+
+    "warranties_and_liability": {
+      "description": "Product warranties, warranty pass-through, limitation of liability, indemnification, and product recalls",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "product_warranty_period_months": {
+          "type": "integer",
+          "description": "Duration of the product warranty in months from date of sale or delivery",
+          "extraction_hints": ["warranty period", "months from delivery", "months from purchase", "warranted for", "warranty duration"]
+        },
+        "warranty_scope": {
+          "type": "string",
+          "description": "Scope of the product warranty including what is covered",
+          "extraction_hints": ["warrants that", "free from defects", "conform to specifications", "merchantability", "fit for purpose", "material and workmanship"]
+        },
+        "warranty_pass_through_to_end_customers": {
+          "type": "string",
+          "description": "Whether and how the supplier's warranty passes through the distributor to end customers",
+          "extraction_hints": ["pass-through warranty", "warranty to end customer", "extend warranty", "Distributor shall pass through", "end user warranty"]
+        },
+        "distributor_warranty_obligations": {
+          "type": "string",
+          "description": "Warranty service obligations the distributor must perform on behalf of the supplier",
+          "extraction_hints": ["warranty service", "warranty claims handling", "Distributor shall handle", "first-line warranty", "warranty administration"]
+        },
+        "warranty_claim_process": {
+          "type": "string",
+          "description": "Process for handling warranty claims from end customers through the distributor",
+          "extraction_hints": ["warranty claim", "claim process", "RMA", "return material authorization", "warranty return"]
+        },
+        "limitation_of_liability_cap": {
+          "type": "string",
+          "description": "Maximum aggregate liability cap between the parties",
+          "extraction_hints": ["limitation of liability", "aggregate liability", "shall not exceed", "total liability", "liability cap", "maximum liability"]
+        },
+        "consequential_damages_exclusion": {
+          "type": "string",
+          "description": "Whether indirect, consequential, incidental, or special damages are excluded",
+          "extraction_hints": ["consequential damages", "indirect damages", "incidental damages", "special damages", "lost profits", "exclusion of damages"]
+        },
+        "supplier_indemnification_of_distributor": {
+          "type": "string",
+          "description": "Supplier's obligation to indemnify the distributor for product liability and IP infringement claims",
+          "extraction_hints": ["Supplier shall indemnify", "defend and hold harmless", "product liability", "IP infringement", "third-party claims against Distributor"]
+        },
+        "distributor_indemnification_of_supplier": {
+          "type": "string",
+          "description": "Distributor's obligation to indemnify the supplier for claims arising from distributor's actions",
+          "extraction_hints": ["Distributor shall indemnify", "Distributor indemnification", "claims arising from Distributor's", "negligence of Distributor"]
+        },
+        "product_recall_obligations": {
+          "type": "string",
+          "description": "Responsibilities and cost allocation in the event of a product recall",
+          "extraction_hints": ["product recall", "recall obligations", "recall costs", "mandatory recall", "voluntary recall", "recall notification"]
+        },
+        "product_liability_insurance_requirement": {
+          "type": "string",
+          "description": "Product liability insurance the distributor must maintain",
+          "extraction_hints": ["product liability insurance", "insurance requirements", "maintain insurance", "insurance coverage", "per occurrence", "in the aggregate"]
+        },
+        "force_majeure": {
+          "type": "string",
+          "description": "Force majeure provisions including qualifying events and relief available",
+          "extraction_hints": ["force majeure", "act of God", "beyond reasonable control", "epidemic", "pandemic", "natural disaster", "excused from performance"]
+        }
+      }
+    },
+
+    "term_and_termination": {
+      "description": "Agreement duration, renewal mechanics, termination rights, post-termination wind-down, and inventory buy-back",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "initial_term_months": {
+          "type": "integer",
+          "description": "Duration of the initial agreement term in months",
+          "required": true,
+          "extraction_hints": ["initial term", "term of", "period of", "months from the effective date", "years from", "shall remain in effect for"]
+        },
+        "auto_renewal": {
+          "type": "boolean",
+          "description": "Whether the agreement automatically renews at the end of each term",
+          "extraction_hints": ["auto-renew", "automatically renew", "successive periods", "unless either party provides notice", "shall automatically renew"]
+        },
+        "renewal_term_months": {
+          "type": "integer",
+          "description": "Duration of each renewal term in months",
+          "extraction_hints": ["renewal term", "additional period", "successive terms of", "renewed for", "renewal period"]
+        },
+        "non_renewal_notice_days": {
+          "type": "integer",
+          "description": "Number of days advance written notice required to prevent automatic renewal",
+          "extraction_hints": ["non-renewal notice", "notice of non-renewal", "days prior to expiration", "notice to prevent renewal", "opt out"]
+        },
+        "termination_for_convenience_notice_days": {
+          "type": "integer",
+          "description": "Number of days written notice required to terminate the agreement without cause",
+          "extraction_hints": ["termination for convenience", "without cause", "days prior written notice", "terminate upon notice", "terminate at any time"]
+        },
+        "termination_for_cause_grounds": {
+          "type": "array",
+          "description": "Specific grounds that constitute cause for immediate or accelerated termination",
+          "items_type": "string",
+          "extraction_hints": ["termination for cause", "material breach", "insolvency", "bankruptcy", "failure to cure", "change of control", "failure to meet minimum"]
+        },
+        "cure_period_days": {
+          "type": "integer",
+          "description": "Number of days to cure a material breach before the other party may terminate",
+          "extraction_hints": ["cure period", "days to cure", "remedy the breach", "right to cure", "opportunity to cure"]
+        },
+        "termination_for_change_of_control": {
+          "type": "string",
+          "description": "Right to terminate if the distributor undergoes a change of ownership or control",
+          "extraction_hints": ["change of control", "change of ownership", "acquisition", "merger", "transfer of controlling interest"]
+        },
+        "post_termination_sell_off_period_days": {
+          "type": "integer",
+          "description": "Number of days after termination during which the distributor may sell remaining inventory",
+          "extraction_hints": ["sell-off period", "wind-down period", "sell remaining inventory", "sell existing stock", "days to sell through", "disposition of inventory"]
+        },
+        "inventory_buyback_obligation": {
+          "type": "string",
+          "description": "Whether the supplier must repurchase unsold inventory from the distributor upon termination",
+          "extraction_hints": ["inventory buyback", "repurchase inventory", "buy back unsold", "return of inventory", "buyback obligation", "repurchase at"]
+        },
+        "inventory_buyback_price": {
+          "type": "string",
+          "description": "Price or formula at which the supplier will repurchase unsold inventory",
+          "extraction_hints": ["buyback price", "repurchase price", "original purchase price", "cost less depreciation", "net book value", "price paid by Distributor"]
+        },
+        "return_of_marketing_materials": {
+          "type": "string",
+          "description": "Obligations to return supplier-provided marketing materials, samples, and confidential information upon termination",
+          "extraction_hints": ["return materials", "return all", "destroy confidential", "return marketing materials", "return samples", "cease use of trademarks"]
+        },
+        "customer_transition_obligations": {
+          "type": "string",
+          "description": "Obligations to transition customer relationships and outstanding orders to the supplier or new distributor",
+          "extraction_hints": ["customer transition", "transition customers", "hand over customer", "transfer customer relationships", "cooperate in transition", "introduction to successor"]
+        },
+        "survival_clauses": {
+          "type": "array",
+          "description": "Provisions that survive termination or expiration of the agreement",
+          "items_type": "string",
+          "extraction_hints": ["survival", "survive termination", "shall survive", "obligations surviving", "the following shall survive"]
+        },
+        "non_compete_post_termination_months": {
+          "type": "integer",
+          "description": "Duration in months of any post-termination non-compete restriction on the distributor",
+          "extraction_hints": ["post-termination non-compete", "non-compete period", "months after termination", "restriction after termination", "shall not compete for"]
+        }
+      }
+    }
+  }
+}

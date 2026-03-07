@@ -1,0 +1,503 @@
+{
+  "schema_id": "license_v1",
+  "contract_type": "license",
+  "version": "1.0.0",
+  "description": "Software/IP Licensing Agreement - covers software licenses, IP grants, SaaS subscriptions, and technology licensing terms",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 6000,
+  "required_sections": ["license_metadata", "grant_of_license", "fees_and_payment"],
+
+  "sections": {
+    "license_metadata": {
+      "description": "Basic agreement identification and party information",
+      "priority": 10,
+      "max_context_chars": 10000,
+      "fields": {
+        "agreement_title": {
+          "type": "string",
+          "description": "Official title of the licensing agreement",
+          "required": true,
+          "extraction_hints": ["License Agreement", "Software License", "End User License Agreement", "EULA", "Title at top of document"]
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date the license agreement becomes effective",
+          "required": true,
+          "extraction_hints": ["effective as of", "effective date", "commencing on", "dated as of"]
+        },
+        "expiration_date": {
+          "type": "date",
+          "description": "Date the license agreement expires, if not perpetual",
+          "extraction_hints": ["expiration date", "expires on", "terminates on", "end date"]
+        },
+        "licensor_name": {
+          "type": "string",
+          "description": "Full legal name of the party granting the license",
+          "required": true,
+          "extraction_hints": ["Licensor", "Provider", "Vendor", "Company", "the party granting"]
+        },
+        "licensee_name": {
+          "type": "string",
+          "description": "Full legal name of the party receiving the license",
+          "required": true,
+          "extraction_hints": ["Licensee", "Customer", "Client", "User", "the party receiving"]
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern the agreement",
+          "extraction_hints": ["governed by the laws of", "governing law", "construed in accordance with"]
+        },
+        "jurisdiction": {
+          "type": "string",
+          "description": "Courts or venue for disputes arising under the agreement",
+          "extraction_hints": ["exclusive jurisdiction", "venue shall be", "submit to the jurisdiction"]
+        },
+        "parent_agreement_reference": {
+          "type": "string",
+          "description": "Reference to a parent or master agreement under which this license is issued",
+          "extraction_hints": ["pursuant to", "under the terms of", "Master Agreement", "MSA", "referenced agreement"]
+        }
+      }
+    },
+
+    "grant_of_license": {
+      "description": "License grant scope, type, and usage rights",
+      "priority": 10,
+      "max_context_chars": 15000,
+      "fields": {
+        "licensed_product_or_ip": {
+          "type": "string",
+          "description": "Name or description of the software, product, or intellectual property being licensed",
+          "required": true,
+          "extraction_hints": ["Licensed Software", "Licensed Product", "the Software", "Licensed Materials", "Licensed IP", "Product"]
+        },
+        "license_type": {
+          "type": "enum",
+          "description": "Duration model of the license grant",
+          "enum_values": ["perpetual", "subscription", "term", "evaluation"],
+          "extraction_hints": ["perpetual license", "subscription", "term license", "evaluation license", "trial"]
+        },
+        "license_scope": {
+          "type": "enum",
+          "description": "Exclusivity scope of the license grant",
+          "enum_values": ["exclusive", "non_exclusive", "sole"],
+          "extraction_hints": ["exclusive license", "non-exclusive", "sole license"]
+        },
+        "territory": {
+          "type": "string",
+          "description": "Geographic territory in which the license may be exercised",
+          "extraction_hints": ["territory", "geographic scope", "worldwide", "limited to"]
+        },
+        "field_of_use": {
+          "type": "string",
+          "description": "Specific field, industry, or purpose for which the license is restricted",
+          "extraction_hints": ["field of use", "solely for the purpose of", "limited to use in", "internal business purposes"]
+        },
+        "sublicense_rights": {
+          "type": "string",
+          "description": "Whether and under what conditions the licensee may sublicense the rights",
+          "extraction_hints": ["sublicense", "sub-license", "right to sublicense", "no right to sublicense"]
+        },
+        "number_of_users_or_seats": {
+          "type": "string",
+          "description": "Number of authorized users, seats, or instances permitted under the license",
+          "extraction_hints": ["number of users", "seats", "named users", "concurrent users", "per seat", "user limit"]
+        },
+        "deployment_model": {
+          "type": "enum",
+          "description": "How the licensed software is deployed or hosted",
+          "enum_values": ["on_premise", "cloud", "hybrid"],
+          "extraction_hints": ["on-premise", "on premise", "cloud-hosted", "SaaS", "hybrid deployment"]
+        },
+        "usage_restrictions": {
+          "type": "array",
+          "description": "Specific restrictions on how the licensed product may be used",
+          "items_type": "string",
+          "extraction_hints": ["shall not", "prohibited from", "may not", "restrictions", "not permitted to", "reverse engineer", "decompile"]
+        },
+        "open_source_components": {
+          "type": "string",
+          "description": "Disclosure or treatment of open-source software components included in the licensed product",
+          "extraction_hints": ["open source", "open-source", "third-party components", "FOSS", "OSS", "third party software"]
+        }
+      }
+    },
+
+    "fees_and_payment": {
+      "description": "License fees, payment structure, and support costs",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "license_fee": {
+          "type": "string",
+          "description": "Total or base license fee amount",
+          "required": true,
+          "extraction_hints": ["license fee", "license price", "subscription fee", "total fee", "annual fee"]
+        },
+        "fee_structure": {
+          "type": "enum",
+          "description": "How the license fee is structured and billed",
+          "enum_values": ["one_time", "annual", "monthly", "per_user", "per_transaction", "usage_based"],
+          "extraction_hints": ["one-time fee", "annual subscription", "monthly fee", "per user", "per transaction", "usage-based", "pay-per-use"]
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency in which fees are denominated",
+          "extraction_hints": ["USD", "EUR", "GBP", "dollars", "euros"]
+        },
+        "payment_schedule": {
+          "type": "string",
+          "description": "Schedule or timing for fee payments",
+          "extraction_hints": ["payable within", "due upon", "net 30", "net 60", "invoiced", "payment schedule", "due date"]
+        },
+        "maintenance_fee": {
+          "type": "string",
+          "description": "Annual maintenance or support fee amount or percentage",
+          "extraction_hints": ["maintenance fee", "support fee", "annual maintenance", "maintenance and support"]
+        },
+        "maintenance_fee_escalation_cap_percent": {
+          "type": "number",
+          "description": "Maximum annual percentage increase allowed for maintenance fees",
+          "extraction_hints": ["escalation cap", "increase shall not exceed", "maximum increase", "cap of", "percent increase"]
+        },
+        "support_tier": {
+          "type": "enum",
+          "description": "Level of support included or purchased",
+          "enum_values": ["basic", "standard", "premium", "enterprise"],
+          "extraction_hints": ["basic support", "standard support", "premium support", "enterprise support", "support level", "support tier"]
+        },
+        "support_hours": {
+          "type": "string",
+          "description": "Hours during which support is available",
+          "extraction_hints": ["business hours", "24/7", "support hours", "hours of support", "Monday through Friday"]
+        },
+        "implementation_fees": {
+          "type": "string",
+          "description": "Fees for initial implementation, setup, or deployment services",
+          "extraction_hints": ["implementation fee", "setup fee", "deployment fee", "installation fee", "onboarding fee", "professional services"]
+        },
+        "training_fees": {
+          "type": "string",
+          "description": "Fees for training services related to the licensed product",
+          "extraction_hints": ["training fee", "training costs", "training services", "education services"]
+        },
+        "true_up_frequency": {
+          "type": "string",
+          "description": "How often usage or seat counts are reconciled against actual usage",
+          "extraction_hints": ["true-up", "true up", "reconciliation", "usage audit", "annual true-up", "quarterly reconciliation"]
+        },
+        "audit_rights_for_usage": {
+          "type": "string",
+          "description": "Licensor's rights to audit licensee's usage of the licensed product",
+          "extraction_hints": ["audit rights", "right to audit", "compliance audit", "usage verification", "inspection rights"]
+        }
+      }
+    },
+
+    "intellectual_property": {
+      "description": "IP ownership, customizations, and related rights",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "ownership_of_licensed_ip": {
+          "type": "string",
+          "description": "Statement of who owns the underlying licensed intellectual property",
+          "required": true,
+          "extraction_hints": ["retains all right", "ownership of the Software", "all intellectual property rights", "proprietary rights"]
+        },
+        "ownership_of_customizations": {
+          "type": "string",
+          "description": "Who owns customizations, configurations, or modifications made to the licensed product",
+          "extraction_hints": ["customizations", "modifications", "configurations", "custom development", "work product"]
+        },
+        "ownership_of_derivatives": {
+          "type": "string",
+          "description": "Who owns derivative works created from or based on the licensed product",
+          "extraction_hints": ["derivative works", "derived from", "based on", "derivatives"]
+        },
+        "trademark_usage_rights": {
+          "type": "string",
+          "description": "Rights to use licensor's or licensee's trademarks, logos, or branding",
+          "extraction_hints": ["trademark", "logo", "branding", "trade name", "service mark"]
+        },
+        "source_code_access": {
+          "type": "string",
+          "description": "Whether licensee has access to source code and under what conditions",
+          "extraction_hints": ["source code", "source code access", "object code only", "source code license"]
+        },
+        "escrow_arrangement": {
+          "type": "object",
+          "description": "Source code escrow arrangement details",
+          "properties": {
+            "exists": {
+              "type": "boolean",
+              "description": "Whether a source code escrow arrangement is in place"
+            },
+            "escrow_agent": {
+              "type": "string",
+              "description": "Name of the escrow agent holding the source code"
+            },
+            "release_triggers": {
+              "type": "array",
+              "description": "Events that trigger release of escrowed source code to licensee",
+              "items_type": "string"
+            }
+          },
+          "extraction_hints": ["escrow", "escrow agent", "escrow arrangement", "source code escrow", "release conditions"]
+        },
+        "patent_grants": {
+          "type": "string",
+          "description": "Any patent licenses or grants included with the license",
+          "extraction_hints": ["patent license", "patent grant", "patent rights", "licensed patents"]
+        },
+        "moral_rights": {
+          "type": "string",
+          "description": "Treatment of moral rights in the licensed intellectual property",
+          "extraction_hints": ["moral rights", "waiver of moral rights", "attribution rights", "integrity rights"]
+        }
+      }
+    },
+
+    "support_and_maintenance": {
+      "description": "Ongoing support, maintenance, and update obligations",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "support_scope": {
+          "type": "string",
+          "description": "Scope and nature of support services provided",
+          "extraction_hints": ["support services", "technical support", "scope of support", "support obligations"]
+        },
+        "support_channels": {
+          "type": "array",
+          "description": "Available channels for obtaining support",
+          "items_type": "enum",
+          "enum_values": ["email", "phone", "portal", "chat"],
+          "extraction_hints": ["email support", "phone support", "support portal", "live chat", "ticket system"]
+        },
+        "response_time_targets": {
+          "type": "object",
+          "description": "Target response times organized by severity level",
+          "properties": {
+            "severity_1": {
+              "type": "string",
+              "description": "Response time for critical/severity 1 issues"
+            },
+            "severity_2": {
+              "type": "string",
+              "description": "Response time for high/severity 2 issues"
+            },
+            "severity_3": {
+              "type": "string",
+              "description": "Response time for medium/severity 3 issues"
+            },
+            "severity_4": {
+              "type": "string",
+              "description": "Response time for low/severity 4 issues"
+            }
+          },
+          "extraction_hints": ["response time", "SLA", "severity level", "priority level", "target response"]
+        },
+        "bug_fix_obligations": {
+          "type": "string",
+          "description": "Obligations to fix bugs, defects, or errors in the licensed product",
+          "extraction_hints": ["bug fix", "defect correction", "error correction", "patches", "hotfix"]
+        },
+        "update_frequency": {
+          "type": "string",
+          "description": "How often updates, patches, or minor releases are provided",
+          "extraction_hints": ["update frequency", "release schedule", "patch cycle", "updates provided"]
+        },
+        "upgrade_included": {
+          "type": "string",
+          "description": "Whether major version upgrades are included in the license or maintenance fees",
+          "extraction_hints": ["upgrades included", "major version", "new versions", "upgrade rights", "version upgrade"]
+        },
+        "end_of_life_policy": {
+          "type": "string",
+          "description": "Policy for end-of-life or end-of-support of the licensed product or version",
+          "extraction_hints": ["end of life", "end of support", "EOL", "EOS", "sunset", "deprecation"]
+        },
+        "backwards_compatibility": {
+          "type": "string",
+          "description": "Commitments regarding backwards compatibility in updates and upgrades",
+          "extraction_hints": ["backwards compatibility", "backward compatible", "backward-compatible", "compatibility"]
+        },
+        "documentation_obligations": {
+          "type": "string",
+          "description": "Obligations to provide or maintain documentation for the licensed product",
+          "extraction_hints": ["documentation", "user manuals", "technical documentation", "API documentation"]
+        }
+      }
+    },
+
+    "data_and_security": {
+      "description": "Data ownership, portability, security, and compliance requirements",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "data_ownership": {
+          "type": "string",
+          "description": "Who owns the data entered into, processed by, or generated by the licensed product",
+          "required": true,
+          "extraction_hints": ["data ownership", "customer data", "your data", "licensee data", "data belongs to"]
+        },
+        "data_portability": {
+          "type": "string",
+          "description": "Rights and mechanisms for exporting or migrating data out of the licensed product",
+          "extraction_hints": ["data portability", "data export", "data migration", "data retrieval", "extract data"]
+        },
+        "data_format_on_exit": {
+          "type": "string",
+          "description": "Format in which data will be returned upon termination or expiration",
+          "extraction_hints": ["data format", "return of data", "data in format", "CSV", "JSON", "standard format"]
+        },
+        "encryption_requirements": {
+          "type": "string",
+          "description": "Requirements for data encryption at rest and in transit",
+          "extraction_hints": ["encryption", "encrypted", "AES-256", "TLS", "at rest", "in transit"]
+        },
+        "access_controls": {
+          "type": "string",
+          "description": "Requirements for access controls, authentication, and authorization",
+          "extraction_hints": ["access control", "authentication", "authorization", "role-based access", "RBAC", "MFA", "multi-factor"]
+        },
+        "security_certifications": {
+          "type": "array",
+          "description": "Required or maintained security certifications and compliance standards",
+          "items_type": "string",
+          "extraction_hints": ["SOC 2", "SOC2", "ISO 27001", "ISO27001", "HIPAA", "FedRAMP", "PCI DSS", "certification"]
+        },
+        "breach_notification_requirements": {
+          "type": "string",
+          "description": "Requirements for notifying the other party in case of a data or security breach",
+          "extraction_hints": ["breach notification", "security incident", "notify within", "data breach", "incident notification"]
+        },
+        "data_residency_requirements": {
+          "type": "string",
+          "description": "Requirements for where data must be stored geographically",
+          "extraction_hints": ["data residency", "data location", "data sovereignty", "stored within", "geographic restriction"]
+        },
+        "backup_obligations": {
+          "type": "string",
+          "description": "Obligations for data backup frequency, retention, and recovery",
+          "extraction_hints": ["backup", "data backup", "backup frequency", "backup retention", "recovery point"]
+        },
+        "disaster_recovery": {
+          "type": "string",
+          "description": "Disaster recovery and business continuity obligations",
+          "extraction_hints": ["disaster recovery", "business continuity", "DR plan", "RTO", "RPO", "failover"]
+        }
+      }
+    },
+
+    "warranties_and_liability": {
+      "description": "Warranties, liability limitations, and indemnification provisions",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "performance_warranty": {
+          "type": "string",
+          "description": "Warranty that the licensed product will perform in accordance with specifications or documentation",
+          "extraction_hints": ["performance warranty", "will perform", "materially conform", "in accordance with documentation", "specifications"]
+        },
+        "infringement_warranty": {
+          "type": "string",
+          "description": "Warranty that the licensed product does not infringe third-party intellectual property rights",
+          "extraction_hints": ["non-infringement", "does not infringe", "IP warranty", "infringement warranty", "intellectual property rights"]
+        },
+        "virus_free_warranty": {
+          "type": "string",
+          "description": "Warranty that the licensed product is free from viruses, malware, or malicious code",
+          "extraction_hints": ["virus-free", "malware-free", "free from viruses", "malicious code", "no harmful code"]
+        },
+        "limitation_of_liability": {
+          "type": "object",
+          "description": "Cap on total liability under the agreement",
+          "properties": {
+            "cap_type": {
+              "type": "enum",
+              "description": "How the liability cap is structured",
+              "enum_values": ["fees_paid", "fixed_amount", "multiple_of_fees", "unlimited", "insurance_limit"]
+            },
+            "cap_amount": {
+              "type": "string",
+              "description": "Specific cap amount or formula for calculating the cap"
+            }
+          },
+          "extraction_hints": ["limitation of liability", "liability cap", "aggregate liability", "shall not exceed", "total liability"]
+        },
+        "consequential_damages_excluded": {
+          "type": "string",
+          "description": "Whether indirect, consequential, incidental, or special damages are excluded",
+          "extraction_hints": ["consequential damages", "indirect damages", "incidental damages", "special damages", "lost profits", "exclusion of damages"]
+        },
+        "indemnification_for_ip_claims": {
+          "type": "string",
+          "description": "Obligation to indemnify and defend against third-party IP infringement claims",
+          "extraction_hints": ["indemnify", "indemnification", "defend and hold harmless", "IP infringement claim", "third-party claim"]
+        }
+      }
+    },
+
+    "term_and_termination": {
+      "description": "License term, renewal, termination rights, and post-termination obligations",
+      "priority": 8,
+      "max_context_chars": 15000,
+      "fields": {
+        "initial_term": {
+          "type": "string",
+          "description": "Duration of the initial license term",
+          "required": true,
+          "extraction_hints": ["initial term", "term of", "license term", "duration", "period of"]
+        },
+        "auto_renewal": {
+          "type": "string",
+          "description": "Whether the license automatically renews and under what conditions",
+          "extraction_hints": ["auto-renewal", "automatically renew", "auto-renew", "successive terms", "shall renew"]
+        },
+        "renewal_term": {
+          "type": "string",
+          "description": "Duration of each renewal term",
+          "extraction_hints": ["renewal term", "renewal period", "successive period", "additional term"]
+        },
+        "termination_for_convenience_notice_days": {
+          "type": "integer",
+          "description": "Number of days written notice required for termination without cause",
+          "extraction_hints": ["termination for convenience", "without cause", "days prior written notice", "terminate at any time"]
+        },
+        "termination_for_breach_cure_period": {
+          "type": "string",
+          "description": "Cure period allowed to remedy a material breach before termination",
+          "extraction_hints": ["cure period", "days to cure", "remedy the breach", "material breach", "right to cure"]
+        },
+        "effects_of_termination": {
+          "type": "object",
+          "description": "Consequences and obligations that arise upon termination or expiration",
+          "properties": {
+            "data_return": {
+              "type": "string",
+              "description": "Obligations regarding return or destruction of licensee data"
+            },
+            "license_cessation": {
+              "type": "string",
+              "description": "When and how license rights cease upon termination"
+            },
+            "survival_clauses": {
+              "type": "array",
+              "description": "Clauses or sections that survive termination of the agreement",
+              "items_type": "string"
+            }
+          },
+          "extraction_hints": ["effects of termination", "upon termination", "following expiration", "survival", "return of data", "cease all use"]
+        },
+        "transition_assistance_period_days": {
+          "type": "integer",
+          "description": "Number of days of transition assistance provided after termination",
+          "extraction_hints": ["transition assistance", "transition period", "wind-down", "migration assistance", "transition services"]
+        }
+      }
+    }
+  }
+}

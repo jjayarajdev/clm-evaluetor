@@ -1,0 +1,517 @@
+{
+  "schema_id": "sla_v1",
+  "contract_type": "SLA",
+  "version": "1.0.0",
+  "description": "Service Level Agreement - defines performance standards, metrics, and remedies for service delivery",
+  "extraction_model": "gpt-4o",
+  "extraction_temperature": 0.0,
+  "max_tokens": 6000,
+  "required_sections": ["sla_metadata", "performance_metrics", "penalties_and_credits"],
+
+  "sections": {
+    "sla_metadata": {
+      "description": "Basic SLA identification, parties, and governance information",
+      "priority": 10,
+      "max_context_chars": 10000,
+      "fields": {
+        "agreement_title": {
+          "type": "string",
+          "description": "Official title of the SLA",
+          "required": true,
+          "extraction_hints": ["Service Level Agreement", "SLA", "Title at top of document"]
+        },
+        "effective_date": {
+          "type": "date",
+          "description": "Date the SLA becomes effective",
+          "required": true,
+          "extraction_hints": ["effective as of", "effective date", "commencing on"]
+        },
+        "expiration_date": {
+          "type": "date",
+          "description": "Date the SLA expires or is due for renewal",
+          "extraction_hints": ["expires on", "expiration date", "termination date", "valid until"]
+        },
+        "parties": {
+          "type": "object",
+          "description": "Parties to the SLA",
+          "properties": {
+            "service_provider": {
+              "type": "object",
+              "description": "The party providing the service",
+              "properties": {
+                "legal_name": {
+                  "type": "string",
+                  "description": "Full legal name of the service provider",
+                  "required": true
+                },
+                "short_name": {
+                  "type": "string",
+                  "description": "Short name or alias used in the agreement"
+                },
+                "address": {
+                  "type": "string",
+                  "description": "Registered address of the service provider"
+                }
+              }
+            },
+            "customer": {
+              "type": "object",
+              "description": "The party receiving the service",
+              "properties": {
+                "legal_name": {
+                  "type": "string",
+                  "description": "Full legal name of the customer",
+                  "required": true
+                },
+                "short_name": {
+                  "type": "string",
+                  "description": "Short name or alias used in the agreement"
+                },
+                "address": {
+                  "type": "string",
+                  "description": "Registered address of the customer"
+                }
+              }
+            }
+          }
+        },
+        "parent_agreement_reference": {
+          "type": "string",
+          "description": "Reference to the parent or master agreement this SLA is attached to",
+          "extraction_hints": ["pursuant to", "under the terms of", "as referenced in", "master agreement", "MSA"]
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction whose laws govern the SLA",
+          "extraction_hints": ["governed by the laws of", "governing law"]
+        },
+        "review_frequency": {
+          "type": "string",
+          "description": "How often the SLA is reviewed and potentially updated",
+          "extraction_hints": ["reviewed annually", "review period", "reviewed quarterly", "periodic review"]
+        }
+      }
+    },
+
+    "service_definitions": {
+      "description": "Detailed definitions of services covered by the SLA",
+      "priority": 9,
+      "max_context_chars": 15000,
+      "fields": {
+        "services_covered": {
+          "type": "array",
+          "description": "List of services covered under this SLA",
+          "items_type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the service",
+              "required": true
+            },
+            "description": {
+              "type": "string",
+              "description": "Detailed description of the service"
+            },
+            "category": {
+              "type": "string",
+              "description": "Category or grouping of the service",
+              "extraction_hints": ["infrastructure", "application", "network", "support", "hosting", "managed service"]
+            },
+            "criticality_level": {
+              "type": "enum",
+              "description": "Business criticality level of the service",
+              "enum_values": ["critical", "high", "medium", "low"]
+            }
+          }
+        },
+        "service_hours": {
+          "type": "object",
+          "description": "Hours during which services are provided",
+          "properties": {
+            "business_hours": {
+              "type": "string",
+              "description": "Standard business hours definition",
+              "extraction_hints": ["business hours", "office hours", "9am to 5pm", "8:00 to 18:00"]
+            },
+            "after_hours": {
+              "type": "string",
+              "description": "After-hours support availability and scope",
+              "extraction_hints": ["after hours", "out of hours", "evening support", "weekend support"]
+            },
+            "24x7": {
+              "type": "boolean",
+              "description": "Whether 24x7 support is provided",
+              "extraction_hints": ["24/7", "24x7", "around the clock", "twenty-four hours"]
+            }
+          }
+        },
+        "maintenance_windows": {
+          "type": "string",
+          "description": "Scheduled maintenance windows and their impact on service availability",
+          "extraction_hints": ["maintenance window", "scheduled maintenance", "planned downtime", "maintenance period"]
+        },
+        "excluded_services": {
+          "type": "array",
+          "description": "Services explicitly excluded from the SLA scope",
+          "items_type": "string",
+          "extraction_hints": ["excluded", "not covered", "outside scope", "does not include"]
+        },
+        "service_dependencies": {
+          "type": "array",
+          "description": "External dependencies that may affect service delivery",
+          "items_type": "string",
+          "extraction_hints": ["dependent on", "relies on", "requires", "third-party dependency"]
+        }
+      }
+    },
+
+    "performance_metrics": {
+      "description": "Performance targets, uptime requirements, and response time commitments",
+      "priority": 10,
+      "max_context_chars": 15000,
+      "fields": {
+        "availability_target_percent": {
+          "type": "number",
+          "description": "Target availability percentage (e.g., 99.9)",
+          "required": true,
+          "extraction_hints": ["99.9%", "99.95%", "availability target", "uptime guarantee", "service availability"]
+        },
+        "uptime_calculation_method": {
+          "type": "string",
+          "description": "How uptime/availability percentage is calculated",
+          "extraction_hints": ["calculated as", "uptime is measured", "availability is defined as", "excluding planned maintenance"]
+        },
+        "planned_downtime_handling": {
+          "type": "string",
+          "description": "How planned/scheduled downtime is treated in availability calculations",
+          "extraction_hints": ["planned downtime", "scheduled maintenance excluded", "does not count against"]
+        },
+        "response_time_targets": {
+          "type": "object",
+          "description": "Response and resolution time targets organized by severity",
+          "properties": {
+            "by_severity_level": {
+              "type": "array",
+              "description": "Response time targets broken down by incident severity",
+              "items_type": "object",
+              "properties": {
+                "severity": {
+                  "type": "string",
+                  "description": "Severity level identifier (e.g., P1, Critical, High)",
+                  "required": true
+                },
+                "response_time": {
+                  "type": "string",
+                  "description": "Maximum time to acknowledge or respond to an incident",
+                  "required": true,
+                  "extraction_hints": ["respond within", "initial response", "acknowledgment time"]
+                },
+                "resolution_time": {
+                  "type": "string",
+                  "description": "Maximum time to resolve the incident",
+                  "extraction_hints": ["resolve within", "resolution target", "time to fix"]
+                },
+                "escalation_time": {
+                  "type": "string",
+                  "description": "Time after which the incident is escalated",
+                  "extraction_hints": ["escalate after", "escalation within", "escalation threshold"]
+                }
+              }
+            }
+          }
+        },
+        "throughput_targets": {
+          "type": "string",
+          "description": "Throughput or transaction processing targets",
+          "extraction_hints": ["transactions per second", "throughput", "processing capacity", "TPS"]
+        },
+        "error_rate_targets": {
+          "type": "string",
+          "description": "Maximum acceptable error rates",
+          "extraction_hints": ["error rate", "failure rate", "defect rate", "not to exceed"]
+        },
+        "mean_time_to_repair": {
+          "type": "string",
+          "description": "Average time to repair a service failure (MTTR)",
+          "extraction_hints": ["MTTR", "mean time to repair", "average repair time"]
+        },
+        "mean_time_between_failures": {
+          "type": "string",
+          "description": "Average time between service failures (MTBF)",
+          "extraction_hints": ["MTBF", "mean time between failures", "average time between outages"]
+        }
+      }
+    },
+
+    "measurement_and_reporting": {
+      "description": "How service levels are measured, reported, and audited",
+      "priority": 8,
+      "max_context_chars": 10000,
+      "fields": {
+        "measurement_tools": {
+          "type": "string",
+          "description": "Tools or systems used to measure service performance",
+          "extraction_hints": ["monitoring tool", "measurement system", "tracked using", "measured by"]
+        },
+        "measurement_frequency": {
+          "type": "string",
+          "description": "How often measurements are taken",
+          "extraction_hints": ["measured continuously", "sampled every", "real-time monitoring", "measured monthly"]
+        },
+        "reporting_format": {
+          "type": "string",
+          "description": "Format and content requirements for SLA reports",
+          "extraction_hints": ["report shall include", "reporting format", "written report", "dashboard"]
+        },
+        "reporting_frequency": {
+          "type": "string",
+          "description": "How often SLA performance reports are delivered",
+          "extraction_hints": ["monthly report", "weekly report", "quarterly review", "reported on a"]
+        },
+        "dashboard_access": {
+          "type": "string",
+          "description": "Whether real-time dashboard access is provided to the customer",
+          "extraction_hints": ["dashboard", "portal access", "real-time visibility", "self-service reporting"]
+        },
+        "data_retention_period": {
+          "type": "string",
+          "description": "How long measurement and reporting data is retained",
+          "extraction_hints": ["data retained for", "retention period", "records maintained for", "kept for a period of"]
+        },
+        "audit_rights": {
+          "type": "string",
+          "description": "Customer's right to audit service level measurements",
+          "extraction_hints": ["right to audit", "audit access", "independent verification", "third-party audit"]
+        },
+        "dispute_resolution_for_measurements": {
+          "type": "string",
+          "description": "Process for resolving disputes about measurement accuracy",
+          "extraction_hints": ["dispute over measurement", "contested results", "measurement disagreement", "independent review"]
+        }
+      }
+    },
+
+    "penalties_and_credits": {
+      "description": "Service credits, financial penalties, and remedies for SLA breaches",
+      "priority": 10,
+      "max_context_chars": 15000,
+      "fields": {
+        "service_credit_calculation_method": {
+          "type": "string",
+          "description": "How service credits are calculated when SLA targets are missed",
+          "required": true,
+          "extraction_hints": ["service credit", "credit calculation", "calculated as a percentage", "credit equals"]
+        },
+        "credit_percentage_per_breach": {
+          "type": "string",
+          "description": "Percentage of fees credited per SLA breach or per percentage point below target",
+          "extraction_hints": ["percent credit", "% of monthly fee", "credit per percentage point"]
+        },
+        "maximum_credit_cap": {
+          "type": "string",
+          "description": "Maximum service credits that can be earned in a given period",
+          "extraction_hints": ["maximum credit", "cap on credits", "not to exceed", "aggregate credits"]
+        },
+        "credit_application_method": {
+          "type": "enum",
+          "description": "How earned credits are applied",
+          "enum_values": ["invoice_credit", "refund", "service_extension"],
+          "extraction_hints": ["applied to next invoice", "refunded", "credited against", "service extension"]
+        },
+        "penalty_escalation": {
+          "type": "array",
+          "description": "Tiered penalty structure that escalates with severity or frequency of breaches",
+          "items_type": "object",
+          "properties": {
+            "tier": {
+              "type": "string",
+              "description": "Tier identifier or level (e.g., Tier 1, First breach)"
+            },
+            "threshold": {
+              "type": "string",
+              "description": "Condition or threshold that triggers this tier"
+            },
+            "penalty": {
+              "type": "string",
+              "description": "Penalty or credit amount at this tier"
+            },
+            "additional_remedies": {
+              "type": "string",
+              "description": "Any additional remedies beyond financial credits at this tier"
+            }
+          }
+        },
+        "earnback_provisions": {
+          "type": "string",
+          "description": "Provisions allowing the provider to earn back credits through improved performance",
+          "extraction_hints": ["earnback", "earn back", "credit recovery", "offset by subsequent performance"]
+        },
+        "termination_trigger_threshold": {
+          "type": "string",
+          "description": "SLA failure threshold that gives the customer the right to terminate",
+          "extraction_hints": ["right to terminate", "termination trigger", "material breach", "consecutive failures", "persistent failure"]
+        },
+        "exclusions_from_penalties": {
+          "type": "array",
+          "description": "Circumstances under which SLA penalties do not apply",
+          "items_type": "object",
+          "properties": {
+            "exclusion_type": {
+              "type": "enum",
+              "description": "Category of exclusion",
+              "enum_values": ["force_majeure", "scheduled_maintenance", "customer_caused"]
+            },
+            "description": {
+              "type": "string",
+              "description": "Detailed description of the exclusion"
+            }
+          },
+          "extraction_hints": ["force majeure", "scheduled maintenance", "customer-caused", "excluded from", "not applicable when"]
+        }
+      }
+    },
+
+    "incident_management": {
+      "description": "Incident classification, notification, escalation, and post-incident processes",
+      "priority": 8,
+      "max_context_chars": 12000,
+      "fields": {
+        "severity_definitions": {
+          "type": "array",
+          "description": "Definitions of incident severity levels (P1 through P4)",
+          "items_type": "object",
+          "properties": {
+            "level": {
+              "type": "string",
+              "description": "Severity level identifier (e.g., P1, P2, P3, P4)",
+              "required": true
+            },
+            "definition": {
+              "type": "string",
+              "description": "Definition of what constitutes this severity level",
+              "required": true
+            },
+            "examples": {
+              "type": "array",
+              "description": "Example incidents at this severity level",
+              "items_type": "string"
+            }
+          },
+          "extraction_hints": ["Priority 1", "Severity 1", "Critical", "Major", "Minor", "P1", "P2", "P3", "P4"]
+        },
+        "incident_notification_method": {
+          "type": "string",
+          "description": "How the customer is notified of incidents",
+          "extraction_hints": ["notify via", "notification by email", "phone notification", "ticketing system", "alert"]
+        },
+        "escalation_matrix": {
+          "type": "array",
+          "description": "Escalation levels with contacts and timeframes",
+          "items_type": "object",
+          "properties": {
+            "level": {
+              "type": "string",
+              "description": "Escalation level (e.g., Level 1, Level 2, Management)",
+              "required": true
+            },
+            "contact": {
+              "type": "string",
+              "description": "Role or individual to be contacted at this escalation level"
+            },
+            "timeframe": {
+              "type": "string",
+              "description": "Time after which escalation to this level occurs",
+              "extraction_hints": ["after 30 minutes", "within 1 hour", "if unresolved after"]
+            }
+          }
+        },
+        "root_cause_analysis_required": {
+          "type": "boolean",
+          "description": "Whether root cause analysis is required after incidents",
+          "extraction_hints": ["root cause analysis", "RCA", "post-mortem", "failure analysis"]
+        },
+        "post_incident_review_required": {
+          "type": "boolean",
+          "description": "Whether a formal post-incident review meeting is required",
+          "extraction_hints": ["post-incident review", "lessons learned", "incident review meeting", "post-mortem meeting"]
+        },
+        "communication_frequency_during_incident": {
+          "type": "string",
+          "description": "How often status updates must be provided during an active incident",
+          "extraction_hints": ["updates every", "communicate every", "status update frequency", "regular updates"]
+        }
+      }
+    },
+
+    "capacity_and_change": {
+      "description": "Capacity planning and change management provisions",
+      "priority": 7,
+      "max_context_chars": 10000,
+      "fields": {
+        "capacity_planning_requirements": {
+          "type": "string",
+          "description": "Requirements for ongoing capacity planning",
+          "extraction_hints": ["capacity planning", "capacity management", "demand forecasting", "resource planning"]
+        },
+        "capacity_review_frequency": {
+          "type": "string",
+          "description": "How often capacity is reviewed",
+          "extraction_hints": ["capacity review", "reviewed quarterly", "annual capacity assessment"]
+        },
+        "change_management_process": {
+          "type": "string",
+          "description": "Process for managing changes to services or infrastructure",
+          "extraction_hints": ["change management", "change control", "change request", "change advisory board"]
+        },
+        "change_notification_period_days": {
+          "type": "integer",
+          "description": "Number of days advance notice required for changes",
+          "extraction_hints": ["days notice", "advance notification", "prior notice of changes"]
+        },
+        "change_approval_required": {
+          "type": "boolean",
+          "description": "Whether customer approval is required before implementing changes",
+          "extraction_hints": ["customer approval", "mutual agreement", "written consent required", "approval before"]
+        },
+        "rollback_requirements": {
+          "type": "string",
+          "description": "Requirements for rolling back changes if they cause issues",
+          "extraction_hints": ["rollback", "revert", "back-out plan", "restore previous state"]
+        }
+      }
+    },
+
+    "continuous_improvement": {
+      "description": "Ongoing improvement obligations and innovation requirements",
+      "priority": 6,
+      "max_context_chars": 8000,
+      "fields": {
+        "improvement_targets": {
+          "type": "string",
+          "description": "Specific targets or commitments for ongoing service improvement",
+          "extraction_hints": ["continuous improvement", "year-over-year improvement", "improvement target", "service improvement plan"]
+        },
+        "benchmarking_frequency": {
+          "type": "string",
+          "description": "How often performance is benchmarked against industry standards",
+          "extraction_hints": ["benchmarking", "industry comparison", "peer comparison", "benchmark review"]
+        },
+        "technology_refresh_obligations": {
+          "type": "string",
+          "description": "Obligations to update or refresh technology",
+          "extraction_hints": ["technology refresh", "tech upgrade", "modernization", "end of life replacement", "technology currency"]
+        },
+        "innovation_requirements": {
+          "type": "string",
+          "description": "Requirements to propose or implement innovative solutions",
+          "extraction_hints": ["innovation", "new technology proposals", "proactive recommendations", "value-add"]
+        },
+        "training_requirements": {
+          "type": "string",
+          "description": "Training obligations for provider staff or customer personnel",
+          "extraction_hints": ["training", "knowledge transfer", "staff certification", "skills development"]
+        }
+      }
+    }
+  }
+}
