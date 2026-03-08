@@ -16,11 +16,14 @@ async def reextract():
     from app.agents.metadata_extraction import extract_metadata, update_contract_metadata
 
     bad_ids = [
-        '0309d333-5024-4c9b-be8b-59fd01a43d9e',  # MSA_CareerSource
-        '1c285f5e-eebc-494c-81ce-33fc69792f88',  # SOW_SDLC_Template
-        '62e68ff0-5382-43f6-8785-a6ba7b0cf4ef',  # SLA_PMI_Agreement
-        'f30ac2d9-b769-4493-b758-1c9a1badc133',  # Vendor_Agreement_Pace
-        'c2d61a18-d658-44ea-9c13-06fa0808febb',  # MSA_MercyCorps_Template
+        '128e224a-7958-4b97-88af-1a0bf397ac80',  # MSA_CareerSource → "the terms of any SOW"
+        '980d89f2-083f-4d50-a9bd-29376d30016f',  # MSA_MercyCorps_Template → "the ones in the RFP"
+        'c4204c15-4554-4001-b572-5c10d80b7ea6',  # Vendor_Agreement_Pace → "attached hereto as Exhibit A"
+        'cb0dc891-0d35-4a67-ad78-3392502bd362',  # SLA_Northwestern_IT → "the"
+        '7e7224e4-b6c8-466d-b668-48804430bb8b',  # MSA_WENGER_PLATTNER → "January 15"
+        '0ebddf30-4749-4b83-a566-b0a539bd4f04',  # Amendment_001_MSA_TechServices → address as counterparty
+        '563453de-72e9-4cbb-941d-dbd5294f4e34',  # SOW_InfraManagement_Acme → address as counterparty
+        'c7fff088-9575-4ff6-9585-ff14f8de2b5a',  # Huurcontract → filename as counterparty
     ]
 
     async with async_session_maker() as db:

@@ -591,7 +591,7 @@ frontend/
 
 ---
 
-## API Endpoint Summary (~311 Endpoints)
+## API Endpoint Summary (~315 Endpoints)
 
 | # | Category | Prefix | Endpoints | Key Operations |
 |---|----------|--------|-----------|----------------|
@@ -625,7 +625,7 @@ frontend/
 | 28 | Scheduler | `/api/admin/scheduler` | 9 | job management, history |
 | 29 | Master Data | `/api/admin/master-data` | 6 | SLA/Milestone configs |
 | 30 | Knowledge Graph | `/api/knowledge-graph` | 9 | entity/relationship graph |
-| 31 | Suggested Links | `/api/suggested-links` | 5 | auto-detected links |
+| 31 | Suggested Links | `/api/suggested-links` | 6 | auto-detected links, established links |
 | 32 | Organizations | `/api/organizations` | 5 | organization CRUD (Evaluetor) |
 | 33 | Relationships | `/api/relationships` | 8 | business relationships, teams |
 | 34 | KPIs | `/api/kpis` | 8 | KPI definitions, perception, gaps |
@@ -675,8 +675,9 @@ JWT Token --> Extract tenant_id
 | Contract Q&A | Answer questions over corpus | User question | Answer + citations + follow-ups |
 | SLA Extraction | Extract SLA metrics and targets | Contract text | SLA definitions + penalties |
 | Regulatory Extraction | Extract regulatory compliance clauses (FDA, HIPAA, GMP, GDPR, SOC2, etc.) across 10 obligation categories | Contract text + industry context | Regulatory obligations + regulation references + compliance categories |
+| Schema Extraction | Extract fields using 15 pre-built contract type schemas (1,235 fields total) | Contract text + schema definition | Structured field values per schema sections |
 
-All 9 agents use the Agent Squad framework with OpenAI GPT-4o and are orchestrated via intent-based routing through `OpenAIClassifier`. The Regulatory Extraction agent is invoked automatically for contracts in regulated industries and covers 10 obligation categories: audit rights, change control, deviation reporting, recall response, adverse event reporting, record retention, training requirements, quality review, regulatory reporting, and data protection.
+All 9 agents use the Agent Squad framework with OpenAI GPT-4o and are orchestrated via intent-based routing through `OpenAIClassifier`. The Regulatory Extraction agent is invoked automatically for contracts in regulated industries and covers 10 obligation categories. The Schema Extraction agent supports 15 pre-built contract type schemas with 1,235 extractable fields across 133 sections, providing competitive parity with enterprise CLM vendors.
 
 ---
 
@@ -755,4 +756,4 @@ SMTP_PASSWORD=...
 ---
 
 *Last updated: 2026-03-07*
-*Verified against actual codebase: 40 routers, 35 services, 9 agents, 46 model files, 30 schema files, 31 migrations, 5 integrations*
+*Verified against actual codebase: 41 routers, 36 services, 9 agents, 48 model files, 30 schema files + 15 extraction schemas, 31 migrations, 5 integrations*

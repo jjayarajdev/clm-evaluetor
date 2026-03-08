@@ -343,12 +343,15 @@ erDiagram
     ContractLink {
         uuid id PK
         uuid tenant_id FK
-        uuid source_contract_id FK
-        uuid target_contract_id FK
-        enum link_type "amendment|sow_to_msa|renewal|related|supersedes"
-        text notes
-        uuid created_by FK
+        uuid parent_contract_id FK
+        uuid child_contract_id FK
+        enum link_type "sow|amendment|addendum|renewal|exhibit|schedule|supersedes|references|related + 7 more"
+        string link_description
+        date effective_date
+        string reference_number
+        boolean is_active
         timestamp created_at
+        timestamp updated_at
     }
 ```
 
@@ -925,24 +928,37 @@ erDiagram
         uuid tenant_id FK
         uuid source_contract_id FK
         uuid target_contract_id FK
-        enum link_type "amendment|sow_to_msa|renewal|related|supersedes"
-        decimal confidence_score
+        string suggested_link_type
+        string suggested_direction
+        decimal confidence_score "0-1 multi-signal score"
         text reasoning
-        enum status "pending|accepted|rejected|expired"
+        jsonb matching_signals "counterparty, type, semantic, filename, date"
+        enum status "pending|approved|rejected|expired"
         uuid reviewed_by FK
         timestamp reviewed_at
+        uuid created_link_id FK "links to ContractLink on approval"
         timestamp created_at
     }
 ```
 
 ```mermaid
 flowchart LR
-    Upload[Contract Upload] --> Analyze[Analyze Document]
-    Analyze --> Detect[Detect Counterparty Match]
-    Detect --> Suggest[Create Suggested Links]
+    Upload[Contract Upload] --> Analyze[AutoLinkDetector]
+    Analyze --> S1[Counterparty Match 30%]
+    Analyze --> S2[Type Hierarchy 25%]
+    Analyze --> S3[Semantic Similarity 20%]
+    Analyze --> S4[Fuzzy Match 20%]
+    Analyze --> S5[Filename Pattern 15%]
+    S1 --> Score[Composite Score]
+    S2 --> Score
+    S3 --> Score
+    S4 --> Score
+    S5 --> Score
+    Score --> Suggest[SuggestedContractLink]
     Suggest --> Review{User Review}
-    Review -->|Accept| Create[Create Contract Link]
-    Review -->|Reject| Dismiss[Dismiss Suggestion]
+    Review -->|Approve| Create[ContractLink]
+    Review -->|Reject| Dismiss[Dismiss]
+    Review -->|Modify| ModCreate[ContractLink with modified type]
 ```
 
 ### Scheduler & Background Jobs
@@ -1402,3 +1418,4 @@ sequenceDiagram
 | 1.1 | 2026-02-28 | Updated clause types to 31 categories, added AI classification mapping |
 | 1.2 | 2026-03-06 | Added Business Unit, External User, Contract Share/Comment, Knowledge Graph, Notification Rules, Metric Snapshots. Updated entity overview diagram. |
 | 1.3 | 2026-03-07 | Added Chat Sessions and Chat Messages entities. Updated entity overview diagram. |
+| 1.4 | 2026-03-07 | Updated ContractLink (16 link types, parent/child model) and SuggestedContractLink (multi-signal scoring with 6 weighted signals). Added AutoLinkDetector flowchart. |

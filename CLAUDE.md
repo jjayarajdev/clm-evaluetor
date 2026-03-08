@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CLM (Contract Lifecycle Management) is a strategic initiative to build an AI-native contract management platform positioned as an "AI Legal Engineer." The platform combines contract intelligence (AI-powered extraction and analysis) with relationship governance (Evaluetor-style KPI perception scoring and business relationship management). It aims to disrupt legacy CLM vendors (DocuSign, Icertis, Ironclad, Sirion, Agiloft) through rapid time-to-value, agentic AI workflows, and modern architecture.
 
-**Current State:** Phases 0-10 complete. ~310 API endpoints, 41 routers, 36 services, 9 AI agents, 48 model files, 55+ database tables.
+**Current State:** Phases 0-10 complete. ~315 API endpoints, 41 routers, 36 services, 9 AI agents, 48 model files, 55+ database tables. Schema Extraction Library with 15 contract type schemas (1,235 extractable fields).
 
 ## Implementation Progress
 
@@ -15,7 +15,7 @@ CLM (Contract Lifecycle Management) is a strategic initiative to build an AI-nat
 | 0 | Project Setup (Docker, PostgreSQL, ChromaDB, Agent Squad) | ✅ Complete |
 | 1 | Core Backend Infrastructure (Auth, RBAC, Audit) | ✅ Complete |
 | 2 | Document Ingestion Pipeline (Upload, Parse, Chunk, Index) | ✅ Complete |
-| 3 | AI Skills (9 Agents: Metadata, Clause, Obligation, Risk, Renewal, Q&A, SLA, Schema, Intent Router) | ✅ Complete |
+| 3 | AI Skills (9 Agents + Schema Extraction Library: 15 contract types, 1,235 fields) | ✅ Complete |
 | 4 | Backend API Endpoints (Contracts, Dashboards, Query) | ✅ Complete |
 | 5 | Frontend Foundation (React, Routing, Auth UI, Components) | ✅ Complete |
 | 6 | Frontend Features (Upload, Contract Viewer, Dashboards, Chat, Chat History) | ✅ Complete |
@@ -163,7 +163,7 @@ This ensures local dev (which auto-creates enums) and Docker (which uses migrati
 5. **Clause Extraction Agent:** Identify and classify 17 clause types
 6. **Renewal Monitoring Agent:** Detect auto-renewal, notice periods, calculate deadlines
 7. **SLA Extraction Agent:** Extract SLA metrics, targets, and penalty terms
-8. **Schema Extraction Agent:** Custom extraction based on user-defined schemas
+8. **Schema Extraction Agent:** Custom extraction with 15 pre-built schemas (1,235 fields across MSA, NDA, SOW, Employment, Vendor, License, Lease, SLA, Amendment, Consulting, Distribution, Franchise, Joint Venture, Partnership, Supply)
 9. **Intent Router Agent:** Structured query routing for renewals, obligations, risk, portfolio, and SLA queries with LLM-enhanced visualizations
 
 ## Strategic Differentiators
@@ -195,7 +195,7 @@ This ensures local dev (which auto-creates enums) and Docker (which uses migrati
 - `tasks/skills.md` - Agent Squad agent definitions and orchestration setup
 - `docs/ARCHITECTURE_OVERVIEW.md` - System architecture and component overview
 - `docs/ARCHITECTURE_DIAGRAMS.md` - System architecture and sequence diagrams (Mermaid)
-- `docs/API_DOCUMENTATION.md` - Comprehensive API documentation (~305 endpoints)
+- `docs/API_DOCUMENTATION.md` - Comprehensive API documentation (~315 endpoints)
 - `docs/DATA_MODEL.md` - Complete data model with Mermaid ER diagrams
 - `docs/PRODUCT_VISION_AND_ROADMAP.md` - Product vision and feature roadmap
 
@@ -207,6 +207,8 @@ This ensures local dev (which auto-creates enums) and Docker (which uses migrati
 - **Obligation** - Contractual obligations with deadlines and status
 - **ContractSLA** - SLA metrics and targets
 - **SLAPerformance** - Actual performance tracking
+- **ContractLink** - Established parent-child relationships between contracts (16 link types)
+- **SuggestedContractLink** - AI-detected contract relationships with multi-signal scoring
 
 ### Relationship Governance Entities (Phase 9)
 - **Organization** - Party profiles (customer, vendor, partner)
