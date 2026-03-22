@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance'
@@ -116,6 +117,8 @@ export default function SettingsPage() {
 }
 
 function GeneralSettings() {
+  const { user } = useAuth()
+
   return (
     <div className="space-y-6">
       <div>
@@ -124,7 +127,7 @@ function GeneralSettings() {
         </label>
         <input
           type="text"
-          defaultValue="Acme Corporation"
+          defaultValue={user?.tenant_name || 'My Organization'}
           className="input max-w-md"
         />
       </div>

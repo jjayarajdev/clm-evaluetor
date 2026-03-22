@@ -1,0 +1,2954 @@
+{
+  "config": {
+    "configFile": "/Users/jjayaraj/workspaces/studios/clm/playwright.config.ts",
+    "rootDir": "/Users/jjayaraj/workspaces/studios/clm/e2e/tests",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/jjayaraj/workspaces/studios/clm/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/jjayaraj/workspaces/studios/clm/e2e/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "e2e/reports"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "e2e/reports/results.json"
+        }
+      ],
+      [
+        "list",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.2",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "01-authentication.spec.ts",
+      "file": "01-authentication.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Authentication",
+          "file": "01-authentication.spec.ts",
+          "line": 5,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Login via UI",
+              "file": "01-authentication.spec.ts",
+              "line": 6,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should login successfully with valid admin credentials",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-8d5a8d647819a03de328",
+                  "file": "01-authentication.spec.ts",
+                  "line": 7,
+                  "column": 9
+                },
+                {
+                  "title": "should login successfully with legal user credentials",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-76972ccc28be6d1f6eda",
+                  "file": "01-authentication.spec.ts",
+                  "line": 24,
+                  "column": 9
+                },
+                {
+                  "title": "should show error with invalid password",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-9bacb2829237a4d0895e",
+                  "file": "01-authentication.spec.ts",
+                  "line": 34,
+                  "column": 9
+                },
+                {
+                  "title": "should show error with non-existent user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-7c1184d9fb2793e55aca",
+                  "file": "01-authentication.spec.ts",
+                  "line": 53,
+                  "column": 9
+                },
+                {
+                  "title": "should require username field",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-95842ae5b0cd3792b9ac",
+                  "file": "01-authentication.spec.ts",
+                  "line": 72,
+                  "column": 9
+                },
+                {
+                  "title": "should require password field",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-2b9fe842025850988d8d",
+                  "file": "01-authentication.spec.ts",
+                  "line": 83,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Login via API",
+              "file": "01-authentication.spec.ts",
+              "line": 95,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should return token with valid credentials",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-1f22331ca7e90cac1d2c",
+                  "file": "01-authentication.spec.ts",
+                  "line": 96,
+                  "column": 9
+                },
+                {
+                  "title": "should return 401 with invalid password",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-092cd6aafb9d5ce88140",
+                  "file": "01-authentication.spec.ts",
+                  "line": 115,
+                  "column": 9
+                },
+                {
+                  "title": "should return 401 with non-existent user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-235efed8f2ed38481e81",
+                  "file": "01-authentication.spec.ts",
+                  "line": 126,
+                  "column": 9
+                },
+                {
+                  "title": "should return 422 with missing username",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-98fe33fd7febd57e2181",
+                  "file": "01-authentication.spec.ts",
+                  "line": 137,
+                  "column": 9
+                },
+                {
+                  "title": "should return 422 with missing password",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-753254846afa8b970dd4",
+                  "file": "01-authentication.spec.ts",
+                  "line": 147,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Get Current User (/me)",
+              "file": "01-authentication.spec.ts",
+              "line": 158,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should return user info with valid token",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-b3b378f6e994f12439a4",
+                  "file": "01-authentication.spec.ts",
+                  "line": 159,
+                  "column": 9
+                },
+                {
+                  "title": "should return 401/403 without token",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-92d10b54c0012cbb46d4",
+                  "file": "01-authentication.spec.ts",
+                  "line": 177,
+                  "column": 9
+                },
+                {
+                  "title": "should return 401/403 with invalid token",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-6abe5fc8139886bdbd22",
+                  "file": "01-authentication.spec.ts",
+                  "line": 183,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Logout",
+              "file": "01-authentication.spec.ts",
+              "line": 194,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should logout successfully via API",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-f5a30a72b72b0a8830a8",
+                  "file": "01-authentication.spec.ts",
+                  "line": 195,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Role-Based Access",
+              "file": "01-authentication.spec.ts",
+              "line": 213,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "super admin should have no tenant",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-27a4b9ab2745671161d1",
+                  "file": "01-authentication.spec.ts",
+                  "line": 214,
+                  "column": 9
+                },
+                {
+                  "title": "admin should have tenant assigned",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-f359a3ba73cb0ab046b4",
+                  "file": "01-authentication.spec.ts",
+                  "line": 229,
+                  "column": 9
+                },
+                {
+                  "title": "legal user should have tenant assigned",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "4b4d36e9b0558f4ed4af-51f50e046a006384e8aa",
+                  "file": "01-authentication.spec.ts",
+                  "line": 243,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "02-contracts.spec.ts",
+      "file": "02-contracts.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Contracts",
+          "file": "02-contracts.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Contract List API",
+              "file": "02-contracts.spec.ts",
+              "line": 13,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should list contracts with valid token",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-8713574e108a7ee7b8a1",
+                  "file": "02-contracts.spec.ts",
+                  "line": 14,
+                  "column": 9
+                },
+                {
+                  "title": "should return 401 without authentication",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-bf48990919bbaa1f6f5a",
+                  "file": "02-contracts.spec.ts",
+                  "line": 25,
+                  "column": 9
+                },
+                {
+                  "title": "should support pagination",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-09aeb1e977e8011e139b",
+                  "file": "02-contracts.spec.ts",
+                  "line": 31,
+                  "column": 9
+                },
+                {
+                  "title": "should filter contracts by status",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-11929bb406d874a57d33",
+                  "file": "02-contracts.spec.ts",
+                  "line": 42,
+                  "column": 9
+                },
+                {
+                  "title": "should filter contracts by risk level",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-88b9bf94004727b71fa3",
+                  "file": "02-contracts.spec.ts",
+                  "line": 58,
+                  "column": 9
+                },
+                {
+                  "title": "should search contracts by keyword",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-c6dd337be3ea31b25815",
+                  "file": "02-contracts.spec.ts",
+                  "line": 74,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Contract Detail API",
+              "file": "02-contracts.spec.ts",
+              "line": 83,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should get contract details with valid ID",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-d3c546ca839e942785b8",
+                  "file": "02-contracts.spec.ts",
+                  "line": 84,
+                  "column": 9
+                },
+                {
+                  "title": "should return 404 for non-existent contract",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-d063f8e5864f1e257cfe",
+                  "file": "02-contracts.spec.ts",
+                  "line": 98,
+                  "column": 9
+                },
+                {
+                  "title": "should return 422 for invalid UUID format",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-0a65dca2a7f5c8e358e4",
+                  "file": "02-contracts.spec.ts",
+                  "line": 106,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Contracts Page UI",
+              "file": "02-contracts.spec.ts",
+              "line": 116,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should display contracts list",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-b4cde128dd7ec10b1019",
+                  "file": "02-contracts.spec.ts",
+                  "line": 117,
+                  "column": 9
+                },
+                {
+                  "title": "should have search functionality",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-7f2ddfcaa2c27d39cdbf",
+                  "file": "02-contracts.spec.ts",
+                  "line": 129,
+                  "column": 9
+                },
+                {
+                  "title": "should navigate to contract detail",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-3b5bb3e2106fb0d98052",
+                  "file": "02-contracts.spec.ts",
+                  "line": 140,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Contract Detail Page UI",
+              "file": "02-contracts.spec.ts",
+              "line": 162,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should display contract information",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-e181a50b1ab360c3752f",
+                  "file": "02-contracts.spec.ts",
+                  "line": 163,
+                  "column": 9
+                },
+                {
+                  "title": "should show clauses section",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-28f64bb7664c4da94bae",
+                  "file": "02-contracts.spec.ts",
+                  "line": 178,
+                  "column": 9
+                },
+                {
+                  "title": "should show obligations section",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-7282b11b33b45154917e",
+                  "file": "02-contracts.spec.ts",
+                  "line": 193,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Tenant Isolation",
+              "file": "02-contracts.spec.ts",
+              "line": 209,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "admin should only see their tenant contracts",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-2b2a300dafc2238e63ec",
+                  "file": "02-contracts.spec.ts",
+                  "line": 210,
+                  "column": 9
+                },
+                {
+                  "title": "user cannot access contract from another tenant",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "3d58b65841c904d6f150-7938d5e9e64f8e088a97",
+                  "file": "02-contracts.spec.ts",
+                  "line": 231,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "03-business-units.spec.ts",
+      "file": "03-business-units.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Business Units",
+          "file": "03-business-units.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Business Unit API",
+              "file": "03-business-units.spec.ts",
+              "line": 21,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should list business units with valid token",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-edc87c515217620895ec",
+                  "file": "03-business-units.spec.ts",
+                  "line": 22,
+                  "column": 9
+                },
+                {
+                  "title": "should return 401 without authentication",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-9c8b7846b081a50b8400",
+                  "file": "03-business-units.spec.ts",
+                  "line": 31,
+                  "column": 9
+                },
+                {
+                  "title": "should create business unit",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-d0986840ee4dadd4b860",
+                  "file": "03-business-units.spec.ts",
+                  "line": 37,
+                  "column": 9
+                },
+                {
+                  "title": "should get business unit by ID",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-29e72ef4c7524e576a24",
+                  "file": "03-business-units.spec.ts",
+                  "line": 58,
+                  "column": 9
+                },
+                {
+                  "title": "should update business unit",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-a8aa93603fb3da0bb6be",
+                  "file": "03-business-units.spec.ts",
+                  "line": 73,
+                  "column": 9
+                },
+                {
+                  "title": "should delete/deactivate business unit",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-9c1961a79b2be70f165d",
+                  "file": "03-business-units.spec.ts",
+                  "line": 106,
+                  "column": 9
+                },
+                {
+                  "title": "should return 404 for non-existent business unit",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-d2f5571e5e07b79a9c3b",
+                  "file": "03-business-units.spec.ts",
+                  "line": 127,
+                  "column": 9
+                },
+                {
+                  "title": "should prevent duplicate codes",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-7de85455164ec59a45c9",
+                  "file": "03-business-units.spec.ts",
+                  "line": 135,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Business Units Page UI",
+              "file": "03-business-units.spec.ts",
+              "line": 165,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should display business units list",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-7339194b391cf014ebe3",
+                  "file": "03-business-units.spec.ts",
+                  "line": 166,
+                  "column": 9
+                },
+                {
+                  "title": "should open create modal",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-a40679382a8aabedc8b2",
+                  "file": "03-business-units.spec.ts",
+                  "line": 176,
+                  "column": 9
+                },
+                {
+                  "title": "should validate required fields on create",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-d820342d9233b4a7effe",
+                  "file": "03-business-units.spec.ts",
+                  "line": 190,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Super Admin Access",
+              "file": "03-business-units.spec.ts",
+              "line": 209,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "super admin should be able to view business units of any tenant",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "f369ab3e7cd1c3ca719b-ac81a9dbbeefc751a2a4",
+                  "file": "03-business-units.spec.ts",
+                  "line": 210,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "04-external-users.spec.ts",
+      "file": "04-external-users.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "External Users",
+          "file": "04-external-users.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "External User API",
+              "file": "04-external-users.spec.ts",
+              "line": 21,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should list external users with valid token",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-d21bd41593ef3f3addd9",
+                  "file": "04-external-users.spec.ts",
+                  "line": 22,
+                  "column": 9
+                },
+                {
+                  "title": "should return 401 without authentication",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-5b650acb0eb0fcf6026d",
+                  "file": "04-external-users.spec.ts",
+                  "line": 31,
+                  "column": 9
+                },
+                {
+                  "title": "should create external user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-7d62b9029452782fa89f",
+                  "file": "04-external-users.spec.ts",
+                  "line": 37,
+                  "column": 9
+                },
+                {
+                  "title": "should get external user by ID",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-6978fb9f408b7847dfc5",
+                  "file": "04-external-users.spec.ts",
+                  "line": 61,
+                  "column": 9
+                },
+                {
+                  "title": "should update external user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-a2c9a98f948be104174b",
+                  "file": "04-external-users.spec.ts",
+                  "line": 75,
+                  "column": 9
+                },
+                {
+                  "title": "should update external user email",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-f69c5c45010ec26d3c0c",
+                  "file": "04-external-users.spec.ts",
+                  "line": 109,
+                  "column": 9
+                },
+                {
+                  "title": "should delete/deactivate external user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-59dacabbdc25b33cb18f",
+                  "file": "04-external-users.spec.ts",
+                  "line": 142,
+                  "column": 9
+                },
+                {
+                  "title": "should return 404 for non-existent external user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-24a3fc34ac2366b98ff0",
+                  "file": "04-external-users.spec.ts",
+                  "line": 161,
+                  "column": 9
+                },
+                {
+                  "title": "should validate email format",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-b5d8bff02ea2b5c9b7ec",
+                  "file": "04-external-users.spec.ts",
+                  "line": 169,
+                  "column": 9
+                },
+                {
+                  "title": "should prevent duplicate emails",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-918c9c9b2549ab02738a",
+                  "file": "04-external-users.spec.ts",
+                  "line": 182,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "External Users Page UI",
+              "file": "04-external-users.spec.ts",
+              "line": 212,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should display external users list",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-98a14f2b41453537a8ff",
+                  "file": "04-external-users.spec.ts",
+                  "line": 213,
+                  "column": 9
+                },
+                {
+                  "title": "should open create modal",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-f047f03addd84b7eed2b",
+                  "file": "04-external-users.spec.ts",
+                  "line": 223,
+                  "column": 9
+                },
+                {
+                  "title": "should search external users",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-c0147670878bb0803399",
+                  "file": "04-external-users.spec.ts",
+                  "line": 237,
+                  "column": 9
+                },
+                {
+                  "title": "should show edit modal when clicking edit button",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-19a81f9d2b302391d323",
+                  "file": "04-external-users.spec.ts",
+                  "line": 254,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "External User Access Validation",
+              "file": "04-external-users.spec.ts",
+              "line": 272,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should require email when creating",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "223ba014dfa82bb60446-3c14591595932987b4cd",
+                  "file": "04-external-users.spec.ts",
+                  "line": 273,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "05-contract-sharing.spec.ts",
+      "file": "05-contract-sharing.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Contract Sharing",
+          "file": "05-contract-sharing.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Share Contract API",
+              "file": "05-contract-sharing.spec.ts",
+              "line": 42,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should share contract with external user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-494393266fe50840dc1d",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 43,
+                  "column": 9
+                },
+                {
+                  "title": "should list contract shares",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-d364c908c7abbcaeae97",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 68,
+                  "column": 9
+                },
+                {
+                  "title": "should prevent duplicate shares",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-2d881e3e42142411782f",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 80,
+                  "column": 9
+                },
+                {
+                  "title": "should return 404 for non-existent contract",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-7604991b2a5b74e5b218",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 97,
+                  "column": 9
+                },
+                {
+                  "title": "should return 404 for non-existent external user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-35b0e6d80cc3011b322d",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 114,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "External Portal Access",
+              "file": "05-contract-sharing.spec.ts",
+              "line": 132,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should access shared contract with valid token",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-8fb291010071bacfc75b",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 133,
+                  "column": 9
+                },
+                {
+                  "title": "should show access denied for invalid token",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-5bb7e079ea2568d73fdf",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 146,
+                  "column": 9
+                },
+                {
+                  "title": "should show contract information",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-6f38d14c77b1c7727e6f",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 156,
+                  "column": 9
+                },
+                {
+                  "title": "should show download button when permitted",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-65471be31d76e859ebd7",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 167,
+                  "column": 9
+                },
+                {
+                  "title": "should show comments section when permitted",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-954341aabae015de2e0e",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 178,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Contract Sharing UI",
+              "file": "05-contract-sharing.spec.ts",
+              "line": 190,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should show sharing tab on contract detail",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-023e0c900388123d3d71",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 191,
+                  "column": 9
+                },
+                {
+                  "title": "should open share modal",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-446823f12314d04ec250",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 209,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Revoke Share",
+              "file": "05-contract-sharing.spec.ts",
+              "line": 236,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should revoke contract share",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-00d359fdff9a49dd4a20",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 237,
+                  "column": 9
+                },
+                {
+                  "title": "revoked share should not grant access",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "ad6c4e8d5ad09856eed9-ba274c8bf11476935b08",
+                  "file": "05-contract-sharing.spec.ts",
+                  "line": 262,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "06-dashboard.spec.ts",
+      "file": "06-dashboard.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Dashboard",
+          "file": "06-dashboard.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Dashboard API",
+              "file": "06-dashboard.spec.ts",
+              "line": 7,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should get legal dashboard with valid token",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-f8c8a33cc90a18f2fea5",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 8,
+                  "column": 9
+                },
+                {
+                  "title": "should get admin dashboard with valid token",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-c933e97c87352f37314f",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 25,
+                  "column": 9
+                },
+                {
+                  "title": "should return 401 without authentication",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-119f7915ccf84593d27e",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 42,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Dashboard UI - Admin",
+              "file": "06-dashboard.spec.ts",
+              "line": 52,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should display dashboard for admin user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-ff88a182d916c5508f06",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 53,
+                  "column": 9
+                },
+                {
+                  "title": "should show contracts summary",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-a4e95bbe831378046fe0",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 63,
+                  "column": 9
+                },
+                {
+                  "title": "should show navigation sidebar",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-ef1efdde04ee85e2bc97",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 72,
+                  "column": 9
+                },
+                {
+                  "title": "should navigate to contracts from dashboard",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-e4b50524d4b1b6f68a87",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 81,
+                  "column": 9
+                },
+                {
+                  "title": "should show user menu",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-dc46184e05a655a8c84a",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 92,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Dashboard UI - Legal",
+              "file": "06-dashboard.spec.ts",
+              "line": 102,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should display dashboard for legal user",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-d3ee02400112dea3ee28",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 103,
+                  "column": 9
+                },
+                {
+                  "title": "should show appropriate widgets for legal role",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-c6d261832262a2099333",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 110,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Dashboard Widgets",
+              "file": "06-dashboard.spec.ts",
+              "line": 122,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should show contract statistics",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-29c39a341a859a6d1d14",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 123,
+                  "column": 9
+                },
+                {
+                  "title": "should show recent contracts",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-c3f35826ebecb723e781",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 132,
+                  "column": 9
+                },
+                {
+                  "title": "should show upcoming renewals",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-6777d3fb0ac8f8fbc88d",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 143,
+                  "column": 9
+                },
+                {
+                  "title": "should show obligations summary",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-31b12030cd48de3b40f2",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 154,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Dashboard Performance",
+              "file": "06-dashboard.spec.ts",
+              "line": 166,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should load dashboard within acceptable time",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-3cf3a064fa330176c258",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 167,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Dashboard Responsiveness",
+              "file": "06-dashboard.spec.ts",
+              "line": 182,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should be usable on tablet viewport",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-1eeba25120d1cf789bf5",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 183,
+                  "column": 9
+                },
+                {
+                  "title": "should be usable on mobile viewport",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "dcdfaddd979e24957822-65cdf57e2a7eedbee51f",
+                  "file": "06-dashboard.spec.ts",
+                  "line": 195,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "07-query.spec.ts",
+      "file": "07-query.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Contract Q&A",
+          "file": "07-query.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Query API",
+              "file": "07-query.spec.ts",
+              "line": 13,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should answer question about contracts",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-f50180395a9eb111a7de",
+                  "file": "07-query.spec.ts",
+                  "line": 14,
+                  "column": 9
+                },
+                {
+                  "title": "should answer question about specific contract",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-dd95d79719eca2a390b6",
+                  "file": "07-query.spec.ts",
+                  "line": 26,
+                  "column": 9
+                },
+                {
+                  "title": "should return 401 without authentication",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-a92134998531103f29e6",
+                  "file": "07-query.spec.ts",
+                  "line": 47,
+                  "column": 9
+                },
+                {
+                  "title": "should handle empty question gracefully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-f56ef22c1be13085c4fa",
+                  "file": "07-query.spec.ts",
+                  "line": 57,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Query Page UI",
+              "file": "07-query.spec.ts",
+              "line": 64,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should display query page",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-72ce491ab8a03334db06",
+                  "file": "07-query.spec.ts",
+                  "line": 65,
+                  "column": 9
+                },
+                {
+                  "title": "should have input for questions",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-657b2fd5fa8d46611524",
+                  "file": "07-query.spec.ts",
+                  "line": 75,
+                  "column": 9
+                },
+                {
+                  "title": "should submit question and show response",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-5bff70f4e9cf1dd584fa",
+                  "file": "07-query.spec.ts",
+                  "line": 88,
+                  "column": 9
+                },
+                {
+                  "title": "should show loading state while processing",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-9ca12683060d8cd26c73",
+                  "file": "07-query.spec.ts",
+                  "line": 114,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Query Context",
+              "file": "07-query.spec.ts",
+              "line": 132,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should provide relevant sources in response",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-2cd92d6d913119dbe93b",
+                  "file": "07-query.spec.ts",
+                  "line": 133,
+                  "column": 9
+                },
+                {
+                  "title": "should include confidence score",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-75026c707505d93d5c05",
+                  "file": "07-query.spec.ts",
+                  "line": 146,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Query History",
+              "file": "07-query.spec.ts",
+              "line": 161,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should show previous questions",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-36c5d0866703cf0a6a7e",
+                  "file": "07-query.spec.ts",
+                  "line": 162,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Query Performance",
+              "file": "07-query.spec.ts",
+              "line": 174,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should respond within timeout",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "5c0430a8e8e481920517-d2cfb2ebd928a7a72144",
+                  "file": "07-query.spec.ts",
+                  "line": 175,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "08-multi-tenancy.spec.ts",
+      "file": "08-multi-tenancy.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Multi-Tenancy & Security",
+          "file": "08-multi-tenancy.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Tenant Isolation",
+              "file": "08-multi-tenancy.spec.ts",
+              "line": 7,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "users from different tenants should see different contracts",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-959498eddf5ae24095f5",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 8,
+                  "column": 9
+                },
+                {
+                  "title": "user cannot access contract from another tenant",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-78168066f1bcd2ac2295",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 29,
+                  "column": 9
+                },
+                {
+                  "title": "user cannot access business units from another tenant",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-89a31ccab75de9a08df0",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 46,
+                  "column": 9
+                },
+                {
+                  "title": "user cannot access external users from another tenant",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-b3d06e55ed32cabef01b",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 63,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Super Admin Access",
+              "file": "08-multi-tenancy.spec.ts",
+              "line": 81,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "super admin can list tenants",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-d32e4b517eb61d7683e0",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 82,
+                  "column": 9
+                },
+                {
+                  "title": "super admin can access any tenant with X-Tenant-ID header",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-42bda01eb505e7df8441",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 100,
+                  "column": 9
+                },
+                {
+                  "title": "regular admin cannot list all tenants",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-06f7272afc47abcf6db5",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 123,
+                  "column": 9
+                },
+                {
+                  "title": "super admin can access super admin dashboard",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-e7adaa707f80220027be",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 134,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Security Headers",
+              "file": "08-multi-tenancy.spec.ts",
+              "line": 146,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "API should return security headers",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-2d02974bf4b0619dd0c9",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 147,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Input Validation",
+              "file": "08-multi-tenancy.spec.ts",
+              "line": 163,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should reject SQL injection attempts in search",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-b3727f543d46adeb8ff6",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 164,
+                  "column": 9
+                },
+                {
+                  "title": "should reject XSS attempts in input",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-1f85d1069fc72081b07b",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 178,
+                  "column": 9
+                },
+                {
+                  "title": "should reject invalid UUID formats",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-0300b7b635d30882270a",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 204,
+                  "column": 9
+                },
+                {
+                  "title": "should handle very long input gracefully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-558c240b688c03cf646f",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 213,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Rate Limiting",
+              "file": "08-multi-tenancy.spec.ts",
+              "line": 232,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "should handle rapid requests without crashing",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-dd142e0dba2727bcb511",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 233,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Session Management",
+              "file": "08-multi-tenancy.spec.ts",
+              "line": 252,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "expired token should be rejected",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-617b8b08e31a2004ffb2",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 253,
+                  "column": 9
+                },
+                {
+                  "title": "malformed token should be rejected",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-352eff3a22a6df95868e",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 266,
+                  "column": 9
+                },
+                {
+                  "title": "missing Bearer prefix should be rejected",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "baa4c4f4e0aee0f31328-a0c2d7058fa6a5faefc2",
+                  "file": "08-multi-tenancy.spec.ts",
+                  "line": 276,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-03-03T14:18:05.719Z",
+    "duration": 88.17899999999997,
+    "expected": 0,
+    "skipped": 122,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

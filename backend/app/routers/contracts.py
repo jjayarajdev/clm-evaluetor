@@ -1,5 +1,6 @@
 """Contracts router for upload and management."""
 
+import asyncio
 import json
 import logging
 from typing import Annotated, Any
@@ -110,6 +111,28 @@ async def _auto_process_contract(contract_id: str, user_id: str, file_path: str)
                     await session.commit()
         except Exception:
             pass
+
+
+async def _process_batch_concurrently(
+    contracts: list[tuple[str, str, str]],
+    max_concurrent: int = 2,
+):
+    """Process multiple contracts concurrently with a concurrency limit.
+
+    Args:
+        contracts: List of (contract_id, user_id, file_path) tuples.
+        max_concurrent: Max contracts to process at the same time.
+    """
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def _limited(contract_id, user_id, file_path):
+        async with semaphore:
+            await _auto_process_contract(contract_id, user_id, file_path)
+
+    await asyncio.gather(
+        *[_limited(cid, uid, fp) for cid, uid, fp in contracts],
+        return_exceptions=True,
+    )
 
 
 @router.post("/upload", response_model=ContractUploadResponse)
@@ -598,14 +621,12 @@ async def upload_batch_files(
     # Store batch for status tracking
     _batch_contracts[batch_id] = [str(c.id) for c in successful]
 
-    # Auto-trigger processing and analysis for each uploaded contract
-    for contract in successful:
-        background_tasks.add_task(
-            _auto_process_contract,
-            str(contract.id),
-            str(current_user.id),
-            contract.file_path,
-        )
+    # Auto-trigger processing — process contracts concurrently (max 2 at a time)
+    batch_items = [
+        (str(contract.id), str(current_user.id), contract.file_path)
+        for contract in successful
+    ]
+    background_tasks.add_task(_process_batch_concurrently, batch_items)
 
     # Build response
     file_responses = []
@@ -695,14 +716,12 @@ async def upload_zip_archive(
     # Store batch for status tracking
     _batch_contracts[batch_id] = [str(c.id) for c in successful]
 
-    # Auto-trigger processing and analysis for each uploaded contract
-    for contract in successful:
-        background_tasks.add_task(
-            _auto_process_contract,
-            str(contract.id),
-            str(current_user.id),
-            contract.file_path,
-        )
+    # Auto-trigger processing — process contracts concurrently (max 2 at a time)
+    batch_items = [
+        (str(contract.id), str(current_user.id), contract.file_path)
+        for contract in successful
+    ]
+    background_tasks.add_task(_process_batch_concurrently, batch_items)
 
     # Build response
     file_responses = []

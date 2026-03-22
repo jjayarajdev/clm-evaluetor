@@ -27,6 +27,12 @@ import TenantManagementPage from './pages/super-admin/TenantManagementPage'
 import TenantDetailPage from './pages/super-admin/TenantDetailPage'
 import GlobalUsersPage from './pages/super-admin/GlobalUsersPage'
 import CustomFieldsPage from './pages/super-admin/CustomFieldsPage'
+import OrganizationsPage from './pages/governance/OrganizationsPage'
+import RelationshipsPage from './pages/governance/RelationshipsPage'
+import RelationshipDetailPage from './pages/governance/RelationshipDetailPage'
+import KPIScorecardPage from './pages/governance/KPIScorecardPage'
+import ImprovementsPage from './pages/governance/ImprovementsPage'
+import SurveysPage from './pages/governance/SurveysPage'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -82,6 +88,13 @@ function App() {
         <Route path="admin/sla-config" element={<SLAConfigPage />} />
         <Route path="admin/milestone-config" element={<MilestoneConfigPage />} />
         <Route path="admin/scheduler" element={<SchedulerPage />} />
+        {/* Governance Routes */}
+        <Route path="organizations" element={<OrganizationsPage />} />
+        <Route path="relationships" element={<RelationshipsPage />} />
+        <Route path="relationships/:id" element={<RelationshipDetailPage />} />
+        <Route path="kpis" element={<KPIScorecardPage />} />
+        <Route path="improvements" element={<ImprovementsPage />} />
+        <Route path="surveys" element={<SurveysPage />} />
         <Route path="admin/business-units" element={<BusinessUnitsPage />} />
         <Route path="admin/external-users" element={<ExternalUsersPage />} />
         {/* Super Admin Routes */}

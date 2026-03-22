@@ -36,7 +36,7 @@ from app.schemas.improvement import (
     ActionResponse,
 )
 
-router = APIRouter(prefix="/improvements", tags=["Improvements"])
+router = APIRouter(prefix="/api/improvements", tags=["Improvements"])
 
 
 def apply_tenant_filter_improvement(query, tenant_id):

@@ -8,6 +8,8 @@ export interface User {
   full_name?: string | null
   role: Role
   is_active: boolean
+  tenant_id?: string | null
+  tenant_name?: string | null
   created_at: string
   updated_at?: string
 }

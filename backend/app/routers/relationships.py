@@ -32,7 +32,7 @@ from app.schemas.relationship import (
     HealthScoreBreakdown,
 )
 
-router = APIRouter(prefix="/relationships", tags=["Relationships"])
+router = APIRouter(prefix="/api/relationships", tags=["Relationships"])
 
 
 def apply_tenant_filter(query, tenant_id):
@@ -177,7 +177,6 @@ async def get_relationship(
         .options(
             selectinload(BusinessRelationship.org_a),
             selectinload(BusinessRelationship.org_b),
-            selectinload(BusinessRelationship.team_members).selectinload(RelationshipTeam.user),
         )
     )
     query = apply_tenant_filter(query, tenant_id)
@@ -190,7 +189,18 @@ async def get_relationship(
             detail="Relationship not found",
         )
 
-    return _to_response(relationship, include_team=True)
+    # Load team members separately (dynamic relationship can't use selectinload)
+    team_query = (
+        select(RelationshipTeam)
+        .where(RelationshipTeam.relationship_id == rel_id, RelationshipTeam.is_active == True)
+        .options(selectinload(RelationshipTeam.user))
+    )
+    team_result = await db.execute(team_query)
+    team_members = team_result.scalars().all()
+
+    response = _to_response(relationship, include_team=False)
+    response.team_members = [_team_to_response(m) for m in team_members]
+    return response
 
 
 @router.put("/{rel_id}", response_model=RelationshipResponse)

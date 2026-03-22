@@ -36,7 +36,7 @@ from app.schemas.kpi import (
     GapSummary,
 )
 
-router = APIRouter(prefix="/kpis", tags=["KPIs"])
+router = APIRouter(prefix="/api/kpis", tags=["KPIs"])
 
 
 def apply_tenant_filter_kpi(query, tenant_id):

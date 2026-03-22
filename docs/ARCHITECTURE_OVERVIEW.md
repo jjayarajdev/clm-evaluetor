@@ -166,11 +166,15 @@ User Upload --> FastAPI --> UploadService --> FileStorage
                            PostgreSQL (Structured)
                                   |
                                   v
+                           Auto-Link Detection
+                           (runs in indexer pipeline)
+                                  |
+                                  v
                     +-------------+-------------+
                     |             |             |
                     v             v             v
-               Compliance    Knowledge     Auto-Link
-               Gap Detect    Graph Extract  Detection
+               Compliance    Knowledge     Deep Analysis
+               Gap Detect    Graph Extract  (deferred)
 ```
 
 ### 2. Q&A Query Flow (RAG)
@@ -216,6 +220,7 @@ User Query --> detect_intent() --> Intent Classification
 ```
 
 - Intent router classifies user queries into 5 structured categories: renewals, obligations, risk, portfolio, SLA
+- Clause analysis requests (prefixed `[CLAUSE ANALYSIS]` or containing long quoted text >300 chars) bypass keyword matching and route directly to `document_qa` for RAG-based answering
 - Unmatched queries fall through to `document_qa` for RAG-based answering
 - Each structured handler queries PostgreSQL and produces a concise executive summary (3-5 sentences) plus a `data_summary` dict
 - LLM enhancement via GPT-4o-mini generates adaptive visualizations (stat_cards, bar charts, pie charts, data tables) and contextual follow-up questions
@@ -755,5 +760,5 @@ SMTP_PASSWORD=...
 
 ---
 
-*Last updated: 2026-03-07*
+*Last updated: 2026-03-09*
 *Verified against actual codebase: 41 routers, 36 services, 9 agents, 48 model files, 30 schema files + 15 extraction schemas, 31 migrations, 5 integrations*

@@ -82,6 +82,18 @@ SOW_PATTERNS = [
     r"service[-_\s]*order[-_\s]*\d*",
 ]
 
+SCHEDULE_PATTERNS = [
+    r"schedule[-_\s]*\d+",
+    r"schedule[-_\s]*[a-z]\b",
+    r"sch[-_\s]*\d+",
+    r"annex[-_\s]*\d+",
+    r"annex[-_\s]*[a-z]\b",
+    r"appendix[-_\s]*\d+",
+    r"appendix[-_\s]*[a-z]\b",
+    r"exhibit[-_\s]*\d+",
+    r"exhibit[-_\s]*[a-z]\b",
+]
+
 
 class AutoLinkDetector:
     """Detects potential parent/related contracts using multi-signal scoring."""
@@ -118,6 +130,10 @@ class AutoLinkDetector:
 
         candidates: dict[str, MatchCandidate] = {}
 
+        # Reset schedule parent search flag
+        self._schedule_needs_parent = False
+        self._schedule_link_type = LinkType.SCHEDULE
+
         # Run all detection methods
         await self._find_by_counterparty(contract, candidates)
         await self._find_by_type_hierarchy(contract, candidates)
@@ -127,6 +143,10 @@ class AutoLinkDetector:
 
         if batch_contract_ids:
             await self._find_by_batch(contract, batch_contract_ids, candidates)
+
+        # If filename indicates a schedule but no MSA parent was found yet, search for one
+        if self._schedule_needs_parent:
+            await self._find_msa_parent_for_schedule(contract, candidates)
 
         # Filter by minimum confidence and sort
         valid_candidates = [
@@ -390,6 +410,36 @@ class AutoLinkDetector:
                         )
                 return
 
+        # Check for schedule/exhibit/appendix patterns
+        for pattern in SCHEDULE_PATTERNS:
+            if re.search(pattern, filename, re.IGNORECASE):
+                # Determine link type from filename
+                if re.search(r"exhibit", filename, re.IGNORECASE):
+                    link_type = LinkType.EXHIBIT
+                elif re.search(r"appendix|annex", filename, re.IGNORECASE):
+                    link_type = LinkType.APPENDIX
+                else:
+                    link_type = LinkType.SCHEDULE
+
+                # Update existing candidates (prefer MSA parents)
+                for key, candidate in candidates.items():
+                    if candidate.contract.contract_type == ContractType.MSA:
+                        candidate.signals["filename_pattern"] = SIGNAL_WEIGHTS["filename_pattern"]
+                        candidate.link_type = link_type
+                        candidate.direction = "source_is_child"
+                        candidate.reasoning_parts.append(
+                            f"Filename suggests {link_type.value}: {contract.filename}"
+                        )
+
+                # Also search for MSA parents in same tenant if none found yet
+                if not any(
+                    c.contract.contract_type == ContractType.MSA
+                    for c in candidates.values()
+                ):
+                    self._schedule_needs_parent = True
+                    self._schedule_link_type = link_type
+                return
+
     async def _find_by_date_proximity(
         self,
         contract: Contract,
@@ -440,6 +490,12 @@ class AutoLinkDetector:
         candidates: dict[str, MatchCandidate],
     ) -> None:
         """Add weight for contracts uploaded in the same batch."""
+        # Check if current contract looks like a schedule/exhibit
+        filename_lower = contract.filename.lower() if contract.filename else ""
+        is_schedule = any(
+            re.search(p, filename_lower, re.IGNORECASE) for p in SCHEDULE_PATTERNS
+        )
+
         for cid in batch_contract_ids:
             if cid == str(contract.id):
                 continue
@@ -452,13 +508,66 @@ class AutoLinkDetector:
                 # Fetch the contract and add as candidate
                 other = await self.db.get(Contract, uuid.UUID(cid))
                 if other and other.status == ContractStatus.COMPLETED:
-                    candidates[key] = MatchCandidate(
-                        contract=other,
-                        link_type=LinkType.RELATED,
-                        direction="source_is_child",
-                        signals={"same_batch": SIGNAL_WEIGHTS["same_batch"]},
-                        reasoning_parts=["Uploaded in same batch"],
-                    )
+                    # If current doc is a schedule and batch mate is an MSA, boost heavily
+                    if is_schedule and other.contract_type == ContractType.MSA:
+                        link_type = getattr(self, '_schedule_link_type', LinkType.SCHEDULE)
+                        candidates[key] = MatchCandidate(
+                            contract=other,
+                            link_type=link_type,
+                            direction="source_is_child",
+                            signals={
+                                "same_batch": SIGNAL_WEIGHTS["same_batch"],
+                                "type_hierarchy": SIGNAL_WEIGHTS["type_hierarchy"],
+                            },
+                            reasoning_parts=[
+                                "Uploaded in same batch",
+                                f"Schedule uploaded with MSA: {other.filename}",
+                            ],
+                        )
+                    else:
+                        candidates[key] = MatchCandidate(
+                            contract=other,
+                            link_type=LinkType.RELATED,
+                            direction="source_is_child",
+                            signals={"same_batch": SIGNAL_WEIGHTS["same_batch"]},
+                            reasoning_parts=["Uploaded in same batch"],
+                        )
+
+    async def _find_msa_parent_for_schedule(
+        self,
+        contract: Contract,
+        candidates: dict[str, MatchCandidate],
+    ) -> None:
+        """Find MSA parent contracts for a schedule/exhibit/appendix."""
+        query = select(Contract).where(
+            Contract.id != contract.id,
+            Contract.status == ContractStatus.COMPLETED,
+            Contract.contract_type == ContractType.MSA,
+        )
+        if self.tenant_id:
+            query = query.where(Contract.tenant_id == self.tenant_id)
+
+        result = await self.db.execute(query)
+        msa_contracts = result.scalars().all()
+
+        link_type = getattr(self, '_schedule_link_type', LinkType.SCHEDULE)
+
+        for msa in msa_contracts:
+            key = str(msa.id)
+            if key not in candidates:
+                candidates[key] = MatchCandidate(
+                    contract=msa,
+                    link_type=link_type,
+                    direction="source_is_child",
+                )
+            candidates[key].signals["filename_pattern"] = SIGNAL_WEIGHTS["filename_pattern"]
+            # Also give type hierarchy weight since schedule → MSA is a known relationship
+            candidates[key].signals["type_hierarchy"] = SIGNAL_WEIGHTS["type_hierarchy"]
+            candidates[key].link_type = link_type
+            candidates[key].direction = "source_is_child"
+            candidates[key].reasoning_parts.append(
+                f"Schedule/exhibit filename linked to MSA: {msa.filename}"
+            )
 
     def _infer_link_type(self, contract_type: ContractType | None) -> LinkType:
         """Infer the appropriate link type based on contract type."""

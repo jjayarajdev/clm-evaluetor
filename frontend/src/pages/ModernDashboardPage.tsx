@@ -200,7 +200,8 @@ export default function ModernDashboardPage() {
     const highRiskCount = summaryData?.by_risk?.high || 0
     const pendingCount = summaryData?.by_status?.pending || 0
     const expiringCount = complianceData?.renewals?.expiring_30_days || 0
-    const alertsCount = complianceData?.slas?.breached || 0
+    const slaBreaches = complianceData?.slas?.critical_breaches || 0
+    const overdueCount = complianceData?.obligations?.overdue || 0
 
     const actionsByRole: Record<RoleType, Array<{
       label: string
@@ -221,9 +222,11 @@ export default function ModernDashboardPage() {
         { label: 'New Contract', description: 'Upload & analyze', href: '/upload', icon: SparklesIcon },
       ],
       admin: [
+        { label: 'SLA Breaches', description: 'Escalate immediately', href: '/compliance', icon: ExclamationTriangleIcon, badge: slaBreaches || undefined, badgeColor: 'red' },
+        { label: 'Overdue', description: 'Obligations past due', href: '/compliance', icon: BellAlertIcon, badge: overdueCount || undefined, badgeColor: 'amber' },
+        { label: 'Renewals', description: 'Expiring soon', href: '/renewals', icon: ClockIcon, badge: expiringCount || undefined, badgeColor: 'amber' },
         { label: 'System Health', description: 'Monitor services', href: '/admin/scheduler', icon: ChartBarIcon },
-        { label: 'Alerts', description: 'Active issues', href: '/admin/alerts', icon: BellAlertIcon, badge: alertsCount || undefined, badgeColor: 'red' },
-        { label: 'Users', description: 'Manage access', href: '/users', icon: Cog6ToothIcon },
+        { label: 'Settings', description: 'Manage access', href: '/settings', icon: Cog6ToothIcon },
       ],
       viewer: [
         { label: 'Browse', description: 'All contracts', href: '/contracts', icon: ChartBarIcon },
@@ -241,10 +244,6 @@ export default function ModernDashboardPage() {
       <WelcomeBanner
         userName={user?.full_name || user?.username || 'User'}
         role={userRole}
-        alerts={{
-          critical: complianceData?.slas?.critical_breaches || 0,
-          warning: complianceData?.obligations?.overdue || 0,
-        }}
         quickActions={getQuickActions()}
       />
 
@@ -277,6 +276,7 @@ export default function ModernDashboardPage() {
         <StatCard
           title="Compliance"
           value={`${(complianceData?.compliance?.overall_compliance_rate || 0).toFixed(1)}%`}
+          info="Percentage of SLAs meeting or within warning threshold of their targets. Calculated as (compliant + warning) / total SLAs."
           icon={CheckCircleIcon}
           color="success"
           variant="filled"

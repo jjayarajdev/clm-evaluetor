@@ -9,6 +9,7 @@ interface StatCardProps {
   value: string | number
   subtitle?: string
   icon?: React.ElementType
+  info?: string // Tooltip text shown on (i) icon hover
   trend?: {
     value: number
     label?: string
@@ -107,6 +108,7 @@ export default function StatCard({
   value,
   subtitle,
   icon: Icon,
+  info,
   trend,
   variant = 'default',
   color = 'default',
@@ -149,8 +151,19 @@ export default function StatCard({
                 <Icon className={cn('h-4 w-4', styles.icon)} />
               </div>
             )}
-            <p className="text-sm font-medium text-gray-600">
+            <p className="text-sm font-medium text-gray-600 flex items-center gap-1">
               {title}
+              {info && (
+                <span className="relative group/info">
+                  <svg className="h-3.5 w-3.5 text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg whitespace-normal w-56 text-center opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 shadow-lg">
+                    {info}
+                    <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                  </span>
+                </span>
+              )}
             </p>
           </div>
           <p className={cn(

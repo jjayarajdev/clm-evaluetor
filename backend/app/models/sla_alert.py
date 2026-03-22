@@ -6,7 +6,7 @@ Supports both in-app dashboard alerts and external notifications.
 
 import enum
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -127,7 +127,7 @@ class SLAAlert(Base, TimestampMixin):
     # Status tracking
     detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
     )
     acknowledged_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     acknowledged_by: Mapped[Optional[uuid.UUID]] = mapped_column(
@@ -175,7 +175,7 @@ class SLAAlert(Base, TimestampMixin):
         """Number of days the alert has been open."""
         if self.resolved_at:
             return (self.resolved_at - self.detected_at).days
-        return (datetime.utcnow() - self.detected_at).days
+        return (datetime.now(timezone.utc) - self.detected_at).days
 
 
 # Map breach severity to alert priority

@@ -105,8 +105,17 @@ class ApiClient {
       (response) => response,
       (error: AxiosError) => {
         if (error.response?.status === 401) {
-          this.clearToken()
-          window.location.href = '/login'
+          // Don't redirect on login failure — let the login page handle the error
+          const url = error.config?.url || ''
+          if (!url.includes('/auth/login')) {
+            this.clearToken()
+            window.location.href = '/login'
+          }
+        }
+        // Extract API error message for display
+        const detail = (error.response?.data as Record<string, string>)?.detail
+        if (detail) {
+          return Promise.reject(new Error(detail))
         }
         return Promise.reject(error)
       }
@@ -383,6 +392,11 @@ class ApiClient {
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {
     const response = await this.client.put<User>(`/users/${id}`, data)
+    return response.data
+  }
+
+  async updateUserPassword(id: string, newPassword: string): Promise<User> {
+    const response = await this.client.put<User>(`/users/${id}/password`, { new_password: newPassword })
     return response.data
   }
 
@@ -938,13 +952,14 @@ class ApiClient {
     // Aggregate totals
     const totalUsers = allTenantStats.reduce((sum, s) => sum + (s.user_count || 0), 0)
     const totalContracts = allTenantStats.reduce((sum, s) => sum + (s.contract_count || 0), 0)
+    const totalValue = allTenantStats.reduce((sum, s: any) => sum + (s.total_value || 0), 0)
 
     const stats: PlatformStats = {
       total_tenants: tenants.length,
       active_tenants: tenants.filter(t => t.is_active).length,
       total_users: totalUsers,
       total_contracts: totalContracts,
-      total_value: 0, // Would need a dedicated endpoint for total value
+      total_value: totalValue,
       plan_distribution: {
         starter: tenants.filter(t => t.plan === 'starter').length,
         professional: tenants.filter(t => t.plan === 'professional').length,
@@ -956,22 +971,21 @@ class ApiClient {
 
   // ============ SUPER ADMIN: CROSS-TENANT USER ENDPOINTS ============
 
-  async getAllUsers(_tenantId?: string): Promise<UserWithTenant[]> {
-    // Uses existing users endpoint - super admin can see all users
-    const response = await this.client.get<{ users: User[]; total: number }>('/users')
-    // Add tenant_id placeholder - actual implementation needs backend support
-    return response.data.users.map(u => ({ ...u, tenant_id: '' }))
+  async getAllUsers(tenantId?: string): Promise<UserWithTenant[]> {
+    const params: Record<string, string> = {}
+    if (tenantId) params.tenant_id = tenantId
+    const response = await this.client.get<{ users: User[]; total: number }>('/users', { params })
+    return response.data.users.map((u: any) => ({ ...u, tenant_id: u.tenant_id || '' }))
   }
 
-  async createUserForTenant(_tenantId: string, data: { username: string; email: string; password: string; role: string }): Promise<User> {
-    // Uses existing create user endpoint
-    const response = await this.client.post<User>('/users', data)
+  async createUserForTenant(tenantId: string, data: { username: string; email: string; password: string; role: string }): Promise<User> {
+    const response = await this.client.post<User>('/users', { ...data, tenant_id: tenantId })
     return response.data
   }
 
-  async getTenantUsers(_tenantId: string): Promise<User[]> {
-    // For now, return all users - needs backend filtering support
-    const response = await this.client.get<{ users: User[]; total: number }>('/users')
+  async getTenantUsers(tenantId: string): Promise<User[]> {
+    const params = { tenant_id: tenantId }
+    const response = await this.client.get<{ users: User[]; total: number }>('/users', { params })
     return response.data.users
   }
 
@@ -1355,6 +1369,235 @@ class ApiClient {
 
   async getNotificationRuleStats(): Promise<unknown> {
     const response = await this.client.get('/notification-rules/summary/stats')
+    return response.data
+  }
+
+  // ============================================================================
+  // Relationship Governance: Organizations
+  // ============================================================================
+
+  async getOrganizations(params?: {
+    org_type?: string
+    search?: string
+    active_only?: boolean
+  }): Promise<import('@/types/governance').Organization[]> {
+    const response = await this.client.get('/organizations', { params })
+    return response.data.items ?? response.data
+  }
+
+  async getOrganization(id: string): Promise<import('@/types/governance').Organization> {
+    const response = await this.client.get(`/organizations/${id}`)
+    return response.data
+  }
+
+  async createOrganization(data: import('@/types/governance').OrganizationCreate): Promise<import('@/types/governance').Organization> {
+    const response = await this.client.post('/organizations', data)
+    return response.data
+  }
+
+  async updateOrganization(id: string, data: import('@/types/governance').OrganizationUpdate): Promise<import('@/types/governance').Organization> {
+    const response = await this.client.put(`/organizations/${id}`, data)
+    return response.data
+  }
+
+  async deleteOrganization(id: string): Promise<void> {
+    await this.client.delete(`/organizations/${id}`)
+  }
+
+  // ============================================================================
+  // Relationship Governance: Relationships
+  // ============================================================================
+
+  async getRelationships(params?: {
+    status?: string
+    relationship_type?: string
+  }): Promise<import('@/types/governance').BusinessRelationship[]> {
+    const response = await this.client.get('/relationships', { params })
+    return response.data.items ?? response.data
+  }
+
+  async getRelationship(id: string): Promise<import('@/types/governance').BusinessRelationship> {
+    const response = await this.client.get(`/relationships/${id}`)
+    return response.data
+  }
+
+  async createRelationship(data: import('@/types/governance').RelationshipCreate): Promise<import('@/types/governance').BusinessRelationship> {
+    const response = await this.client.post('/relationships', data)
+    return response.data
+  }
+
+  async updateRelationship(id: string, data: import('@/types/governance').RelationshipUpdate): Promise<import('@/types/governance').BusinessRelationship> {
+    const response = await this.client.put(`/relationships/${id}`, data)
+    return response.data
+  }
+
+  async getRelationshipTeam(id: string): Promise<import('@/types/governance').RelationshipTeamMember[]> {
+    const response = await this.client.get(`/relationships/${id}/team`)
+    return response.data.items ?? response.data
+  }
+
+  async addTeamMember(relationshipId: string, data: import('@/types/governance').TeamMemberCreate): Promise<import('@/types/governance').RelationshipTeamMember> {
+    const response = await this.client.post(`/relationships/${relationshipId}/team`, data)
+    return response.data
+  }
+
+  async removeTeamMember(relationshipId: string, memberId: string): Promise<void> {
+    await this.client.delete(`/relationships/${relationshipId}/team/${memberId}`)
+  }
+
+  // ============================================================================
+  // Relationship Governance: KPIs & Perception
+  // ============================================================================
+
+  async getKPIs(params?: {
+    relationship_id?: string
+    category?: string
+    active_only?: boolean
+  }): Promise<import('@/types/governance').KPI[]> {
+    const response = await this.client.get('/kpis', { params })
+    return response.data.items ?? response.data
+  }
+
+  async getKPI(id: string): Promise<import('@/types/governance').KPI> {
+    const response = await this.client.get(`/kpis/${id}`)
+    return response.data
+  }
+
+  async createKPI(data: import('@/types/governance').KPICreate): Promise<import('@/types/governance').KPI> {
+    const response = await this.client.post('/kpis', data)
+    return response.data
+  }
+
+  async updateKPI(id: string, data: import('@/types/governance').KPIUpdate): Promise<import('@/types/governance').KPI> {
+    const response = await this.client.put(`/kpis/${id}`, data)
+    return response.data
+  }
+
+  async deleteKPI(id: string): Promise<void> {
+    await this.client.delete(`/kpis/${id}`)
+  }
+
+  async getPerceptionScores(kpiId: string): Promise<import('@/types/governance').PerceptionScore[]> {
+    const response = await this.client.get(`/kpis/${kpiId}/scores`)
+    return response.data
+  }
+
+  async submitPerceptionScore(kpiId: string, data: import('@/types/governance').PerceptionScoreCreate): Promise<import('@/types/governance').PerceptionScore> {
+    const response = await this.client.post(`/kpis/${kpiId}/scores`, data)
+    return response.data
+  }
+
+  async getPerceptionGaps(kpiId: string): Promise<import('@/types/governance').PerceptionGap[]> {
+    const response = await this.client.get(`/kpis/${kpiId}/gaps`)
+    return response.data
+  }
+
+  async getRelationshipGapSummary(relationshipId: string, period?: string): Promise<import('@/types/governance').GapSummary> {
+    const response = await this.client.get(`/kpis/relationship/${relationshipId}/gaps`, {
+      params: period ? { period } : undefined
+    })
+    return response.data
+  }
+
+  // ============================================================================
+  // Relationship Governance: Improvements
+  // ============================================================================
+
+  async getImprovements(params?: {
+    relationship_id?: string
+    status?: string
+    priority?: string
+  }): Promise<import('@/types/governance').ImprovementPoint[]> {
+    const response = await this.client.get('/improvements', { params })
+    return response.data.items ?? response.data
+  }
+
+  async getImprovement(id: string): Promise<import('@/types/governance').ImprovementPoint> {
+    const response = await this.client.get(`/improvements/${id}`)
+    return response.data
+  }
+
+  async createImprovement(data: import('@/types/governance').ImprovementCreate): Promise<import('@/types/governance').ImprovementPoint> {
+    const response = await this.client.post('/improvements', data)
+    return response.data
+  }
+
+  async updateImprovement(id: string, data: Partial<import('@/types/governance').ImprovementCreate> & { status?: string }): Promise<import('@/types/governance').ImprovementPoint> {
+    const response = await this.client.put(`/improvements/${id}`, data)
+    return response.data
+  }
+
+  async deleteImprovement(id: string): Promise<void> {
+    await this.client.delete(`/improvements/${id}`)
+  }
+
+  async generateImprovementsFromGaps(relationshipId: string, minSeverity?: string): Promise<import('@/types/governance').ImprovementPoint[]> {
+    const response = await this.client.post('/improvements/generate-from-gaps', {
+      relationship_id: relationshipId,
+      min_severity: minSeverity || 'significant',
+    })
+    return response.data
+  }
+
+  async getImprovementActions(improvementId: string): Promise<import('@/types/governance').ImprovementAction[]> {
+    const response = await this.client.get(`/improvements/${improvementId}/actions`)
+    return response.data
+  }
+
+  async createImprovementAction(improvementId: string, data: import('@/types/governance').ImprovementActionCreate): Promise<import('@/types/governance').ImprovementAction> {
+    const response = await this.client.post(`/improvements/${improvementId}/actions`, data)
+    return response.data
+  }
+
+  // ============================================================================
+  // Relationship Governance: Surveys
+  // ============================================================================
+
+  async getSurveyTemplates(): Promise<import('@/types/governance').SurveyTemplate[]> {
+    const response = await this.client.get('/surveys/templates')
+    return response.data.items ?? response.data
+  }
+
+  async getSurveyTemplate(id: string): Promise<import('@/types/governance').SurveyTemplate> {
+    const response = await this.client.get(`/surveys/templates/${id}`)
+    return response.data
+  }
+
+  async createSurveyTemplate(data: import('@/types/governance').SurveyTemplateCreate): Promise<import('@/types/governance').SurveyTemplate> {
+    const response = await this.client.post('/surveys/templates', data)
+    return response.data
+  }
+
+  async addSurveyQuestion(templateId: string, data: import('@/types/governance').SurveyQuestionCreate): Promise<import('@/types/governance').SurveyQuestion> {
+    const response = await this.client.post(`/surveys/templates/${templateId}/questions`, data)
+    return response.data
+  }
+
+  async getSurveyInstances(params?: {
+    relationship_id?: string
+    status?: string
+  }): Promise<import('@/types/governance').SurveyInstance[]> {
+    const response = await this.client.get('/surveys/instances', { params })
+    return response.data.items ?? response.data
+  }
+
+  async createSurveyInstance(data: import('@/types/governance').SurveyInstanceCreate): Promise<import('@/types/governance').SurveyInstance> {
+    const response = await this.client.post('/surveys/instances', data)
+    return response.data
+  }
+
+  async sendSurvey(instanceId: string): Promise<import('@/types/governance').SurveyInstance> {
+    const response = await this.client.post(`/surveys/instances/${instanceId}/send`)
+    return response.data
+  }
+
+  async getSurveyResponses(instanceId: string): Promise<import('@/types/governance').SurveyResponse[]> {
+    const response = await this.client.get(`/surveys/instances/${instanceId}/responses`)
+    return response.data
+  }
+
+  async generateSurveyToken(instanceId: string): Promise<{ token: string; url: string }> {
+    const response = await this.client.post(`/surveys/instances/${instanceId}/generate-token`)
     return response.data
   }
 }

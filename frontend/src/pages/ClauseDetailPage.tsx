@@ -280,7 +280,7 @@ export default function ClauseDetailPage() {
             </div>
             <div className="card-body space-y-2">
               <Link
-                to={`/query?clause=${clause.id}`}
+                to={`/query?clause=${clause.id}&contract=${clause.contract_id}`}
                 className="btn-secondary w-full justify-center"
               >
                 Ask AI about this clause

@@ -128,6 +128,11 @@ async def get_tenant_stats(db: AsyncSession, tenant_id: uuid.UUID) -> dict:
 
     tenant = await get_tenant_by_id(db, tenant_id)
 
+    # Total contract value
+    total_value = sum(
+        float(c.contract_value) for c in contracts if c.contract_value
+    )
+
     return {
         "tenant_id": str(tenant_id),
         "tenant_name": tenant.name if tenant else None,
@@ -136,4 +141,5 @@ async def get_tenant_stats(db: AsyncSession, tenant_id: uuid.UUID) -> dict:
         "contract_limit": tenant.get_contract_limit() if tenant else None,
         "user_count": len(users),
         "is_active": tenant.is_active if tenant else False,
+        "total_value": total_value,
     }

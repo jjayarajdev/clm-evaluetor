@@ -17,7 +17,7 @@ from app.schemas.organization import (
     OrganizationListResponse,
 )
 
-router = APIRouter(prefix="/organizations", tags=["Organizations"])
+router = APIRouter(prefix="/api/organizations", tags=["Organizations"])
 
 
 def apply_tenant_filter(query, tenant_id):

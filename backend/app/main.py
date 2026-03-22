@@ -1,3 +1,4 @@
+import fcntl
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -53,10 +54,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Auto-seed master data skipped: {e}")
 
-    # Start the scheduler for background jobs
+    # Start the scheduler on only one worker (file lock prevents duplicates)
     try:
+        _scheduler_lock = open("/tmp/clm_scheduler.lock", "w")
+        fcntl.flock(_scheduler_lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        app.state._scheduler_lock = _scheduler_lock  # keep reference so GC doesn't release
         await start_scheduler()
         logger.info("Scheduler started successfully")
+    except OSError:
+        logger.info("Scheduler skipped (another worker owns it)")
     except Exception as e:
         logger.error(f"Failed to start scheduler: {e}")
 

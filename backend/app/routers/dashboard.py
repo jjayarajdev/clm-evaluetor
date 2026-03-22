@@ -3630,7 +3630,6 @@ async def get_recent_activity(
     """Get recent activity for dashboard."""
     from datetime import datetime, timezone
 
-    activities: list[ActivityItem] = []
     now = datetime.now(timezone.utc)
 
     def time_ago(dt: datetime) -> str:
@@ -3651,6 +3650,9 @@ async def get_recent_activity(
             days = int(seconds / 86400)
             return f"{days}d ago"
 
+    # Collect (timestamp, activity) tuples for proper sorting
+    timed_activities: list[tuple[datetime, ActivityItem]] = []
+
     # Get recent audit logs
     audit_query = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit * 2)
     if tenant_id:
@@ -3661,41 +3663,39 @@ async def get_recent_activity(
     audit_logs = audit_result.scalars().all()
 
     for log in audit_logs:
-        if len(activities) >= limit:
-            break
-
         details = log.details or {}
+        ts = log.created_at.replace(tzinfo=timezone.utc) if log.created_at.tzinfo is None else log.created_at
 
         if log.action == AuditAction.CONTRACT_UPLOAD:
-            activities.append(ActivityItem(
+            timed_activities.append((ts, ActivityItem(
                 icon="document",
                 title="Contract uploaded",
                 subtitle=details.get("filename", "Unknown file"),
                 time=time_ago(log.created_at),
                 color="blue"
-            ))
+            )))
         elif log.action == AuditAction.CONTRACT_VIEW:
             if details.get("action") == "deep_analysis_queued":
-                activities.append(ActivityItem(
+                timed_activities.append((ts, ActivityItem(
                     icon="sparkles",
                     title="Analysis started",
                     subtitle=details.get("filename", "Contract analysis"),
                     time=time_ago(log.created_at),
                     color="blue"
-                ))
+                )))
         elif log.action == AuditAction.CONTRACT_UPDATE:
-            activities.append(ActivityItem(
+            timed_activities.append((ts, ActivityItem(
                 icon="pencil",
                 title="Contract updated",
                 subtitle=details.get("filename", "Contract modified"),
                 time=time_ago(log.created_at),
                 color="gray"
-            ))
+            )))
 
     # Get recent obligation completions
     completed_query = select(Obligation).where(
         Obligation.status == ObligationStatus.COMPLETED
-    ).order_by(Obligation.updated_at.desc()).limit(5)
+    ).order_by(Obligation.updated_at.desc()).limit(limit)
     if tenant_id:
         completed_query = completed_query.join(Contract).where(Contract.tenant_id == tenant_id)
 
@@ -3703,18 +3703,21 @@ async def get_recent_activity(
     completed_obligations = completed_result.scalars().all()
 
     for obl in completed_obligations:
-        if len(activities) >= limit:
-            break
-        activities.append(ActivityItem(
+        ts = obl.updated_at or obl.created_at
+        if ts:
+            ts = ts.replace(tzinfo=timezone.utc) if ts.tzinfo is None else ts
+        else:
+            ts = datetime.min.replace(tzinfo=timezone.utc)
+        timed_activities.append((ts, ActivityItem(
             icon="check",
             title="Obligation completed",
             subtitle=obl.description[:50] + "..." if len(obl.description) > 50 else obl.description,
-            time=time_ago(obl.updated_at) if obl.updated_at else "recently",
+            time=time_ago(ts),
             color="green"
-        ))
+        )))
 
-    # Sort by time (most recent first) - simplified approach
-    # In production, you'd want to properly sort by actual timestamps
-    activities = activities[:limit]
+    # Sort by timestamp descending and take top N
+    timed_activities.sort(key=lambda x: x[0], reverse=True)
+    activities = [item for _, item in timed_activities[:limit]]
 
     return ActivityResponse(activities=activities)

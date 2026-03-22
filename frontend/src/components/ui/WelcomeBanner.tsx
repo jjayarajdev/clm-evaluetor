@@ -9,7 +9,6 @@ import {
   ExclamationTriangleIcon,
   ClockIcon,
   ChartBarIcon,
-  BellAlertIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
@@ -28,10 +27,6 @@ interface WelcomeBannerProps {
   userName: string
   role: RoleType
   greeting?: string
-  alerts?: {
-    critical: number
-    warning: number
-  }
   quickActions?: QuickAction[]
 }
 
@@ -55,8 +50,8 @@ const defaultQuickActions: Record<RoleType, QuickAction[]> = {
   ],
   admin: [
     { label: 'System Health', description: 'Monitor services', href: '/admin/scheduler', icon: ChartBarIcon },
-    { label: 'Alerts', description: 'Active issues', href: '/admin/alerts', icon: BellAlertIcon, badge: 3, badgeColor: 'red' },
-    { label: 'Users', description: 'Manage access', href: '/users', icon: Cog6ToothIcon },
+    { label: 'Renewals', description: 'Expiring soon', href: '/renewals', icon: ClockIcon },
+    { label: 'Users', description: 'Manage access', href: '/settings', icon: Cog6ToothIcon },
   ],
   viewer: [
     { label: 'Browse', description: 'All contracts', href: '/contracts', icon: ChartBarIcon },
@@ -76,7 +71,6 @@ export default function WelcomeBanner({
   userName,
   role,
   greeting,
-  alerts,
   quickActions,
 }: WelcomeBannerProps) {
   const actions = quickActions || defaultQuickActions[role]
@@ -86,68 +80,77 @@ export default function WelcomeBanner({
   return (
     <div className="pb-6 border-b border-gray-200">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-            {roleLabels[role]} Dashboard
-          </p>
-          <h1 className="mt-1 text-2xl md:text-3xl font-semibold text-gray-900 tracking-tight">
-            {displayGreeting}, {firstName}
-          </h1>
-        </div>
-
-        {/* Alert badges */}
-        {alerts && (alerts.critical > 0 || alerts.warning > 0) && (
-          <div className="flex items-center gap-2">
-            {alerts.critical > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg">
-                <ExclamationTriangleIcon className="h-4 w-4 text-red-600" />
-                <span className="text-sm font-semibold text-red-700">{alerts.critical} critical</span>
-              </div>
-            )}
-            {alerts.warning > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
-                <BellAlertIcon className="h-4 w-4 text-amber-600" />
-                <span className="text-sm font-semibold text-amber-700">{alerts.warning} pending</span>
-              </div>
-            )}
-          </div>
-        )}
+      <div>
+        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+          {roleLabels[role]} Dashboard
+        </p>
+        <h1 className="mt-1 text-2xl md:text-3xl font-semibold text-gray-900 tracking-tight">
+          {displayGreeting}, {firstName}
+        </h1>
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {actions.map((action) => (
           <Link
             key={action.label}
             to={action.href}
             className={cn(
-              'group flex items-center gap-3 p-4 rounded-xl',
-              'bg-gray-50 hover:bg-gray-100',
-              'border border-gray-200 hover:border-gray-300',
-              'transition-all duration-200'
+              'group flex items-center gap-3 p-4 rounded-xl transition-all duration-200',
+              action.badgeColor === 'red'
+                ? 'bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300'
+                : action.badgeColor === 'amber'
+                ? 'bg-amber-50 hover:bg-amber-100 border border-amber-200 hover:border-amber-300'
+                : 'bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300'
             )}
           >
-            <div className="p-2 bg-white rounded-lg border border-gray-200 group-hover:border-gray-300 transition-colors">
-              <action.icon className="h-5 w-5 text-gray-600" />
+            <div className={cn(
+              'p-2 rounded-lg border transition-colors',
+              action.badgeColor === 'red'
+                ? 'bg-red-100 border-red-200 group-hover:border-red-300'
+                : action.badgeColor === 'amber'
+                ? 'bg-amber-100 border-amber-200 group-hover:border-amber-300'
+                : 'bg-white border-gray-200 group-hover:border-gray-300'
+            )}>
+              <action.icon className={cn(
+                'h-5 w-5',
+                action.badgeColor === 'red' ? 'text-red-600'
+                : action.badgeColor === 'amber' ? 'text-amber-600'
+                : 'text-gray-600'
+              )} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-900">{action.label}</span>
+                <span className={cn(
+                  'text-sm font-medium',
+                  action.badgeColor === 'red' ? 'text-red-900'
+                  : action.badgeColor === 'amber' ? 'text-amber-900'
+                  : 'text-gray-900'
+                )}>{action.label}</span>
                 {action.badge !== undefined && (
                   <span className={cn(
                     'px-1.5 py-0.5 text-xs font-semibold rounded-full',
-                    action.badgeColor === 'red' ? 'bg-red-100 text-red-700' :
-                    action.badgeColor === 'amber' ? 'bg-amber-100 text-amber-700' :
+                    action.badgeColor === 'red' ? 'bg-red-200 text-red-800' :
+                    action.badgeColor === 'amber' ? 'bg-amber-200 text-amber-800' :
                     'bg-gray-200 text-gray-700'
                   )}>
                     {action.badge}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-500 truncate">{action.description}</p>
+              <p className={cn(
+                'text-xs truncate',
+                action.badgeColor === 'red' ? 'text-red-600'
+                : action.badgeColor === 'amber' ? 'text-amber-600'
+                : 'text-gray-500'
+              )}>{action.description}</p>
             </div>
-            <ArrowRightIcon className="h-4 w-4 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-all" />
+            <ArrowRightIcon className={cn(
+              'h-4 w-4 group-hover:translate-x-0.5 transition-all',
+              action.badgeColor === 'red' ? 'text-red-400 group-hover:text-red-600'
+              : action.badgeColor === 'amber' ? 'text-amber-400 group-hover:text-amber-600'
+              : 'text-gray-400 group-hover:text-gray-600'
+            )} />
           </Link>
         ))}
       </div>

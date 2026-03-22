@@ -20,6 +20,11 @@ import {
   GlobeAltIcon,
   AdjustmentsHorizontalIcon,
   UserGroupIcon,
+  BuildingLibraryIcon,
+  LinkIcon,
+  ChartBarSquareIcon,
+  LightBulbIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSidebar } from '@/contexts/SidebarContext'
@@ -46,9 +51,17 @@ const bottomNavigation = [
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
 ]
 
+const governanceNavigation = [
+  { name: 'Organizations', href: '/organizations', icon: BuildingLibraryIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'Relationships', href: '/relationships', icon: LinkIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'KPI Scorecard', href: '/kpis', icon: ChartBarSquareIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'Improvements', href: '/improvements', icon: LightBulbIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'Surveys', href: '/surveys', icon: ClipboardDocumentListIcon, roles: ['admin', 'legal'] },
+]
+
 const adminNavigation = [
-  { name: 'Business Units', href: '/admin/business-units', icon: BuildingOffice2Icon, roles: ['admin', 'super_admin'] },
-  { name: 'External Users', href: '/admin/external-users', icon: UserGroupIcon, roles: ['admin', 'super_admin'] },
+  { name: 'Business Units', href: '/admin/business-units', icon: BuildingOffice2Icon, roles: ['admin'] },
+  { name: 'External Users', href: '/admin/external-users', icon: UserGroupIcon, roles: ['admin'] },
   { name: 'SLA Config', href: '/admin/sla-config', icon: CircleStackIcon, roles: ['admin'] },
   { name: 'Milestones', href: '/admin/milestone-config', icon: FlagIcon, roles: ['admin'] },
   { name: 'Scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
@@ -136,6 +149,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     (item) => user && item.roles.includes(user.role)
   )
 
+  const filteredGovernanceNavigation = governanceNavigation.filter(
+    (item) => user && item.roles.includes(user.role)
+  )
+
   const filteredAdminNavigation = adminNavigation.filter(
     (item) => user && item.roles.includes(user.role)
   )
@@ -193,6 +210,26 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {filteredNavigation.map((item) => (
           <NavItem key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
         ))}
+
+        {/* Divider for governance section */}
+        {filteredGovernanceNavigation.length > 0 && (
+          <>
+            <div className={cn(
+              'border-t border-gray-200 my-3',
+              collapsed ? 'w-6' : 'w-full'
+            )} />
+
+            {!collapsed && (
+              <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                Governance
+              </p>
+            )}
+
+            {filteredGovernanceNavigation.map((item) => (
+              <NavItem key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
+            ))}
+          </>
+        )}
 
         {/* Divider for admin section */}
         {filteredAdminNavigation.length > 0 && (

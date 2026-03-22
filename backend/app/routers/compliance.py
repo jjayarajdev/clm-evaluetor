@@ -304,7 +304,7 @@ async def list_compliance_gaps(
     """List compliance gaps with filters."""
     query = (
         select(ComplianceGap)
-        .join(Contract)
+        .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(Contract.tenant_id == tenant_id)
     )
 
@@ -376,7 +376,7 @@ async def get_compliance_gap(
     """Get compliance gap details."""
     result = await db.execute(
         select(ComplianceGap)
-        .join(Contract)
+        .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(ComplianceGap.id == gap_id)
         .where(Contract.tenant_id == tenant_id)
     )
@@ -483,7 +483,7 @@ async def update_gap_status(
     """Update gap status."""
     result = await db.execute(
         select(ComplianceGap)
-        .join(Contract)
+        .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(ComplianceGap.id == gap_id)
         .where(Contract.tenant_id == tenant_id)
     )
@@ -517,7 +517,7 @@ async def suggest_matching_documents(
     # Get the gap
     result = await db.execute(
         select(ComplianceGap)
-        .join(Contract)
+        .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(ComplianceGap.id == gap_id)
         .where(Contract.tenant_id == tenant_id)
         .options(selectinload(ComplianceGap.contract))
@@ -877,7 +877,7 @@ async def get_compliance_dashboard(
     # Total gaps
     gap_count_result = await db.execute(
         select(func.count(ComplianceGap.id))
-        .join(Contract)
+        .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(Contract.tenant_id == tenant_id)
     )
     total_gaps = gap_count_result.scalar() or 0
@@ -885,7 +885,7 @@ async def get_compliance_dashboard(
     # Gaps by severity
     severity_result = await db.execute(
         select(ComplianceGap.severity, func.count(ComplianceGap.id))
-        .join(Contract)
+        .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(Contract.tenant_id == tenant_id)
         .group_by(ComplianceGap.severity)
     )
@@ -896,7 +896,7 @@ async def get_compliance_dashboard(
     # Gaps by status
     status_result = await db.execute(
         select(ComplianceGap.status, func.count(ComplianceGap.id))
-        .join(Contract)
+        .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(Contract.tenant_id == tenant_id)
         .group_by(ComplianceGap.status)
     )
@@ -907,7 +907,7 @@ async def get_compliance_dashboard(
     # Overdue gaps
     overdue_result = await db.execute(
         select(func.count(ComplianceGap.id))
-        .join(Contract)
+        .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(Contract.tenant_id == tenant_id)
         .where(ComplianceGap.resolution_due_date != None)
         .where(ComplianceGap.resolution_due_date < date.today())
@@ -994,7 +994,7 @@ async def get_compliance_by_industry(
         # Get gap counts for this industry
         gap_query = (
             select(ComplianceGap.severity, ComplianceGap.status, func.count(ComplianceGap.id))
-            .join(Contract)
+            .join(Contract, ComplianceGap.contract_id == Contract.id)
             .where(Contract.tenant_id == tenant_id)
             .where(Contract.detected_industry == industry)
             .group_by(ComplianceGap.severity, ComplianceGap.status)

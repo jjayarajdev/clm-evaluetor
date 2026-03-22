@@ -123,6 +123,13 @@ STRUCTURED_INTENTS = {
 def detect_intent(question: str) -> str:
     """Detect whether a question maps to a structured query or needs RAG."""
     q = question.lower().strip()
+
+    # Clause analysis requests should always go to document Q&A (RAG),
+    # not structured queries — even if the clause text contains keywords
+    # like "obligation" or "renewal"
+    if q.startswith("[clause analysis]") or '"' in q and len(q) > 300:
+        return "document_qa"
+
     scores: dict[str, int] = {}
     for intent, keywords in STRUCTURED_INTENTS.items():
         score = sum(1 for kw in keywords if kw in q)

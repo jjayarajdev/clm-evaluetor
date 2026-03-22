@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contract Knowledge Graph</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; overflow: hidden; }
+
+  #app { display: flex; height: 100vh; }
+
+  /* Sidebar */
+  #sidebar {
+    width: 320px; min-width: 320px; background: #1a1d27;
+    border-right: 1px solid #2a2d3a; display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  #sidebar h1 { font-size: 16px; padding: 16px; border-bottom: 1px solid #2a2d3a; color: #8b9cf7; letter-spacing: 0.5px; }
+  #sidebar h1 span { color: #555; font-weight: 400; font-size: 12px; display: block; margin-top: 4px; }
+
+  .filter-section { padding: 12px 16px; border-bottom: 1px solid #2a2d3a; }
+  .filter-section label { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 1px; display: block; margin-bottom: 8px; }
+  select, input[type="text"] {
+    width: 100%; padding: 8px 10px; background: #252836; border: 1px solid #333;
+    border-radius: 6px; color: #ddd; font-size: 13px; outline: none;
+  }
+  select:focus, input:focus { border-color: #8b9cf7; }
+
+  .entity-types { display: flex; flex-wrap: wrap; gap: 6px; }
+  .type-toggle {
+    padding: 4px 10px; border-radius: 12px; font-size: 11px; cursor: pointer;
+    border: 1px solid #333; background: #252836; transition: all 0.2s;
+  }
+  .type-toggle.active { border-color: var(--type-color); background: var(--type-bg); color: var(--type-color); }
+  .type-toggle .count { opacity: 0.6; margin-left: 3px; }
+
+  /* Detail panel */
+  #detail-panel {
+    flex: 1; overflow-y: auto; padding: 16px;
+    scrollbar-width: thin; scrollbar-color: #333 transparent;
+  }
+  #detail-panel::-webkit-scrollbar { width: 6px; }
+  #detail-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+  .detail-card {
+    background: #252836; border-radius: 8px; padding: 14px; margin-bottom: 10px;
+    border-left: 3px solid var(--accent, #8b9cf7);
+  }
+  .detail-card h3 { font-size: 14px; margin-bottom: 6px; color: #fff; }
+  .detail-card .meta { font-size: 11px; color: #888; margin-bottom: 8px; }
+  .detail-card .props { font-size: 12px; line-height: 1.6; }
+  .detail-card .props dt { color: #888; display: inline; }
+  .detail-card .props dd { display: inline; margin-left: 4px; color: #bbb; }
+  .detail-card .props dd::after { content: ''; display: block; }
+
+  .rel-item {
+    font-size: 12px; padding: 6px 0; border-bottom: 1px solid #1a1d27;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .rel-item:hover { background: #1a1d27; border-radius: 4px; padding-left: 6px; }
+  .rel-item .rel-type { color: #8b9cf7; font-size: 10px; text-transform: uppercase; }
+  .rel-item .rel-target { color: #ddd; }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-box { background: #252836; border-radius: 8px; padding: 12px; text-align: center; }
+  .stat-box .num { font-size: 24px; font-weight: 700; color: #8b9cf7; }
+  .stat-box .lbl { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Graph area */
+  #graph-container { flex: 1; position: relative; }
+  svg { width: 100%; height: 100%; }
+
+  .node circle { stroke-width: 2; cursor: pointer; transition: r 0.2s; }
+  .node circle:hover { filter: brightness(1.3); }
+  .node text { font-size: 10px; fill: #ccc; pointer-events: none; text-anchor: middle; }
+  .node.selected circle { stroke: #fff !important; stroke-width: 3; }
+  .node.dimmed circle { opacity: 0.15; }
+  .node.dimmed text { opacity: 0.1; }
+
+  .link { stroke-opacity: 0.3; fill: none; }
+  .link.highlighted { stroke-opacity: 0.9; stroke-width: 2.5 !important; }
+  .link.dimmed { stroke-opacity: 0.04; }
+  .link-label { font-size: 8px; fill: #666; pointer-events: none; text-anchor: middle; }
+  .link-label.dimmed { opacity: 0.05; }
+  .link-label.highlighted { fill: #aaa; opacity: 1; }
+
+  /* Legend */
+  #legend {
+    position: absolute; bottom: 16px; left: 16px; background: #1a1d27ee;
+    border-radius: 8px; padding: 12px 16px; border: 1px solid #2a2d3a;
+  }
+  #legend h4 { font-size: 10px; text-transform: uppercase; color: #888; margin-bottom: 8px; letter-spacing: 1px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 4px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* Tooltip */
+  #tooltip {
+    position: absolute; background: #252836ee; border: 1px solid #3a3d4a;
+    border-radius: 6px; padding: 10px 14px; font-size: 12px;
+    pointer-events: none; opacity: 0; transition: opacity 0.15s;
+    max-width: 300px; z-index: 10;
+  }
+  #tooltip.visible { opacity: 1; }
+  #tooltip .tt-type { font-size: 10px; color: #888; text-transform: uppercase; }
+  #tooltip .tt-name { font-weight: 600; color: #fff; margin: 2px 0; }
+  #tooltip .tt-contract { font-size: 10px; color: #666; }
+
+  /* Controls */
+  #controls {
+    position: absolute; top: 16px; right: 16px;
+    display: flex; gap: 8px;
+  }
+  .ctrl-btn {
+    background: #1a1d27ee; border: 1px solid #2a2d3a; border-radius: 6px;
+    color: #aaa; padding: 6px 12px; font-size: 12px; cursor: pointer;
+  }
+  .ctrl-btn:hover { background: #252836; color: #fff; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <h1>Contract Knowledge Graph <span id="stats-line"></span></h1>
+
+    <div class="filter-section">
+      <label>Contract</label>
+      <select id="contract-filter"><option value="all">All Contracts</option></select>
+    </div>
+
+    <div class="filter-section">
+      <label>Entity Types</label>
+      <div class="entity-types" id="type-filters"></div>
+    </div>
+
+    <div class="filter-section">
+      <label>Search</label>
+      <input type="text" id="search" placeholder="Search entities...">
+    </div>
+
+    <div id="detail-panel">
+      <div class="stats-grid" id="stats-grid"></div>
+      <div id="entity-detail"></div>
+    </div>
+  </div>
+
+  <div id="graph-container">
+    <svg id="graph"></svg>
+    <div id="tooltip"></div>
+    <div id="controls">
+      <button class="ctrl-btn" onclick="resetZoom()">Reset View</button>
+      <button class="ctrl-btn" onclick="toggleLabels()">Toggle Labels</button>
+      <button class="ctrl-btn" onclick="toggleLinkLabels()">Toggle Link Labels</button>
+    </div>
+    <div id="legend"></div>
+  </div>
+</div>
+
+<script>
+const TYPE_COLORS = {
+  party:        { fill: '#4fc3f7', stroke: '#0288d1' },
+  obligation:   { fill: '#ff8a65', stroke: '#e64a19' },
+  clause:       { fill: '#81c784', stroke: '#388e3c' },
+  term:         { fill: '#ce93d8', stroke: '#7b1fa2' },
+  date:         { fill: '#fff176', stroke: '#f9a825' },
+  amount:       { fill: '#4db6ac', stroke: '#00796b' },
+  jurisdiction: { fill: '#ef5350', stroke: '#c62828' },
+  sla_metric:   { fill: '#7986cb', stroke: '#303f9f' },
+};
+
+const TYPE_RADIUS = {
+  party: 14, obligation: 8, clause: 10, term: 6,
+  date: 6, amount: 7, jurisdiction: 9, sla_metric: 9,
+};
+
+const REL_COLORS = {
+  has_obligation: '#ff8a65', benefits_from: '#4fc3f7', triggered_by: '#fff176',
+  limited_by: '#ef5350', has_party: '#4fc3f7', references: '#888',
+  governed_by: '#ef5350', defined_as: '#ce93d8', expires_on: '#fff176',
+  amends: '#81c784',
+};
+
+let graphData = null;
+let simulation = null;
+let showLabels = true;
+let showLinkLabels = false;
+let selectedNode = null;
+let activeTypes = new Set(Object.keys(TYPE_COLORS));
+let currentContract = 'all';
+
+// Load data
+fetch('graph_data.json')
+  .then(r => r.json())
+  .then(data => {
+    graphData = data;
+    init();
+  })
+  .catch(e => {
+    document.getElementById('detail-panel').innerHTML =
+      '<div style="padding:20px;color:#ef5350">Failed to load graph_data.json. Run export_graph.py first.</div>';
+  });
+
+function init() {
+  populateFilters();
+  renderStats();
+  renderGraph();
+}
+
+function populateFilters() {
+  const sel = document.getElementById('contract-filter');
+  graphData.contracts
+    .sort((a, b) => a.filename.localeCompare(b.filename))
+    .forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.filename;
+      sel.appendChild(opt);
+    });
+  sel.addEventListener('change', () => { currentContract = sel.value; renderGraph(); });
+
+  // Entity type toggles
+  const container = document.getElementById('type-filters');
+  Object.keys(TYPE_COLORS).forEach(type => {
+    const count = graphData.entities.filter(e => e.entity_type === type).length;
+    const btn = document.createElement('span');
+    btn.className = 'type-toggle active';
+    btn.dataset.type = type;
+    btn.style.setProperty('--type-color', TYPE_COLORS[type].fill);
+    btn.style.setProperty('--type-bg', TYPE_COLORS[type].fill + '22');
+    btn.innerHTML = `${type}<span class="count">${count}</span>`;
+    btn.addEventListener('click', () => {
+      if (activeTypes.has(type)) { activeTypes.delete(type); btn.classList.remove('active'); }
+      else { activeTypes.add(type); btn.classList.add('active'); }
+      renderGraph();
+    });
+    container.appendChild(btn);
+  });
+
+  // Search
+  document.getElementById('search').addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    d3.selectAll('.node').classed('dimmed', d => term && !d.name.toLowerCase().includes(term));
+  });
+
+  document.getElementById('stats-line').textContent =
+    `${graphData.stats.total_entities} entities | ${graphData.stats.total_relationships} relationships | ${graphData.stats.total_contracts} contracts`;
+}
+
+function renderStats() {
+  const grid = document.getElementById('stats-grid');
+  const typeCounts = {};
+  graphData.entities.forEach(e => { typeCounts[e.entity_type] = (typeCounts[e.entity_type] || 0) + 1; });
+  grid.innerHTML = [
+    { num: graphData.stats.total_entities, lbl: 'Entities' },
+    { num: graphData.stats.total_relationships, lbl: 'Relationships' },
+    { num: graphData.stats.total_contracts, lbl: 'Contracts' },
+    { num: Object.keys(typeCounts).length, lbl: 'Entity Types' },
+  ].map(s => `<div class="stat-box"><div class="num">${s.num}</div><div class="lbl">${s.lbl}</div></div>`).join('');
+}
+
+function getFilteredData() {
+  let entities = graphData.entities.filter(e => activeTypes.has(e.entity_type));
+  if (currentContract !== 'all') {
+    entities = entities.filter(e => e.contract_id === currentContract);
+  }
+  const entityIds = new Set(entities.map(e => e.id));
+  let relationships = graphData.relationships.filter(
+    r => entityIds.has(r.source) && entityIds.has(r.target)
+  );
+  if (currentContract !== 'all') {
+    relationships = relationships.filter(r => r.contract_id === currentContract);
+  }
+  return { entities, relationships };
+}
+
+function renderGraph() {
+  const svg = d3.select('#graph');
+  svg.selectAll('*').remove();
+  selectedNode = null;
+  document.getElementById('entity-detail').innerHTML = '';
+
+  const { entities, relationships } = getFilteredData();
+  if (entities.length === 0) return;
+
+  const width = document.getElementById('graph-container').clientWidth;
+  const height = document.getElementById('graph-container').clientHeight;
+
+  // Build node/link data (deep copy to avoid D3 mutation issues)
+  const nodes = entities.map(e => ({ ...e }));
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const links = relationships
+    .filter(r => nodeMap.has(r.source) && nodeMap.has(r.target))
+    .map(r => ({ ...r, source: r.source, target: r.target }));
+
+  // SVG setup with zoom
+  const g = svg.append('g');
+  const zoom = d3.zoom()
+    .scaleExtent([0.1, 8])
+    .on('zoom', (event) => g.attr('transform', event.transform));
+  svg.call(zoom);
+
+  // Arrow markers
+  const defs = svg.append('defs');
+  Object.entries(REL_COLORS).forEach(([type, color]) => {
+    defs.append('marker')
+      .attr('id', `arrow-${type}`)
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 20).attr('refY', 0)
+      .attr('markerWidth', 6).attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,-4L10,0L0,4')
+      .attr('fill', color);
+  });
+
+  // Links
+  const link = g.append('g').selectAll('line')
+    .data(links).join('line')
+    .attr('class', 'link')
+    .attr('stroke', d => REL_COLORS[d.relationship_type] || '#555')
+    .attr('stroke-width', d => d.confidence > 0.8 ? 1.5 : 1)
+    .attr('marker-end', d => `url(#arrow-${d.relationship_type})`);
+
+  // Link labels
+  const linkLabel = g.append('g').selectAll('text')
+    .data(links).join('text')
+    .attr('class', 'link-label')
+    .text(d => d.relationship_type.replace(/_/g, ' '))
+    .style('display', showLinkLabels ? 'block' : 'none');
+
+  // Nodes
+  const node = g.append('g').selectAll('g')
+    .data(nodes).join('g')
+    .attr('class', 'node')
+    .call(d3.drag()
+      .on('start', dragStart)
+      .on('drag', dragging)
+      .on('end', dragEnd));
+
+  node.append('circle')
+    .attr('r', d => TYPE_RADIUS[d.entity_type] || 8)
+    .attr('fill', d => TYPE_COLORS[d.entity_type]?.fill || '#888')
+    .attr('stroke', d => TYPE_COLORS[d.entity_type]?.stroke || '#555');
+
+  node.append('text')
+    .attr('dy', d => (TYPE_RADIUS[d.entity_type] || 8) + 12)
+    .text(d => d.name.length > 25 ? d.name.substring(0, 22) + '...' : d.name)
+    .style('display', showLabels ? 'block' : 'none');
+
+  // Tooltip
+  const tooltip = document.getElementById('tooltip');
+  node.on('mouseover', (event, d) => {
+    tooltip.innerHTML = `
+      <div class="tt-type">${d.entity_type}</div>
+      <div class="tt-name">${d.name}</div>
+      <div class="tt-contract">${d.contract}</div>
+    `;
+    tooltip.classList.add('visible');
+  })
+  .on('mousemove', (event) => {
+    tooltip.style.left = (event.pageX + 12) + 'px';
+    tooltip.style.top = (event.pageY - 12) + 'px';
+  })
+  .on('mouseout', () => tooltip.classList.remove('visible'));
+
+  // Click to select
+  node.on('click', (event, d) => {
+    event.stopPropagation();
+    selectNode(d, nodes, links, node, link, linkLabel);
+  });
+
+  svg.on('click', () => {
+    selectedNode = null;
+    node.classed('selected', false).classed('dimmed', false);
+    link.classed('highlighted', false).classed('dimmed', false);
+    linkLabel.classed('highlighted', false).classed('dimmed', false);
+    document.getElementById('entity-detail').innerHTML = '';
+  });
+
+  // Simulation
+  simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(80))
+    .force('charge', d3.forceManyBody().strength(-120))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide().radius(d => (TYPE_RADIUS[d.entity_type] || 8) + 4))
+    .on('tick', () => {
+      link
+        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      linkLabel
+        .attr('x', d => (d.source.x + d.target.x) / 2)
+        .attr('y', d => (d.source.y + d.target.y) / 2);
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+
+  // Legend
+  renderLegend();
+
+  // Auto-zoom to fit after stabilization
+  setTimeout(() => {
+    const bounds = g.node().getBBox();
+    if (bounds.width === 0) return;
+    const scale = Math.min(width / (bounds.width + 100), height / (bounds.height + 100), 1.5);
+    const tx = width / 2 - (bounds.x + bounds.width / 2) * scale;
+    const ty = height / 2 - (bounds.y + bounds.height / 2) * scale;
+    svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+  }, 2000);
+
+  window._zoom = zoom;
+  window._svg = svg;
+}
+
+function selectNode(d, nodes, links, nodeSel, linkSel, linkLabelSel) {
+  selectedNode = d;
+
+  // Find connected nodes
+  const connectedIds = new Set([d.id]);
+  links.forEach(l => {
+    const sid = typeof l.source === 'object' ? l.source.id : l.source;
+    const tid = typeof l.target === 'object' ? l.target.id : l.target;
+    if (sid === d.id) connectedIds.add(tid);
+    if (tid === d.id) connectedIds.add(sid);
+  });
+
+  nodeSel.classed('selected', n => n.id === d.id);
+  nodeSel.classed('dimmed', n => !connectedIds.has(n.id));
+  linkSel.classed('highlighted', l => {
+    const sid = typeof l.source === 'object' ? l.source.id : l.source;
+    const tid = typeof l.target === 'object' ? l.target.id : l.target;
+    return sid === d.id || tid === d.id;
+  });
+  linkSel.classed('dimmed', l => {
+    const sid = typeof l.source === 'object' ? l.source.id : l.source;
+    const tid = typeof l.target === 'object' ? l.target.id : l.target;
+    return sid !== d.id && tid !== d.id;
+  });
+  linkLabelSel.classed('highlighted', l => {
+    const sid = typeof l.source === 'object' ? l.source.id : l.source;
+    const tid = typeof l.target === 'object' ? l.target.id : l.target;
+    return sid === d.id || tid === d.id;
+  });
+  linkLabelSel.classed('dimmed', l => {
+    const sid = typeof l.source === 'object' ? l.source.id : l.source;
+    const tid = typeof l.target === 'object' ? l.target.id : l.target;
+    return sid !== d.id && tid !== d.id;
+  });
+
+  showEntityDetail(d, links);
+}
+
+function showEntityDetail(d, links) {
+  const panel = document.getElementById('entity-detail');
+  const color = TYPE_COLORS[d.entity_type]?.fill || '#888';
+
+  // Get relationships
+  const outgoing = [];
+  const incoming = [];
+  links.forEach(l => {
+    const sid = typeof l.source === 'object' ? l.source.id : l.source;
+    const tid = typeof l.target === 'object' ? l.target.id : l.target;
+    if (sid === d.id) {
+      const target = typeof l.target === 'object' ? l.target : graphData.entities.find(e => e.id === tid);
+      if (target) outgoing.push({ rel: l.relationship_type, entity: target });
+    }
+    if (tid === d.id) {
+      const source = typeof l.source === 'object' ? l.source : graphData.entities.find(e => e.id === sid);
+      if (source) incoming.push({ rel: l.relationship_type, entity: source });
+    }
+  });
+
+  // Properties
+  let propsHtml = '';
+  if (d.properties && Object.keys(d.properties).length > 0) {
+    propsHtml = '<dl class="props">' +
+      Object.entries(d.properties)
+        .filter(([k, v]) => v && String(v).length < 200)
+        .map(([k, v]) => `<dt>${k}:</dt><dd>${v}</dd>`)
+        .join('') +
+      '</dl>';
+  }
+
+  let relHtml = '';
+  if (outgoing.length > 0) {
+    relHtml += '<h3 style="margin-top:12px;font-size:12px;color:#888;">Outgoing</h3>';
+    relHtml += outgoing.map(r => `
+      <div class="rel-item">
+        <span class="rel-type">${r.rel.replace(/_/g, ' ')}</span>
+        <span class="rel-target">${r.entity.name}</span>
+      </div>
+    `).join('');
+  }
+  if (incoming.length > 0) {
+    relHtml += '<h3 style="margin-top:12px;font-size:12px;color:#888;">Incoming</h3>';
+    relHtml += incoming.map(r => `
+      <div class="rel-item">
+        <span class="rel-type">${r.rel.replace(/_/g, ' ')}</span>
+        <span class="rel-target">${r.entity.name}</span>
+      </div>
+    `).join('');
+  }
+
+  panel.innerHTML = `
+    <div class="detail-card" style="--accent:${color}; margin-top: 16px;">
+      <h3>${d.name}</h3>
+      <div class="meta">${d.entity_type} | ${d.contract} | confidence: ${(d.confidence * 100).toFixed(0)}%</div>
+      ${propsHtml}
+    </div>
+    ${relHtml ? `<div class="detail-card" style="--accent:#555">${relHtml}</div>` : ''}
+  `;
+}
+
+function renderLegend() {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '<h4>Entity Types</h4>' +
+    Object.entries(TYPE_COLORS)
+      .filter(([type]) => activeTypes.has(type))
+      .map(([type, colors]) =>
+        `<div class="legend-item"><div class="legend-dot" style="background:${colors.fill}"></div>${type}</div>`
+      ).join('');
+}
+
+function dragStart(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x; d.fy = d.y;
+}
+function dragging(event, d) { d.fx = event.x; d.fy = event.y; }
+function dragEnd(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+  d.fx = null; d.fy = null;
+}
+
+function resetZoom() {
+  window._svg.transition().duration(750).call(window._zoom.transform, d3.zoomIdentity);
+}
+function toggleLabels() {
+  showLabels = !showLabels;
+  d3.selectAll('.node text').style('display', showLabels ? 'block' : 'none');
+}
+function toggleLinkLabels() {
+  showLinkLabels = !showLinkLabels;
+  d3.selectAll('.link-label').style('display', showLinkLabels ? 'block' : 'none');
+}
+</script>
+</body>
+</html>

@@ -359,6 +359,7 @@ function ChatHistorySidebar({
 export default function QueryPage() {
   const [searchParams] = useSearchParams()
   const contractId = searchParams.get('contract')
+  const clauseId = searchParams.get('clause')
   const queryClient = useQueryClient()
 
   // State
@@ -370,6 +371,7 @@ export default function QueryPage() {
     contractId || undefined
   )
   const [loadingSession, setLoadingSession] = useState(false)
+  const [clauseAutoSubmitted, setClauseAutoSubmitted] = useState(false)
 
   // Refs
   const activeSessionRef = useRef<string | null>(null)
@@ -380,6 +382,13 @@ export default function QueryPage() {
   useEffect(() => {
     activeSessionRef.current = activeSessionId
   }, [activeSessionId])
+
+  // Fetch clause detail if clause param is present
+  const { data: clauseDetail } = useQuery({
+    queryKey: ['clause-detail', clauseId],
+    queryFn: () => api.getClauseDetail(clauseId!),
+    enabled: !!clauseId,
+  })
 
   // Queries
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
@@ -506,6 +515,25 @@ export default function QueryPage() {
       setIsSubmitting(false)
     }
   }, [isSubmitting, selectedContract, queryClient])
+
+  // Auto-submit clause question when clause detail is loaded
+  useEffect(() => {
+    if (clauseDetail && !clauseAutoSubmitted && !isSubmitting) {
+      setClauseAutoSubmitted(true)
+      // Scope to the clause's contract
+      if (clauseDetail.contract_id) {
+        setSelectedContract(clauseDetail.contract_id)
+      }
+      // Build a contextual question — phrased to avoid triggering structured intent keywords
+      // like "obligations", "risk", "renewal" which would bypass RAG and return portfolio stats
+      const clauseType = clauseDetail.clause_type?.replace(/_/g, ' ') || 'clause'
+      const truncatedText = clauseDetail.text.length > 500
+        ? clauseDetail.text.slice(0, 500) + '...'
+        : clauseDetail.text
+      const question = `[CLAUSE ANALYSIS] Analyze the following ${clauseType} clause from contract "${clauseDetail.contract_filename}". What does it mean in plain language? What are the key terms, responsibilities, and potential concerns?\n\n"${truncatedText}"`
+      submitQuestion(question)
+    }
+  }, [clauseDetail, clauseAutoSubmitted, isSubmitting, submitQuestion])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,6 +1,7 @@
 """User management router."""
 
 import math
+import uuid as uuid_mod
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -30,6 +31,8 @@ def user_to_response(user) -> UserResponse:
         email=user.email,
         role=user.role.value,
         is_active=user.is_active,
+        tenant_id=str(user.tenant_id) if user.tenant_id else None,
+        tenant_name=user.tenant.name if user.tenant else None,
         created_at=user.created_at,
         updated_at=user.updated_at,
     )
@@ -43,6 +46,7 @@ async def list_users(
     role: Role | None = None,
     is_active: bool | None = None,
     search: str | None = None,
+    filter_tenant_id: str | None = Query(None, alias="tenant_id"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> UserListResponse:
@@ -50,18 +54,24 @@ async def list_users(
 
     Args:
         admin: Authenticated admin user.
-        tenant_id: Current tenant ID for isolation.
+        tenant_id: Current tenant ID from auth (None for super admin).
         db: Database session.
         role: Filter by role.
         is_active: Filter by active status.
         search: Search in username/email.
+        filter_tenant_id: Optional tenant filter (super admin only).
         page: Page number.
         page_size: Results per page.
 
     Returns:
         Paginated list of users.
     """
-    service = UserService(db, tenant_id=tenant_id)
+    # Super admins can filter by a specific tenant via query param
+    effective_tenant_id = tenant_id
+    if tenant_id is None and filter_tenant_id:
+        effective_tenant_id = uuid_mod.UUID(filter_tenant_id)
+
+    service = UserService(db, tenant_id=effective_tenant_id)
     filters = UserFilter(role=role, is_active=is_active, search=search)
 
     users, total = await service.list_users(filters, page, page_size)
@@ -84,16 +94,29 @@ async def create_user(
 ) -> UserResponse:
     """Create a new user (admin only).
 
+    Super admins can specify tenant_id in the request body to create users
+    in any tenant. Regular admins create users in their own tenant.
+
     Args:
         data: User creation data.
         admin: Authenticated admin user.
-        tenant_id: Current tenant ID for isolation.
+        tenant_id: Current tenant ID from JWT.
         db: Database session.
 
     Returns:
         Created user.
     """
-    service = UserService(db, tenant_id=tenant_id)
+    # Super admin can target any tenant via request body
+    effective_tenant_id = tenant_id
+    if admin.role == Role.SUPER_ADMIN and data.tenant_id:
+        effective_tenant_id = uuid_mod.UUID(data.tenant_id)
+    elif admin.role == Role.SUPER_ADMIN and not data.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Super admin must specify tenant_id when creating a user",
+        )
+
+    service = UserService(db, tenant_id=effective_tenant_id)
 
     try:
         user = await service.create(data)
@@ -194,6 +217,7 @@ async def update_user(
     try:
         updated = await service.update(user, data)
         await db.commit()
+        await db.refresh(updated)
         return user_to_response(updated)
     except ValueError as e:
         raise HTTPException(
@@ -233,6 +257,7 @@ async def update_user_password(
 
     updated = await service.update_password(user, data.new_password)
     await db.commit()
+    await db.refresh(updated)
     return user_to_response(updated)
 
 
@@ -275,6 +300,7 @@ async def deactivate_user(
 
     deactivated = await service.deactivate(user)
     await db.commit()
+    await db.refresh(deactivated)
     return user_to_response(deactivated)
 
 
@@ -307,4 +333,5 @@ async def activate_user(
 
     activated = await service.activate(user)
     await db.commit()
+    await db.refresh(activated)
     return user_to_response(activated)

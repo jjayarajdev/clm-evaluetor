@@ -151,13 +151,17 @@ class SchemaSyncService:
             or contract.notice_period_days
         )
 
-        # Counterparty from parties list
+        # Counterparty from parties list — the counterparty is the vendor/supplier,
+        # NOT the client/customer (the client is typically the document owner)
         parties = metadata.get("parties", [])
         for party in parties:
             role = safe_lower(party.get("role"), "")
-            if role in ("client", "customer", "licensee", "receiving_party"):
-                if not contract.counterparty:
-                    contract.counterparty = party.get("legal_name")
+            party_name = party.get("legal_name") or party.get("name")
+            if role in ("vendor", "supplier", "service_provider", "contractor",
+                        "provider", "disclosing_party", "licensor"):
+                if not contract.counterparty and party_name:
+                    contract.counterparty = party_name
+                    logger.info(f"Set counterparty from schema (role={role}): {party_name}")
                 break
 
         # Term and renewal
@@ -243,7 +247,7 @@ class SchemaSyncService:
             role_str = safe_lower(party_data.get("role"), "other").replace(" ", "_")
             role = role_map.get(role_str, PartyRole.OTHER)
 
-            legal_name = party_data.get("legal_name")
+            legal_name = party_data.get("legal_name") or party_data.get("name")
             if not legal_name:
                 continue
 

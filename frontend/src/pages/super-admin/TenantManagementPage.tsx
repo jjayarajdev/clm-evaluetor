@@ -54,6 +54,25 @@ export default function TenantManagementPage() {
     queryFn: () => api.getTenants(showInactive),
   })
 
+  // Fetch stats for each tenant to show contract counts
+  const { data: tenantStatsMap } = useQuery({
+    queryKey: ['tenant-stats-all', tenants?.map(t => t.id)],
+    queryFn: async () => {
+      if (!tenants?.length) return {}
+      const results = await Promise.all(
+        tenants.map(t =>
+          api.getTenantStats(t.id).catch(() => ({ tenant_id: t.id, contract_count: 0, user_count: 0 }))
+        )
+      )
+      const map: Record<string, { contract_count: number; user_count: number }> = {}
+      for (const s of results) {
+        map[s.tenant_id] = s
+      }
+      return map
+    },
+    enabled: !!tenants?.length,
+  })
+
   const createMutation = useMutation({
     mutationFn: (data: TenantCreate) => api.createTenant(data),
     onSuccess: () => {
@@ -200,7 +219,7 @@ export default function TenantManagementPage() {
                   Plan
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contract Limit
+                  Contracts
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
@@ -235,8 +254,11 @@ export default function TenantManagementPage() {
                       {PLAN_LABELS[tenant.plan]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {tenant.contract_limit || 'Unlimited'}
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">
+                      {tenantStatsMap?.[tenant.id]?.contract_count ?? '—'}
+                    </span>
+                    <span className="text-gray-400"> / {tenant.contract_limit || '∞'}</span>
                   </td>
                   <td className="px-4 py-3">
                     <button

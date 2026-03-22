@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, date
 
 from sqlalchemy import Column, DateTime, Date, String, Text, Enum, Boolean, ForeignKey, Integer, JSON
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, ENUM as PG_ENUM
 from sqlalchemy.orm import relationship as sa_relationship
 
 from app.database import Base
@@ -42,7 +42,10 @@ class SurveyTemplate(Base):
     # Template info
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    frequency = Column(Enum(SurveyFrequency), nullable=False, default=SurveyFrequency.QUARTERLY)
+    frequency = Column(
+        PG_ENUM(*[e.value for e in SurveyFrequency], name='surveyfrequency', create_type=False),
+        nullable=False, default=SurveyFrequency.QUARTERLY.value
+    )
 
     # Configuration
     introduction_text = Column(Text, nullable=True)  # Text shown at start
@@ -78,7 +81,10 @@ class SurveyQuestion(Base):
     # Question content
     text = Column(Text, nullable=False)
     help_text = Column(Text, nullable=True)
-    question_type = Column(Enum(QuestionType), nullable=False, default=QuestionType.RATING)
+    question_type = Column(
+        PG_ENUM(*[e.value for e in QuestionType], name='questiontype', create_type=False),
+        nullable=False, default=QuestionType.RATING.value
+    )
 
     # For multiple choice questions
     options = Column(JSON, nullable=True)  # List of option strings
@@ -129,7 +135,10 @@ class SurveyInstance(Base):
 
     # Period and timing
     period = Column(String(20), nullable=False)  # e.g., "2024-Q1"
-    status = Column(Enum(SurveyStatus), nullable=False, default=SurveyStatus.DRAFT)
+    status = Column(
+        PG_ENUM(*[e.value for e in SurveyStatus], name='surveystatus', create_type=False),
+        nullable=False, default=SurveyStatus.DRAFT.value
+    )
 
     # Scheduling
     scheduled_send_date = Column(Date, nullable=True)

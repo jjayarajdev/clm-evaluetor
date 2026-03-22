@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, date
 
 from sqlalchemy import Column, DateTime, Date, String, Text, Enum, Boolean, ForeignKey, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, ENUM as PG_ENUM
 from sqlalchemy.orm import relationship as sa_relationship
 
 from app.database import Base
@@ -58,9 +58,18 @@ class ImprovementPoint(Base):
     # Improvement details
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    source = Column(Enum(ImprovementSource), nullable=False, default=ImprovementSource.MANUAL)
-    priority = Column(Enum(ImprovementPriority), nullable=False, default=ImprovementPriority.MEDIUM)
-    status = Column(Enum(ImprovementStatus), nullable=False, default=ImprovementStatus.OPEN)
+    source = Column(
+        PG_ENUM(*[e.value for e in ImprovementSource], name='improvementsource', create_type=False),
+        nullable=False, default=ImprovementSource.MANUAL.value
+    )
+    priority = Column(
+        PG_ENUM(*[e.value for e in ImprovementPriority], name='improvementpriority', create_type=False),
+        nullable=False, default=ImprovementPriority.MEDIUM.value
+    )
+    status = Column(
+        PG_ENUM(*[e.value for e in ImprovementStatus], name='improvementstatus', create_type=False),
+        nullable=False, default=ImprovementStatus.OPEN.value
+    )
 
     # Assignment
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
@@ -123,7 +132,10 @@ class ImprovementAction(Base):
 
     # Action details
     description = Column(Text, nullable=False)
-    status = Column(Enum(ActionStatus), nullable=False, default=ActionStatus.TODO)
+    status = Column(
+        PG_ENUM(*[e.value for e in ActionStatus], name='actionstatus', create_type=False),
+        nullable=False, default=ActionStatus.TODO.value
+    )
     sequence = Column(Integer, nullable=True)  # Order of execution
 
     # Assignment

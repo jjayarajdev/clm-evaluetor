@@ -82,6 +82,7 @@ class TenantStatsResponse(BaseModel):
     contract_limit: int | None
     user_count: int
     is_active: bool
+    total_value: float = 0
 
 
 # =============================================================================

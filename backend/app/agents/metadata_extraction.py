@@ -91,11 +91,18 @@ Extract the following fields from the provided contract text:
    - EMPLOYMENT (Employment Contract)
    - OTHER (if none of the above)
 
-2. **counterparty**: Extract ONLY the legal entity name of the other contracting party.
-   RULES:
-   - A valid counterparty is a REAL COMPANY NAME like "Acme Corporation", "TechServices Inc.", "CareerSource Heartland"
+2. **counterparty**: Extract the VENDOR/SUPPLIER/SERVICE PROVIDER party — the party providing services.
+   STEP-BY-STEP PROCESS:
+   a) First, find ALL parties in "between X and Y" or "THE UNDERSIGNED" clauses
+   b) Identify each party's ROLE — look for labels like "Client", "Customer", "Buyer" vs "Supplier", "Vendor", "Service Provider", "Contractor"
+   c) The COUNTERPARTY is the party labeled as Vendor/Supplier/Service Provider/Contractor
+   d) The party labeled Client/Customer/Buyer is the DOCUMENT OWNER — do NOT extract this as the counterparty
+   e) The party whose name appears in the FILENAME is the document owner — do NOT extract it as counterparty
+      (e.g., "MSA ClientAA.docx" → ClientAA is the owner, the Supplier is the counterparty)
+
+   VALIDATION RULES:
+   - A valid counterparty is a REAL COMPANY NAME like "Acme Corporation", "TechServices Inc.", "Infosys Ltd."
    - Look for legal entity suffixes: Inc., LLC, Ltd., Corp., Corporation, BV, GmbH, LP, LLP, PLC
-   - In "between X and Y" clauses, extract the party that is NOT the document owner/drafter
    - Extract the SHORT legal name only, not the full address block
    - DO NOT include addresses, city, state, zip codes
    INVALID counterparty values (MUST return null instead):
@@ -240,6 +247,7 @@ async def extract_metadata(
     contract_id: str | None = None,
     user_id: str | None = None,
     user_role: str | None = None,
+    excluded_parties: list[str] | None = None,
 ) -> ExtractedMetadata:
     """Extract metadata from contract text using the AI agent.
 
@@ -278,8 +286,20 @@ async def extract_metadata(
         except Exception:
             pass
 
+    # Build exclusion context for uploader's organization
+    exclusion_hint = ""
+    if excluded_parties:
+        party_list = ", ".join(f'"{p}"' for p in excluded_parties)
+        exclusion_hint = f"""
+CRITICAL — COUNTERPARTY EXCLUSION:
+The following names belong to the UPLOADING organization (the document owner/client).
+Do NOT extract any of these as the counterparty: {party_list}
+The counterparty must be the OTHER party — the external vendor, supplier, or partner.
+If the document mentions "between {excluded_parties[0]} and [OtherCompany]", the counterparty is [OtherCompany].
+"""
+
     query = f"""Extract metadata from the following contract text:
-{filename_hint}
+{filename_hint}{exclusion_hint}
 ---
 {text_sample}
 ---
@@ -303,12 +323,13 @@ Respond with the structured JSON as specified."""
         # Parse the JSON response
         json_data = extract_json_from_response(response.response)
         if json_data:
+            logger.info(f"AI metadata extraction result: contract_type={json_data.get('contract_type')}, counterparty={json_data.get('counterparty')}, parties={json_data.get('parties')}")
             metadata = _parse_metadata_response(json_data)
 
             # Validate/clean counterparty with LLM
             if metadata.counterparty and metadata.counterparty.value:
                 raw_value = str(metadata.counterparty.value)
-                cleaned = await _clean_counterparty_with_llm(raw_value)
+                cleaned = await _clean_counterparty_with_llm(raw_value, excluded_parties)
                 if cleaned:
                     metadata.counterparty = MetadataField(
                         value=cleaned,
@@ -330,7 +351,7 @@ Respond with the structured JSON as specified."""
         return ExtractedMetadata()
 
 
-async def _clean_counterparty_with_llm(value: str) -> str | None:
+async def _clean_counterparty_with_llm(value: str, excluded_parties: list[str] | None = None) -> str | None:
     """Use LLM to extract clean company name from messy text.
 
     Args:
@@ -345,8 +366,17 @@ async def _clean_counterparty_with_llm(value: str) -> str | None:
     # Normalize whitespace
     value = re.sub(r'\s+', ' ', value).strip()
 
+    # Check against excluded parties (uploader's org) — exact match only
+    if excluded_parties:
+        value_lower = value.strip().lower()
+        for ep in excluded_parties:
+            ep_lower = ep.strip().lower()
+            if value_lower == ep_lower:
+                logger.info(f"LLM cleaning rejected '{value}' — matches excluded party '{ep}'")
+                return None
+
     # If it looks clean already (short, has legal suffix), return as-is
-    if len(value) < 50 and re.search(r'\b(Inc\.?|LLC|Ltd\.?|Corp\.?|Corporation|GmbH|BV|LP|LLP|PLC)\b', value, re.IGNORECASE):
+    if len(value) < 80 and re.search(r'\b(Inc\.?|LLC|Ltd\.?|Limited|Corp\.?|Corporation|GmbH|BV|B\.V\.?|LP|LLP|PLC|AG|SA|NV|N\.V\.?|Pty|Pvt)\b', value, re.IGNORECASE):
         return value
 
     # Use LLM to extract clean name
@@ -523,22 +553,34 @@ def _parse_metadata_response(data: dict[str, Any]) -> ExtractedMetadata:
         "jurisdiction",
     ]:
         field_data = data.get(field_name)
-        if field_data and isinstance(field_data, dict) and field_data.get("value") is not None:
+        if not field_data:
+            continue
+
+        # Handle both dict format {"value": ..., "confidence": ...} and plain value
+        if isinstance(field_data, dict) and field_data.get("value") is not None:
             value = field_data["value"]
             confidence = field_data.get("confidence", 0.5)
+            raw_text = field_data.get("raw_text")
+        elif isinstance(field_data, (str, int, float)) and field_data:
+            # AI returned a plain value instead of the nested format
+            value = field_data
+            confidence = 0.75  # Default confidence for plain values
+            raw_text = None
+        else:
+            continue
 
-            # Basic validation for counterparty - LLM cleaning happens later in extract_metadata
-            if field_name == "counterparty" and _is_generic_counterparty(str(value)):
-                logger.debug(f"Rejecting obviously generic counterparty: {value}")
-                continue
+        # Basic validation for counterparty - LLM cleaning happens later in extract_metadata
+        if field_name == "counterparty" and _is_generic_counterparty(str(value)):
+            logger.debug(f"Rejecting obviously generic counterparty: {value}")
+            continue
 
-            fields[field_name] = MetadataField(
-                value=value,
-                confidence=confidence,
-                raw_text=field_data.get("raw_text"),
-            )
-            total_confidence += confidence
-            field_count += 1
+        fields[field_name] = MetadataField(
+            value=value,
+            confidence=confidence,
+            raw_text=raw_text,
+        )
+        total_confidence += confidence
+        field_count += 1
 
     parties = data.get("parties", [])
     if not isinstance(parties, list):
@@ -558,6 +600,7 @@ async def update_contract_metadata(
     contract: Contract,
     metadata: ExtractedMetadata,
     confidence_threshold: float = 0.7,
+    excluded_parties: list[str] | None = None,
 ) -> Contract:
     """Update a contract with extracted metadata.
 
@@ -572,37 +615,72 @@ async def update_contract_metadata(
     """
     # Map contract type
     if metadata.contract_type and metadata.contract_type.confidence >= confidence_threshold:
-        type_value = str(metadata.contract_type.value).upper()
+        type_value = str(metadata.contract_type.value).upper().strip()
         type_map = {
             "NDA": ContractType.NDA,
+            "NON-DISCLOSURE AGREEMENT": ContractType.NDA,
+            "NON DISCLOSURE AGREEMENT": ContractType.NDA,
+            "NONDISCLOSURE AGREEMENT": ContractType.NDA,
             "MSA": ContractType.MSA,
+            "MASTER SERVICES AGREEMENT": ContractType.MSA,
+            "MASTER SERVICE AGREEMENT": ContractType.MSA,
             "SOW": ContractType.SOW,
+            "STATEMENT OF WORK": ContractType.SOW,
             "AMENDMENT": ContractType.AMENDMENT,
             "VENDOR": ContractType.VENDOR_AGREEMENT,
             "VENDOR_AGREEMENT": ContractType.VENDOR_AGREEMENT,
+            "VENDOR AGREEMENT": ContractType.VENDOR_AGREEMENT,
             "EMPLOYMENT": ContractType.EMPLOYMENT_CONTRACT,
             "EMPLOYMENT_CONTRACT": ContractType.EMPLOYMENT_CONTRACT,
+            "EMPLOYMENT CONTRACT": ContractType.EMPLOYMENT_CONTRACT,
+            "EMPLOYMENT AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
         }
-        contract.contract_type = type_map.get(type_value)
+        mapped_type = type_map.get(type_value)
+        if mapped_type:
+            contract.contract_type = mapped_type
+        # Don't clear existing contract_type if AI returns unrecognized value
+
+    # Helper to check if a value matches any excluded party (the uploader's org)
+    def _is_excluded_party(value: str) -> bool:
+        if not excluded_parties or not value:
+            return False
+        value_lower = value.strip().lower()
+        for ep in excluded_parties:
+            ep_lower = ep.strip().lower()
+            # Only match if excluded party name is a meaningful prefix/match of the value
+            # e.g., "ClientAA" matches "ClientAA B.V." or "ClientAA Pvt Ltd"
+            # but "DemoSup" should NOT match "DemoSup1 BPO Limited" (different entity)
+            if value_lower == ep_lower:
+                return True
+            # Check if the excluded party is a prefix followed by a legal suffix
+            if value_lower.startswith(ep_lower + " ") and len(ep_lower) > 4:
+                # Make sure it's not a different entity (e.g., "DemoSup" vs "DemoSup1")
+                remainder = value_lower[len(ep_lower):].strip()
+                if remainder and remainder[0].isdigit():
+                    continue  # Different entity (e.g., "DemoSup1" is not "DemoSup")
+                return True
+        return False
 
     # Update counterparty
     counterparty_set = False
     if metadata.counterparty and metadata.counterparty.confidence >= confidence_threshold:
         counterparty_value = str(metadata.counterparty.value)
-        if not _is_generic_counterparty(counterparty_value):
+        if not _is_generic_counterparty(counterparty_value) and not _is_excluded_party(counterparty_value):
             contract.counterparty = counterparty_value
             counterparty_set = True
-
+            logger.info(f"Set counterparty to '{counterparty_value}'")
+        elif is_excluded:
+            logger.info(f"Rejected counterparty '{counterparty_value}' — matches uploading org")
     # Fallback: try to extract counterparty from filename if not set from metadata
     if not counterparty_set and (not contract.counterparty or _is_generic_counterparty(contract.counterparty)):
         filename_counterparty = extract_counterparty_from_filename(contract.filename)
-        if filename_counterparty:
+        if filename_counterparty and not _is_excluded_party(filename_counterparty):
             logger.info(f"Using filename-derived counterparty: {filename_counterparty}")
             contract.counterparty = filename_counterparty
         elif metadata.parties:
-            # Try to use first non-generic party from parties list
+            # Try to use first non-generic, non-excluded party from parties list
             for party in metadata.parties:
-                if not _is_generic_counterparty(party):
+                if not _is_generic_counterparty(party) and not _is_excluded_party(party):
                     contract.counterparty = party
                     logger.info(f"Using parties list counterparty: {party}")
                     break
@@ -628,7 +706,16 @@ async def update_contract_metadata(
             pass
 
     if metadata.currency and metadata.currency.confidence >= confidence_threshold:
-        contract.currency = str(metadata.currency.value).upper()
+        currency_val = str(metadata.currency.value).upper().strip()
+        # Map common currency names to ISO codes (VARCHAR(3) column)
+        currency_map = {
+            "EURO": "EUR", "EUROS": "EUR", "DOLLAR": "USD", "DOLLARS": "USD",
+            "POUND": "GBP", "POUNDS": "GBP", "YEN": "JPY", "RUPEE": "INR",
+            "RUPEES": "INR",
+        }
+        currency_val = currency_map.get(currency_val, currency_val)
+        if len(currency_val) <= 3:
+            contract.currency = currency_val
 
     # Update jurisdiction
     if metadata.jurisdiction and metadata.jurisdiction.confidence >= confidence_threshold:
@@ -898,6 +985,7 @@ async def extract_metadata_with_fallback(
     contract_id: str | None = None,
     user_id: str | None = None,
     user_role: str | None = None,
+    excluded_parties: list[str] | None = None,
 ) -> ExtractedMetadata:
     """Extract metadata using AI with regex fallback.
 
@@ -911,7 +999,7 @@ async def extract_metadata_with_fallback(
         ExtractedMetadata with best available data.
     """
     # Try AI extraction first
-    ai_metadata = await extract_metadata(contract_text, contract_id, user_id, user_role)
+    ai_metadata = await extract_metadata(contract_text, contract_id, user_id, user_role, excluded_parties)
 
     # If AI extraction got good results, use it
     if ai_metadata.overall_confidence >= 0.6:

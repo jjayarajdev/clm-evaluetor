@@ -42,7 +42,7 @@ from app.schemas.survey import (
     ExternalSurveyContext,
 )
 
-router = APIRouter(prefix="/surveys", tags=["Surveys"])
+router = APIRouter(prefix="/api/surveys", tags=["Surveys"])
 
 
 # ===== Templates =====

@@ -1312,21 +1312,19 @@ sequenceDiagram
     P-->>API: ParsedDocument
     API->>DB: Create Contract (status=processing)
     API->>I: Index Contract
-    I->>VS: Store Chunks
-    I->>AI: Extract Metadata
+    I->>VS: Store Chunks (with semantic classification)
+    I->>AI: Extract Metadata (with excluded parties)
     AI-->>I: Metadata, Parties, Dates
-    I->>AI: Extract Clauses
-    AI-->>I: Clause List
-    I->>AI: Extract Obligations
-    AI-->>I: Obligation List
+    I->>AI: Extract Custom Fields (if tenant has definitions)
+    AI-->>I: Custom Field Values
+    Note over I,DB: Flush metadata before optional stages
     I->>AI: Assess Risk
     AI-->>I: Risk Score, Summary
-    I->>AI: Extract SLAs
-    AI-->>I: SLA List
-    I->>AI: Extract Renewals
-    AI-->>I: Renewal Terms
+    Note over I: KG extraction deferred to deep_analysis
     I->>DB: Update Contract (status=completed)
+    I->>I: Auto-Link Detection (multi-signal scoring)
     I-->>U: Processing Complete
+    Note over API: Deep analysis runs async (clauses, obligations, SLAs, KG)
 ```
 
 ### Q&A Query Flow
@@ -1419,3 +1417,4 @@ sequenceDiagram
 | 1.2 | 2026-03-06 | Added Business Unit, External User, Contract Share/Comment, Knowledge Graph, Notification Rules, Metric Snapshots. Updated entity overview diagram. |
 | 1.3 | 2026-03-07 | Added Chat Sessions and Chat Messages entities. Updated entity overview diagram. |
 | 1.4 | 2026-03-07 | Updated ContractLink (16 link types, parent/child model) and SuggestedContractLink (multi-signal scoring with 6 weighted signals). Added AutoLinkDetector flowchart. |
+| 1.5 | 2026-03-09 | Updated Contract Processing Pipeline: KG extraction deferred to deep_analysis, auto-link detection runs in indexer pipeline, metadata flush before optional stages, excluded parties in metadata extraction. |

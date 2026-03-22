@@ -17,9 +17,7 @@ from app.services.vector_store import ChunkMetadata, VectorStore, get_vector_sto
 from app.agents.metadata_extraction import extract_metadata_with_fallback, update_contract_metadata
 from app.agents.risk_detection import assess_risk, update_contract_risk
 from app.services.custom_field_extraction import extract_custom_fields
-from app.services.knowledge_graph_extractor import get_knowledge_graph_extractor
 from app.services.progress_tracker import get_progress_tracker, ProcessingStage
-from app.models.knowledge_graph import KGEntity
 from app.models.tenant import Tenant
 
 logger = logging.getLogger(__name__)
@@ -117,14 +115,35 @@ class IndexingService:
             tracker.update_progress(contract_id, ProcessingStage.METADATA, "Extracting contract metadata")
             logger.info(f"Extracting metadata for contract {contract.id}")
             full_text = parsed.full_text or ""
+
+            # Build excluded parties list from tenant/client names
+            # so the AI doesn't set the uploader's own org as the counterparty
+            excluded_parties: list[str] = []
+            if contract.tenant_id:
+                try:
+                    tenant = await self.db.get(Tenant, contract.tenant_id)
+                    if tenant and tenant.name:
+                        excluded_parties.append(tenant.name)
+                except Exception:
+                    pass
+            if contract.client_id:
+                try:
+                    from app.models.client import Client
+                    client = await self.db.get(Client, contract.client_id)
+                    if client and client.name and client.name not in excluded_parties:
+                        excluded_parties.append(client.name)
+                except Exception:
+                    pass
+
             try:
                 metadata = await extract_metadata_with_fallback(
                     contract_text=full_text,
                     contract_id=str(contract.id),
                     user_id=user_id,
                     user_role=user_role,
+                    excluded_parties=excluded_parties if excluded_parties else None,
                 )
-                await update_contract_metadata(self.db, contract, metadata)
+                await update_contract_metadata(self.db, contract, metadata, excluded_parties=excluded_parties if excluded_parties else None)
                 logger.info(f"Metadata extracted for contract {contract.id} (confidence: {metadata.overall_confidence:.2f})")
                 tracker.update_progress(
                     contract_id, ProcessingStage.METADATA,
@@ -155,6 +174,9 @@ class IndexingService:
                 except Exception as e:
                     logger.warning(f"Custom field extraction failed for {contract.id}: {e}")
 
+            # Flush metadata changes before optional stages so they survive failures
+            await self.db.flush()
+
             # Assess risk using AI agent
             tracker.update_progress(contract_id, ProcessingStage.RISK, "Assessing contract risks")
             logger.info(f"Assessing risk for contract {contract.id}")
@@ -169,37 +191,42 @@ class IndexingService:
                 tracker.update_progress(
                     contract_id, ProcessingStage.RISK,
                     f"Risk level: {risk_result.risk_level}",
-                    details={"risk_level": risk_result.risk_level, "risk_score": risk_result.risk_score}
+                    details={"risk_level": risk_result.risk_level}
                 )
             except Exception as e:
                 logger.warning(f"Risk assessment failed for {contract.id}: {e}")
 
-            # Extract knowledge graph (entities and relationships)
-            tracker.update_progress(contract_id, ProcessingStage.KNOWLEDGE_GRAPH, "Building knowledge graph")
-            logger.info(f"Extracting knowledge graph for contract {contract.id}")
-            try:
-                kg_extractor = await get_knowledge_graph_extractor(self.db)
-                entity_count, rel_count = await kg_extractor.extract_and_store(
-                    contract_id=str(contract.id),
-                    tenant_id=str(contract.tenant_id),
-                    contract_text=full_text,
-                    force_reextract=True,  # Always fresh extract during indexing
-                )
-                logger.info(
-                    f"Knowledge graph extracted for contract {contract.id}: "
-                    f"{entity_count} entities, {rel_count} relationships"
-                )
-                tracker.update_progress(
-                    contract_id, ProcessingStage.KNOWLEDGE_GRAPH,
-                    f"Extracted {entity_count} entities, {rel_count} relationships",
-                    details={"entities": entity_count, "relationships": rel_count}
-                )
-            except Exception as e:
-                logger.warning(f"Knowledge graph extraction failed for {contract.id}: {e}")
+            # NOTE: Knowledge graph extraction is deferred to deep_analysis to avoid
+            # FK violation errors that can poison the session and rollback metadata changes.
+            # The KG extraction runs via _run_deep_analysis in the contracts router.
+            tracker.update_progress(
+                contract_id, ProcessingStage.KNOWLEDGE_GRAPH,
+                "Deferred to deep analysis",
+            )
 
             # Mark as completed
             contract.status = ContractStatus.COMPLETED
             await self.db.flush()
+
+            # Run auto-link detection to suggest related contracts
+            try:
+                from app.services.auto_link_detector import AutoLinkDetector
+                detector = AutoLinkDetector(
+                    db=self.db,
+                    tenant_id=contract.tenant_id,
+                )
+                suggestions = await detector.detect_links(
+                    contract=contract,
+                    min_confidence=0.2,
+                    max_suggestions=5,
+                )
+                if suggestions:
+                    for suggestion in suggestions:
+                        self.db.add(suggestion)
+                    await self.db.flush()
+                    logger.info(f"Created {len(suggestions)} link suggestions for {contract.id}")
+            except Exception as e:
+                logger.warning(f"Auto-link detection failed for {contract.id}: {e}")
 
             # Update progress to completed
             tracker.update_progress(
@@ -305,10 +332,7 @@ class IndexingService:
             delete(Clause).where(Clause.contract_id == contract.id)
         )
 
-        # Delete knowledge graph entities (relationships cascade delete)
-        await self.db.execute(
-            delete(KGEntity).where(KGEntity.contract_id == contract.id)
-        )
+        # KG cleanup is handled by the KG extractor itself (force_reextract=True)
 
     async def _store_chunks(
         self,
