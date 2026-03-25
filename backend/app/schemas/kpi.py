@@ -7,7 +7,7 @@ from typing import Optional, List
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.kpi import KPIMeasurementType, KPICategory, GapSeverity
+from app.models.kpi import KPIMeasurementType, KPICategory, GapSeverity, ScoreApprovalStatus
 
 
 # ===== KPI Schemas =====
@@ -102,9 +102,16 @@ class PerceptionScoreResponse(BaseModel):
     is_internal: bool
     scored_at: datetime
 
+    # Approval workflow fields
+    approval_status: Optional[ScoreApprovalStatus] = None
+    approved_by: Optional[UUID] = None
+    approved_at: Optional[datetime] = None
+    approval_comments: Optional[str] = None
+
     # Populated from joins
     scorer_org_name: Optional[str] = None
     scored_by_name: Optional[str] = None
+    approver_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -178,3 +185,35 @@ class ExternalScoreSubmission(BaseModel):
     scores: List[PerceptionScoreCreate]
     respondent_name: Optional[str] = None
     respondent_email: Optional[str] = None
+
+
+# ===== Approval Workflow Schemas =====
+
+class ScoreApprovalAction(BaseModel):
+    """Schema for approving or rejecting a perception score."""
+    comments: Optional[str] = None
+
+
+class PendingApprovalResponse(BaseModel):
+    """Schema for a pending approval item with enriched context."""
+    id: UUID
+    kpi_id: UUID
+    kpi_name: Optional[str] = None
+    kpi_category: Optional[KPICategory] = None
+    relationship_id: Optional[UUID] = None
+    relationship_name: Optional[str] = None
+    scorer_org_id: UUID
+    scored_by_user_id: Optional[UUID] = None
+    score: Decimal
+    period: str
+    comments: Optional[str] = None
+    is_internal: bool
+    scored_at: datetime
+    approval_status: ScoreApprovalStatus
+
+    # Populated from joins
+    scorer_org_name: Optional[str] = None
+    scored_by_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True

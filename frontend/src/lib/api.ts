@@ -1600,6 +1600,243 @@ class ApiClient {
     const response = await this.client.post(`/surveys/instances/${instanceId}/generate-token`)
     return response.data
   }
+
+  // ============================================================================
+  // Fit-Gap Features: Service Portfolio
+  // ============================================================================
+
+  async getServicePortfolios(params?: {
+    page?: number
+    page_size?: number
+    search?: string
+    org_id?: string
+    service_type?: string
+    service_status?: string
+  }): Promise<import('@/types/fitgap').ServicePortfolioListResponse> {
+    const response = await this.client.get('/service-portfolio', { params })
+    return response.data
+  }
+
+  async getServicePortfolio(id: string): Promise<import('@/types/fitgap').ServicePortfolio> {
+    const response = await this.client.get(`/service-portfolio/${id}`)
+    return response.data
+  }
+
+  async createServicePortfolio(data: import('@/types/fitgap').ServicePortfolioCreate): Promise<import('@/types/fitgap').ServicePortfolio> {
+    const response = await this.client.post('/service-portfolio', data)
+    return response.data
+  }
+
+  async updateServicePortfolio(id: string, data: import('@/types/fitgap').ServicePortfolioUpdate): Promise<import('@/types/fitgap').ServicePortfolio> {
+    const response = await this.client.put(`/service-portfolio/${id}`, data)
+    return response.data
+  }
+
+  async deleteServicePortfolio(id: string): Promise<void> {
+    await this.client.delete(`/service-portfolio/${id}`)
+  }
+
+  async getServicesByOrganization(orgId: string): Promise<import('@/types/fitgap').ServicePortfolioListResponse> {
+    const response = await this.client.get(`/service-portfolio/organization/${orgId}`)
+    return response.data
+  }
+
+  async getServiceRelationships(serviceId: string): Promise<import('@/types/fitgap').RelationshipService[]> {
+    const response = await this.client.get(`/service-portfolio/${serviceId}/relationships`)
+    return response.data
+  }
+
+  async linkServiceToRelationship(serviceId: string, data: import('@/types/fitgap').RelationshipServiceCreate): Promise<import('@/types/fitgap').RelationshipService> {
+    const response = await this.client.post(`/service-portfolio/${serviceId}/relationships`, data)
+    return response.data
+  }
+
+  async unlinkServiceFromRelationship(serviceId: string, linkId: string): Promise<void> {
+    await this.client.delete(`/service-portfolio/${serviceId}/relationships/${linkId}`)
+  }
+
+  // ============================================================================
+  // Fit-Gap Features: Organization Hierarchy & Officers
+  // ============================================================================
+
+  async getOrganizationTree(): Promise<import('@/types/fitgap').OrganizationTreeNode[]> {
+    const response = await this.client.get('/organizations/tree')
+    return response.data
+  }
+
+  async getOrganizationSubsidiaries(orgId: string): Promise<import('@/types/governance').Organization[]> {
+    const response = await this.client.get(`/organizations/${orgId}/subsidiaries`)
+    return response.data
+  }
+
+  async getOrganizationHierarchy(orgId: string): Promise<import('@/types/fitgap').OrganizationHierarchy> {
+    const response = await this.client.get(`/organizations/${orgId}/hierarchy`)
+    return response.data
+  }
+
+  async getOrganizationOfficers(orgId: string, params?: {
+    page?: number
+    page_size?: number
+    role?: string
+    side?: string
+    active_only?: boolean
+  }): Promise<{ items: import('@/types/fitgap').OrganizationOfficer[]; total: number }> {
+    const response = await this.client.get(`/organizations/${orgId}/officers`, { params })
+    return response.data
+  }
+
+  async createOfficer(orgId: string, data: import('@/types/fitgap').OfficerCreate): Promise<import('@/types/fitgap').OrganizationOfficer> {
+    const response = await this.client.post(`/organizations/${orgId}/officers`, data)
+    return response.data
+  }
+
+  async updateOfficer(orgId: string, officerId: string, data: import('@/types/fitgap').OfficerUpdate): Promise<import('@/types/fitgap').OrganizationOfficer> {
+    const response = await this.client.put(`/organizations/${orgId}/officers/${officerId}`, data)
+    return response.data
+  }
+
+  async deleteOfficer(orgId: string, officerId: string): Promise<void> {
+    await this.client.delete(`/organizations/${orgId}/officers/${officerId}`)
+  }
+
+  // ============================================================================
+  // Fit-Gap Features: Contract Documents
+  // ============================================================================
+
+  async getContractDocuments(contractId: string, params?: {
+    page?: number
+    page_size?: number
+    document_type?: string
+  }): Promise<import('@/types/fitgap').ContractDocumentListResponse> {
+    const response = await this.client.get(`/contracts/${contractId}/documents`, { params })
+    return response.data
+  }
+
+  async createContractDocument(contractId: string, data: import('@/types/fitgap').ContractDocumentCreate): Promise<import('@/types/fitgap').ContractDocument> {
+    const response = await this.client.post(`/contracts/${contractId}/documents`, data)
+    return response.data
+  }
+
+  async getContractDocument(contractId: string, docId: string): Promise<import('@/types/fitgap').ContractDocument> {
+    const response = await this.client.get(`/contracts/${contractId}/documents/${docId}`)
+    return response.data
+  }
+
+  async updateContractDocument(contractId: string, docId: string, data: import('@/types/fitgap').ContractDocumentUpdate): Promise<import('@/types/fitgap').ContractDocument> {
+    const response = await this.client.put(`/contracts/${contractId}/documents/${docId}`, data)
+    return response.data
+  }
+
+  async deleteContractDocument(contractId: string, docId: string): Promise<void> {
+    await this.client.delete(`/contracts/${contractId}/documents/${docId}`)
+  }
+
+  async getDocumentSignatures(contractId: string, docId: string): Promise<import('@/types/fitgap').DocumentSignature[]> {
+    const response = await this.client.get(`/contracts/${contractId}/documents/${docId}/signatures`)
+    return response.data
+  }
+
+  async createDocumentSignature(contractId: string, docId: string, data: import('@/types/fitgap').DocumentSignatureCreate): Promise<import('@/types/fitgap').DocumentSignature> {
+    const response = await this.client.post(`/contracts/${contractId}/documents/${docId}/signatures`, data)
+    return response.data
+  }
+
+  async getDocumentSections(contractId: string, docId: string): Promise<import('@/types/fitgap').DocumentSection[]> {
+    const response = await this.client.get(`/contracts/${contractId}/documents/${docId}/sections`)
+    return response.data
+  }
+
+  async createDocumentSection(contractId: string, docId: string, data: import('@/types/fitgap').DocumentSectionCreate): Promise<import('@/types/fitgap').DocumentSection> {
+    const response = await this.client.post(`/contracts/${contractId}/documents/${docId}/sections`, data)
+    return response.data
+  }
+
+  // ============================================================================
+  // Fit-Gap Features: KPI Approval Workflow
+  // ============================================================================
+
+  async getPendingApprovals(): Promise<import('@/types/fitgap').PendingApproval[]> {
+    const response = await this.client.get('/kpis/pending-approvals')
+    return response.data
+  }
+
+  async approveScore(kpiId: string, scoreId: string, data?: { comments?: string }): Promise<unknown> {
+    const response = await this.client.post(`/kpis/${kpiId}/scores/${scoreId}/approve`, data || {})
+    return response.data
+  }
+
+  async rejectScore(kpiId: string, scoreId: string, data?: { comments?: string }): Promise<unknown> {
+    const response = await this.client.post(`/kpis/${kpiId}/scores/${scoreId}/reject`, data || {})
+    return response.data
+  }
+
+  // ============================================================================
+  // Fit-Gap Features: Relationship Performance History
+  // ============================================================================
+
+  async getRelationshipHistory(relId: string, params?: {
+    page?: number
+    page_size?: number
+  }): Promise<{ items: import('@/types/fitgap').RelationshipHistoryEntry[]; total: number }> {
+    const response = await this.client.get(`/relationships/${relId}/history`, { params })
+    return response.data
+  }
+
+  async recordRelationshipStatus(relId: string, data: import('@/types/fitgap').RelationshipHistoryCreate): Promise<import('@/types/fitgap').RelationshipHistoryEntry> {
+    const response = await this.client.post(`/relationships/${relId}/history`, data)
+    return response.data
+  }
+
+  async getPerformanceTrend(relId: string, params?: {
+    limit?: number
+  }): Promise<import('@/types/fitgap').PerformanceTrendResponse> {
+    const response = await this.client.get(`/relationships/${relId}/performance-trend`, { params })
+    return response.data
+  }
+
+  // ============================================================================
+  // ServiceNow Integration
+  // ============================================================================
+
+  async getSnowConfig(): Promise<import('@/types/snow-integration').SnowConfig | null> {
+    const response = await this.client.get('/integrations/servicenow/config')
+    return response.data
+  }
+
+  async saveSnowConfig(data: import('@/types/snow-integration').SnowConfigCreate): Promise<import('@/types/snow-integration').SnowConfig> {
+    const response = await this.client.post('/integrations/servicenow/config', data)
+    return response.data
+  }
+
+  async testSnowConnection(): Promise<import('@/types/snow-integration').SnowConnectionTest> {
+    const response = await this.client.post('/integrations/servicenow/config/test')
+    return response.data
+  }
+
+  async triggerSnowSync(): Promise<import('@/types/snow-integration').SnowSyncResult> {
+    const response = await this.client.post('/integrations/servicenow/sync')
+    return response.data
+  }
+
+  async getSnowMappings(): Promise<import('@/types/snow-integration').SnowSLAMapping[]> {
+    const response = await this.client.get('/integrations/servicenow/mappings')
+    return response.data
+  }
+
+  async updateSnowMapping(mappingId: string, data: { platform_sla_id?: string | null; mapping_status: string }): Promise<import('@/types/snow-integration').SnowSLAMapping> {
+    const response = await this.client.put(`/integrations/servicenow/mappings/${mappingId}`, data)
+    return response.data
+  }
+
+  async getSnowAdminOverview(): Promise<import('@/types/snow-integration').SnowAdminOverview[]> {
+    const response = await this.client.get('/integrations/servicenow/admin/overview')
+    return response.data
+  }
+
+  async getSnowIntegrationLogs(limit?: number): Promise<import('@/types/snow-integration').SnowIntegrationLog[]> {
+    const response = await this.client.get('/integrations/servicenow/admin/logs', { params: { limit } })
+    return response.data
+  }
 }
 
 export const api = new ApiClient()

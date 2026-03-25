@@ -19,6 +19,8 @@ from app.models import (
     RelationshipType,
     RelationshipStatus,
     TeamRole,
+    RelationshipStatusHistory,
+    PerformanceStatus,
 )
 from app.schemas.relationship import (
     RelationshipCreate,
@@ -30,6 +32,13 @@ from app.schemas.relationship import (
     TeamMemberResponse,
     HealthScoreResponse,
     HealthScoreBreakdown,
+)
+from app.schemas.relationship_history import (
+    RelationshipHistoryCreate,
+    RelationshipHistoryResponse,
+    RelationshipHistoryListResponse,
+    PerformanceTrendPoint,
+    PerformanceTrendResponse,
 )
 
 router = APIRouter(prefix="/api/relationships", tags=["Relationships"])
@@ -425,7 +434,199 @@ async def get_health_score(
     )
 
 
+# ===== Performance Status History =====
+
+@router.get("/{rel_id}/history", response_model=RelationshipHistoryListResponse)
+async def list_status_history(
+    rel_id: UUID,
+    tenant_id: CurrentTenantId,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List relationship performance status history entries (paginated, newest first)."""
+    # Verify relationship exists
+    rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id)
+    rel_result = await db.execute(rel_query)
+    relationship = rel_result.scalar_one_or_none()
+    if not relationship:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Relationship not found",
+        )
+
+    # Count total
+    count_query = select(func.count()).select_from(RelationshipStatusHistory).where(
+        RelationshipStatusHistory.relationship_id == rel_id
+    )
+    total = (await db.execute(count_query)).scalar() or 0
+
+    # Fetch paginated results
+    offset = (page - 1) * page_size
+    query = (
+        select(RelationshipStatusHistory)
+        .where(RelationshipStatusHistory.relationship_id == rel_id)
+        .options(selectinload(RelationshipStatusHistory.recorded_by_user))
+        .order_by(RelationshipStatusHistory.recorded_date.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+    result = await db.execute(query)
+    items = result.scalars().all()
+
+    return RelationshipHistoryListResponse(
+        items=[_history_to_response(h) for h in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=(total + page_size - 1) // page_size if total > 0 else 0,
+    )
+
+
+@router.post("/{rel_id}/history", response_model=RelationshipHistoryResponse, status_code=status.HTTP_201_CREATED)
+async def record_status_history(
+    rel_id: UUID,
+    data: RelationshipHistoryCreate,
+    tenant_id: CurrentTenantId,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Manually record a relationship performance status entry."""
+    # Verify relationship exists and belongs to tenant
+    rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id)
+    rel_result = await db.execute(rel_query)
+    relationship = rel_result.scalar_one_or_none()
+    if not relationship:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Relationship not found",
+        )
+
+    # If no previous_status is provided, look up the latest entry
+    previous_status = data.previous_status
+    if previous_status is None:
+        latest_query = (
+            select(RelationshipStatusHistory)
+            .where(RelationshipStatusHistory.relationship_id == rel_id)
+            .order_by(RelationshipStatusHistory.recorded_date.desc())
+            .limit(1)
+        )
+        latest_result = await db.execute(latest_query)
+        latest = latest_result.scalar_one_or_none()
+        if latest:
+            previous_status = latest.status
+
+    # Determine tenant_id for the record
+    record_tenant_id = tenant_id if tenant_id else relationship.tenant_id
+
+    history = RelationshipStatusHistory(
+        tenant_id=record_tenant_id,
+        relationship_id=rel_id,
+        status=data.status.value,
+        previous_status=previous_status.value if previous_status else None,
+        overall_score=data.overall_score,
+        period=data.period,
+        recorded_by=current_user.id,
+        notes=data.notes,
+        trigger=data.trigger or "manual",
+    )
+
+    db.add(history)
+    await db.commit()
+    await db.refresh(history)
+
+    # Reload with relationships
+    result = await db.execute(
+        select(RelationshipStatusHistory)
+        .where(RelationshipStatusHistory.id == history.id)
+        .options(selectinload(RelationshipStatusHistory.recorded_by_user))
+    )
+    history = result.scalar_one()
+
+    return _history_to_response(history)
+
+
+@router.get("/{rel_id}/performance-trend", response_model=PerformanceTrendResponse)
+async def get_performance_trend(
+    rel_id: UUID,
+    tenant_id: CurrentTenantId,
+    limit: int = Query(12, ge=1, le=100, description="Max number of periods to return"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get performance trend data for charting.
+
+    Returns a list of {period, score, status} sorted by period ascending.
+    """
+    # Verify relationship exists
+    rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id)
+    rel_result = await db.execute(rel_query)
+    relationship = rel_result.scalar_one_or_none()
+    if not relationship:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Relationship not found",
+        )
+
+    # Get history entries sorted by period
+    query = (
+        select(RelationshipStatusHistory)
+        .where(RelationshipStatusHistory.relationship_id == rel_id)
+        .order_by(RelationshipStatusHistory.period.asc(), RelationshipStatusHistory.recorded_date.asc())
+    )
+    result = await db.execute(query)
+    entries = result.scalars().all()
+
+    # Deduplicate by period (take the latest entry for each period)
+    period_map = {}
+    for entry in entries:
+        period_map[entry.period] = entry
+
+    # Sort by period and limit
+    sorted_periods = sorted(period_map.keys())
+    if len(sorted_periods) > limit:
+        sorted_periods = sorted_periods[-limit:]
+
+    trend = []
+    for period in sorted_periods:
+        entry = period_map[period]
+        trend.append(PerformanceTrendPoint(
+            period=period,
+            score=entry.overall_score,
+            status=entry.status,
+        ))
+
+    return PerformanceTrendResponse(
+        relationship_id=rel_id,
+        trend=trend,
+        total_entries=len(entries),
+    )
+
+
 # ===== Helper Functions =====
+
+def _history_to_response(history: RelationshipStatusHistory) -> RelationshipHistoryResponse:
+    """Convert history model to response schema."""
+    return RelationshipHistoryResponse(
+        id=history.id,
+        tenant_id=history.tenant_id,
+        relationship_id=history.relationship_id,
+        status=history.status,
+        previous_status=history.previous_status,
+        overall_score=history.overall_score,
+        period=history.period,
+        recorded_date=history.recorded_date,
+        recorded_by=history.recorded_by,
+        notes=history.notes,
+        trigger=history.trigger,
+        created_at=history.created_at,
+        recorded_by_name=history.recorded_by_user.full_name if history.recorded_by_user else None,
+    )
+
 
 def _to_response(relationship: BusinessRelationship, include_team: bool = False) -> RelationshipResponse:
     """Convert relationship model to response schema."""

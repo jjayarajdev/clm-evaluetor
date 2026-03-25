@@ -19,6 +19,10 @@ import type {
   GapSeverity,
   ImprovementPoint,
 } from '@/types/governance'
+import type {
+  PerformanceStatus,
+  RelationshipHistoryCreate,
+} from '@/types/fitgap'
 
 const GAP_COLORS: Record<GapSeverity, string> = {
   critical: 'bg-red-100 text-red-800 border-red-200',
@@ -28,7 +32,25 @@ const GAP_COLORS: Record<GapSeverity, string> = {
   aligned: 'bg-green-100 text-green-800 border-green-200',
 }
 
-const TABS = ['KPIs', 'Team', 'Improvements', 'Overview'] as const
+const TABS = ['KPIs', 'Team', 'Improvements', 'History', 'Overview'] as const
+
+const PERF_STATUS_COLORS: Record<PerformanceStatus, string> = {
+  excellent: 'bg-green-100 text-green-800',
+  good: 'bg-emerald-100 text-emerald-800',
+  acceptable: 'bg-blue-100 text-blue-800',
+  concerning: 'bg-yellow-100 text-yellow-800',
+  poor: 'bg-orange-100 text-orange-800',
+  critical: 'bg-red-100 text-red-800',
+}
+
+const PERF_STATUS_LABELS: Record<PerformanceStatus, string> = {
+  excellent: 'Excellent',
+  good: 'Good',
+  acceptable: 'Acceptable',
+  concerning: 'Concerning',
+  poor: 'Poor',
+  critical: 'Critical',
+}
 type Tab = typeof TABS[number]
 
 export default function RelationshipDetailPage() {
@@ -99,6 +121,36 @@ export default function RelationshipDetailPage() {
     mutationFn: () => api.generateImprovementsFromGaps(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['improvements', id] })
+    },
+  })
+
+  // Performance History
+  const { data: perfTrend } = useQuery({
+    queryKey: ['perf-trend', id],
+    queryFn: () => api.getPerformanceTrend(id!),
+    enabled: !!id && activeTab === 'History',
+  })
+
+  const { data: historyData } = useQuery({
+    queryKey: ['rel-history', id],
+    queryFn: () => api.getRelationshipHistory(id!),
+    enabled: !!id && activeTab === 'History',
+  })
+  const historyEntries = historyData?.items ?? []
+
+  const [showRecordStatus, setShowRecordStatus] = useState(false)
+  const [statusForm, setStatusForm] = useState<Partial<RelationshipHistoryCreate>>({
+    status: 'good',
+    period: new Date().toISOString().slice(0, 7),
+  })
+
+  const recordStatusMutation = useMutation({
+    mutationFn: (data: RelationshipHistoryCreate) => api.recordRelationshipStatus(id!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rel-history', id] })
+      queryClient.invalidateQueries({ queryKey: ['perf-trend', id] })
+      setShowRecordStatus(false)
+      setStatusForm({ status: 'good', period: new Date().toISOString().slice(0, 7) })
     },
   })
 
@@ -422,6 +474,195 @@ export default function RelationshipDetailPage() {
                   No improvements yet. Generate them from perception gaps on the KPIs tab.
                 </p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Tab */}
+      {activeTab === 'History' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-700">Performance History</h2>
+            <button onClick={() => setShowRecordStatus(true)} className="btn-primary text-xs flex items-center gap-1">
+              <PlusIcon className="h-3.5 w-3.5" /> Record Status
+            </button>
+          </div>
+
+          {/* Trend Visualization */}
+          {perfTrend && perfTrend.trend.length > 0 && (
+            <div className="card">
+              <div className="card-header flex items-center justify-between">
+                <h3 className="text-sm font-medium text-gray-900">Performance Trend</h3>
+                {perfTrend.current_status && (
+                  <span className={cn(
+                    'px-2 py-0.5 rounded text-xs font-medium capitalize',
+                    PERF_STATUS_COLORS[perfTrend.current_status]
+                  )}>
+                    Current: {PERF_STATUS_LABELS[perfTrend.current_status]}
+                  </span>
+                )}
+              </div>
+              <div className="card-body">
+                <div className="flex items-end gap-1 h-32">
+                  {perfTrend.trend.map((point, i) => {
+                    const scoreVal = point.overall_score ?? 50
+                    const heightPct = Math.max(10, scoreVal)
+                    const statusOrder: PerformanceStatus[] = ['critical', 'poor', 'concerning', 'acceptable', 'good', 'excellent']
+                    const barColor = statusOrder.indexOf(point.status) >= 4 ? 'bg-green-500' :
+                      statusOrder.indexOf(point.status) >= 2 ? 'bg-amber-500' : 'bg-red-500'
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                        <div
+                          className={cn('w-full rounded-t', barColor)}
+                          style={{ height: `${heightPct}%` }}
+                          title={`${point.period}: ${PERF_STATUS_LABELS[point.status]} (${point.overall_score ?? '—'})`}
+                        />
+                        <span className="text-[9px] text-gray-400 truncate w-full text-center">{point.period}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* History Table */}
+          <div className="card">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Previous</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Score</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trigger</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {historyEntries.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{entry.period}</td>
+                      <td className="px-4 py-3">
+                        <span className={cn(
+                          'px-2 py-0.5 rounded text-xs font-medium capitalize',
+                          PERF_STATUS_COLORS[entry.status]
+                        )}>
+                          {PERF_STATUS_LABELS[entry.status]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {entry.previous_status ? (
+                          <span className={cn(
+                            'px-2 py-0.5 rounded text-xs font-medium capitalize',
+                            PERF_STATUS_COLORS[entry.previous_status]
+                          )}>
+                            {PERF_STATUS_LABELS[entry.previous_status]}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm font-semibold text-gray-900">
+                        {entry.overall_score != null ? entry.overall_score : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{entry.trigger || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">{entry.notes || '—'}</td>
+                    </tr>
+                  ))}
+                  {historyEntries.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+                        No performance history recorded yet
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Status Modal */}
+      {showRecordStatus && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Record Performance Status</h2>
+              <button onClick={() => setShowRecordStatus(false)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
+                <select
+                  value={statusForm.status || 'good'}
+                  onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value as PerformanceStatus })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                >
+                  {Object.entries(PERF_STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Period *</label>
+                  <input
+                    type="text"
+                    value={statusForm.period || ''}
+                    onChange={(e) => setStatusForm({ ...statusForm, period: e.target.value })}
+                    placeholder="e.g., 2026-Q1"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Score</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={statusForm.overall_score ?? ''}
+                    onChange={(e) => setStatusForm({ ...statusForm, overall_score: e.target.value ? Number(e.target.value) : undefined })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Trigger</label>
+                <input
+                  type="text"
+                  value={statusForm.trigger || ''}
+                  onChange={(e) => setStatusForm({ ...statusForm, trigger: e.target.value })}
+                  placeholder="e.g., Quarterly review"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={statusForm.notes || ''}
+                  onChange={(e) => setStatusForm({ ...statusForm, notes: e.target.value })}
+                  rows={2}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setShowRecordStatus(false)} className="btn-secondary">Cancel</button>
+              <button
+                onClick={() => {
+                  if (statusForm.status && statusForm.period) {
+                    recordStatusMutation.mutate(statusForm as RelationshipHistoryCreate)
+                  }
+                }}
+                disabled={!statusForm.status || !statusForm.period || recordStatusMutation.isPending}
+                className="btn-primary"
+              >
+                {recordStatusMutation.isPending ? 'Recording...' : 'Record'}
+              </button>
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   BuildingLibraryIcon,
@@ -129,10 +130,10 @@ export default function OrganizationsPage() {
               {filtered.map((org) => (
                 <tr key={org.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                    <Link to={`/organizations/${org.id}`} className="flex items-center gap-2 hover:text-violet-600">
                       <BuildingLibraryIcon className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-900">{org.name}</span>
-                    </div>
+                      <span className="text-sm font-medium text-gray-900 hover:text-violet-600">{org.name}</span>
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">{org.code}</td>
                   <td className="px-4 py-3">

@@ -13,11 +13,15 @@ from app.routers import (
     notifications, notification_rules, obligations, postsigning, query, renewals, reports,
     scheduler_admin, schemas, sla, suggested_links, tenants, users, vendors, workflow_admin,
     # Relationship Governance (Evaluetor features)
-    organizations, relationships, kpis, improvements, surveys,
+    organizations, relationships, kpis, improvements, surveys, service_portfolio,
     # Business Unit & External Access
     business_units, external_users, external_portal,
+    # Contract Documents
+    contract_documents,
     # Chat Sessions
     chat,
+    # ServiceNow Integration
+    snow_integration,
 )
 from app.services.vector_store import get_vector_store
 from app.services.orchestrator import get_orchestrator, initialize_default_agents
@@ -288,8 +292,15 @@ app.include_router(relationships.router)
 app.include_router(kpis.router)
 app.include_router(improvements.router)
 app.include_router(surveys.router)
+app.include_router(service_portfolio.router)
+
+# Contract Documents
+app.include_router(contract_documents.router)
 
 # Business Unit & External Access
 app.include_router(business_units.router)
 app.include_router(external_users.router)
 app.include_router(external_portal.router)
+
+# ServiceNow Integration
+app.include_router(snow_integration.router)

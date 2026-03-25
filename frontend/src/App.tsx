@@ -18,6 +18,7 @@ import MilestoneConfigPage from './pages/admin/MilestoneConfigPage'
 import SchedulerPage from './pages/admin/SchedulerPage'
 import BusinessUnitsPage from './pages/admin/BusinessUnitsPage'
 import ExternalUsersPage from './pages/admin/ExternalUsersPage'
+import SnowIntegrationPage from './pages/admin/SnowIntegrationPage'
 import ExternalContractPage from './pages/ExternalContractPage'
 import RenewalsPage from './pages/RenewalsPage'
 import VendorsPage from './pages/VendorsPage'
@@ -27,12 +28,16 @@ import TenantManagementPage from './pages/super-admin/TenantManagementPage'
 import TenantDetailPage from './pages/super-admin/TenantDetailPage'
 import GlobalUsersPage from './pages/super-admin/GlobalUsersPage'
 import CustomFieldsPage from './pages/super-admin/CustomFieldsPage'
+import SnowAdminPage from './pages/super-admin/SnowAdminPage'
 import OrganizationsPage from './pages/governance/OrganizationsPage'
 import RelationshipsPage from './pages/governance/RelationshipsPage'
 import RelationshipDetailPage from './pages/governance/RelationshipDetailPage'
 import KPIScorecardPage from './pages/governance/KPIScorecardPage'
 import ImprovementsPage from './pages/governance/ImprovementsPage'
 import SurveysPage from './pages/governance/SurveysPage'
+import ServicePortfolioPage from './pages/governance/ServicePortfolioPage'
+import OrganizationDetailPage from './pages/governance/OrganizationDetailPage'
+import KPIApprovalsPage from './pages/governance/KPIApprovalsPage'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -90,19 +95,24 @@ function App() {
         <Route path="admin/scheduler" element={<SchedulerPage />} />
         {/* Governance Routes */}
         <Route path="organizations" element={<OrganizationsPage />} />
+        <Route path="organizations/:id" element={<OrganizationDetailPage />} />
         <Route path="relationships" element={<RelationshipsPage />} />
         <Route path="relationships/:id" element={<RelationshipDetailPage />} />
         <Route path="kpis" element={<KPIScorecardPage />} />
+        <Route path="kpi-approvals" element={<KPIApprovalsPage />} />
+        <Route path="service-portfolio" element={<ServicePortfolioPage />} />
         <Route path="improvements" element={<ImprovementsPage />} />
         <Route path="surveys" element={<SurveysPage />} />
         <Route path="admin/business-units" element={<BusinessUnitsPage />} />
         <Route path="admin/external-users" element={<ExternalUsersPage />} />
+        <Route path="admin/integrations/servicenow" element={<SnowIntegrationPage />} />
         {/* Super Admin Routes */}
         <Route path="super-admin" element={<SuperAdminDashboardPage />} />
         <Route path="super-admin/tenants" element={<TenantManagementPage />} />
         <Route path="super-admin/tenants/:id" element={<TenantDetailPage />} />
         <Route path="super-admin/users" element={<GlobalUsersPage />} />
         <Route path="super-admin/custom-fields" element={<CustomFieldsPage />} />
+        <Route path="super-admin/integrations" element={<SnowAdminPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

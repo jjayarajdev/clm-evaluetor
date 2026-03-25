@@ -6,7 +6,7 @@ from typing import Optional, List
 
 from pydantic import BaseModel, Field, EmailStr
 
-from app.models.organization import OrganizationType, OrganizationSize
+from app.models.organization import OrganizationType, OrganizationSize, OrganizationLevel
 
 
 # ===== Base Schemas =====
@@ -33,6 +33,8 @@ class OrganizationBase(BaseModel):
 class OrganizationCreate(OrganizationBase):
     """Schema for creating an organization."""
     relationship_owner_id: Optional[UUID] = None
+    parent_organization_id: Optional[UUID] = None
+    organization_level: Optional[OrganizationLevel] = None
 
 
 class OrganizationUpdate(BaseModel):
@@ -50,6 +52,8 @@ class OrganizationUpdate(BaseModel):
     primary_contact_email: Optional[EmailStr] = None
     primary_contact_phone: Optional[str] = Field(None, max_length=50)
     relationship_owner_id: Optional[UUID] = None
+    parent_organization_id: Optional[UUID] = None
+    organization_level: Optional[OrganizationLevel] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
 
@@ -60,6 +64,8 @@ class OrganizationResponse(OrganizationBase):
     """Schema for organization response."""
     id: UUID
     relationship_owner_id: Optional[UUID] = None
+    parent_organization_id: Optional[UUID] = None
+    organization_level: Optional[OrganizationLevel] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -86,3 +92,31 @@ class OrganizationSummary(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ===== Hierarchy Response Schemas =====
+
+class OrganizationTreeNode(BaseModel):
+    """A node in the organization hierarchy tree."""
+    id: UUID
+    name: str
+    code: str
+    org_type: OrganizationType
+    organization_level: Optional[OrganizationLevel] = None
+    is_active: bool
+    children: List["OrganizationTreeNode"] = []
+
+    class Config:
+        from_attributes = True
+
+
+class OrganizationHierarchyResponse(BaseModel):
+    """Full hierarchy context for a single organization."""
+    organization: OrganizationResponse
+    parent: Optional[OrganizationResponse] = None
+    parent_chain: List[OrganizationResponse] = []
+    children: List[OrganizationResponse] = []
+
+
+# Rebuild model for recursive reference
+OrganizationTreeNode.model_rebuild()

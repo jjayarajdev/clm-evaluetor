@@ -20,16 +20,18 @@ import SLASummary from '@/components/dashboard/SLASummary'
 import CustomFieldsDisplay from '@/components/contracts/CustomFieldsDisplay'
 import SuggestedLinksPanel from '@/components/contracts/SuggestedLinksPanel'
 import ContractSharing from '@/components/contracts/ContractSharing'
+import ContractDocumentsTab from '@/components/contracts/ContractDocumentsTab'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn, formatDate, formatCurrency, formatFileSize, getRiskColor, getStatusColor } from '@/lib/utils'
 
-type TabType = 'overview' | 'intelligence' | 'slas' | 'related' | 'sharing'
+type TabType = 'overview' | 'intelligence' | 'slas' | 'related' | 'documents' | 'sharing'
 
 const TABS = [
   { id: 'overview' as const, label: 'Overview', icon: InformationCircleIcon },
   { id: 'intelligence' as const, label: 'Intelligence', icon: ClipboardDocumentListIcon },
   { id: 'slas' as const, label: 'SLAs', icon: ChartBarIcon },
   { id: 'related' as const, label: 'Related Docs', icon: LinkIcon },
+  { id: 'documents' as const, label: 'Documents', icon: DocumentTextIcon },
   { id: 'sharing' as const, label: 'Sharing', icon: ShareIcon },
 ]
 
@@ -438,6 +440,11 @@ export default function ContractViewPage() {
         {/* Related Docs Tab */}
         {activeTab === 'related' && isCompleted && id && (
           <SuggestedLinksPanel contractId={id} />
+        )}
+
+        {/* Documents Tab */}
+        {activeTab === 'documents' && id && (
+          <ContractDocumentsTab contractId={id} />
         )}
 
         {/* Sharing Tab */}

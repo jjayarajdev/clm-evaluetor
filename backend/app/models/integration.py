@@ -47,6 +47,11 @@ class IntegrationConfig(Base, TimestampMixin):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
+    # Tenant association (nullable for legacy/global configs)
+    tenant_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("tenants.id"), nullable=True, index=True
+    )
+
     # Integration identification
     system: Mapped[IntegrationSystem] = mapped_column(
         Enum(IntegrationSystem), nullable=False

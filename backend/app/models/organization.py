@@ -28,11 +28,21 @@ class OrganizationSize(str, enum.Enum):
     GLOBAL = "global"
 
 
+class OrganizationLevel(str, enum.Enum):
+    """Level within a corporate hierarchy."""
+    HOLDING = "holding"
+    SUBSIDIARY = "subsidiary"
+    DIVISION = "division"
+    BRANCH = "branch"
+    DEPARTMENT = "department"
+
+
 class Organization(Base):
     """Organization entity for relationship governance.
 
     Extends beyond simple clients to support full relationship management
     with KPI tracking, perception scoring, and improvement points.
+    Supports corporate hierarchy via parent_organization_id self-referential FK.
     """
 
     __tablename__ = "organizations"
@@ -49,6 +59,22 @@ class Organization(Base):
         PG_ENUM('customer', 'vendor', 'partner', 'internal', name='organizationtype', create_type=False),
         nullable=False,
         default='customer'
+    )
+
+    # Corporate hierarchy
+    parent_organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=True,
+        index=True,
+    )
+    organization_level = Column(
+        PG_ENUM(
+            *[e.value for e in OrganizationLevel],
+            name='organizationlevel',
+            create_type=False,
+        ),
+        nullable=True,
     )
 
     # Classification
@@ -81,6 +107,20 @@ class Organization(Base):
     # Relationships
     relationship_owner = sa_relationship("User", foreign_keys=[relationship_owner_id])
 
+    # Corporate hierarchy relationships
+    parent_organization = sa_relationship(
+        "Organization",
+        remote_side="Organization.id",
+        foreign_keys=[parent_organization_id],
+        back_populates="subsidiaries",
+    )
+    subsidiaries = sa_relationship(
+        "Organization",
+        foreign_keys=[parent_organization_id],
+        back_populates="parent_organization",
+        lazy="selectin",
+    )
+
     # Relationships where this org is party A
     relationships_as_a = sa_relationship(
         "BusinessRelationship",
@@ -102,6 +142,13 @@ class Organization(Base):
         "ExternalUser",
         back_populates="organization",
         lazy="dynamic"
+    )
+
+    # Officers / contacts associated with this organization
+    officers = sa_relationship(
+        "OrganizationOfficer",
+        back_populates="organization",
+        lazy="dynamic",
     )
 
     def __repr__(self) -> str:

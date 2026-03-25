@@ -98,6 +98,7 @@ class BusinessRelationship(Base):
     improvement_points = sa_relationship("ImprovementPoint", back_populates="relationship", lazy="dynamic")
     contracts = sa_relationship("Contract", back_populates="business_relationship", lazy="dynamic")
     survey_instances = sa_relationship("SurveyInstance", back_populates="relationship", lazy="dynamic")
+    status_history = sa_relationship("RelationshipStatusHistory", back_populates="relationship", lazy="dynamic")
 
     def __repr__(self) -> str:
         return f"<BusinessRelationship {self.id}: {self.relationship_type.value}>"

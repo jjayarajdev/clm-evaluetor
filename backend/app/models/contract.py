@@ -405,6 +405,14 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         lazy="selectin",
     )
 
+    # Contract Documents (document package management)
+    documents: Mapped[list["ContractDocument"]] = relationship(
+        "ContractDocument",
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
     # ===== END NEW RELATIONSHIPS =====
 
     # External sharing and comments

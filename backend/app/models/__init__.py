@@ -81,6 +81,7 @@ from app.models.integration import (
     IntegrationStatus,
     SLAMeasurement,
 )
+from app.models.snow_sla_mapping import SnowSLAMapping
 from app.models.master_data import (
     SLAMasterData,
     MilestoneMasterData,
@@ -95,6 +96,12 @@ from app.models.organization import (
     Organization,
     OrganizationType,
     OrganizationSize,
+    OrganizationLevel,
+)
+from app.models.organization_officer import (
+    OrganizationOfficer,
+    GovernanceRole,
+    OfficerSide,
 )
 from app.models.relationship import (
     BusinessRelationship,
@@ -111,6 +118,11 @@ from app.models.kpi import (
     PerceptionScore,
     PerceptionGap,
     GapSeverity,
+    ScoreApprovalStatus,
+)
+from app.models.relationship_history import (
+    RelationshipStatusHistory,
+    PerformanceStatus,
 )
 from app.models.improvement import (
     ImprovementPoint,
@@ -137,6 +149,14 @@ from app.models.business_unit import BusinessUnit
 from app.models.external_user import ExternalUser
 from app.models.contract_share import ContractShare
 from app.models.contract_comment import ContractComment
+from app.models.contract_document import (
+    ContractDocument,
+    DocumentSignature,
+    DocumentSection,
+    DocumentType,
+    SignatureType,
+    SignatureStatus,
+)
 from app.models.metric_snapshot import MetricSnapshot
 # Industry-Aware Compliance Module
 from app.models.industry import (
@@ -155,6 +175,13 @@ from app.models.regulatory_obligation import (
 )
 # Chat Sessions
 from app.models.chat_session import ChatSession, ChatMessage
+# Service Portfolio (Evaluetor)
+from app.models.service_portfolio import (
+    ServicePortfolio,
+    RelationshipService,
+    ServiceType,
+    ServiceStatus,
+)
 # Knowledge Graph
 from app.models.knowledge_graph import (
     KGEntity,
@@ -280,6 +307,8 @@ __all__ = [
     "IntegrationSystem",
     "IntegrationStatus",
     "SLAMeasurement",
+    # ServiceNow SLA Mapping
+    "SnowSLAMapping",
     # Master Data
     "SLAMasterData",
     "MilestoneMasterData",
@@ -291,6 +320,11 @@ __all__ = [
     "Organization",
     "OrganizationType",
     "OrganizationSize",
+    "OrganizationLevel",
+    # Organization Officers (Evaluetor)
+    "OrganizationOfficer",
+    "GovernanceRole",
+    "OfficerSide",
     # Business Relationship (Evaluetor)
     "BusinessRelationship",
     "RelationshipTeam",
@@ -305,6 +339,10 @@ __all__ = [
     "PerceptionScore",
     "PerceptionGap",
     "GapSeverity",
+    "ScoreApprovalStatus",
+    # Relationship Performance History (Evaluetor)
+    "RelationshipStatusHistory",
+    "PerformanceStatus",
     # Improvement (Evaluetor)
     "ImprovementPoint",
     "ImprovementAction",
@@ -329,6 +367,13 @@ __all__ = [
     "ExternalUser",
     "ContractShare",
     "ContractComment",
+    # Contract Documents
+    "ContractDocument",
+    "DocumentSignature",
+    "DocumentSection",
+    "DocumentType",
+    "SignatureType",
+    "SignatureStatus",
     # Metric Snapshots
     "MetricSnapshot",
     # Industry-Aware Compliance
@@ -345,6 +390,11 @@ __all__ = [
     # Chat Sessions
     "ChatSession",
     "ChatMessage",
+    # Service Portfolio (Evaluetor)
+    "ServicePortfolio",
+    "RelationshipService",
+    "ServiceType",
+    "ServiceStatus",
     # Knowledge Graph
     "KGEntity",
     "KGEntityType",

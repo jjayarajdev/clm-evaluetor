@@ -255,3 +255,88 @@ class ServiceNowClient(BaseIntegrationClient):
             close_code=close_code,
             close_notes=close_notes,
         )
+
+    # ── SLA Sync Methods ──────────────────────────────────────────────
+
+    async def get_sla_definitions(self, limit: int = 100, offset: int = 0) -> dict:
+        """Fetch SLA definitions from ServiceNow contract_sla table.
+
+        Args:
+            limit: Maximum number of records to return.
+            offset: Pagination offset.
+
+        Returns:
+            Response containing SLA definition records.
+        """
+        response = await self.request(
+            method="GET",
+            endpoint=(
+                f"/api/now/table/contract_sla"
+                f"?sysparm_limit={limit}"
+                f"&sysparm_offset={offset}"
+                f"&sysparm_fields=sys_id,name,sla_condition,duration,"
+                f"collection,percentage_field,target_percentage"
+            ),
+            operation="get_sla_definitions",
+        )
+        return response
+
+    async def get_sla_by_sys_id(self, sys_id: str) -> dict:
+        """Fetch a specific SLA definition by sys_id.
+
+        Args:
+            sys_id: The ServiceNow sys_id of the SLA definition.
+
+        Returns:
+            SLA definition record.
+        """
+        response = await self.request(
+            method="GET",
+            endpoint=f"/api/now/table/contract_sla/{sys_id}",
+            operation="get_sla_definition",
+        )
+        return response.get("result", response)
+
+    async def get_sla_performance(self, sla_sys_id: str, limit: int = 50) -> dict:
+        """Fetch SLA performance/task records for an SLA definition.
+
+        Args:
+            sla_sys_id: The sys_id of the SLA definition.
+            limit: Maximum number of records to return.
+
+        Returns:
+            Response containing task_sla performance records.
+        """
+        response = await self.request(
+            method="GET",
+            endpoint=(
+                f"/api/now/table/task_sla"
+                f"?sysparm_query=sla={sla_sys_id}"
+                f"&sysparm_limit={limit}"
+                f"&sysparm_fields=sys_id,sla,task,stage,has_breached,"
+                f"start_time,end_time,percentage,business_percentage"
+            ),
+            operation="get_sla_performance",
+        )
+        return response
+
+    async def get_cmdb_services(self, limit: int = 100) -> dict:
+        """Fetch CMDB service catalog entries.
+
+        Args:
+            limit: Maximum number of records to return.
+
+        Returns:
+            Response containing CMDB service records.
+        """
+        response = await self.request(
+            method="GET",
+            endpoint=(
+                f"/api/now/table/cmdb_ci_service"
+                f"?sysparm_limit={limit}"
+                f"&sysparm_fields=sys_id,name,short_description,"
+                f"operational_status,service_classification"
+            ),
+            operation="get_cmdb_services",
+        )
+        return response

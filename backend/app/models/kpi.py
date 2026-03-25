@@ -12,6 +12,14 @@ from sqlalchemy.orm import relationship as sa_relationship
 from app.database import Base
 
 
+class ScoreApprovalStatus(str, enum.Enum):
+    """Approval status for perception scores."""
+    DRAFT = "draft"
+    PENDING_APPROVAL = "pending_approval"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 class KPIMeasurementType(str, enum.Enum):
     """Type of KPI measurement."""
     PERCENTAGE = "percentage"
@@ -116,6 +124,16 @@ class PerceptionScore(Base):
     # Is this internal or external perception?
     is_internal = Column(Boolean, nullable=False, default=True)
 
+    # Approval workflow
+    approval_status = Column(
+        PG_ENUM('draft', 'pending_approval', 'approved', 'rejected', name='scoreapprovalstatus', create_type=False),
+        nullable=False,
+        default='pending_approval'
+    )
+    approved_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    approval_comments = Column(Text, nullable=True)
+
     # Timestamps
     scored_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -123,7 +141,8 @@ class PerceptionScore(Base):
     # Relationships
     kpi = sa_relationship("KPI", back_populates="perception_scores")
     scorer_org = sa_relationship("Organization")
-    scored_by = sa_relationship("User")
+    scored_by = sa_relationship("User", foreign_keys=[scored_by_user_id])
+    approver = sa_relationship("User", foreign_keys=[approved_by])
 
     def __repr__(self) -> str:
         return f"<PerceptionScore {self.kpi_id}: {self.score} ({self.period})>"

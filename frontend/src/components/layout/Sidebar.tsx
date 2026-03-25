@@ -25,6 +25,8 @@ import {
   ChartBarSquareIcon,
   LightBulbIcon,
   ClipboardDocumentListIcon,
+  CubeIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSidebar } from '@/contexts/SidebarContext'
@@ -54,7 +56,9 @@ const bottomNavigation = [
 const governanceNavigation = [
   { name: 'Organizations', href: '/organizations', icon: BuildingLibraryIcon, roles: ['admin', 'legal', 'procurement'] },
   { name: 'Relationships', href: '/relationships', icon: LinkIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'Service Portfolio', href: '/service-portfolio', icon: CubeIcon, roles: ['admin', 'legal', 'procurement'] },
   { name: 'KPI Scorecard', href: '/kpis', icon: ChartBarSquareIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'KPI Approvals', href: '/kpi-approvals', icon: ShieldCheckIcon, roles: ['admin'] },
   { name: 'Improvements', href: '/improvements', icon: LightBulbIcon, roles: ['admin', 'legal', 'procurement'] },
   { name: 'Surveys', href: '/surveys', icon: ClipboardDocumentListIcon, roles: ['admin', 'legal'] },
 ]
@@ -62,6 +66,7 @@ const governanceNavigation = [
 const adminNavigation = [
   { name: 'Business Units', href: '/admin/business-units', icon: BuildingOffice2Icon, roles: ['admin'] },
   { name: 'External Users', href: '/admin/external-users', icon: UserGroupIcon, roles: ['admin'] },
+  { name: 'ServiceNow', href: '/admin/integrations/servicenow', icon: CloudArrowUpIcon, roles: ['admin'] },
   { name: 'SLA Config', href: '/admin/sla-config', icon: CircleStackIcon, roles: ['admin'] },
   { name: 'Milestones', href: '/admin/milestone-config', icon: FlagIcon, roles: ['admin'] },
   { name: 'Scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
@@ -72,6 +77,7 @@ const superAdminNavigation = [
   { name: 'Tenants', href: '/super-admin/tenants', icon: BuildingOffice2Icon, roles: ['super_admin'] },
   { name: 'All Users', href: '/super-admin/users', icon: UserGroupIcon, roles: ['super_admin'] },
   { name: 'Custom Fields', href: '/super-admin/custom-fields', icon: AdjustmentsHorizontalIcon, roles: ['super_admin'] },
+  { name: 'Integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, roles: ['super_admin'] },
 ]
 
 function NavItem({

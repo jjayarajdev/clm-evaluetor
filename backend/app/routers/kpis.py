@@ -20,6 +20,7 @@ from app.models import (
     PerceptionScore,
     PerceptionGap,
     GapSeverity,
+    ScoreApprovalStatus,
     BusinessRelationship,
     Organization,
 )
@@ -34,6 +35,8 @@ from app.schemas.kpi import (
     PerceptionGapResponse,
     PerceptionGapListResponse,
     GapSummary,
+    ScoreApprovalAction,
+    PendingApprovalResponse,
 )
 
 router = APIRouter(prefix="/api/kpis", tags=["KPIs"])
@@ -111,6 +114,72 @@ async def create_kpi(
     await db.refresh(kpi)
 
     return await _enrich_kpi_response(kpi, db)
+
+
+# ===== Score Approval Workflow =====
+
+@router.get("/pending-approvals", response_model=List[PendingApprovalResponse])
+async def list_pending_approvals(
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
+):
+    """List perception scores awaiting approval.
+
+    Available to admin and legal roles who can act as approvers.
+    """
+    # Check that user has approval permission (admin or legal role)
+    from app.models.user import Role
+    if not current_user.is_super_admin and current_user.role not in [Role.ADMIN, Role.LEGAL]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin and legal users can view pending approvals",
+        )
+
+    query = (
+        select(PerceptionScore)
+        .where(PerceptionScore.approval_status == "pending_approval")
+        .options(
+            selectinload(PerceptionScore.scorer_org),
+            selectinload(PerceptionScore.scored_by),
+            selectinload(PerceptionScore.kpi).selectinload(KPI.relationship),
+        )
+        .order_by(PerceptionScore.scored_at.desc())
+    )
+
+    # Apply tenant filter via KPI -> relationship -> org
+    if tenant_id is not None:
+        query = query.join(KPI, PerceptionScore.kpi_id == KPI.id).join(
+            BusinessRelationship, KPI.relationship_id == BusinessRelationship.id
+        ).join(
+            Organization, BusinessRelationship.org_a_id == Organization.id
+        ).where(Organization.tenant_id == tenant_id)
+
+    result = await db.execute(query)
+    scores = result.scalars().all()
+
+    items = []
+    for s in scores:
+        items.append(PendingApprovalResponse(
+            id=s.id,
+            kpi_id=s.kpi_id,
+            kpi_name=s.kpi.name if s.kpi else None,
+            kpi_category=s.kpi.category if s.kpi else None,
+            relationship_id=s.kpi.relationship_id if s.kpi else None,
+            relationship_name=s.kpi.relationship.name if s.kpi and s.kpi.relationship else None,
+            scorer_org_id=s.scorer_org_id,
+            scored_by_user_id=s.scored_by_user_id,
+            score=s.score,
+            period=s.period,
+            comments=s.comments,
+            is_internal=s.is_internal,
+            scored_at=s.scored_at,
+            approval_status=s.approval_status,
+            scorer_org_name=s.scorer_org.name if s.scorer_org else None,
+            scored_by_name=s.scored_by.full_name if s.scored_by else None,
+        ))
+
+    return items
 
 
 @router.get("/{kpi_id}", response_model=KPIResponse)
@@ -213,6 +282,7 @@ async def list_perception_scores(
     ).options(
         selectinload(PerceptionScore.scorer_org),
         selectinload(PerceptionScore.scored_by),
+        selectinload(PerceptionScore.approver),
     )
 
     if period:
@@ -271,6 +341,7 @@ async def submit_perception_score(
         period=data.period,
         comments=data.comments,
         is_internal=data.is_internal,
+        approval_status="pending_approval",
     )
 
     db.add(score)
@@ -285,6 +356,144 @@ async def submit_perception_score(
         select(PerceptionScore).where(PerceptionScore.id == score.id).options(
             selectinload(PerceptionScore.scorer_org),
             selectinload(PerceptionScore.scored_by),
+            selectinload(PerceptionScore.approver),
+        )
+    )
+    score = result.scalar_one()
+
+    return _score_to_response(score)
+
+
+# ===== Score Approval Workflow =====
+
+@router.post("/{kpi_id}/scores/{score_id}/approve", response_model=PerceptionScoreResponse)
+async def approve_perception_score(
+    kpi_id: UUID,
+    score_id: UUID,
+    data: ScoreApprovalAction,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
+):
+    """Approve a pending perception score.
+
+    Only admin and legal roles can approve scores.
+    After approval, the gap for this KPI/period is recalculated.
+    """
+    from app.models.user import Role
+    if not current_user.is_super_admin and current_user.role not in [Role.ADMIN, Role.LEGAL]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin and legal users can approve scores",
+        )
+
+    result = await db.execute(
+        select(PerceptionScore).where(
+            PerceptionScore.id == score_id,
+            PerceptionScore.kpi_id == kpi_id,
+        ).options(
+            selectinload(PerceptionScore.scorer_org),
+            selectinload(PerceptionScore.scored_by),
+            selectinload(PerceptionScore.approver),
+        )
+    )
+    score = result.scalar_one_or_none()
+
+    if not score:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Score not found",
+        )
+
+    if score.approval_status != "pending_approval":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Score is not pending approval (current status: {score.approval_status})",
+        )
+
+    score.approval_status = "approved"
+    score.approved_by = current_user.id
+    score.approved_at = datetime.utcnow()
+    score.approval_comments = data.comments
+
+    await db.commit()
+    await db.refresh(score)
+
+    # Recalculate gap now that this score is approved
+    await _recalculate_gap(kpi_id, score.period, db)
+
+    # Reload with relationships
+    result = await db.execute(
+        select(PerceptionScore).where(PerceptionScore.id == score.id).options(
+            selectinload(PerceptionScore.scorer_org),
+            selectinload(PerceptionScore.scored_by),
+            selectinload(PerceptionScore.approver),
+        )
+    )
+    score = result.scalar_one()
+
+    return _score_to_response(score)
+
+
+@router.post("/{kpi_id}/scores/{score_id}/reject", response_model=PerceptionScoreResponse)
+async def reject_perception_score(
+    kpi_id: UUID,
+    score_id: UUID,
+    data: ScoreApprovalAction,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
+):
+    """Reject a pending perception score.
+
+    Only admin and legal roles can reject scores.
+    Rejected scores are excluded from gap calculations.
+    """
+    from app.models.user import Role
+    if not current_user.is_super_admin and current_user.role not in [Role.ADMIN, Role.LEGAL]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin and legal users can reject scores",
+        )
+
+    result = await db.execute(
+        select(PerceptionScore).where(
+            PerceptionScore.id == score_id,
+            PerceptionScore.kpi_id == kpi_id,
+        ).options(
+            selectinload(PerceptionScore.scorer_org),
+            selectinload(PerceptionScore.scored_by),
+            selectinload(PerceptionScore.approver),
+        )
+    )
+    score = result.scalar_one_or_none()
+
+    if not score:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Score not found",
+        )
+
+    if score.approval_status != "pending_approval":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Score is not pending approval (current status: {score.approval_status})",
+        )
+
+    score.approval_status = "rejected"
+    score.approved_by = current_user.id
+    score.approved_at = datetime.utcnow()
+    score.approval_comments = data.comments
+
+    await db.commit()
+    await db.refresh(score)
+
+    # Reload with relationships
+    result = await db.execute(
+        select(PerceptionScore).where(PerceptionScore.id == score.id).options(
+            selectinload(PerceptionScore.scorer_org),
+            selectinload(PerceptionScore.scored_by),
+            selectinload(PerceptionScore.approver),
         )
     )
     score = result.scalar_one()
@@ -464,12 +673,16 @@ async def _enrich_kpi_response(kpi: KPI, db: AsyncSession) -> KPIResponse:
 
 
 async def _recalculate_gap(kpi_id: UUID, period: str, db: AsyncSession) -> None:
-    """Recalculate perception gap for a KPI and period."""
-    # Get internal and external scores for this period
+    """Recalculate perception gap for a KPI and period.
+
+    Only approved scores are included in gap calculations.
+    """
+    # Get only approved scores for this period
     scores_result = await db.execute(
         select(PerceptionScore).where(
             PerceptionScore.kpi_id == kpi_id,
             PerceptionScore.period == period,
+            PerceptionScore.approval_status == "approved",
         )
     )
     scores = scores_result.scalars().all()
@@ -532,8 +745,13 @@ def _score_to_response(score: PerceptionScore) -> PerceptionScoreResponse:
         comments=score.comments,
         is_internal=score.is_internal,
         scored_at=score.scored_at,
+        approval_status=score.approval_status,
+        approved_by=score.approved_by,
+        approved_at=score.approved_at,
+        approval_comments=score.approval_comments,
         scorer_org_name=score.scorer_org.name if score.scorer_org else None,
         scored_by_name=score.scored_by.full_name if score.scored_by else None,
+        approver_name=score.approver.full_name if score.approver else None,
     )
 
 
