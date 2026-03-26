@@ -541,6 +541,30 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             print(f"[DEEP ANALYSIS] Compliance analysis failed: {e}")
             logging.warning(f"Compliance analysis failed for {contract_id}: {e}")
 
+        # Run governance bridge — auto-populate orgs, relationships, KPIs from contract data
+        print(f"[DEEP ANALYSIS] Running governance bridge...")
+        try:
+            from app.services.governance_bridge import GovernanceBridgeService
+
+            async with async_session_maker() as session:
+                result = await session.execute(
+                    select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+                )
+                contract = result.scalar_one_or_none()
+                if contract and contract.tenant_id:
+                    bridge = GovernanceBridgeService(session)
+                    summary = await bridge.bridge_contract_to_governance(
+                        contract_id=contract.id,
+                        tenant_id=contract.tenant_id,
+                    )
+                    await session.commit()
+                    print(f"[DEEP ANALYSIS] Governance bridge completed: {summary}")
+                else:
+                    print(f"[DEEP ANALYSIS] Governance bridge skipped: contract not found or no tenant")
+        except Exception as e:
+            print(f"[DEEP ANALYSIS] Governance bridge failed: {e}")
+            logging.warning(f"Governance bridge failed for {contract_id}: {e}")
+
         print(f"[DEEP ANALYSIS] Completed for {contract_id}")
         logging.info(f"Deep analysis completed for {contract_id}")
 
@@ -983,6 +1007,7 @@ def contract_to_response(contract) -> ContractResponse:
         schema_id=contract.schema_id,
         schema_data=contract.schema_data,
         custom_fields=contract.custom_fields or {},
+        business_relationship_id=str(contract.business_relationship_id) if contract.business_relationship_id else None,
         uploaded_by=str(contract.uploaded_by),
         clause_count=len(contract.clauses) if contract.clauses else 0,
         obligation_count=len(contract.obligations) if contract.obligations else 0,
@@ -1955,6 +1980,7 @@ async def update_contract_metadata(
         schema_id=str(contract.schema_id) if contract.schema_id else None,
         schema_data=contract.schema_data,
         custom_fields=contract.custom_fields or {},
+        business_relationship_id=str(contract.business_relationship_id) if contract.business_relationship_id else None,
         uploaded_by=str(contract.uploaded_by),
         clause_count=len(contract.clauses) if contract.clauses else 0,
         obligation_count=len(contract.obligations) if contract.obligations else 0,

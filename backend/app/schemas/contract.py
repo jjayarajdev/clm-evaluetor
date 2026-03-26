@@ -93,6 +93,7 @@ class ContractResponse(BaseModel):
     custom_fields: dict[str, Any] = {}
 
     # Relationships
+    business_relationship_id: str | None = None
     uploaded_by: str
     clause_count: int = 0
     obligation_count: int = 0

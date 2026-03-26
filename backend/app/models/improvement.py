@@ -36,6 +36,7 @@ class ImprovementSource(str, enum.Enum):
     CUSTOMER_FEEDBACK = "customer_feedback"
     INTERNAL_AUDIT = "internal_audit"
     MANUAL = "manual"
+    CONTRACT_RISK = "contract_risk"
 
 
 class ImprovementPoint(Base):
@@ -60,7 +61,7 @@ class ImprovementPoint(Base):
     description = Column(Text, nullable=True)
     source = Column(
         PG_ENUM(*[e.value for e in ImprovementSource], name='improvementsource', create_type=False),
-        nullable=False, default=ImprovementSource.MANUAL.value
+        nullable=False, default=ImprovementSource.MANUAL.value,
     )
     priority = Column(
         PG_ENUM(*[e.value for e in ImprovementPriority], name='improvementpriority', create_type=False),
