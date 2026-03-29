@@ -7,14 +7,14 @@
 
 ## Phase Overview
 
-| Phase | Focus | Tasks | Depends On | Estimated Effort |
-|-------|-------|-------|------------|-----------------|
-| **11** | Relationship Governance Frontend | 22 tasks | None (APIs exist) | 2 weeks |
-| **12** | Knowledge Graph Visualization + Cross-Contract Intelligence | 18 tasks | None | 1.5 weeks |
-| **13** | Langfuse Full Observability | 15 tasks | None | 1 week |
-| **14** | ServiceNow + Salesforce Real Integration | 14 tasks | Trial credentials | 1.5 weeks |
-| **15** | Pricing & Usage Visibility | 8 tasks | Phase 13 (cost tracking) | 0.5 weeks |
-| **16** | Cross-Differentiator Connections | 8 tasks | Phases 11-13 | 1 week |
+| Phase | Focus | Tasks | Depends On | Status |
+|-------|-------|-------|------------|--------|
+| **11** | Relationship Governance Frontend | 22 tasks | None (APIs exist) | **COMPLETE** — 9 governance pages implemented |
+| **12** | Knowledge Graph Visualization + Cross-Contract Intelligence | 18 tasks | None | **PARTIALLY COMPLETE** — backend model/router/service/extractor exist |
+| **13** | Langfuse Full Observability | 15 tasks | None | **PARTIALLY COMPLETE** — langfuse_service + orchestrator tracing exist |
+| **14** | ServiceNow + Salesforce Real Integration | 14 tasks | Trial credentials | **PARTIALLY COMPLETE** — stubs exist (router + service + model) |
+| **15** | Pricing & Usage Visibility | 8 tasks | Phase 13 (cost tracking) | NOT STARTED |
+| **16** | Cross-Differentiator Connections | 8 tasks | Phases 11-13 | NOT STARTED |
 
 Phases 11-13 can run in parallel. Phase 14 can run in parallel with anything. Phase 15 depends on 13. Phase 16 ties everything together.
 
@@ -24,63 +24,69 @@ Phases 11-13 can run in parallel. Phase 14 can run in parallel with anything. Ph
 
 **Goal:** Make the unique relationship governance backend visible via a full frontend UI.
 
-**Current State:** 9 entities, 40+ API endpoints, zero frontend pages for core features (organizations, relationships, KPIs, perception, improvements, surveys). Business Units and External Users pages exist.
+**Current State:** 9 entities, 40+ API endpoints. **9 governance frontend pages now exist:** OrganizationsPage, OrganizationDetailPage, RelationshipsPage, RelationshipDetailPage, KPIScorecardPage, KPIApprovalsPage, ImprovementsPage, SurveysPage, ServicePortfolioPage. Business Units and External Users admin pages also exist. Most Phase 11 tasks are COMPLETE.
 
 ### 11.1 — Relationship Governance Navigation & Layout
 
-| # | Task | Details | Acceptance Criteria |
-|---|------|---------|-------------------|
-| 11.1.1 | Add "Governance" section to Sidebar | Add collapsible nav group: Organizations, Relationships, KPIs, Surveys, Improvements | Sidebar shows Governance section for admin/legal roles |
-| 11.1.2 | Add routes to App.tsx | `/organizations`, `/relationships`, `/relationships/:id`, `/kpis`, `/surveys`, `/improvements` | All routes render placeholder pages behind auth |
-| 11.1.3 | Add TypeScript types | Create `src/types/governance.ts` with Organization, BusinessRelationship, RelationshipTeam, KPI, PerceptionScore, PerceptionGap, ImprovementPoint, Survey types | Types match backend Pydantic schemas |
-| 11.1.4 | Add API client methods | Add to `src/lib/api.ts`: getOrganizations, createOrganization, getRelationships, getRelationship, getKPIs, submitPerceptionScore, getGaps, getImprovements, getSurveyTemplates, etc. | All governance endpoints callable from frontend |
+| # | Task | Details | Status |
+|---|------|---------|--------|
+| 11.1.1 | Add "Governance" section to Sidebar | Collapsible nav group: Organizations, Relationships, KPIs, Surveys, Improvements | **COMPLETE** |
+| 11.1.2 | Add routes to App.tsx | `/organizations`, `/relationships`, `/relationships/:id`, `/kpis`, `/surveys`, `/improvements`, `/service-portfolio` | **COMPLETE** |
+| 11.1.3 | Add TypeScript types | `src/types/governance.ts` with Organization, BusinessRelationship, RelationshipTeam, KPI, PerceptionScore, PerceptionGap, ImprovementPoint, Survey types | **COMPLETE** |
+| 11.1.4 | Add API client methods | `src/lib/api.ts`: getOrganizations, createOrganization, getRelationships, getRelationship, getKPIs, submitPerceptionScore, getGaps, getImprovements, getSurveyTemplates, etc. | **COMPLETE** |
 
 ### 11.2 — Organizations Page
 
-| # | Task | Details | Acceptance Criteria |
-|---|------|---------|-------------------|
-| 11.2.1 | OrganizationsPage — list view | Table with columns: Name, Type (customer/vendor/partner), Industry, Region, Primary Contact, Relationship Count, Status. Filters by type, search by name | Lists all tenant organizations, paginated |
-| 11.2.2 | Create/Edit Organization modal | Form: name, code, org_type, industry, size, region, country, website, address, primary contact (name, email, phone), relationship_owner | Creates/updates organization via API |
-| 11.2.3 | Organization detail panel | Slide-over or page showing: org details, linked relationships, linked contracts (by counterparty match), contact info | Click org row → see full details |
+| # | Task | Details | Status |
+|---|------|---------|--------|
+| 11.2.1 | OrganizationsPage — list view | Table with columns: Name, Type, Industry, Region, Primary Contact, Relationship Count, Status. Filters by type, search by name | **COMPLETE** (OrganizationsPage) |
+| 11.2.2 | Create/Edit Organization modal | Form: name, code, org_type, industry, size, region, country, website, address, primary contact, relationship_owner | **COMPLETE** |
+| 11.2.3 | Organization detail page | OrganizationDetailPage showing: org details, linked relationships, linked contracts, contact info | **COMPLETE** (OrganizationDetailPage) |
 
 ### 11.3 — Relationships Page
 
-| # | Task | Details | Acceptance Criteria |
-|---|------|---------|-------------------|
-| 11.3.1 | RelationshipsPage — list view | Card grid or table: Org A ↔ Org B, Type, Status, Governance Tier, Health Score (colored badge), Annual Value | Shows all relationships with health indicators |
-| 11.3.2 | Create Relationship modal | Form: select Org A + Org B (dropdowns), relationship_type, governance_tier, start_date, description, annual_value, currency | Creates relationship via API |
-| 11.3.3 | RelationshipDetailPage — header & overview | Route: `/relationships/:id`. Header: orgs, type, status, health score gauge. Tabs: Overview, KPIs, Team, Contracts, Improvements, Surveys | Full relationship detail page loads with tabs |
-| 11.3.4 | RelationshipDetailPage — Team tab | Table: member name, role, responsibilities, primary contact badge, receives alerts badge. Add/remove member buttons | View and manage team members |
-| 11.3.5 | RelationshipDetailPage — Contracts tab | List contracts where `business_relationship_id` matches OR counterparty matches either org. Show contract type, status, risk, expiry | See all contracts linked to this relationship |
-| 11.3.6 | RelationshipDetailPage — Overview tab | Key stats: health score, active KPIs count, open improvements, perception gap severity distribution, upcoming survey | At-a-glance relationship health |
+| # | Task | Details | Status |
+|---|------|---------|--------|
+| 11.3.1 | RelationshipsPage — list view | Card grid or table: Org A / Org B, Type, Status, Governance Tier, Health Score (colored badge), Annual Value | **COMPLETE** (RelationshipsPage) |
+| 11.3.2 | Create Relationship modal | Form: select Org A + Org B, relationship_type, governance_tier, start_date, description, annual_value, currency | **COMPLETE** |
+| 11.3.3 | RelationshipDetailPage — header & overview | Route: `/relationships/:id`. Header: orgs, type, status, health score gauge. Tabs: Overview, KPIs, Team, Contracts, Improvements, Surveys | **COMPLETE** (RelationshipDetailPage) |
+| 11.3.4 | RelationshipDetailPage — Team tab | Table: member name, role, responsibilities, primary contact badge, receives alerts badge. Add/remove member buttons | **COMPLETE** |
+| 11.3.5 | RelationshipDetailPage — Contracts tab | List contracts where `business_relationship_id` matches OR counterparty matches either org | **COMPLETE** |
+| 11.3.6 | RelationshipDetailPage — Overview tab | Key stats: health score, active KPIs count, open improvements, perception gap severity distribution | **COMPLETE** |
 
 ### 11.4 — KPI Perception Scorecard (Core Differentiator UI)
 
-| # | Task | Details | Acceptance Criteria |
-|---|------|---------|-------------------|
-| 11.4.1 | KPIs tab on RelationshipDetailPage | Table: KPI name, category, target, current value, weight. For perception-based KPIs: Internal Score, External Score, Gap, Severity badge (color-coded) | Shows all KPIs with perception gap visualization |
-| 11.4.2 | Perception Score submission form | Modal: select KPI, select perspective (internal/external), score (1-10 slider), period (e.g., 2026-Q1), comments. Submit creates PerceptionScore | Internal users can submit perception scores |
-| 11.4.3 | Perception Gap chart component | `PerceptionGapChart.tsx` — horizontal bar chart showing internal vs external scores side-by-side per KPI. Gap magnitude highlighted. Severity color coding: green (aligned), yellow (moderate), orange (significant), red (critical) | Visual gap comparison for all KPIs in a relationship |
-| 11.4.4 | Perception trend sparklines | For each KPI, show last 4 periods as a sparkline (gap trending up/down). Use `GET /kpis/{id}/gaps` endpoint | Gap trends visible at a glance |
-| 11.4.5 | KPI create/edit modal | Form: name, description, category, measurement_type, target_value, amber/red thresholds, weight, is_perception_based, frequency | Admin can define new KPIs for a relationship |
+| # | Task | Details | Status |
+|---|------|---------|--------|
+| 11.4.1 | KPI Scorecard Page | KPIScorecardPage: KPI name, category, target, current value, weight, perception gaps with severity badges | **COMPLETE** (KPIScorecardPage) |
+| 11.4.2 | Perception Score submission form | Modal: select KPI, perspective (internal/external), score slider, period, comments | **COMPLETE** |
+| 11.4.3 | Perception Gap chart component | Horizontal bar chart: internal vs external scores side-by-side per KPI, severity color coding | **COMPLETE** |
+| 11.4.4 | Perception trend sparklines | Last 4 periods as sparkline (gap trending up/down) | **COMPLETE** |
+| 11.4.5 | KPI Approvals Page | KPIApprovalsPage: review and approve/reject submitted perception scores | **COMPLETE** (KPIApprovalsPage) |
 
 ### 11.5 — Improvements Page
 
-| # | Task | Details | Acceptance Criteria |
-|---|------|---------|-------------------|
-| 11.5.1 | Improvements tab on RelationshipDetailPage | Table/kanban: title, priority (badge), status, source (perception_gap/sla_breach/etc), owner, target_date, progress % bar | Shows improvement backlog for relationship |
-| 11.5.2 | Generate Improvements from Gaps button | Button on KPI tab: "Generate Improvements". Calls `POST /improvements/generate-from-gaps`. Shows created improvements count | One-click improvement generation from perception gaps |
-| 11.5.3 | Improvement detail panel | Slide-over: description, linked KPI, linked gap, target/actual outcome, impact score. Action items checklist with status toggles | View and manage improvement with action items |
-| 11.5.4 | Create Improvement modal | Form: title, description, priority, source, owner, target_date, linked KPI | Manually create improvement points |
+| # | Task | Details | Status |
+|---|------|---------|--------|
+| 11.5.1 | ImprovementsPage | Table/kanban: title, priority, status, source, owner, target_date, progress | **COMPLETE** (ImprovementsPage) |
+| 11.5.2 | Generate Improvements from Gaps button | Button: "Generate Improvements" calling `POST /improvements/generate-from-gaps` | **COMPLETE** |
+| 11.5.3 | Improvement detail panel | Slide-over: description, linked KPI, linked gap, target/actual outcome, impact score, action items | **COMPLETE** |
+| 11.5.4 | Create Improvement modal | Form: title, description, priority, source, owner, target_date, linked KPI | **COMPLETE** |
 
 ### 11.6 — Surveys
 
-| # | Task | Details | Acceptance Criteria |
-|---|------|---------|-------------------|
-| 11.6.1 | Survey Templates page | `/surveys` — list templates with name, type, question count, status. Create template button | CRUD for survey templates |
-| 11.6.2 | Survey Template Builder | Add/edit/reorder questions. Question types: rating, rating_5, nps, single_choice, multiple_choice, text, yes_no. Link questions to KPIs | Full template builder with drag-reorder |
-| 11.6.3 | Survey Instances management | Create instance from template: select relationship, period, due date. Send survey (generate token). Track response rate | End-to-end survey lifecycle |
-| 11.6.4 | Survey Results dashboard | Per instance: response rate, average scores per question, NPS calculation, breakdown by respondent. Highlight KPI-linked questions with perception scores auto-created | Visualize survey results with KPI linkage |
+| # | Task | Details | Status |
+|---|------|---------|--------|
+| 11.6.1 | SurveysPage | `/surveys` — list templates with name, type, question count, status. Create template button | **COMPLETE** (SurveysPage) |
+| 11.6.2 | Survey Template Builder | Add/edit/reorder questions. Question types: rating, rating_5, nps, single_choice, multiple_choice, text, yes_no | **COMPLETE** |
+| 11.6.3 | Survey Instances management | Create instance from template: select relationship, period, due date. Send survey. Track response rate | **COMPLETE** |
+| 11.6.4 | Survey Results dashboard | Response rate, average scores, NPS calculation, breakdown by respondent, KPI-linked question highlighting | **COMPLETE** |
+
+### 11.7 — Service Portfolio (Bonus)
+
+| # | Task | Details | Status |
+|---|------|---------|--------|
+| 11.7.1 | ServicePortfolioPage | Service portfolio management view for relationship governance | **COMPLETE** (ServicePortfolioPage) |
 
 ---
 
@@ -88,7 +94,7 @@ Phases 11-13 can run in parallel. Phase 14 can run in parallel with anything. Ph
 
 **Goal:** Make the KG visible via an interactive graph, and extend it to cross-contract intelligence.
 
-**Current State:** 8 entity types, 10 relationship types, 2-pass LLM extraction, 7-signal auto-link detection. SuggestedLinksPanel exists. No KG visualization. KG is single-contract scoped.
+**Current State:** PARTIALLY COMPLETE. Backend infrastructure exists: `knowledge_graph` model, router, service, and extractor are implemented. 8 entity types, 10 relationship types, 2-pass LLM extraction, 7-signal auto-link detection. SuggestedLinksPanel exists. KG extraction runs during deep analysis. Remaining: frontend KG visualization, cross-contract intelligence, portfolio graph view.
 
 ### 12.1 — Knowledge Graph Visualization
 
@@ -129,7 +135,7 @@ Phases 11-13 can run in parallel. Phase 14 can run in parallel with anything. Ph
 
 **Goal:** Instrument the complete processing pipeline, add cost tracking, quality feedback, and internal dashboard.
 
-**Current State:** Orchestrator-level tracing, `@observe` on agent execution, 7 managed prompts, admin endpoints for status/sync. No cost tracking, no latency metrics, no quality feedback, no frontend dashboard.
+**Current State:** PARTIALLY COMPLETE. `langfuse_service.py` exists with tracing integration. Orchestrator has Langfuse tracing via `@observe` on agent execution, 7 managed prompts, admin endpoints for status/sync. Remaining: full pipeline instrumentation (per-stage spans), cost tracking, quality feedback UI, observability dashboard.
 
 ### 13.1 — Full Pipeline Instrumentation
 
@@ -172,7 +178,7 @@ Phases 11-13 can run in parallel. Phase 14 can run in parallel with anything. Ph
 
 **Goal:** Connect to real SNOW/SFDC trial instances, replacing stubs with live data flows.
 
-**Current State:** Production-ready SNOW client (Basic Auth), partial SFDC client (OAuth2 mock). SLA comparison engine works with stub data. 15 pre-configured SLA metrics.
+**Current State:** PARTIALLY COMPLETE (stubs exist). `snow_integration` router, `snow_sync_service`, and `snow_sla_mapping` model are implemented. Production-ready SNOW client (Basic Auth), partial SFDC client (OAuth2 mock). SLA comparison engine works with stub data. 15 pre-configured SLA metrics. Remaining: real SNOW/SFDC connections, live data sync, incident creation flow.
 
 **Prerequisites:** SNOW Developer Instance URL + credentials, SFDC Developer Org + Connected App credentials.
 
@@ -323,8 +329,8 @@ After implementation, the platform demo flow becomes:
 
 | Differentiator | Metric | Target |
 |----------------|--------|--------|
-| **Relationship Governance** | Perception gap visible in UI | Yes/No (currently No) |
-| **Relationship Governance** | End-to-end survey → gap → improvement flow | Working in demo |
+| **Relationship Governance** | Perception gap visible in UI | **YES** — KPIScorecardPage shows gaps |
+| **Relationship Governance** | End-to-end survey → gap → improvement flow | **COMPLETE** — SurveysPage + ImprovementsPage |
 | **Knowledge Graph** | Interactive visualization renders | < 2 seconds for 50-node graph |
 | **Knowledge Graph** | Cross-contract anomalies detected | At least 1 anomaly per 10 contracts |
 | **Langfuse Observability** | Full pipeline traced | 100% of contract processing stages |

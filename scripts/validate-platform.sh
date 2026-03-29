@@ -14,7 +14,8 @@
 #
 # Available flows:
 #   auth, dashboard, superadmin, contracts, postsigning, renewals,
-#   compliance, governance, surveys, ai, admin, vendors, alerts, reports
+#   compliance, governance, surveys, ai, admin, vendors, alerts, reports,
+#   service_portfolio, contract_docs
 #
 
 set -uo pipefail
@@ -75,6 +76,11 @@ SURVEY_INSTANCE_ID=""
 TENANT_ID=""
 USER_ID=""
 BU_ID=""
+SERVICE_ID=""
+DOC_ID=""
+SIG_ID=""
+OFFICER_ID=""
+SCORE_ID=""
 
 log_section() {
   echo ""
@@ -439,6 +445,33 @@ flow_governance() {
     call_api GET "/api/organizations/${ORG_ID}/relationships" 200 "" "$TOKEN_ADMIN" "Org relationships"
   fi
 
+  log_step "Organization hierarchy"
+  call_api GET "/api/organizations/tree" 200 "" "$TOKEN_ADMIN" "Organization tree"
+
+  if [[ -n "$ORG_ID" ]]; then
+    call_api GET "/api/organizations/${ORG_ID}/hierarchy" 200 "" "$TOKEN_ADMIN" "Org hierarchy"
+    call_api GET "/api/organizations/${ORG_ID}/subsidiaries" 200 "" "$TOKEN_ADMIN" "Org subsidiaries"
+  fi
+
+  log_step "Officers CRUD"
+  if [[ -n "$ORG_ID" ]]; then
+    call_api POST "/api/organizations/${ORG_ID}/officers" 201 \
+      '{"name":"Val Officer","title":"VP Operations","email":"val.officer@example.com","governance_role":"sponsor","side":"our_side"}' \
+      "$TOKEN_ADMIN" "Create officer"
+    OFFICER_ID=$(json_field "['id']")
+    echo -e "    ${DIM}Officer ID: ${OFFICER_ID}${NC}"
+
+    call_api GET "/api/organizations/${ORG_ID}/officers" 200 "" "$TOKEN_ADMIN" "List officers"
+
+    if [[ -n "$OFFICER_ID" ]]; then
+      call_api PUT "/api/organizations/${ORG_ID}/officers/${OFFICER_ID}" 200 \
+        '{"title":"SVP Operations"}' \
+        "$TOKEN_ADMIN" "Update officer title"
+
+      call_api DELETE "/api/organizations/${ORG_ID}/officers/${OFFICER_ID}" 200 "" "$TOKEN_ADMIN" "Deactivate officer"
+    fi
+  fi
+
   log_step "Relationships"
   call_api GET "/api/relationships" 200 "" "$TOKEN_ADMIN" "List relationships"
   RELATIONSHIP_ID=$(first_item_id)
@@ -448,6 +481,17 @@ flow_governance() {
     call_api GET "/api/relationships/${RELATIONSHIP_ID}" 200 "" "$TOKEN_ADMIN" "Relationship detail"
     call_api GET "/api/relationships/${RELATIONSHIP_ID}/team" 200 "" "$TOKEN_ADMIN" "Relationship team"
     call_api GET "/api/relationships/${RELATIONSHIP_ID}/health" 200 "" "$TOKEN_ADMIN" "Relationship health"
+  fi
+
+  log_step "Performance history"
+  if [[ -n "$RELATIONSHIP_ID" ]]; then
+    call_api GET "/api/relationships/${RELATIONSHIP_ID}/history" 200 "" "$TOKEN_ADMIN" "Relationship history"
+    call_api POST "/api/relationships/${RELATIONSHIP_ID}/history" 201 \
+      '{"status":"good","period":"2026-Q1","overall_score":82.5,"notes":"Validation test entry"}' \
+      "$TOKEN_ADMIN" "Record performance status"
+    local HISTORY_ID
+    HISTORY_ID=$(json_field "['id']")
+    call_api GET "/api/relationships/${RELATIONSHIP_ID}/performance-trend" 200 "" "$TOKEN_ADMIN" "Performance trend"
   fi
 
   log_step "KPIs"
@@ -463,6 +507,23 @@ flow_governance() {
   if [[ -n "$RELATIONSHIP_ID" ]]; then
     call_api GET "/api/kpis/relationship/${RELATIONSHIP_ID}/gaps" 200 "" "$TOKEN_ADMIN" "Relationship perception gaps"
     call_api GET "/api/kpis/relationship/${RELATIONSHIP_ID}/summary" 200 "" "$TOKEN_ADMIN" "Relationship KPI summary"
+  fi
+
+  log_step "KPI approval workflow"
+  call_api GET "/api/kpis/pending-approvals" 200 "" "$TOKEN_ADMIN" "Pending KPI approvals"
+
+  if [[ -n "$KPI_ID" ]]; then
+    call_api POST "/api/kpis/${KPI_ID}/scores" 201 \
+      '{"score":7.5,"period":"2026-Q1","is_internal":true,"comments":"Validation test"}' \
+      "$TOKEN_ADMIN" "Submit KPI score"
+    SCORE_ID=$(json_field "['id']")
+    echo -e "    ${DIM}Score ID: ${SCORE_ID}${NC}"
+
+    if [[ -n "$SCORE_ID" ]]; then
+      call_api POST "/api/kpis/${KPI_ID}/scores/${SCORE_ID}/approve" 200 \
+        '{"comments":"Approved via validation"}' \
+        "$TOKEN_ADMIN" "Approve KPI score"
+    fi
   fi
 
   log_step "Improvements"
@@ -604,6 +665,100 @@ flow_reports() {
   call_api GET "/api/milestones/portfolio-compliance" 200 "" "$TOKEN_ADMIN" "Portfolio compliance"
 }
 
+# ─── Flow 15: Service Portfolio ─────────────────────────────────────────────
+
+flow_service_portfolio() {
+  log_section "FLOW 15: Service Portfolio"
+
+  log_step "List services"
+  call_api GET "/api/service-portfolio" 200 "" "$TOKEN_ADMIN" "List services"
+
+  log_step "Create service"
+  if [[ -n "$ORG_ID" ]]; then
+    call_api POST "/api/service-portfolio" 201 \
+      "{\"name\":\"IT Infrastructure Services\",\"code\":\"IT-INFRA-VAL\",\"service_type\":\"it_services\",\"organization_id\":\"${ORG_ID}\"}" \
+      "$TOKEN_ADMIN" "Create service"
+    SERVICE_ID=$(json_field "['id']")
+    echo -e "    ${DIM}Service ID: ${SERVICE_ID}${NC}"
+
+    if [[ -n "$SERVICE_ID" ]]; then
+      call_api GET "/api/service-portfolio/${SERVICE_ID}" 200 "" "$TOKEN_ADMIN" "Get service detail"
+      call_api PUT "/api/service-portfolio/${SERVICE_ID}" 200 \
+        '{"description":"Updated by validation"}' \
+        "$TOKEN_ADMIN" "Update service"
+      call_api GET "/api/service-portfolio/organization/${ORG_ID}" 200 "" "$TOKEN_ADMIN" "Services for org"
+
+      if [[ -n "$RELATIONSHIP_ID" ]]; then
+        log_step "Link service to relationship"
+        call_api POST "/api/service-portfolio/${SERVICE_ID}/relationships" 201 \
+          "{\"relationship_id\":\"${RELATIONSHIP_ID}\",\"scope\":\"Full IT infrastructure management\"}" \
+          "$TOKEN_ADMIN" "Link service to relationship"
+        call_api GET "/api/service-portfolio/${SERVICE_ID}/relationships" 200 "" "$TOKEN_ADMIN" "List linked relationships"
+      fi
+
+      log_step "Cleanup — delete service"
+      call_api DELETE "/api/service-portfolio/${SERVICE_ID}" 204 "" "$TOKEN_ADMIN" "Delete service"
+    fi
+  else
+    echo -e "  ${YELLOW}⊘${NC} Skipping service portfolio CRUD ${DIM}[no ORG_ID]${NC}"
+    SKIP=$((SKIP + 1))
+  fi
+}
+
+# ─── Flow 16: Contract Documents ───────────────────────────────────────────
+
+flow_contract_docs() {
+  log_section "FLOW 16: Contract Documents"
+
+  if [[ -z "$CONTRACT_ID" ]]; then
+    echo -e "  ${YELLOW}⊘${NC} Skipping contract docs ${DIM}[no CONTRACT_ID]${NC}"
+    SKIP=$((SKIP + 1))
+    return
+  fi
+
+  log_step "List documents"
+  call_api GET "/api/contracts/${CONTRACT_ID}/documents" 200 "" "$TOKEN_ADMIN" "List contract documents"
+
+  log_step "Add document"
+  call_api POST "/api/contracts/${CONTRACT_ID}/documents" 201 \
+    '{"title":"Validation Test Addendum","document_type":"addendum","language":"en","version":"1.0"}' \
+    "$TOKEN_ADMIN" "Add contract document"
+  DOC_ID=$(json_field "['id']")
+  echo -e "    ${DIM}Document ID: ${DOC_ID}${NC}"
+
+  if [[ -n "$DOC_ID" ]]; then
+    call_api GET "/api/contracts/${CONTRACT_ID}/documents/${DOC_ID}" 200 "" "$TOKEN_ADMIN" "Get document detail"
+    call_api PUT "/api/contracts/${CONTRACT_ID}/documents/${DOC_ID}" 200 \
+      '{"description":"Added by validation script"}' \
+      "$TOKEN_ADMIN" "Update document"
+
+    log_step "Signatures"
+    call_api POST "/api/contracts/${CONTRACT_ID}/documents/${DOC_ID}/signatures" 201 \
+      '{"signer_name":"John Doe","signer_title":"CTO","signer_organization":"Acme Corp","signature_type":"digital","signature_status":"pending"}' \
+      "$TOKEN_ADMIN" "Add signature"
+    SIG_ID=$(json_field "['id']")
+    echo -e "    ${DIM}Signature ID: ${SIG_ID}${NC}"
+
+    call_api GET "/api/contracts/${CONTRACT_ID}/documents/${DOC_ID}/signatures" 200 "" "$TOKEN_ADMIN" "List signatures"
+
+    if [[ -n "$SIG_ID" ]]; then
+      call_api PUT "/api/contracts/${CONTRACT_ID}/documents/${DOC_ID}/signatures/${SIG_ID}" 200 \
+        '{"signature_status":"signed"}' \
+        "$TOKEN_ADMIN" "Update signature (sign)"
+    fi
+
+    log_step "Sections"
+    call_api POST "/api/contracts/${CONTRACT_ID}/documents/${DOC_ID}/sections" 201 \
+      '{"title":"Definitions","section_number":"1","content_summary":"Key terms and definitions"}' \
+      "$TOKEN_ADMIN" "Add document section"
+    call_api GET "/api/contracts/${CONTRACT_ID}/documents/${DOC_ID}/sections" 200 "" "$TOKEN_ADMIN" "List document sections"
+
+    log_step "Cleanup — delete document"
+    call_api DELETE "/api/contracts/${CONTRACT_ID}/documents/${DOC_ID}" 204 "" "$TOKEN_ADMIN" "Delete document" || \
+    call_api DELETE "/api/contracts/${CONTRACT_ID}/documents/${DOC_ID}" 200 "" "$TOKEN_ADMIN" "Delete document (200)"
+  fi
+}
+
 # ─── Report ──────────────────────────────────────────────────────────────────
 
 print_report() {
@@ -679,6 +834,8 @@ should_run "admin"       && flow_admin
 should_run "vendors"     && flow_vendors
 should_run "alerts"      && flow_alerts
 should_run "reports"     && flow_reports
+should_run "service_portfolio" && flow_service_portfolio
+should_run "contract_docs"     && flow_contract_docs
 
 # Final report
 print_report

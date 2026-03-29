@@ -110,6 +110,8 @@ class ContractService:
             query = query.options(selectinload(Contract.clauses))
         if include_obligations:
             query = query.options(selectinload(Contract.obligations))
+        # Always load SLAs for sla_count in response
+        query = query.options(selectinload(Contract.slas))
 
         result = await self.db.execute(query)
         return result.scalar_one_or_none()

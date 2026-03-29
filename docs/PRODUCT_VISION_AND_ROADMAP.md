@@ -67,11 +67,12 @@ This platform focuses on **post-execution operational management**:
 
 | Feature | Status |
 |---------|--------|
-| ServiceNow integration (SLA actuals) | Complete (Stub) |
+| ServiceNow integration (SLA sync, incident mapping, snow_sla_mappings) | Complete (Stub) |
 | Milestone tracking integration | Complete (Stub) |
 | FX rate feeds (COLA adjustments) | Complete (Stub) |
 | Incident metrics | Complete (Stub) |
 | Salesforce integration | Complete (Stub) |
+| Microsoft Teams webhook notifications | Complete |
 | Email/SMTP integration | Complete |
 
 ---
@@ -138,15 +139,16 @@ This platform focuses on **post-execution operational management**:
 
 ---
 
-### 7. Industry-Aware Compliance
+### 7. Industry-Aware Compliance & Gap Detection
 
 | Feature | Status |
 |---------|--------|
 | Industry detection for contracts | Complete |
 | Industry compliance rule management | Complete |
-| Automated compliance gap detection | Complete |
+| Automated compliance gap detection against rules | Complete |
 | Compliance gap severity and remediation | Complete |
 | Regulatory obligation tracking | Complete |
+| Regulatory extraction agent | Complete |
 | Compliance statistics and dashboards | Complete |
 
 ---
@@ -188,8 +190,9 @@ This platform focuses on **post-execution operational management**:
 | Custom field definitions (admin) | Complete |
 | AI-powered custom field extraction | Complete |
 | Custom field validation | Complete |
-| Notification rule management | Complete |
+| Configurable notification rules (contract events) | Complete |
 | Microsoft Teams webhook integration | Complete |
+| Email notification templates | Complete |
 | Portfolio metrics and trend tracking | Complete |
 | Metric snapshots for historical analysis | Complete |
 
@@ -249,7 +252,51 @@ This platform focuses on **post-execution operational management**:
 
 ---
 
-## API Coverage Summary (~305 Endpoints)
+### 15. Governance Bridge (Contract-to-Governance Automation)
+
+| Feature | Status |
+|---------|--------|
+| Auto-create organizations from contract counterparties | Complete |
+| Auto-create business relationships from contracts | Complete |
+| Auto-create KPIs from SLA extraction | Complete |
+| 7 automations connecting contract intelligence to governance | Complete |
+| Seamless bridge between contract upload and relationship management | Complete |
+
+---
+
+### 16. SLA Benchmarking
+
+| Feature | Status |
+|---------|--------|
+| Compare SLA performance across contracts | Complete |
+| Industry standard benchmarking | Complete |
+| Performance trend analysis | Complete |
+
+---
+
+### 17. Contract Sharing & External Portal
+
+| Feature | Status |
+|---------|--------|
+| Share contracts with external users via secure tokens | Complete |
+| External user portal for read-only access | Complete |
+| External user commenting on shared contracts | Complete |
+| Token-based authentication (no account required) | Complete |
+
+---
+
+### 18. ServiceNow Integration
+
+| Feature | Status |
+|---------|--------|
+| SLA sync between platform and ServiceNow | Complete (Stub) |
+| Incident mapping | Complete (Stub) |
+| snow_sla_mappings table | Complete |
+| ServiceNow admin configuration page | Complete |
+
+---
+
+## API Coverage Summary (~405 Endpoints)
 
 | Category | Endpoints | Status |
 |----------|-----------|--------|
@@ -258,42 +305,48 @@ This platform focuses on **post-execution operational management**:
 | Users | 5 | Complete |
 | Audit Logs | 2 | Complete |
 | Clients | 5 | Complete |
-| Contracts | 28 | Complete |
+| Contracts | 32 | Complete |
 | Amendments | 6 | Complete |
+| Contract Documents | 5 | Complete |
 | Schemas | 5 | Complete |
-| Obligations | 9 | Complete |
-| SLA Tracking | 12 | Complete |
-| Renewals | 7 | Complete |
+| Obligations | 12 | Complete |
+| SLA Tracking | 14 | Complete |
+| SLA Benchmarking | 6 | Complete |
+| Renewals | 8 | Complete |
 | Vendors | 4 | Complete |
-| Milestones | 4 | Complete |
-| Dashboard | 21 | Complete |
-| Query & AI | 3 | Complete |
-| Reports | 6 | Complete |
-| Metrics | 3 | Complete |
-| Alerts | 12 | Complete |
-| Monitor & Events | 5 | Complete |
-| Compliance | 17 | Complete |
-| Connectors | 6 | Complete |
+| Milestones | 6 | Complete |
+| Dashboard | 24 | Complete |
+| Chat Sessions | 8 | Complete |
+| Query & AI | 5 | Complete |
+| Reports | 8 | Complete |
+| Metrics | 5 | Complete |
+| Alerts | 14 | Complete |
+| Monitor & Events | 6 | Complete |
+| Compliance | 20 | Complete |
+| Connectors | 8 | Complete |
 | Notifications | 6 | Complete |
-| Notification Rules | 5 | Complete |
+| Notification Rules | 6 | Complete |
 | Post-Signing | 3 | Complete |
 | Settings | 3 | Complete |
 | Custom Fields | 5 | Complete |
-| Workflow Admin | 19 | Complete |
-| Scheduler Admin | 9 | Complete |
-| Master Data Admin | 6 | Complete |
-| Knowledge Graph | 9 | Complete |
-| Suggested Links | 6 | Complete |
-| Organizations | 5 | Complete |
-| Relationships | 8 | Complete |
-| KPIs & Perception | 8 | Complete |
-| Improvements | 7 | Complete |
-| Surveys | 20 | Complete |
-| Business Units | 6 | Complete |
-| External Users | 5 | Complete |
-| External Portal | 5 | Complete |
-| Health & System | 2 | Complete |
-| **Total** | **~315** | |
+| Workflow Admin | 22 | Complete |
+| Scheduler Admin | 10 | Complete |
+| Master Data Admin | 8 | Complete |
+| Knowledge Graph | 12 | Complete |
+| Suggested Links | 8 | Complete |
+| Organizations | 6 | Complete |
+| Relationships | 10 | Complete |
+| KPIs & Perception | 10 | Complete |
+| Improvements | 8 | Complete |
+| Surveys | 22 | Complete |
+| Service Portfolio | 6 | Complete |
+| ServiceNow Integration | 8 | Complete |
+| Business Units | 8 | Complete |
+| External Users | 6 | Complete |
+| External Portal | 6 | Complete |
+| Contract Sharing | 5 | Complete |
+| Health & System | 3 | Complete |
+| **Total** | **~405** | |
 
 > See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for full endpoint documentation.
 
@@ -340,15 +393,64 @@ This platform focuses on **post-execution operational management**:
 
 ---
 
+## Codebase Summary (March 2026)
+
+| Component | Count |
+|-----------|-------|
+| API Routers | 44 |
+| SQLAlchemy Models | 53 |
+| Service Modules | 38 |
+| AI Agent Files | 11 (9+ functional agents) |
+| API Endpoints | ~405 |
+| Alembic Migrations | 38 |
+| Database Tables | ~77 |
+| Frontend Pages | 37 |
+| Frontend Components | 28 |
+| Backend Scripts | 25 |
+
+### AI Agents (11 files)
+
+| # | Agent | Purpose |
+|---|-------|---------|
+| 1 | Metadata Extraction | Parties, dates, values, contract type |
+| 2 | Contract Q&A | RAG-powered answers via ChromaDB |
+| 3 | Risk Detection | 10 risk categories |
+| 4 | Obligation Tracking | Deadlines, parties, consequences |
+| 5 | Clause Extraction | 17 clause types |
+| 6 | Renewal Monitoring | Auto-renewal, notice periods |
+| 7 | SLA Extraction | Metrics, targets, penalties |
+| 8 | Schema/Custom Field Extraction | 15 contract types, 1,235 fields |
+| 9 | Intent Router | Query routing with LLM visualization |
+| 10 | Regulatory Extraction | Regulatory obligations and compliance |
+| - | base.py | Shared agent base class |
+| - | __init__.py | Agent registry |
+
+---
+
+## Completed Phases (0-10)
+
+| Phase | Focus | Status |
+|-------|-------|--------|
+| 0 | Foundation (FastAPI, PostgreSQL, Auth, Multi-tenancy) | Complete |
+| 1 | Contract Upload & AI Extraction Pipeline | Complete |
+| 2 | SLA Monitoring, Obligations, Milestones | Complete |
+| 3 | Alerts, Workflows, Notifications | Complete |
+| 4 | Dashboards & Reporting | Complete |
+| 5 | Relationship Governance (Evaluetor) | Complete |
+| 6 | Compliance, Knowledge Graph, Schema Library | Complete |
+| 7 | Integration & Delivery (Docker, AWS, Seeding) | Complete |
+| 8 | Chat, Intent Router, Visualizations | Complete |
+| 9 | Auto-Link Detection, Enhanced Metadata, Custom Fields | Complete |
+| 10 | Governance Bridge, Business Units, External Users, Contract Sharing | Complete |
+
+---
+
 ## Remaining Work
 
-### Phase 7: Integration & Delivery (Partially Complete)
-- [x] Docker Compose local configuration
-- [x] Docker Compose production configuration
-- [x] Seed data scripts for demo environment
-- [x] Deployment documentation (AWS)
-- [ ] End-to-end integration testing
+### In Progress
+- [ ] End-to-end integration testing (Playwright)
 - [ ] Performance optimization
+- [ ] Production hardening
 
 ### Future Enhancements
 - [ ] Real ServiceNow/Salesforce connector implementations
@@ -360,8 +462,10 @@ This platform focuses on **post-execution operational management**:
 - [ ] Real-time collaboration on contract reviews
 - [ ] AI contract comparison (clause-level diff)
 - [ ] Automated contract generation from templates
+- [ ] Multi-language contract support
+- [ ] AI-powered negotiation assistance
 
 ---
 
-*Last Updated: 2026-03-07*
+*Last Updated: 2026-03-29*
 *Document Owner: Development Team*

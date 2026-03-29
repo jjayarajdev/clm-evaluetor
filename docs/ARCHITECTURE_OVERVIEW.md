@@ -17,7 +17,7 @@
               |                          |                       |
               v                          v                       v
 +-----------------------------------------------------------------------------+
-|                         API LAYER (FastAPI - 40 Routers)                      |
+|                         API LAYER (FastAPI - 44 Routers)                      |
 |                                                                              |
 |  +-- Contract Intelligence --+  +-- Post-Signing Management ----+           |
 |  | auth         contracts    |  | obligations   sla             |           |
@@ -31,26 +31,27 @@
 |  | dashboard    metrics      |  | organizations relationships  |            |
 |  | admin_settings            |  | kpis          improvements   |            |
 |  | workflow_admin            |  | surveys                      |            |
-|  | scheduler_admin           |  +------------------------------+            |
-|  | master_data_admin         |                                              |
-|  | custom_fields             |  +-- Multi-Tenant & Access -----+            |
-|  | notification_rules        |  | business_units               |            |
-|  | notifications             |  | external_users               |            |
-|  +---------------------------+  | external_portal              |            |
+|  | scheduler_admin           |  | service_portfolio            |            |
+|  | master_data_admin         |  +------------------------------+            |
+|  | custom_fields             |                                              |
+|  | notification_rules        |  +-- Multi-Tenant & Access -----+            |
+|  | notifications             |  | business_units               |            |
+|  +---------------------------+  | external_users               |            |
+|                                 | external_portal              |            |
 |                                 +------------------------------+            |
 |  +-- Chat --------------------+                                            |
 |  | chat (sessions + messages) |                                            |
 |  +----------------------------+                                            |
 |                                                                              |
-|  +-- Discovery & Graph ------+                                              |
-|  | knowledge_graph           |                                              |
-|  | suggested_links           |                                              |
-|  +---------------------------+                                              |
+|  +-- Discovery & Graph ------+  +-- Integrations ---------------+           |
+|  | knowledge_graph           |  | snow_integration              |           |
+|  | suggested_links           |  | contract_documents            |           |
+|  +---------------------------+  +--------------------------------+           |
 +-------------------------------------+---------------------------------------+
                                       |
                                       v
 +-----------------------------------------------------------------------------+
-|                         SERVICE LAYER (35 Services)                          |
+|                         SERVICE LAYER (38 Services)                          |
 |  +-------------------------------------------------------------------+     |
 |  |                    Document Processing Pipeline                     |     |
 |  |  +---------+    +---------+    +----------+    +---------+         |     |
@@ -72,6 +73,11 @@
 |  | progress_tracker          |  | auto_link_detector            |         |
 |  +---------------------------+  +--------------------------------+         |
 |                                                                             |
+|  +-- Bridge & Sync Services -+                                             |
+|  | governance_bridge         |                                              |
+|  | snow_sync_service         |                                              |
+|  +---------------------------+                                              |
+|                                                                             |
 |  +-- Extraction Services -----+  +-- Knowledge Services ---------+         |
 |  | definition_extraction     |  | knowledge_graph_extractor     |          |
 |  | process_extraction        |  | knowledge_graph_service       |          |
@@ -85,7 +91,7 @@
                                       |
                                       v
 +-----------------------------------------------------------------------------+
-|                           AI LAYER (9 Agents)                                |
+|                          AI LAYER (11 Agent Files)                           |
 |  +-------------------------------------------------------------------+     |
 |  |                      Agent Squad Orchestrator                       |     |
 |  |  +------------+ +------------+ +------------+ +------------+       |     |
@@ -110,9 +116,9 @@
 |  +---------------------+ +---------------------+ +---------------------+   |
 |  |     PostgreSQL      | |      ChromaDB       | |    File Storage     |   |
 |  |  +---------------+  | |  +---------------+  | |  +---------------+  |   |
-|  |  | 50+ Tables    |  | |  | Vector Store  |  | |  |   Uploads     |  |   |
+|  |  | 77 Tables     |  | |  | Vector Store  |  | |  |   Uploads     |  |   |
 |  |  | Multi-tenant  |  | |  | Embeddings    |  | |  |   Processed   |  |   |
-|  |  | 31 Migrations |  | |  | Similarity    |  | |  |   Documents   |  |   |
+|  |  | 38 Migrations |  | |  | Similarity    |  | |  |   Documents   |  |   |
 |  |  |               |  | |  | Search        |  | |  |               |  |   |
 |  |  +---------------+  | |  +---------------+  | |  +---------------+  |   |
 |  +---------------------+ +---------------------+ +---------------------+   |
@@ -141,40 +147,48 @@
 User Upload --> FastAPI --> UploadService --> FileStorage
                                   |
                                   v
-                           ParserService (PDF/DOCX)
+                           ParserService (PDF/DOCX/OCR)
                                   |
                                   v
                            ChunkerService (Semantic)
                                   |
-                                  +---> ChromaDB (Embeddings)
-                                  |
                                   v
                            SectionClassifier (Layout-Aware)
                                   |
-                                  v
-                           AI Agents (Parallel)
+                                  +---> ChromaDB (Embeddings)
                                   |
-                    +-------------+-------------+
-                    v             v             v
-                Metadata      Clauses      Obligations
-                    |             |             |
-                    v             v             v
-                  Risk        Renewals       SLAs
-                    |             |             |
-                    +-------------+-------------+
+                                  v
+                        Metadata Extraction (AI)
+                                  |
+                                  v
+                          Risk Detection (AI)
+                                  |
+                                  v
+                        Auto-Link Detection (6-Signal Scoring)
+                        [counterparty, type hierarchy, semantic
+                         similarity, filename, date, batch upload]
+                                  |
+                                  v
+                       PostgreSQL (Contract Marked Completed)
+                                  |
+                                  v
+                    Deep Analysis (Deferred, Parallel)
+                    +------+------+------+------+------+------+
+                    v      v      v      v      v      v      v
+                 Clauses Oblig  SLAs  Renew  Schema Comply  Gov
+                 Extract Track  Extr  Monitor Extr  Check  Bridge
+                    |      |      |      |      |      |      |
+                    +------+------+------+------+------+------+
                                   v
                            PostgreSQL (Structured)
                                   |
                                   v
-                           Auto-Link Detection
-                           (runs in indexer pipeline)
-                                  |
-                                  v
                     +-------------+-------------+
                     |             |             |
                     v             v             v
-               Compliance    Knowledge     Deep Analysis
-               Gap Detect    Graph Extract  (deferred)
+               Compliance    Knowledge     Governance Bridge
+               Gap Detect    Graph Extract  (auto-create orgs,
+                                            relationships, KPIs)
 ```
 
 ### 2. Q&A Query Flow (RAG)
@@ -309,6 +323,90 @@ Read-Only Contract View + Comment Submission
 (No JWT required)
 ```
 
+### 8. Auto-Link Detection Flow (6-Signal Scoring)
+```
+Contract Indexed --> AutoLinkDetector
+       |
+       v
+For Each Existing Contract:
+   +---> Signal 1: Counterparty Match (exact/fuzzy party name overlap)
+   +---> Signal 2: Type Hierarchy (parent/child type patterns, e.g., MSA->SOW)
+   +---> Signal 3: Semantic Similarity (ChromaDB embedding cosine distance)
+   +---> Signal 4: Filename Patterns (naming convention matching)
+   +---> Signal 5: Date Proximity (temporal clustering)
+   +---> Signal 6: Batch Upload (uploaded in same session)
+       |
+       v
+Weighted Score Aggregation --> Confidence Threshold
+       |
+       v
+SuggestedLink Records (pending approval)
+       |
+       v
+Admin Review --> Approve/Reject --> ContractLink (established)
+```
+
+### 9. Governance Bridge Flow
+```
+Contract Processing Complete --> GovernanceBridge
+       |
+       v
+Extract Parties --> Auto-Create Organizations
+       |
+       v
+Match Contract Parties --> Auto-Create Business Relationships
+       |
+       v
+Extract SLAs --> Auto-Create KPI Definitions + Targets
+       |
+       v
+Extract Risks --> Auto-Create Improvement Points
+       |
+       v
+Calculate Health Score (weighted: SLA compliance,
+obligation status, risk level, renewal proximity)
+       |
+       v
+PostgreSQL (Organizations, Relationships, KPIs, Improvements)
+```
+
+### 10. Notification Rules Engine Flow
+```
+System Event (contract expiry, SLA breach, obligation due, etc.)
+       |
+       v
+NotificationRuleEngine --> Match Against Active Rules
+       |
+       v
+Rule Conditions (event type, severity, contract type, etc.)
+       |
+       v
+Action Execution:
+   +---> Email (SMTP)
+   +---> Teams (Webhook)
+   +---> In-App Notification
+       |
+       v
+NotificationRecord (delivery tracking)
+```
+
+### 11. Business Unit Hierarchy Flow
+```
+Tenant Admin --> Define Business Unit Tree
+       |
+       v
+BusinessUnit (parent_id -> self-referential hierarchy)
+       |
+       v
+Contracts --> Assigned to Business Units
+       |
+       v
+Dashboard --> Filter by Business Unit (roll-up to parent)
+       |
+       v
+Reports --> Business Unit-scoped analytics
+```
+
 ---
 
 ## Directory Structure
@@ -320,13 +418,14 @@ backend/
 |   |-- config.py               # Pydantic settings
 |   |-- database.py             # SQLAlchemy async setup
 |   |
-|   |-- routers/                # API Endpoints (40 routers)
+|   |-- routers/                # API Endpoints (44 routers)
 |   |   |-- auth.py             # Authentication (login, logout, me, refresh)
 |   |   |-- users.py            # User management (CRUD, roles)
 |   |   |-- tenants.py          # Tenant management (multi-tenancy)
 |   |   |-- audit.py            # Audit log viewing
 |   |   |-- clients.py          # Client organization management
 |   |   |-- contracts.py        # Contract CRUD + upload + processing
+|   |   |-- contract_documents.py # Contract document management
 |   |   |-- amendments.py       # Amendment/version management
 |   |   |-- schemas.py          # Extraction schema management
 |   |   |-- obligations.py      # Obligation tracking + status
@@ -344,28 +443,30 @@ backend/
 |   |   |-- compliance.py       # Industry compliance + gap detection
 |   |   |-- connectors.py       # External connector management
 |   |   |-- notifications.py    # Notification delivery
-|   |   |-- notification_rules.py # Notification rule management
+|   |   |-- notification_rules.py # Notification rule engine
 |   |   |-- admin_settings.py   # Application settings
 |   |   |-- custom_fields.py    # Custom field definitions (admin + public)
 |   |   |-- workflow_admin.py   # Workflow definitions + actions + approvals
 |   |   |-- scheduler_admin.py  # Background job management
 |   |   |-- master_data_admin.py# SLA/Milestone master configs
 |   |   |-- knowledge_graph.py  # Entity/relationship graph
-|   |   |-- suggested_links.py  # Auto-detected contract links
+|   |   |-- suggested_links.py  # Auto-detected contract links + approval workflow
+|   |   |-- snow_integration.py # ServiceNow integration management
 |   |   |-- organizations.py    # Organization CRUD (Evaluetor)
 |   |   |-- relationships.py    # Business relationships + teams (Evaluetor)
 |   |   |-- kpis.py             # KPI definitions + perception scores (Evaluetor)
 |   |   |-- improvements.py     # Improvement point tracking (Evaluetor)
 |   |   |-- surveys.py          # Survey templates + instances (Evaluetor)
-|   |   |-- chat.py              # Chat sessions + messages (persistent history)
+|   |   |-- service_portfolio.py # Service portfolio management (Evaluetor)
+|   |   |-- chat.py             # Chat sessions + messages (persistent history)
 |   |   |-- business_units.py   # Business unit hierarchy
 |   |   |-- external_users.py   # External user management
 |   |   +-- external_portal.py  # External portal (no auth)
 |   |
-|   |-- services/               # Business Logic (35 services)
+|   |-- services/               # Business Logic (38 services)
 |   |   |-- orchestrator.py     # Agent routing + intent classification
 |   |   |-- indexer.py          # Document processing pipeline
-|   |   |-- parser.py           # PDF/DOCX text extraction
+|   |   |-- parser.py           # PDF/DOCX/OCR text extraction
 |   |   |-- chunker.py          # Semantic chunking
 |   |   |-- section_classifier.py # Layout-aware section classification
 |   |   |-- upload.py           # File upload handling
@@ -384,7 +485,9 @@ backend/
 |   |   |-- industry_detector.py  # Regulated industry identification
 |   |   |-- knowledge_graph_extractor.py # KG entity/relationship extraction
 |   |   |-- knowledge_graph_service.py # KG CRUD operations
-|   |   |-- auto_link_detector.py # Automatic contract link detection
+|   |   |-- auto_link_detector.py # 6-signal contract link detection
+|   |   |-- governance_bridge.py # Auto-create governance objects from contracts
+|   |   |-- snow_sync_service.py # ServiceNow data synchronization
 |   |   |-- metric_snapshot_service.py # Portfolio metric snapshots
 |   |   |-- progress_tracker.py # Processing progress tracking
 |   |   |-- custom_field_extraction.py # Custom field AI extraction
@@ -399,7 +502,7 @@ backend/
 |   |   |-- preamble_extraction.py   # Preamble extraction
 |   |   +-- exhibit_extraction.py    # Exhibit extraction
 |   |
-|   |-- agents/                 # AI Agents (9 agents) + Intent Router
+|   |-- agents/                 # AI Agents (11 files: 9 agents + base + intent router)
 |   |   |-- __init__.py         # Agent registration
 |   |   |-- base.py             # Base utilities + ContractSearchTool
 |   |   |-- intent_router.py    # Intent classification + structured query handlers + LLM visualization
@@ -412,11 +515,12 @@ backend/
 |   |   |-- sla_extraction.py       # SLA metric + target extraction
 |   |   +-- regulatory_extraction.py # Regulatory compliance extraction
 |   |
-|   |-- models/                 # Database Models (46 model files, 50+ tables)
+|   |-- models/                 # Database Models (53 model files, 77 tables)
 |   |   |-- base.py             # Base mixins (UUID, Timestamp, Tenant)
 |   |   |-- tenant.py           # Tenant + plans + contract limits
 |   |   |-- user.py             # User accounts + roles
 |   |   |-- contract.py         # Contract + status + risk level
+|   |   |-- contract_document.py # Contract document attachments
 |   |   |-- clause.py           # Clause records + types
 |   |   |-- clause_indicator.py # Clause presence indicators
 |   |   |-- obligation.py       # Obligations with deadlines
@@ -450,22 +554,27 @@ backend/
 |   |   |-- regulatory_obligation.py # Regulatory obligations
 |   |   |-- knowledge_graph.py  # KG entities + relationships
 |   |   |-- organization.py     # Organizations (Evaluetor)
+|   |   |-- organization_officer.py # Organization officers
 |   |   |-- relationship.py     # Business relationships + teams
+|   |   |-- relationship_history.py # Relationship history tracking
 |   |   |-- kpi.py              # KPIs + perception scores + gaps
 |   |   |-- improvement.py      # Improvement points + actions
 |   |   |-- survey.py           # Survey templates + instances
+|   |   |-- service_portfolio.py # Service portfolio items
 |   |   |-- chat_session.py     # Chat sessions + messages (conversation history)
 |   |   |-- external_access.py  # External portal tokens
 |   |   |-- business_unit.py    # Business unit hierarchy
 |   |   |-- external_user.py    # External user accounts
 |   |   |-- contract_share.py   # Contract sharing tokens
-|   |   +-- contract_comment.py # External user comments
+|   |   |-- contract_comment.py # External user comments
+|   |   +-- snow_sla_mapping.py # ServiceNow SLA mappings
 |   |
-|   |-- schemas/                # Pydantic Schemas (30 schema files)
+|   |-- schemas/                # Pydantic Schemas (35 schema files)
 |   |   |-- auth.py             # Login/token schemas
 |   |   |-- user.py             # User CRUD schemas
 |   |   |-- audit.py            # Audit log schemas
 |   |   |-- contract.py         # Contract request/response models
+|   |   |-- contract_document.py # Contract document schemas
 |   |   |-- amendment.py        # Amendment schemas
 |   |   |-- obligation.py       # Obligation schemas
 |   |   |-- sla.py              # SLA schemas
@@ -481,10 +590,13 @@ backend/
 |   |   |-- knowledge_graph.py  # KG entity/relationship schemas
 |   |   |-- suggested_link.py   # Suggested link schemas
 |   |   |-- organization.py     # Organization schemas
+|   |   |-- organization_officer.py # Organization officer schemas
 |   |   |-- relationship.py     # Relationship schemas
+|   |   |-- relationship_history.py # Relationship history schemas
 |   |   |-- kpi.py              # KPI + perception schemas
 |   |   |-- improvement.py      # Improvement schemas
 |   |   |-- survey.py           # Survey schemas
+|   |   |-- service_portfolio.py # Service portfolio schemas
 |   |   |-- business_unit.py    # Business unit schemas
 |   |   |-- external_user.py    # External user schemas
 |   |   |-- contract_share.py   # Contract sharing schemas
@@ -524,15 +636,15 @@ backend/
 |       |-- logging.py          # Structured logging configuration
 |       +-- middleware.py        # Request logging middleware
 |
-|-- alembic/                    # Database migrations (31 versions)
+|-- alembic/                    # Database migrations (38 versions)
 |-- data/                       # Sample contracts for testing
 |-- storage/                    # Uploaded contract files
-|-- scripts/                    # Utility scripts
+|-- scripts/                    # Seed, reindex, test scripts (25 scripts)
 +-- pyproject.toml              # Dependencies (UV)
 
 frontend/
 |-- src/
-|   |-- App.tsx                 # Route definitions (15+ pages)
+|   |-- App.tsx                 # Route definitions (53 pages)
 |   |-- contexts/               # React contexts (Auth, Sidebar)
 |   |-- components/
 |   |   |-- layout/             # MainLayout, Sidebar, Header
@@ -540,6 +652,7 @@ frontend/
 |   |   +-- contracts/          # Contract-specific components
 |   |-- pages/
 |   |   |-- LoginPage.tsx
+|   |   |-- DashboardPage.tsx
 |   |   |-- ModernDashboardPage.tsx
 |   |   |-- ContractsPage.tsx
 |   |   |-- ContractViewPage.tsx
@@ -558,13 +671,25 @@ frontend/
 |   |   |   |-- SLAConfigPage.tsx
 |   |   |   |-- MilestoneConfigPage.tsx
 |   |   |   |-- SchedulerPage.tsx
+|   |   |   |-- SnowIntegrationPage.tsx
 |   |   |   |-- BusinessUnitsPage.tsx
 |   |   |   +-- ExternalUsersPage.tsx
+|   |   |-- governance/
+|   |   |   |-- OrganizationsPage.tsx
+|   |   |   |-- OrganizationDetailPage.tsx
+|   |   |   |-- RelationshipsPage.tsx
+|   |   |   |-- RelationshipDetailPage.tsx
+|   |   |   |-- KPIScorecardPage.tsx
+|   |   |   |-- KPIApprovalsPage.tsx
+|   |   |   |-- ImprovementsPage.tsx
+|   |   |   |-- SurveysPage.tsx
+|   |   |   +-- ServicePortfolioPage.tsx
 |   |   +-- super-admin/
 |   |       |-- SuperAdminDashboardPage.tsx
 |   |       |-- TenantManagementPage.tsx
 |   |       |-- TenantDetailPage.tsx
 |   |       |-- GlobalUsersPage.tsx
+|   |       |-- SnowAdminPage.tsx
 |   |       +-- CustomFieldsPage.tsx
 |   |-- lib/
 |   |   +-- api.ts              # API client (Axios)
@@ -596,7 +721,7 @@ frontend/
 
 ---
 
-## API Endpoint Summary (~315 Endpoints)
+## API Endpoint Summary (~402 Endpoints)
 
 | # | Category | Prefix | Endpoints | Key Operations |
 |---|----------|--------|-----------|----------------|
@@ -606,41 +731,44 @@ frontend/
 | 4 | Audit | `/api/audit` | 2 | log viewing, filtering |
 | 5 | Clients | `/api/clients` | 5 | client organization CRUD |
 | 6 | Contracts | `/api/contracts` | 28 | upload, process, CRUD, search, sharing, comments |
-| 7 | Amendments | `/api/amendments` | 6 | version linking, diffs |
-| 8 | Schemas | `/api/schemas` | 5 | extraction schema management |
-| 9 | Obligations | `/api/obligations` | 9 | CRUD, status, compliance |
-| 10 | SLA | `/api/sla` | 12 | SLA management, compliance, benchmarks |
-| 11 | Renewals | `/api/renewals` | 7 | calendar, at-risk, recommendations |
-| 12 | Vendors | `/api/vendors` | 4 | performance scoring, rankings |
-| 13 | Milestones | `/api/milestones` | 4 | tracking, health dashboard |
-| 14 | Dashboard | `/api/dashboard` | 21 | analytics, role-based views, cockpit |
-| 15 | Query | `/api/query` | 3 | Q&A with RAG + citations |
-| 16 | Reports | `/api/reports` | 6 | compliance reports, CSV/Excel export |
-| 17 | Metrics | `/api/metrics` | 3 | portfolio metrics, trends |
-| 18 | Alerts | `/api/alerts` | 12 | breach alerts, acknowledge, resolve |
-| 19 | Monitor | `/api/monitor` | 5 | system events, health |
-| 20 | Compliance | `/api/compliance` | 17 | industry rules, gap detection |
-| 21 | Connectors | `/api/connectors` | 6 | external system management |
-| 22 | Notifications | `/api/notifications` | 6 | delivery, templates |
-| 23 | Notification Rules | `/api/notification-rules` | 5 | rule management |
-| 24 | Post-Signing | `/api/postsigning` | 3 | comprehensive dashboard |
-| 25 | Settings | `/api/admin/settings` | 3 | application configuration |
-| 26 | Custom Fields | `/api/admin/custom-fields` | 5 | field definitions |
-| 27 | Workflows | `/api/admin/workflows` | 19 | definitions, actions, approvals |
-| 28 | Scheduler | `/api/admin/scheduler` | 9 | job management, history |
-| 29 | Master Data | `/api/admin/master-data` | 6 | SLA/Milestone configs |
-| 30 | Knowledge Graph | `/api/knowledge-graph` | 9 | entity/relationship graph |
-| 31 | Suggested Links | `/api/suggested-links` | 6 | auto-detected links, established links |
-| 32 | Organizations | `/api/organizations` | 5 | organization CRUD (Evaluetor) |
-| 33 | Relationships | `/api/relationships` | 8 | business relationships, teams |
-| 34 | KPIs | `/api/kpis` | 8 | KPI definitions, perception, gaps |
-| 35 | Improvements | `/api/improvements` | 7 | improvement points, actions |
-| 36 | Surveys | `/api/surveys` | 20 | templates, instances, external |
-| 37 | Business Units | `/api/business-units` | 6 | hierarchy management |
-| 38 | External Users | `/api/external-users` | 5 | external user CRUD |
-| 39 | External Portal | `/api/external` | 5 | token-based access (no auth) |
-| 40 | Chat | `/api/chat` | 6 | session CRUD, message history, auto-titling |
-| - | Health | `/api/health`, `/api/system-health` | 2 | system health checks |
+| 7 | Contract Docs | `/api/contract-documents` | 6 | document attachment management |
+| 8 | Amendments | `/api/amendments` | 6 | version linking, diffs |
+| 9 | Schemas | `/api/schemas` | 5 | extraction schema management |
+| 10 | Obligations | `/api/obligations` | 9 | CRUD, status, compliance |
+| 11 | SLA | `/api/sla` | 12 | SLA management, compliance, benchmarks |
+| 12 | Renewals | `/api/renewals` | 7 | calendar, at-risk, recommendations |
+| 13 | Vendors | `/api/vendors` | 4 | performance scoring, rankings |
+| 14 | Milestones | `/api/milestones` | 4 | tracking, health dashboard |
+| 15 | Dashboard | `/api/dashboard` | 21 | analytics, role-based views, cockpit |
+| 16 | Query | `/api/query` | 3 | Q&A with RAG + citations |
+| 17 | Reports | `/api/reports` | 6 | compliance reports, CSV/Excel export |
+| 18 | Metrics | `/api/metrics` | 3 | portfolio metrics, trends |
+| 19 | Alerts | `/api/alerts` | 12 | breach alerts, acknowledge, resolve |
+| 20 | Monitor | `/api/monitor` | 5 | system events, health |
+| 21 | Compliance | `/api/compliance` | 17 | industry rules, gap detection |
+| 22 | Connectors | `/api/connectors` | 6 | external system management |
+| 23 | Notifications | `/api/notifications` | 6 | delivery, templates |
+| 24 | Notification Rules | `/api/notification-rules` | 5 | rule engine, event triggers |
+| 25 | Post-Signing | `/api/postsigning` | 3 | comprehensive dashboard |
+| 26 | Settings | `/api/admin/settings` | 3 | application configuration |
+| 27 | Custom Fields | `/api/admin/custom-fields` | 5 | field definitions |
+| 28 | Workflows | `/api/admin/workflows` | 19 | definitions, actions, approvals |
+| 29 | Scheduler | `/api/admin/scheduler` | 9 | job management, history |
+| 30 | Master Data | `/api/admin/master-data` | 6 | SLA/Milestone configs |
+| 31 | Knowledge Graph | `/api/knowledge-graph` | 9 | entity/relationship graph |
+| 32 | Suggested Links | `/api/suggested-links` | 6 | auto-detected links, approval workflow |
+| 33 | SNOW Integration | `/api/snow` | 8 | ServiceNow sync, SLA mapping |
+| 34 | Organizations | `/api/organizations` | 5 | organization CRUD (Evaluetor) |
+| 35 | Relationships | `/api/relationships` | 8 | business relationships, teams |
+| 36 | KPIs | `/api/kpis` | 8 | KPI definitions, perception, gaps |
+| 37 | Improvements | `/api/improvements` | 7 | improvement points, actions |
+| 38 | Surveys | `/api/surveys` | 20 | templates, instances, external |
+| 39 | Service Portfolio | `/api/service-portfolio` | 6 | service portfolio management |
+| 40 | Business Units | `/api/business-units` | 6 | hierarchy management |
+| 41 | External Users | `/api/external-users` | 5 | external user CRUD |
+| 42 | External Portal | `/api/external` | 5 | token-based access (no auth) |
+| 43 | Chat | `/api/chat` | 6 | session CRUD, message history, auto-titling |
+| 44 | Health | `/api/health`, `/api/system-health` | 2 | system health checks |
 
 > See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for full endpoint details with request/response examples.
 
@@ -683,6 +811,8 @@ JWT Token --> Extract tenant_id
 | Schema Extraction | Extract fields using 15 pre-built contract type schemas (1,235 fields total) | Contract text + schema definition | Structured field values per schema sections |
 
 All 9 agents use the Agent Squad framework with OpenAI GPT-4o and are orchestrated via intent-based routing through `OpenAIClassifier`. The Regulatory Extraction agent is invoked automatically for contracts in regulated industries and covers 10 obligation categories. The Schema Extraction agent supports 15 pre-built contract type schemas with 1,235 extractable fields across 133 sections, providing competitive parity with enterprise CLM vendors.
+
+Post-agent processing includes the **Governance Bridge** service, which automatically creates relationship governance objects (organizations, business relationships, KPIs from SLAs, improvement points from risks) and calculates a composite health score for each business relationship.
 
 ---
 
@@ -751,14 +881,25 @@ SMTP_PASSWORD=...
 | `/admin/scheduler` | SchedulerPage | Yes |
 | `/admin/business-units` | BusinessUnitsPage | Yes |
 | `/admin/external-users` | ExternalUsersPage | Yes |
+| `/admin/snow-integration` | SnowIntegrationPage | Yes |
+| `/governance/organizations` | OrganizationsPage | Yes |
+| `/governance/organizations/:id` | OrganizationDetailPage | Yes |
+| `/governance/relationships` | RelationshipsPage | Yes |
+| `/governance/relationships/:id` | RelationshipDetailPage | Yes |
+| `/governance/kpi-scorecard` | KPIScorecardPage | Yes |
+| `/governance/kpi-approvals` | KPIApprovalsPage | Yes |
+| `/governance/improvements` | ImprovementsPage | Yes |
+| `/governance/surveys` | SurveysPage | Yes |
+| `/governance/service-portfolio` | ServicePortfolioPage | Yes |
 | `/super-admin` | SuperAdminDashboardPage | Yes (Super Admin) |
 | `/super-admin/tenants` | TenantManagementPage | Yes (Super Admin) |
 | `/super-admin/tenants/:id` | TenantDetailPage | Yes (Super Admin) |
 | `/super-admin/users` | GlobalUsersPage | Yes (Super Admin) |
+| `/super-admin/snow-admin` | SnowAdminPage | Yes (Super Admin) |
 | `/super-admin/custom-fields` | CustomFieldsPage | Yes (Super Admin) |
 | `/external/contracts/:token` | ExternalContractPage | No (token-based) |
 
 ---
 
-*Last updated: 2026-03-09*
-*Verified against actual codebase: 41 routers, 36 services, 9 agents, 48 model files, 30 schema files + 15 extraction schemas, 31 migrations, 5 integrations*
+*Last updated: 2026-03-29*
+*Verified against actual codebase: 44 routers, 38 services, 11 agent files, 53 model files, 35 schema files + 15 extraction schemas, 38 migrations, 77 database tables, ~402 endpoints, 53 frontend pages, 25 seed/utility scripts*

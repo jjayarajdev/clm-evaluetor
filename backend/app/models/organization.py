@@ -118,7 +118,7 @@ class Organization(Base):
         "Organization",
         foreign_keys=[parent_organization_id],
         back_populates="parent_organization",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Relationships where this org is party A

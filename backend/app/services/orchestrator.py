@@ -343,26 +343,40 @@ If unsure, respond with: {self._default_agent}"""
         Returns:
             Dictionary with health status of each service.
         """
+        import asyncio
+
         health = {
             "openai": False,
             "langfuse": None,
             "agents_registered": len(self._agents),
         }
 
-        # Check OpenAI
-        try:
-            self.sync_client.models.list()
-            health["openai"] = True
-        except Exception:
-            pass
-
-        # Check Langfuse
-        if self.langfuse:
+        # Run checks concurrently in thread pool to avoid blocking event loop
+        async def check_openai():
             try:
-                self.langfuse.auth_check()
-                health["langfuse"] = True
+                await asyncio.get_event_loop().run_in_executor(
+                    None, self.sync_client.models.list
+                )
+                return True
             except Exception:
-                health["langfuse"] = False
+                return False
+
+        async def check_langfuse():
+            if not self.langfuse:
+                return None
+            try:
+                await asyncio.get_event_loop().run_in_executor(
+                    None, self.langfuse.auth_check
+                )
+                return True
+            except Exception:
+                return False
+
+        openai_result, langfuse_result = await asyncio.gather(
+            check_openai(), check_langfuse()
+        )
+        health["openai"] = openai_result
+        health["langfuse"] = langfuse_result
 
         return health
 

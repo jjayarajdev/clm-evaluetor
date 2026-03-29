@@ -313,8 +313,8 @@ async def get_organization_relationships(
         {
             "id": str(r.id),
             "name": r.name,
-            "relationship_type": r.relationship_type.value,
-            "status": r.status.value,
+            "relationship_type": r.relationship_type if isinstance(r.relationship_type, str) else r.relationship_type.value,
+            "status": r.status if isinstance(r.status, str) else r.status.value,
             "health_score": r.health_score,
             "partner_org_id": str(r.org_b_id if r.org_a_id == org_id else r.org_a_id),
         }

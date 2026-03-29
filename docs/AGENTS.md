@@ -8,12 +8,13 @@ The CLM platform uses a **multi-agent architecture** where specialized AI agents
 
 Key characteristics:
 
-- **8 specialized agents** registered at startup via `register_all_agents()`
-- **Intent-based routing** via LLM classification in the orchestrator
+- **9 specialized agents** registered at startup via `register_all_agents()` plus the Intent Router
+- **Intent-based routing** via LLM classification in the orchestrator and structured-query detection in the Intent Router
 - **Dual invocation paths**: interactive Q&A and batch pipeline extraction
 - **RAG retrieval** using ChromaDB vector search with RBAC filtering
 - **Structured JSON output** parsed from LLM responses with fallback extraction
 - **Automatic tracing** of all LLM calls via Langfuse OpenTelemetry integration
+- **Governance Bridge** automation service runs after deep analysis to populate relationship governance data
 
 ## Architecture Diagram
 
@@ -54,8 +55,8 @@ Key characteristics:
   │  │  └──────────────────┘    │  contract_qa (default)      │  │    │
   │  │                          │  sla_extraction             │  │    │
   │  │  ┌──────────────────┐    │  schema_extractor_*         │  │    │
-  │  │  │ invoke_agent()   │    └────────────────────────────┘  │    │
-  │  │  │ (direct call)    │                                    │    │
+  │  │  │ invoke_agent()   │    │  intent_router              │  │    │
+  │  │  │ (direct call)    │    └────────────────────────────┘  │    │
   │  │  └──────────────────┘                                    │    │
   │  └───────────────────────────┬──────────────────────────────┘    │
   │                              │                                    │
@@ -128,7 +129,7 @@ Agents register themselves at startup. The registry maps agent names to `AgentCo
 ```python
 # In main.py lifespan handler:
 initialize_default_agents()   # Registers defaults in orchestrator
-register_all_agents()         # Registers all 7 specialized agents
+register_all_agents()         # Registers all 9 specialized agents
 ```
 
 ### Intent Classification
@@ -397,13 +398,13 @@ SERVICE_DESCRIPTION, SERVICE_LEVEL, DELIVERABLE, GOVERNANCE, TRANSITION, CHANGE_
 
 ---
 
-### 7. SLA Extraction Agent
+### 7. SLA Extraction Agent (SK-007)
 
 **File:** `backend/app/agents/sla_extraction.py`
 **Agent ID:** `sla_extraction`
 **Temperature:** 0.1 | **Max Tokens:** 4000
 
-**Purpose:** Extracts Service Level Agreements including metrics, targets, thresholds, and penalty terms.
+**Purpose:** Extracts Service Level Agreements including metrics, targets, warning thresholds, and penalty descriptions.
 
 **9 Metric Types:**
 UPTIME_PERCENTAGE, RESPONSE_TIME, RESOLUTION_TIME, DELIVERY_TIME, THROUGHPUT, ERROR_RATE, AVAILABILITY, QUALITY_SCORE, CUSTOM
@@ -431,7 +432,58 @@ PERCENTAGE, HOURS, MINUTES, DAYS, BUSINESS_DAYS, COUNT, SCORE
 
 ---
 
-### 8. Schema Extraction Agent
+### 8. Intent Router (SK-008)
+
+**File:** `backend/app/agents/intent_router.py`
+**Agent ID:** `intent_router`
+**Temperature:** 0.3 (for LLM enhancement) | **Max Tokens:** 2000
+
+**Purpose:** Routes user questions to either structured database queries (PostgreSQL) or document-based RAG retrieval (ChromaDB). Generates rich LLM-powered visualizations for structured query results.
+
+The Intent Router is not a standard orchestrator agent — it is invoked by the Contract Q&A agent (`ask_question()`) before the Q&A pipeline runs. If a question matches a structured intent, it bypasses RAG entirely and returns data with chart visualizations.
+
+**5 Structured Intents:**
+
+| Intent | Keywords | Data Source |
+|--------|----------|-------------|
+| `renewals` | renewal, expiring, auto-renewal, notice period | Contracts (expiration dates, notice periods) |
+| `obligations` | obligation, deadline, overdue, compliance | Obligations (deadlines, status, parties) |
+| `risk` | risk summary, risk score, high risk | Contracts (risk_score, risk_level) |
+| `portfolio` | how many contracts, total value, overview | Contracts (aggregate stats) |
+| `sla` | sla performance, sla breach, service level | KG SLA Metric entities |
+
+**4 Visualization Types:**
+
+| Chart Type | Format | Use Case |
+|------------|--------|----------|
+| `stat_cards` | KPI cards with labels and colors | Always first — headline numbers |
+| `pie` | Donut chart segments | Proportional breakdowns (2-7 segments) |
+| `bar` | Horizontal bars | Comparisons, rankings |
+| `table` | Columns + rows | Detailed item listings (5-8 rows max) |
+
+**Key Features:**
+- **Keyword-based detection** - `detect_intent()` scores questions against keyword lists per intent
+- **Clause analysis bypass** - Questions prefixed with `[CLAUSE ANALYSIS]` always route to RAG
+- **LLM visualization enhancement** - Uses `gpt-4o-mini` to generate contextual follow-up questions and adaptive chart specifications from structured data
+- **Heuristic fallback** - `_fallback_enhancement()` provides charts/follow-ups when LLM is unavailable
+- **Color semantics** - Red for danger, green for safe, blue for informational, etc.
+- **Counterparty deduplication** - Deduplicates by filename + tenant_id with garbage-name sanitization
+
+**Key Functions:**
+| Function | Description |
+|----------|-------------|
+| `detect_intent()` | Classifies question as structured intent or `document_qa` |
+| `handle_structured_query()` | Dispatches to intent handler, enhances with LLM |
+| `_enhance_with_llm()` | Generates follow-ups and visualizations via GPT-4o-mini |
+| `_handle_renewals()` | Renewal query with urgency bucketing |
+| `_handle_obligations()` | Obligation query with overdue detection |
+| `_handle_risk()` | Risk summary with value-at-risk calculation |
+| `_handle_portfolio()` | Portfolio overview with aggregate stats |
+| `_handle_sla()` | SLA metric query from knowledge graph |
+
+---
+
+### 9. Schema Extraction Agent
 
 **File:** `backend/app/schemas/extractor.py`
 **Agent ID:** Dynamic (`schema_extractor_{schema_id}`)
@@ -463,9 +515,11 @@ Unlike the other agents, Schema Extraction agents are **dynamically registered**
 
 ## Agent Invocation Patterns
 
-### Upload Pipeline
+### Upload Pipeline (Two Phases)
 
-When a contract is uploaded (`POST /api/contracts`), the indexing service triggers agents sequentially:
+Contract processing is split into two phases: fast indexing (synchronous) and deep analysis (background).
+
+**Phase 1 — Indexing** (`IndexingService.index_contract()`):
 
 ```
 Upload → Parse → Chunk → Index in ChromaDB
@@ -481,26 +535,61 @@ Upload → Parse → Chunk → Index in ChromaDB
                     │                               │
                     │   2. assess_risk()             │
                     │      └─ update_contract_risk() │
+                    │                               │
+                    │   3. Flush metadata            │
+                    │   4. Mark contract COMPLETED   │
+                    │   5. Auto-link detection       │
                     └───────────────────────────────┘
-                                    │
-                                    ▼
-                    ┌───────────────────────────────┐
-                    │   contracts.py process endpoint │
-                    │                               │
-                    │   3. extract_clauses()         │
-                    │      └─ store_extracted_clauses()
-                    │                               │
-                    │   4. extract_obligations()     │
-                    │      └─ store_extracted_obligations()
-                    │                               │
-                    │   5. extract_slas()            │
-                    │      └─ store_extracted_slas() │
-                    └───────────────────────────────┘
+```
+
+**Phase 2 — Deep Analysis** (`_run_deep_analysis()` in background):
+
+Triggered as a background task after upload. Runs the full extraction pipeline:
+
+```
+_run_deep_analysis()
+    │
+    ├─ 1. Clause Extraction
+    │     └─ extract_clauses() → store_extracted_clauses()
+    │
+    ├─ 2. Obligation Extraction
+    │     └─ extract_obligations() → store_extracted_obligations()
+    │
+    ├─ 3. SLA Extraction
+    │     └─ extract_slas() → store_extracted_slas()
+    │
+    ├─ 4. Reclassify SLA Chunks
+    │     └─ reclassify_sla_chunks() — promotes uncategorized chunks
+    │        containing SLA patterns to SERVICE_LEVEL type
+    │
+    ├─ 5. Renewal Monitoring
+    │     └─ analyze_renewal_terms() → update_contract_renewal()
+    │
+    ├─ 6. Schema-Based Extraction (if schema available)
+    │     └─ extract_with_schema() → sync_schema_to_db()
+    │
+    ├─ 7. Auto-Link Detection
+    │     └─ AutoLinkDetector.detect_links() → SuggestedContractLink
+    │
+    ├─ 8. Compliance Analysis
+    │     ├─ IndustryDetector.detect_industry()
+    │     ├─ ComplianceGapDetector.check_compliance()
+    │     ├─ create_compliance_alerts_for_gaps()
+    │     └─ extract_regulatory_obligations() (regulated industries)
+    │
+    └─ 9. Governance Bridge
+          └─ GovernanceBridgeService.bridge_contract_to_governance()
+              ├─ Auto-create organization from counterparty
+              ├─ Auto-create business relationship
+              ├─ Convert SLAs → KPIs
+              ├─ Create improvement points from high-risk clauses
+              ├─ Calculate health score
+              └─ Link SOW services to service portfolio
 ```
 
 ### Process Endpoint
 
-`POST /api/contracts/{id}/process` triggers the same clause/obligation/SLA extraction pipeline manually for a contract that has already been indexed.
+`POST /api/contracts/{id}/process` triggers the same deep analysis pipeline manually for a contract that has already been indexed.
 
 ### Q&A Flow (Interactive)
 
@@ -508,21 +597,37 @@ Upload → Parse → Chunk → Index in ChromaDB
 User Question
      │
      ▼
-  ContractSearchTool.search()  ──▶  ChromaDB (vector similarity)
+  Intent Router: detect_intent()
      │
-     ▼
-  inject_context()  ──▶  Format search results as context
+     ├─▶ Structured intent (renewals/obligations/risk/portfolio/sla)
+     │      │
+     │      ▼
+     │   handle_structured_query()  ──▶  PostgreSQL (direct queries)
+     │      │
+     │      ▼
+     │   _enhance_with_llm()  ──▶  GPT-4o-mini (visualizations + follow-ups)
+     │      │
+     │      ▼
+     │   Return: answer + stat_cards + charts + tables
      │
-     ▼
-  Orchestrator.route_request()
-     │
-     ├─▶ _classify_intent()  ──▶  Selects "contract_qa"
-     │
-     ▼
-  OpenAI GPT-4o  ──▶  Answer with source citations
-     │
-     ▼
-  _parse_qa_response()  ──▶  QAResponse with confidence + follow-ups
+     └─▶ document_qa
+            │
+            ▼
+       ContractSearchTool.search()  ──▶  ChromaDB (vector similarity)
+            │
+            ▼
+       inject_context()  ──▶  Format search results as context
+            │
+            ▼
+       Orchestrator.route_request()
+            │
+            ├─▶ _classify_intent()  ──▶  Selects "contract_qa"
+            │
+            ▼
+       OpenAI GPT-4o  ──▶  Answer with source citations
+            │
+            ▼
+       _parse_qa_response()  ──▶  QAResponse with confidence + follow-ups
 ```
 
 ### Re-analysis Endpoint
@@ -533,6 +638,107 @@ User Question
 3. Obligation extraction
 4. Risk assessment
 5. Renewal analysis
+6. SLA extraction
+7. Compliance analysis
+8. Governance bridge
+
+## Auto-Link Detection
+
+**File:** `backend/app/services/auto_link_detector.py`
+
+The `AutoLinkDetector` uses multi-signal scoring to suggest parent/child and related contract relationships. It runs twice: once in the indexer (after marking contract completed) and again in deep analysis.
+
+### 6 Weighted Signals
+
+| Signal | Weight | Description |
+|--------|--------|-------------|
+| `counterparty_match` | 0.30 | Exact case-insensitive counterparty name match |
+| `counterparty_fuzzy` | 0.20 | Partial or fuzzy counterparty name match |
+| `type_hierarchy` | 0.25 | Contract type parent/child relationship (e.g., MSA → SOW, SOW → Amendment) |
+| `semantic_similarity` | 0.20 | ChromaDB vector similarity between contract chunks |
+| `filename_pattern` | 0.15 | Filename regex matching (amendment, renewal, SOW, schedule patterns) |
+| `same_batch` | 0.15 | Uploaded together in the same batch |
+| `date_proximity` | 0.10 | Effective dates within proximity window |
+
+**Contract Type Hierarchy:**
+- MSA is parent of SOW, Amendment
+- NDA is parent of Amendment
+- SOW is parent of Amendment
+- Vendor Agreement is parent of SOW, Amendment
+
+Suggestions are stored as `SuggestedContractLink` records with a confidence score (sum of matching signals, capped at 1.0) and human-readable reasoning.
+
+---
+
+## Governance Bridge
+
+**File:** `backend/app/services/governance_bridge.py`
+
+The `GovernanceBridgeService` is not an AI agent but a critical automation service that runs as the final step of deep analysis. It bridges contract intelligence (AI-extracted data) to relationship governance (organizations, relationships, KPIs, improvements).
+
+Each automation is independent and fault-tolerant: one failure does not block others. Employment contracts are skipped (no B2B governance).
+
+### 6 Automations
+
+**Automation 1 — Counterparty to Organization:**
+- Matches counterparty name to existing `Organization` (exact then fuzzy)
+- If no match, auto-creates a new Organization with type inferred from contract type (MSA/SOW → Customer, Vendor Agreement → Vendor, NDA → Partner)
+- Generates a short org code from the counterparty name
+
+**Automation 2 — Contract to Business Relationship:**
+- Finds or creates a `BusinessRelationship` between the tenant's internal org and the counterparty org
+- Infers relationship type from org type (Customer, Supplier, Partner)
+- Links the contract to the relationship via `business_relationship_id`
+
+**Automation 3 — SLA to KPI:**
+- Loads extracted `ContractSLA` records for the contract
+- Creates `KPI` records on the business relationship, mapping metric types to KPI categories:
+  - Uptime/Availability → Service Delivery (Percentage)
+  - Response/Resolution/Delivery Time → Timeliness (Hours/Days)
+  - Error Rate → Quality (Percentage)
+  - Compliance/Success Rate → Compliance (Percentage)
+- Carries over target values and warning thresholds
+- Deduplicates by KPI name on the relationship
+
+**Automation 4 — Risk to Improvement Points:**
+- Loads HIGH and CRITICAL risk clauses for the contract
+- Creates `ImprovementPoint` records on the business relationship with source `CONTRACT_RISK`
+- Maps 8 high-risk clause types to human-readable labels (e.g., "Broad Indemnification", "IP Ownership Risk", "Auto-Renewal Trap")
+- Priority mapped from clause risk level (CRITICAL → Critical, HIGH → High)
+- Includes clause excerpt in the improvement description
+
+**Automation 5 — Health Score Calculation:**
+- Computes a composite health score (0-100) for the relationship using three weighted components:
+  - **Contract Risk (30%)** — inverted risk score (low risk = high health)
+  - **SLA Compliance (40%)** — average `current_compliance_rate` across all active SLAs
+  - **Obligation Health (30%)** — weighted by RAG status (green=100, amber=50, red=0)
+- Weights are normalized to sum to 1.0 when components are missing
+- Falls back to 75 (neutral) when no data is available
+
+**Automation 6 — SOW Services to Portfolio:**
+- Only runs for SOW contracts
+- Extracts service names from `schema_data.services.line_items` or SERVICE_DESCRIPTION clauses
+- Fuzzy-matches against existing `ServicePortfolio` entries (does not auto-create portfolios)
+- Creates `RelationshipService` links between the relationship and matched portfolio entries
+
+### Governance Bridge Summary Return
+
+The bridge returns a summary dict for each contract:
+```python
+{
+    "org_matched": "<uuid>",
+    "org_created": True/False,
+    "relationship_matched": "<uuid>",
+    "relationship_created": True/False,
+    "kpis_created": 3,
+    "improvements_created": 2,
+    "health_score": 82,
+    "services_linked": 1,
+    "errors": []
+}
+```
+
+---
 
 ## Observability
 
@@ -574,7 +780,7 @@ The `/api/health` endpoint reports:
     "chromadb": "healthy",
     "openai": "healthy",
     "langfuse": "healthy",
-    "agents_registered": 10
+    "agents_registered": 9
   }
 }
 ```
@@ -599,8 +805,10 @@ In `backend/app/main.py`, the lifespan handler registers all agents:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     initialize_default_agents()   # Registers orchestrator defaults (contract_qa, metadata, risk)
-    register_all_agents()         # Registers all 7 specialized agents
+    register_all_agents()         # Registers all 9 specialized agents
     get_schema_registry().load_schemas()  # Loads schema definitions
+    auto_seed_master_data(db)     # Auto-seeds master data if needed
+    start_scheduler()             # Starts background scheduler (with file lock)
     ...
 ```
 
@@ -609,13 +817,14 @@ async def lifespan(app: FastAPI):
 | Agent | Temperature | Max Tokens | Invocation |
 |-------|-------------|------------|------------|
 | Metadata Extraction | 0.0 | 1500 | Pipeline (indexer) |
-| Clause Extraction | 0.1 | 4000 | Pipeline (process) |
-| Obligation Tracking | 0.1 | 4000 | Pipeline (process) |
+| Clause Extraction | 0.1 | 4000 | Pipeline (deep analysis) |
+| Obligation Tracking | 0.1 | 4000 | Pipeline (deep analysis) |
 | Risk Detection | 0.1 | 3000 | Pipeline (indexer) |
-| Renewal Monitoring | 0.0 | 1500 | Re-analysis |
+| Renewal Monitoring | 0.0 | 1500 | Pipeline (deep analysis) |
 | Contract Q&A | 0.2 | 2000 | Interactive (query) |
-| SLA Extraction | 0.1 | 4000 | Pipeline (process) |
+| SLA Extraction | 0.1 | 4000 | Pipeline (deep analysis) |
 | Schema Extraction | Per-schema | Per-schema | On-demand |
+| Intent Router | 0.3 | 2000 | Interactive (query, via contract_qa) |
 
 ## Source Files
 
@@ -629,9 +838,16 @@ async def lifespan(app: FastAPI):
 | `backend/app/agents/risk_detection.py` | Risk detection agent (SK-004) |
 | `backend/app/agents/renewal_monitoring.py` | Renewal monitoring agent (SK-005) |
 | `backend/app/agents/contract_qa.py` | Contract Q&A agent (SK-006) |
-| `backend/app/agents/sla_extraction.py` | SLA extraction agent |
+| `backend/app/agents/sla_extraction.py` | SLA extraction agent (SK-007) |
+| `backend/app/agents/intent_router.py` | Intent router for structured vs. RAG queries (SK-008) |
+| `backend/app/agents/regulatory_extraction.py` | Regulatory obligation extraction for regulated industries |
 | `backend/app/schemas/extractor.py` | Schema-driven extraction agent |
 | `backend/app/services/orchestrator.py` | Orchestrator service (routing, registry) |
-| `backend/app/services/indexer.py` | Document processing pipeline |
+| `backend/app/services/indexer.py` | Document processing pipeline (Phase 1) |
+| `backend/app/services/auto_link_detector.py` | Multi-signal contract relationship detection |
+| `backend/app/services/governance_bridge.py` | Contract intelligence to relationship governance bridge |
+| `backend/app/services/industry_detector.py` | Industry detection for compliance analysis |
+| `backend/app/services/compliance_gap_detector.py` | Compliance gap detection and alerting |
 | `backend/app/services/langfuse_service.py` | Langfuse integration and prompt management |
+| `backend/app/routers/contracts.py` | Upload endpoint and `_run_deep_analysis()` (Phase 2) |
 | `backend/app/main.py` | Application startup (agent registration) |

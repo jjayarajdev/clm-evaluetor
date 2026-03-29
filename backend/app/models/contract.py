@@ -258,7 +258,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
     business_unit: Mapped["BusinessUnit | None"] = relationship(
         "BusinessUnit",
         back_populates="contracts",
-        lazy="selectin",
+        lazy="noload",
     )
     business_relationship: Mapped["BusinessRelationship | None"] = relationship(
         "BusinessRelationship",
@@ -273,25 +273,25 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         "Clause",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
     obligations: Mapped[list["Obligation"]] = relationship(
         "Obligation",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
     parties: Mapped[list["ContractParty"]] = relationship(
         "ContractParty",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
     key_dates: Mapped[list["ContractKeyDate"]] = relationship(
         "ContractKeyDate",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # ===== NEW CANONICAL RELATIONSHIPS =====
@@ -301,7 +301,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         "ContractFinancial",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Liability terms
@@ -309,7 +309,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         "ContractLiability",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Clause presence indicators (one-to-one)
@@ -318,7 +318,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         back_populates="contract",
         cascade="all, delete-orphan",
         uselist=False,
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Contract links (parent-child relationships)
@@ -328,7 +328,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         foreign_keys="ContractLink.parent_contract_id",
         back_populates="parent_contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
     # Links where this contract is the child (e.g., SOW under an MSA)
     parent_links: Mapped[list["ContractLink"]] = relationship(
@@ -336,7 +336,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         foreign_keys="ContractLink.child_contract_id",
         back_populates="child_contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Extracted definitions
@@ -344,7 +344,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         "ContractDefinition",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Process steps from procedural clauses
@@ -352,7 +352,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         "ContractProcessStep",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Preamble/Header data (one-to-one)
@@ -361,7 +361,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         back_populates="contract",
         cascade="all, delete-orphan",
         uselist=False,
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Exhibits/Schedules
@@ -369,7 +369,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         "ContractExhibit",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # SLAs
@@ -377,7 +377,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         "ContractSLA",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # SLA Alerts
@@ -385,7 +385,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         "SLAAlert",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Compliance Gaps (Industry-Aware Compliance Module)
@@ -394,7 +394,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         back_populates="contract",
         foreign_keys="ComplianceGap.contract_id",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Regulatory Obligations (Industry-Aware Compliance Module)
@@ -402,7 +402,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         "RegulatoryObligation",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Contract Documents (document package management)
@@ -410,7 +410,7 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         "ContractDocument",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # ===== END NEW RELATIONSHIPS =====
@@ -420,13 +420,13 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         "ContractShare",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
     comments: Mapped[list["ContractComment"]] = relationship(
         "ContractComment",
         back_populates="contract",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
 
     # Indexes for common queries

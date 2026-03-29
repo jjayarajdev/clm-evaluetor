@@ -698,3 +698,228 @@ curl -s http://localhost:8000/api/surveys/templates -H "Authorization: Bearer $T
 ```
 
 If all 10 return valid JSON with data, core platform is working.
+
+---
+
+## Flow 11: Governance Bridge Validation
+
+Verify that uploading a contract automatically creates Organization and BusinessRelationship records when a counterparty is detected.
+
+### 11.1 Upload Contract and Verify Org Auto-Creation
+```bash
+# Upload a contract with a known counterparty
+curl -s -X POST http://localhost:8000/api/contracts/upload \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -F "file=@backend/data/sample_contracts/MSA_CareerSource_Executed.pdf" | python3 -m json.tool
+
+# Expected: Contract object with status "processing"
+# Save: export CONTRACT_ID="<contract_id>"
+
+# Wait ~30 seconds for pipeline to complete, then check organizations
+curl -s http://localhost:8000/api/organizations \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -m json.tool
+
+# Expected: Organization matching the contract counterparty auto-created
+```
+
+### 11.2 Verify Relationship Auto-Creation
+```bash
+# Check that a BusinessRelationship was auto-created linking your org to the counterparty
+curl -s http://localhost:8000/api/relationships \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -m json.tool
+
+# Expected: Relationship between tenant org and counterparty org exists
+# The contract should have business_relationship_id populated
+
+curl -s http://localhost:8000/api/contracts/$CONTRACT_ID \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -m json.tool
+
+# Expected: business_relationship_id is set on the contract
+```
+
+---
+
+## Flow 12: Auto-Link Detection Validation
+
+Upload an MSA followed by an addendum/SOW and verify the platform auto-detects the link between them.
+
+### 12.1 Upload MSA (Parent Contract)
+```bash
+# Upload the MSA
+curl -s -X POST http://localhost:8000/api/contracts/upload \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -F "file=@backend/data/test-scenarios/Acme_TechVendor_MSA_2025.docx" | python3 -m json.tool
+
+# Save: export MSA_ID="<contract_id>"
+# Wait ~30 seconds for AI pipeline to complete
+```
+
+### 12.2 Upload Addendum (Child Contract)
+```bash
+# Upload an addendum or SOW referencing the MSA
+curl -s -X POST http://localhost:8000/api/contracts/upload \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -F "file=@backend/data/test-scenarios/CloudSoft_Acme_License_2025.docx" | python3 -m json.tool
+
+# Save: export CHILD_ID="<contract_id>"
+# Wait ~30 seconds for AI pipeline to complete
+```
+
+### 12.3 Verify Auto-Link Suggestions
+```bash
+# Check suggested links on the child contract
+curl -s http://localhost:8000/api/contracts/$CHILD_ID/suggested-links \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -m json.tool
+
+# Expected: At least one suggested link with confidence score
+# Should reference MSA_ID as the parent
+
+# Also check established links
+curl -s http://localhost:8000/api/contracts/$CHILD_ID/links \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -m json.tool
+```
+
+---
+
+## Flow 13: External Portal Validation
+
+Share a contract with an external user and verify they can access it via the external portal.
+
+### 13.1 Create External Access Share
+```bash
+# Share a contract externally
+curl -s -X POST http://localhost:8000/api/external-access \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contract_id": "'$CONTRACT_ID'",
+    "external_email": "external@partner.com",
+    "external_name": "External Reviewer",
+    "access_level": "view",
+    "expires_at": "2026-12-31T23:59:59Z"
+  }' | python3 -m json.tool
+
+# Expected: External access record with token
+# Save: export SHARE_TOKEN="<token>"
+```
+
+### 13.2 Access External Portal (No Auth Required)
+```bash
+# Access the shared contract via external portal
+curl -s http://localhost:8000/api/external-access/view/$SHARE_TOKEN | python3 -m json.tool
+
+# Expected: Contract metadata and content accessible without authentication
+```
+
+### 13.3 List External Shares for a Contract
+```bash
+curl -s http://localhost:8000/api/external-access?contract_id=$CONTRACT_ID \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -m json.tool
+
+# Expected: List of active shares for the contract
+```
+
+---
+
+## Flow 14: Business Units Validation
+
+Create and manage business unit hierarchy within a tenant.
+
+### 14.1 Create Business Units
+```bash
+# Create a parent business unit
+curl -s -X POST http://localhost:8000/api/business-units \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Technology Division",
+    "code": "TECH",
+    "description": "Technology and Engineering"
+  }' | python3 -m json.tool
+
+# Save: export PARENT_BU_ID="<business_unit_id>"
+
+# Create a child business unit
+curl -s -X POST http://localhost:8000/api/business-units \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Cloud Engineering",
+    "code": "CLOUD",
+    "description": "Cloud Infrastructure Team",
+    "parent_id": "'$PARENT_BU_ID'"
+  }' | python3 -m json.tool
+```
+
+### 14.2 List Business Units
+```bash
+curl -s http://localhost:8000/api/business-units \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -m json.tool
+
+# Expected: Hierarchical list of business units with parent-child relationships
+```
+
+### 14.3 Assign Contract to Business Unit
+```bash
+curl -s -X PUT http://localhost:8000/api/contracts/$CONTRACT_ID \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"business_unit_id": "'$PARENT_BU_ID'"}' | python3 -m json.tool
+
+# Expected: Contract updated with business_unit_id
+```
+
+---
+
+## Flow 15: Notification Rules Validation
+
+Create and verify notification rules for contract events.
+
+### 15.1 Create a Notification Rule
+```bash
+curl -s -X POST http://localhost:8000/api/notification-rules \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Renewal Approaching Alert",
+    "event_type": "renewal_approaching",
+    "channel": "email",
+    "recipients": ["admin@acme.com"],
+    "conditions": {"days_before": 30},
+    "is_active": true
+  }' | python3 -m json.tool
+
+# Expected: Notification rule object created
+# Save: export RULE_ID="<rule_id>"
+```
+
+### 15.2 List Notification Rules
+```bash
+curl -s http://localhost:8000/api/notification-rules \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -m json.tool
+
+# Expected: Array of notification rules for the tenant
+```
+
+### 15.3 Update Notification Rule
+```bash
+curl -s -X PUT http://localhost:8000/api/notification-rules/$RULE_ID \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"is_active": false}' | python3 -m json.tool
+
+# Expected: Rule updated with is_active=false
+```
+
+---
+
+## Platform Statistics
+
+| Metric | Count |
+|--------|-------|
+| **API Routers** | 44 |
+| **API Endpoints** | ~405 |
+| **SQLAlchemy Models** | 53 |
+| **Database Tables** | ~77 |
+| **AI Agents** | 9 |
+| **Services** | 38 |

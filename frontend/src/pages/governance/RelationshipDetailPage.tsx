@@ -272,7 +272,10 @@ export default function RelationshipDetailPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {kpis.map((kpi) => {
-                    const gap = kpi.latest_gap
+                    const internalScore = kpi.latest_internal_score != null ? Number(kpi.latest_internal_score) : null
+                    const externalScore = kpi.latest_external_score != null ? Number(kpi.latest_external_score) : null
+                    const gapValue = kpi.latest_gap != null ? Number(kpi.latest_gap) : null
+                    const gapSeverity = (kpi as any).latest_gap_severity as GapSeverity | null
                     return (
                       <tr key={kpi.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
@@ -284,31 +287,31 @@ export default function RelationshipDetailPage() {
                         <td className="px-4 py-3 text-xs text-gray-500 capitalize">{kpi.category.replace(/_/g, ' ')}</td>
                         <td className="px-4 py-3 text-center bg-blue-50/30">
                           <span className="text-sm font-semibold text-blue-700">
-                            {kpi.latest_internal_score != null ? kpi.latest_internal_score.toFixed(1) : '—'}
+                            {internalScore != null ? internalScore.toFixed(1) : '—'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center bg-purple-50/30">
                           <span className="text-sm font-semibold text-purple-700">
-                            {kpi.latest_external_score != null ? kpi.latest_external_score.toFixed(1) : '—'}
+                            {externalScore != null ? externalScore.toFixed(1) : '—'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {gap ? (
+                          {gapValue != null ? (
                             <span className={cn(
                               'text-sm font-bold',
-                              gap.gap_value > 0 ? 'text-red-600' : gap.gap_value < 0 ? 'text-blue-600' : 'text-green-600'
+                              gapValue > 0 ? 'text-red-600' : gapValue < 0 ? 'text-blue-600' : 'text-green-600'
                             )}>
-                              {gap.gap_value > 0 ? '+' : ''}{gap.gap_value.toFixed(1)}
+                              {gapValue > 0 ? '+' : ''}{gapValue.toFixed(1)}
                             </span>
                           ) : '—'}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {gap ? (
+                          {gapSeverity ? (
                             <span className={cn(
                               'px-2 py-0.5 rounded text-xs font-medium border',
-                              GAP_COLORS[gap.severity]
+                              GAP_COLORS[gapSeverity]
                             )}>
-                              {gap.severity}
+                              {gapSeverity}
                             </span>
                           ) : '—'}
                         </td>
@@ -342,7 +345,11 @@ export default function RelationshipDetailPage() {
                 <h3 className="text-sm font-medium text-gray-900">Perception Gap Comparison</h3>
               </div>
               <div className="card-body space-y-3">
-                {kpis.filter(k => k.latest_internal_score != null || k.latest_external_score != null).map((kpi) => (
+                {kpis.filter(k => k.latest_internal_score != null || k.latest_external_score != null).map((kpi) => {
+                  const intScore = Number(kpi.latest_internal_score) || 0
+                  const extScore = Number(kpi.latest_external_score) || 0
+                  const severity = (kpi as any).latest_gap_severity as GapSeverity | null
+                  return (
                   <div key={kpi.id} className="flex items-center gap-3">
                     <span className="text-xs text-gray-600 w-32 truncate">{kpi.name}</span>
                     <div className="flex-1 flex items-center gap-1">
@@ -350,33 +357,34 @@ export default function RelationshipDetailPage() {
                       <div className="flex-1 bg-gray-100 rounded-full h-4 relative">
                         <div
                           className="bg-blue-500 h-4 rounded-full"
-                          style={{ width: `${((kpi.latest_internal_score || 0) / 10) * 100}%` }}
+                          style={{ width: `${(intScore / 10) * 100}%` }}
                         />
                         <span className="absolute right-2 top-0 text-[10px] font-bold text-blue-800 leading-4">
-                          INT {kpi.latest_internal_score?.toFixed(1) || '—'}
+                          INT {intScore ? intScore.toFixed(1) : '—'}
                         </span>
                       </div>
                       {/* External bar */}
                       <div className="flex-1 bg-gray-100 rounded-full h-4 relative">
                         <div
                           className="bg-purple-500 h-4 rounded-full"
-                          style={{ width: `${((kpi.latest_external_score || 0) / 10) * 100}%` }}
+                          style={{ width: `${(extScore / 10) * 100}%` }}
                         />
                         <span className="absolute right-2 top-0 text-[10px] font-bold text-purple-800 leading-4">
-                          EXT {kpi.latest_external_score?.toFixed(1) || '—'}
+                          EXT {extScore ? extScore.toFixed(1) : '—'}
                         </span>
                       </div>
                     </div>
-                    {kpi.latest_gap && (
+                    {severity && (
                       <span className={cn(
                         'px-1.5 py-0.5 rounded text-[10px] font-medium border w-20 text-center',
-                        GAP_COLORS[kpi.latest_gap.severity]
+                        GAP_COLORS[severity]
                       )}>
-                        {kpi.latest_gap.severity}
+                        {severity}
                       </span>
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
@@ -399,12 +407,15 @@ export default function RelationshipDetailPage() {
                   <div key={member.id} className="px-4 py-3 flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {member.user?.full_name || member.user?.username || 'Unknown'}
+                        {(member as any).user_name || member.user?.full_name || member.user?.username || 'Unknown'}
                       </p>
                       <p className="text-xs text-gray-500 capitalize">{member.role.replace(/_/g, ' ')}</p>
+                      {(member as any).responsibilities && Array.isArray((member as any).responsibilities) && (
+                        <p className="text-xs text-gray-400 mt-0.5">{(member as any).responsibilities.join(' · ')}</p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
-                      {member.is_primary_contact && (
+                      {(member.is_primary_contact || (member as any).is_primary) && (
                         <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded">Primary</span>
                       )}
                       {member.receives_alerts && (

@@ -982,8 +982,12 @@ async def process_single_contract(
     )
 
 
-def contract_to_response(contract) -> ContractResponse:
+def contract_to_response(contract, clause_count=None, obligation_count=None, sla_count=None) -> ContractResponse:
     """Convert Contract model to ContractResponse schema."""
+    # Use explicit counts if provided, otherwise try loaded relationships
+    _clause_count = clause_count if clause_count is not None else (len(contract.clauses) if contract.clauses else 0)
+    _obligation_count = obligation_count if obligation_count is not None else (len(contract.obligations) if contract.obligations else 0)
+    _sla_count = sla_count if sla_count is not None else (len(contract.slas) if contract.slas else 0)
     return ContractResponse(
         id=str(contract.id),
         filename=contract.filename,
@@ -1009,9 +1013,9 @@ def contract_to_response(contract) -> ContractResponse:
         custom_fields=contract.custom_fields or {},
         business_relationship_id=str(contract.business_relationship_id) if contract.business_relationship_id else None,
         uploaded_by=str(contract.uploaded_by),
-        clause_count=len(contract.clauses) if contract.clauses else 0,
-        obligation_count=len(contract.obligations) if contract.obligations else 0,
-        sla_count=len(contract.slas) if contract.slas else 0,
+        clause_count=_clause_count,
+        obligation_count=_obligation_count,
+        sla_count=_sla_count,
         created_at=contract.created_at,
         updated_at=contract.updated_at,
     )
@@ -1956,38 +1960,22 @@ async def update_contract_metadata(
     await db.commit()
     await db.refresh(contract)
 
-    # Return response
-    return ContractResponse(
-        id=str(contract.id),
-        filename=contract.filename,
-        file_path=contract.file_path,
-        file_size=contract.file_size,
-        mime_type=contract.mime_type,
-        contract_type=contract.contract_type.value if contract.contract_type else None,
-        counterparty=contract.counterparty,
-        effective_date=contract.effective_date,
-        expiration_date=contract.expiration_date,
-        contract_value=contract.contract_value,
-        currency=contract.currency,
-        jurisdiction=contract.jurisdiction,
-        risk_score=contract.risk_score,
-        risk_level=contract.risk_level.value if contract.risk_level else None,
-        auto_renewal=contract.auto_renewal,
-        notice_period_days=contract.notice_period_days,
-        renewal_term_months=contract.renewal_term_months,
-        status=contract.status.value,
-        processing_error=contract.processing_error,
-        schema_id=str(contract.schema_id) if contract.schema_id else None,
-        schema_data=contract.schema_data,
-        custom_fields=contract.custom_fields or {},
-        business_relationship_id=str(contract.business_relationship_id) if contract.business_relationship_id else None,
-        uploaded_by=str(contract.uploaded_by),
-        clause_count=len(contract.clauses) if contract.clauses else 0,
-        obligation_count=len(contract.obligations) if contract.obligations else 0,
-        sla_count=len(contract.slas) if contract.slas else 0,
-        created_at=contract.created_at,
-        updated_at=contract.updated_at,
+    # Get counts via subqueries to avoid lazy-loading
+    from app.models.clause import Clause
+    from app.models.obligation import Obligation
+    from app.models.sla import ContractSLA
+    from sqlalchemy import func
+
+    counts = await db.execute(
+        select(
+            func.count(Clause.id).filter(Clause.contract_id == contract.id),
+            func.count(Obligation.id).filter(Obligation.contract_id == contract.id),
+            func.count(ContractSLA.id).filter(ContractSLA.contract_id == contract.id),
+        )
     )
+    clause_ct, obligation_ct, sla_ct = counts.one()
+
+    return contract_to_response(contract, clause_count=clause_ct, obligation_count=obligation_ct, sla_count=sla_ct)
 
 
 @router.put("/{contract_id}/custom-fields", response_model=ContractResponse)
