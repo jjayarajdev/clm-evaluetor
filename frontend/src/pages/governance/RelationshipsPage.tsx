@@ -6,40 +6,222 @@ import {
   PlusIcon,
   HeartIcon,
   XMarkIcon,
+  DocumentTextIcon,
+  ChartBarIcon,
+  ShieldCheckIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn } from '@/lib/utils'
 import type {
+  BusinessRelationship,
   RelationshipCreate,
   RelationshipStatus,
   GovernanceTier,
-  Organization,
+  HealthScoreFactor,
 } from '@/types/governance'
 
 const STATUS_COLORS: Record<RelationshipStatus, string> = {
-  prospecting: 'bg-gray-100 text-gray-800',
-  active: 'bg-green-100 text-green-800',
-  at_risk: 'bg-red-100 text-red-800',
-  on_hold: 'bg-yellow-100 text-yellow-800',
-  terminated: 'bg-gray-200 text-gray-600',
+  prospecting: 'bg-gray-100 text-gray-700',
+  active: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  at_risk: 'bg-red-50 text-red-700 border border-red-200',
+  on_hold: 'bg-amber-50 text-amber-700 border border-amber-200',
+  terminated: 'bg-gray-100 text-gray-500 border border-gray-200',
 }
 
-const TIER_LABELS: Record<GovernanceTier, string> = {
-  operational: 'Operational',
-  tactical: 'Tactical',
-  strategic: 'Strategic',
-  executive: 'Executive',
+const TIER_COLORS: Record<GovernanceTier, string> = {
+  operational: 'text-gray-600',
+  tactical: 'text-blue-600',
+  strategic: 'text-violet-600',
+  executive: 'text-amber-600',
 }
 
-function HealthBadge({ score }: { score: number }) {
-  const color = score >= 70 ? 'text-green-600 bg-green-50' :
-    score >= 40 ? 'text-amber-600 bg-amber-50' :
-    'text-red-600 bg-red-50'
+const TYPE_ICONS: Record<string, string> = {
+  customer: 'text-blue-500',
+  supplier: 'text-emerald-500',
+  partner: 'text-violet-500',
+  joint_venture: 'text-amber-500',
+  reseller: 'text-cyan-500',
+  distributor: 'text-orange-500',
+}
+
+function HealthRing({ score, size = 48 }: { score: number; size?: number }) {
+  const radius = (size - 6) / 2
+  const circumference = 2 * Math.PI * radius
+  const progress = (score / 100) * circumference
+  const color = score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444'
+
   return (
-    <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-lg', color)}>
-      <HeartIcon className="h-4 w-4" />
-      <span className="text-sm font-semibold">{score}</span>
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke="#f3f4f6" strokeWidth={4}
+        />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke={color} strokeWidth={4}
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference - progress}
+          strokeLinecap="round"
+          className="transition-all duration-700"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-sm font-bold" style={{ color }}>{score}</span>
+      </div>
+    </div>
+  )
+}
+
+function ScoreBar({ label, score, weight, detail, color }: {
+  label: string; score: number; weight: number; detail: string; color: string
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">{label}</span>
+          <span className="text-xs text-gray-400">{weight}%</span>
+        </div>
+        <span className="text-sm font-semibold" style={{ color }}>{score}</span>
+      </div>
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${score}%`, backgroundColor: color }}
+        />
+      </div>
+      <p className="text-xs text-gray-400">{detail}</p>
+    </div>
+  )
+}
+
+function HealthModal({ relationship, onClose }: {
+  relationship: BusinessRelationship; onClose: () => void
+}) {
+  const { data: health, isLoading } = useQuery({
+    queryKey: ['relationship-health', relationship.id],
+    queryFn: () => api.getRelationshipHealth(relationship.id),
+  })
+
+  const factors = health?.factors || {}
+  const counterparty = relationship.org_b?.name || relationship.name || ''
+  const score = relationship.health_score
+
+  const getColor = (s: number) => s >= 80 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444'
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-gray-100">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Health Score Breakdown</h2>
+              <p className="text-sm text-gray-500 mt-0.5">{counterparty}</p>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Score ring */}
+        <div className="flex items-center justify-center py-6">
+          <HealthRing score={score} size={96} />
+        </div>
+
+        {/* Factors */}
+        <div className="px-6 pb-6 space-y-5">
+          {isLoading ? (
+            <div className="flex justify-center py-8"><LoadingSpinner /></div>
+          ) : (
+            <>
+              {typeof factors.risk === 'object' && (
+                <ScoreBar
+                  label={(factors.risk as HealthScoreFactor).label}
+                  score={(factors.risk as HealthScoreFactor).score}
+                  weight={(factors.risk as HealthScoreFactor).weight}
+                  detail={(factors.risk as HealthScoreFactor).detail}
+                  color={getColor((factors.risk as HealthScoreFactor).score)}
+                />
+              )}
+              {typeof factors.sla === 'object' && (
+                <ScoreBar
+                  label={(factors.sla as HealthScoreFactor).label}
+                  score={(factors.sla as HealthScoreFactor).score}
+                  weight={(factors.sla as HealthScoreFactor).weight}
+                  detail={(factors.sla as HealthScoreFactor).detail}
+                  color={getColor((factors.sla as HealthScoreFactor).score)}
+                />
+              )}
+              {typeof factors.obligations === 'object' && (
+                <ScoreBar
+                  label={(factors.obligations as HealthScoreFactor).label}
+                  score={(factors.obligations as HealthScoreFactor).score}
+                  weight={(factors.obligations as HealthScoreFactor).weight}
+                  detail={(factors.obligations as HealthScoreFactor).detail}
+                  color={getColor((factors.obligations as HealthScoreFactor).score)}
+                />
+              )}
+              {typeof factors.perception === 'object' && (
+                <div className="pt-3 border-t border-gray-100">
+                  <ScoreBar
+                    label={(factors.perception as HealthScoreFactor).label}
+                    score={(factors.perception as HealthScoreFactor).score}
+                    weight={0}
+                    detail={(factors.perception as HealthScoreFactor).detail}
+                    color={getColor((factors.perception as HealthScoreFactor).score)}
+                  />
+                  <p className="text-xs text-gray-400 mt-1 italic">Informational — not included in health score</p>
+                </div>
+              )}
+
+              {/* No data state */}
+              {!factors.risk && !factors.sla && !factors.obligations && (
+                <div className="text-center py-4">
+                  <InformationCircleIcon className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-500">
+                    No contract data available yet.
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Health score is estimated from perception gap analysis.
+                  </p>
+                </div>
+              )}
+
+              {/* Summary stats */}
+              <div className="flex gap-4 pt-3 border-t border-gray-100">
+                <div className="flex-1 text-center">
+                  <p className="text-xl font-bold text-gray-900">{typeof factors.contract_count === 'number' ? factors.contract_count : relationship.contract_count || 0}</p>
+                  <p className="text-xs text-gray-500">Contracts</p>
+                </div>
+                <div className="flex-1 text-center">
+                  <p className="text-xl font-bold text-gray-900">{typeof factors.kpi_count === 'number' ? factors.kpi_count : relationship.kpi_count || 0}</p>
+                  <p className="text-xs text-gray-500">KPIs</p>
+                </div>
+                <div className="flex-1 text-center">
+                  <p className="text-xl font-bold text-gray-900">{relationship.governance_tier ? relationship.governance_tier.charAt(0).toUpperCase() + relationship.governance_tier.slice(1) : '—'}</p>
+                  <p className="text-xs text-gray-500">Tier</p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-gray-50 rounded-b-2xl border-t border-gray-100">
+          <Link
+            to={`/relationships/${relationship.id}`}
+            className="btn-primary w-full text-center block"
+          >
+            View Full Details
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }
@@ -47,6 +229,8 @@ function HealthBadge({ score }: { score: number }) {
 export default function RelationshipsPage() {
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
+  const [selectedRelationship, setSelectedRelationship] = useState<BusinessRelationship | null>(null)
+  const [filterType, setFilterType] = useState<string>('')
   const [formData, setFormData] = useState<Partial<RelationshipCreate>>({
     relationship_type: 'customer',
     governance_tier: 'tactical',
@@ -76,14 +260,6 @@ export default function RelationshipsPage() {
     createMutation.mutate(formData as RelationshipCreate)
   }
 
-  const getOrgName = (orgId: string, orgs?: Organization[]) => {
-    if (orgs) {
-      const org = orgs.find(o => o.id === orgId)
-      return org?.name || orgId
-    }
-    return orgId
-  }
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -92,13 +268,36 @@ export default function RelationshipsPage() {
     )
   }
 
+  // Summary stats
+  const totalRelationships = relationships.length
+  const avgHealth = totalRelationships > 0
+    ? Math.round(relationships.reduce((sum, r) => sum + (r.health_score || 0), 0) / totalRelationships)
+    : 0
+  const atRiskCount = relationships.filter(r => r.health_score < 70).length
+  const healthyCount = relationships.filter(r => r.health_score >= 80).length
+
+  // Type counts
+  const typeCounts = relationships.reduce((acc, r) => {
+    acc[r.relationship_type] = (acc[r.relationship_type] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  // Filter
+  const filtered = filterType
+    ? relationships.filter(r => r.relationship_type === filterType)
+    : relationships
+
+  // Sort by health score (worst first for attention)
+  const sorted = [...filtered].sort((a, b) => a.health_score - b.health_score)
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Business Relationships</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Track and manage relationships with counterparties
+            Governance health across your partner ecosystem
           </p>
         </div>
         <button
@@ -110,61 +309,165 @@ export default function RelationshipsPage() {
         </button>
       </div>
 
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <LinkIcon className="h-4 w-4 text-violet-500" />
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{totalRelationships}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <HeartIcon className="h-4 w-4 text-emerald-500" />
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Avg Health</span>
+          </div>
+          <p className="text-2xl font-bold" style={{ color: avgHealth >= 80 ? '#10b981' : avgHealth >= 60 ? '#f59e0b' : '#ef4444' }}>{avgHealth}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldCheckIcon className="h-4 w-4 text-emerald-500" />
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Healthy</span>
+          </div>
+          <p className="text-2xl font-bold text-emerald-600">{healthyCount}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <ExclamationTriangleIcon className="h-4 w-4 text-red-500" />
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Needs Attention</span>
+          </div>
+          <p className="text-2xl font-bold text-red-600">{atRiskCount}</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setFilterType('')}
+          className={cn(
+            'px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
+            !filterType ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          )}
+        >
+          All ({totalRelationships})
+        </button>
+        {Object.entries(typeCounts).map(([type, count]) => (
+          <button
+            key={type}
+            onClick={() => setFilterType(filterType === type ? '' : type)}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-xs font-medium transition-colors capitalize',
+              filterType === type ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            )}
+          >
+            {type.replace('_', ' ')} ({count})
+          </button>
+        ))}
+      </div>
+
       {/* Relationship Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {relationships.map((rel) => (
-          <Link
-            key={rel.id}
-            to={`/relationships/${rel.id}`}
-            className="card hover:shadow-md transition-shadow"
-          >
-            <div className="card-body">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <LinkIcon className="h-5 w-5 text-violet-500" />
-                  <span className={cn(
-                    'px-2 py-0.5 rounded text-xs font-medium',
-                    STATUS_COLORS[rel.status] || 'bg-gray-100 text-gray-800'
-                  )}>
-                    {rel.status}
+        {sorted.map((rel) => {
+          const counterparty = rel.org_b?.name || rel.name || ''
+
+          return (
+            <div
+              key={rel.id}
+              className={cn(
+                'bg-white rounded-xl border transition-all hover:shadow-lg group cursor-pointer',
+                rel.health_score < 70 ? 'border-red-200' : 'border-gray-200 hover:border-violet-300'
+              )}
+            >
+              {/* Card top — clickable to detail page */}
+              <Link to={`/relationships/${rel.id}`} className="block p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      'px-2 py-0.5 rounded-full text-xs font-medium',
+                      STATUS_COLORS[rel.status] || 'bg-gray-100 text-gray-700'
+                    )}>
+                      {rel.status}
+                    </span>
+                    <span className={cn('text-xs font-medium capitalize', TYPE_ICONS[rel.relationship_type] || 'text-gray-500')}>
+                      {rel.relationship_type.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <span className={cn('text-xs', TIER_COLORS[rel.governance_tier] || 'text-gray-400')}>
+                    {rel.governance_tier ? rel.governance_tier.charAt(0).toUpperCase() + rel.governance_tier.slice(1) : ''}
                   </span>
                 </div>
-                <HealthBadge score={rel.health_score} />
-              </div>
 
-              <div className="mb-3">
-                <p className="text-sm font-semibold text-gray-900">
-                  {rel.org_a?.name || getOrgName(rel.org_a_id, organizations)}
-                </p>
-                <p className="text-xs text-gray-400 my-1">
-                  ↕ {rel.relationship_type}
-                </p>
-                <p className="text-sm font-semibold text-gray-900">
-                  {rel.org_b?.name || getOrgName(rel.org_b_id, organizations)}
-                </p>
-              </div>
+                {/* Counterparty name — the star */}
+                <h3 className="text-base font-bold text-gray-900 group-hover:text-violet-700 transition-colors">
+                  {counterparty}
+                </h3>
 
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span className="px-2 py-0.5 bg-gray-50 rounded">
-                  {TIER_LABELS[rel.governance_tier] || rel.governance_tier}
-                </span>
-                {rel.annual_value && (
-                  <span className="font-medium">
-                    {rel.currency || '$'}{Number(rel.annual_value).toLocaleString()}/yr
-                  </span>
+                {/* Meta row */}
+                <div className="flex items-center gap-3 mt-3 text-xs text-gray-400">
+                  {(rel.contract_count ?? 0) > 0 && (
+                    <span className="flex items-center gap-1">
+                      <DocumentTextIcon className="h-3.5 w-3.5" />
+                      {rel.contract_count} contracts
+                    </span>
+                  )}
+                  {(rel.kpi_count ?? 0) > 0 && (
+                    <span className="flex items-center gap-1">
+                      <ChartBarIcon className="h-3.5 w-3.5" />
+                      {rel.kpi_count} KPIs
+                    </span>
+                  )}
+                  {rel.annual_value && (
+                    <span className="font-medium text-gray-600">
+                      {rel.currency || '$'}{Number(rel.annual_value).toLocaleString()}/yr
+                    </span>
+                  )}
+                </div>
+              </Link>
+
+              {/* Health score footer — clickable for modal */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  setSelectedRelationship(rel)
+                }}
+                className={cn(
+                  'w-full flex items-center justify-between px-5 py-3 border-t transition-colors',
+                  rel.health_score < 70
+                    ? 'border-red-100 bg-red-50/50 hover:bg-red-50'
+                    : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100'
                 )}
-              </div>
+                title="Click for score breakdown"
+              >
+                <div className="flex items-center gap-2">
+                  <HealthRing score={rel.health_score} size={32} />
+                  <span className="text-xs text-gray-500">Health Score</span>
+                </div>
+                <span className="text-xs text-violet-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  View Breakdown →
+                </span>
+              </button>
             </div>
-          </Link>
-        ))}
+          )
+        })}
 
-        {relationships.length === 0 && (
+        {sorted.length === 0 && (
           <div className="col-span-full text-center py-12 text-gray-500">
             <LinkIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-            <p className="text-sm">No relationships yet. Create your first one.</p>
+            <p className="text-sm">
+              {filterType ? 'No relationships match this filter.' : 'No relationships yet. Create your first one.'}
+            </p>
           </div>
         )}
       </div>
+
+      {/* Health Score Modal */}
+      {selectedRelationship && (
+        <HealthModal
+          relationship={selectedRelationship}
+          onClose={() => setSelectedRelationship(null)}
+        />
+      )}
 
       {/* Create Modal */}
       {showCreate && (

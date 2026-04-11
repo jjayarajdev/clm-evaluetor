@@ -401,7 +401,7 @@ export default function QueryPage() {
     queryFn: () => api.getContracts({ page: 1, page_size: 100 }),
   })
 
-  const selectedContractName = contractsData?.contracts.find(c => c.id === selectedContract)?.filename
+  const selectedContractName = contractsData?.items.find(c => c.id === selectedContract)?.filename
 
   // Auto-scroll
   useEffect(() => {
@@ -723,7 +723,7 @@ export default function QueryPage() {
                 </button>
               </form>
 
-              {!hasMessages && !selectedContract && contractsData && contractsData.contracts.length > 0 && (
+              {!hasMessages && !selectedContract && contractsData && contractsData.items.length > 0 && (
                 <div className="mt-2 flex items-center justify-center">
                   <select
                     value={selectedContract || ''}
@@ -731,7 +731,7 @@ export default function QueryPage() {
                     className="text-xs text-gray-400 bg-transparent border-none focus:ring-0 cursor-pointer hover:text-gray-600 transition-colors py-1 text-center appearance-none"
                   >
                     <option value="">Searching all contracts</option>
-                    {contractsData.contracts.map((c) => (
+                    {contractsData.items.map((c) => (
                       <option key={c.id} value={c.id}>
                         Scoped to: {c.filename}
                       </option>

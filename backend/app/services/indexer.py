@@ -91,6 +91,13 @@ class IndexingService:
             # Update contract with parsed metadata
             await self._update_contract_metadata(contract, parsed)
 
+            # Store extracted text immediately so it's available for
+            # AI reference extraction, auto-link detection, and re-analysis
+            # without re-parsing the document or wasting tokens.
+            if parsed.full_text:
+                contract.extracted_text = parsed.full_text
+                await self.db.flush()
+
             # Chunk document
             tracker.update_progress(contract_id, ProcessingStage.CHUNKING, "Splitting document into sections")
             logger.info(f"Chunking contract {contract.id}")
@@ -204,35 +211,63 @@ class IndexingService:
                 "Deferred to deep analysis",
             )
 
+            # Extract contract references (parent/child relationships) using AI
+            try:
+                from app.agents.contract_reference_extraction import (
+                    extract_contract_references,
+                    store_contract_references,
+                )
+                ref_result = await extract_contract_references(
+                    contract_text=full_text,
+                    filename=contract.filename,
+                    contract_id=str(contract.id),
+                    user_id=user_id,
+                )
+                await store_contract_references(self.db, contract, ref_result)
+                if ref_result.parent_references or ref_result.child_references:
+                    logger.info(
+                        f"Extracted references for {contract.id}: "
+                        f"{len(ref_result.parent_references)} parent, "
+                        f"{len(ref_result.child_references)} child"
+                    )
+            except Exception as e:
+                logger.warning(f"Contract reference extraction failed for {contract.id}: {e}")
+
             # Mark as completed
             contract.status = ContractStatus.COMPLETED
             await self.db.flush()
 
-            # Run auto-link detection to suggest related contracts
+            # Run hierarchy detection to suggest related contracts
             try:
-                from app.services.auto_link_detector import AutoLinkDetector
-                detector = AutoLinkDetector(
-                    db=self.db,
-                    tenant_id=contract.tenant_id,
-                )
-                suggestions = await detector.detect_links(
-                    contract=contract,
-                    min_confidence=0.2,
-                    max_suggestions=5,
-                )
-                if suggestions:
-                    for suggestion in suggestions:
-                        self.db.add(suggestion)
-                    await self.db.flush()
-                    logger.info(f"Created {len(suggestions)} link suggestions for {contract.id}")
-            except Exception as e:
-                logger.warning(f"Auto-link detection failed for {contract.id}: {e}")
+                from app.services.hierarchy_detection import detect_hierarchy
 
-            # Update progress to completed
+                # Gather tenant's completed contracts for pairwise analysis
+                tenant_contracts = await self.db.execute(
+                    select(Contract.id).where(
+                        Contract.tenant_id == contract.tenant_id,
+                        Contract.status == ContractStatus.COMPLETED,
+                    ).order_by(Contract.created_at.desc()).limit(50)
+                )
+                contract_ids_for_hierarchy = list(tenant_contracts.scalars().all())
+
+                if len(contract_ids_for_hierarchy) >= 2:
+                    num_suggestions = await detect_hierarchy(
+                        db=self.db,
+                        contract_ids=contract_ids_for_hierarchy,
+                        tenant_id=contract.tenant_id,
+                        batch_id=f"indexer_{contract.id}",
+                    )
+                    if num_suggestions:
+                        await self.db.flush()
+                        logger.info(f"Hierarchy detection created {num_suggestions} suggestions for {contract.id}")
+            except Exception as e:
+                logger.warning(f"Hierarchy detection failed for {contract.id}: {e}")
+
+            # Update progress — indexer phase done, deep analysis will continue
             tracker.update_progress(
-                contract_id, ProcessingStage.COMPLETED,
-                "Processing complete",
-                details={"status": "completed"}
+                contract_id, ProcessingStage.KNOWLEDGE_GRAPH,
+                "Indexing complete — starting deep analysis",
+                details={"indexer_complete": True}
             )
 
             logger.info(f"Successfully indexed contract {contract.id}")

@@ -157,6 +157,31 @@ export default function LoginPage() {
                   <td className="py-1 font-mono">admin123</td>
                 </tr>
                 <tr>
+                  <td className="py-1">DemoSup</td>
+                  <td className="py-1 font-mono">demosup_admin</td>
+                  <td className="py-1 font-mono">admin123</td>
+                </tr>
+                <tr>
+                  <td className="py-1">DemoSup</td>
+                  <td className="py-1 font-mono">StevenLegal</td>
+                  <td className="py-1 font-mono">legal123</td>
+                </tr>
+                <tr>
+                  <td className="py-1">DemoSup</td>
+                  <td className="py-1 font-mono">Aparna</td>
+                  <td className="py-1 font-mono">admin123</td>
+                </tr>
+                <tr>
+                  <td className="py-1">Vialto Partners</td>
+                  <td className="py-1 font-mono">gt_admin</td>
+                  <td className="py-1 font-mono">admin123</td>
+                </tr>
+                <tr>
+                  <td className="py-1">Vialto Partners</td>
+                  <td className="py-1 font-mono">gt_legal</td>
+                  <td className="py-1 font-mono">legal123</td>
+                </tr>
+                <tr>
                   <td className="py-1 text-blue-600">(Super Admin)</td>
                   <td className="py-1 font-mono">superadmin</td>
                   <td className="py-1 font-mono">admin123</td>

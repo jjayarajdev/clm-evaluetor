@@ -184,7 +184,25 @@
       "Read(//Users/jjayaraj/workspaces/studios/clm/backend/**)",
       "Bash(for file in admin_settings.py alerts.py amendments.py audit.py clients.py connectors.py custom_fields.py external_portal.py knowledge_graph.py master_data_admin.py metrics.py milestones.py monitor.py notifications.py postsigning.py reports.py scheduler_admin.py schemas.py suggested_links.py vendors.py chat.py)",
       "Bash(./scripts/validate-platform.sh:*)",
-      "Bash(echo === Legal Dashboard ===:*)"
+      "Bash(echo === Legal Dashboard ===:*)",
+      "Bash(do python:*)",
+      "Bash(chroma run:*)",
+      "Bash(uv run:*)",
+      "Bash(kill 23404:*)",
+      "Bash(PGPASSWORD=clm psql:*)",
+      "Bash(__NEW_LINE_b64e32da25614b8e__ scp:*)",
+      "WebFetch(domain:www.sec.gov)",
+      "Bash(weasyprint:*)",
+      "Bash(__NEW_LINE_e54fd380e3950992__ echo:*)",
+      "Bash(git:*)",
+      "Bash(/tmp/test_final_links.py:*)",
+      "Bash(npm ls:*)",
+      "Bash(grep \"\"react-pdf\"\":*)",
+      "Bash(/tmp/fix_all_orgs.sql:*)",
+      "Bash(for schema in audit business_unit external_user contract organization relationship improvement)",
+      "Bash(do echo \"=== $schema ===\")",
+      "Read(//Users/jjayaraj/workspaces/studios/clm/backend/app/schemas/**)",
+      "Bash(__NEW_LINE_b5960b995c67b40c__ echo:*)"
     ]
   }
 }

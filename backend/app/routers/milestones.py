@@ -9,6 +9,7 @@ from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentUser, CurrentTenantId
+from app.core.tenant import apply_tenant_filter
 from app.database import get_db
 from app.models import (
     Contract, ContractStatus, Obligation, ObligationStatus, RAGStatus,
@@ -26,13 +27,6 @@ from app.schemas.milestone import (
 )
 
 router = APIRouter(prefix="/api/milestones", tags=["milestones"])
-
-
-def apply_tenant_filter(query, tenant_id):
-    """Apply tenant filter to a Contract query if tenant_id is set."""
-    if tenant_id is not None:
-        return query.where(Contract.tenant_id == tenant_id)
-    return query
 
 
 def determine_time_bucket(due_date: date | None, today: date) -> str:
@@ -137,7 +131,7 @@ async def get_milestone_health(
     ).where(
         Contract.status == ContractStatus.COMPLETED
     ).order_by(Obligation.deadline)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Contract)
 
     result = await db.execute(query)
     rows = result.all()
@@ -218,7 +212,7 @@ async def get_at_risk_contracts(
     query = select(Contract).where(
         Contract.status == ContractStatus.COMPLETED
     )
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Contract)
     result = await db.execute(query)
     contracts = result.scalars().all()
 
@@ -358,7 +352,7 @@ async def get_portfolio_compliance(
     contract_query = select(func.count(Contract.id)).where(
         Contract.status == ContractStatus.COMPLETED
     )
-    contract_query = apply_tenant_filter(contract_query, tenant_id)
+    contract_query = apply_tenant_filter(contract_query, tenant_id, Contract)
     contract_result = await db.execute(contract_query)
     total_contracts = contract_result.scalar() or 0
 
@@ -369,7 +363,7 @@ async def get_portfolio_compliance(
     ).where(
         Contract.status == ContractStatus.COMPLETED
     )
-    obl_query = apply_tenant_filter(obl_query, tenant_id)
+    obl_query = apply_tenant_filter(obl_query, tenant_id, Contract)
     obl_result = await db.execute(obl_query)
     obligations = list(obl_result.scalars().all())
 

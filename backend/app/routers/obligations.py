@@ -4,7 +4,8 @@ import uuid as uuid_mod
 from datetime import date, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status
+from pydantic import BaseModel
 from sqlalchemy import func, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -64,6 +65,8 @@ def obligation_to_response(obl: Obligation) -> ObligationResponse:
         last_compliance_date=obl.last_compliance_date,
         next_compliance_due=obl.next_compliance_due,
         section_reference=obl.section_reference,
+        source_text=obl.source_text,
+        consequence_of_breach=obl.consequence_of_breach,
         created_at=obl.created_at,
         updated_at=obl.updated_at,
     )
@@ -199,6 +202,72 @@ async def update_obligation_owner(
 
     obligation.updated_at = datetime.now()
 
+    await db.commit()
+    await db.refresh(obligation)
+
+    return obligation_to_response(obligation)
+
+
+# --- General Obligation Update Schema ---
+
+class ObligationGeneralUpdate(BaseModel):
+    description: str | None = None
+    deadline: date | None = None
+    deadline_type: str | None = None
+    obligation_type: str | None = None
+    obligated_party: str | None = None
+    beneficiary_party: str | None = None
+    consequence_of_breach: str | None = None
+    source_text: str | None = None
+    section_reference: str | None = None
+    is_critical: bool | None = None
+    priority: int | None = None  # 1-5
+
+
+@router.patch("/{obligation_id}", response_model=ObligationResponse)
+async def update_obligation(
+    obligation_id: str,
+    update: ObligationGeneralUpdate,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ObligationResponse:
+    """General update for obligation fields."""
+    from app.models.obligation import ObligationType, DeadlineType
+
+    query = select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
+    query = apply_tenant_filter(query, tenant_id)
+    result = await db.execute(query)
+    obligation = result.scalar_one_or_none()
+
+    if not obligation:
+        raise HTTPException(status_code=404, detail="Obligation not found")
+
+    # Apply only non-None fields
+    if update.description is not None:
+        obligation.description = update.description
+    if update.deadline is not None:
+        obligation.deadline = update.deadline
+    if update.deadline_type is not None:
+        obligation.deadline_type = DeadlineType(update.deadline_type)
+    if update.obligation_type is not None:
+        obligation.obligation_type = ObligationType(update.obligation_type)
+    if update.obligated_party is not None:
+        obligation.obligated_party = update.obligated_party
+    if update.beneficiary_party is not None:
+        obligation.beneficiary_party = update.beneficiary_party
+    if update.consequence_of_breach is not None:
+        obligation.consequence_of_breach = update.consequence_of_breach
+    if update.source_text is not None:
+        obligation.source_text = update.source_text
+    if update.section_reference is not None:
+        obligation.section_reference = update.section_reference
+    if update.is_critical is not None:
+        obligation.is_critical = update.is_critical
+    if update.priority is not None:
+        obligation.priority = update.priority
+
+    obligation.updated_at = datetime.now()
     await db.commit()
     await db.refresh(obligation)
 
@@ -440,7 +509,7 @@ async def get_compliance_rates(
     )
 
 
-@router.get("/", response_model=list[ObligationResponse])
+@router.get("/")
 async def list_obligations(
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
@@ -451,10 +520,10 @@ async def list_obligations(
     owner_type: str | None = None,
     category: str | None = None,
     is_critical: bool | None = None,
-    limit: int = 50,
-    offset: int = 0,
-) -> list[ObligationResponse]:
-    """List obligations with optional filters."""
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(50, ge=1, le=200, description="Items per page"),
+):
+    """List obligations with optional filters and pagination."""
     query = select(Obligation)
     query = apply_tenant_filter(query, tenant_id)
 
@@ -476,12 +545,26 @@ async def list_obligations(
     if is_critical is not None:
         query = query.where(Obligation.is_critical == is_critical)
 
+    # Count total before pagination
+    from sqlalchemy import func as sa_func
+    count_query = select(sa_func.count()).select_from(query.subquery())
+    total = (await db.execute(count_query)).scalar() or 0
+
+    # Apply ordering and pagination
+    offset = (page - 1) * page_size
     query = query.order_by(
         Obligation.deadline.asc().nulls_last(),
         Obligation.priority.asc().nulls_last(),
-    ).offset(offset).limit(limit)
+    ).offset(offset).limit(page_size)
 
     result = await db.execute(query)
     obligations = result.scalars().all()
 
-    return [obligation_to_response(obl) for obl in obligations]
+    import math
+    return {
+        "items": [obligation_to_response(obl) for obl in obligations],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": math.ceil(total / page_size) if page_size > 0 else 0,
+    }

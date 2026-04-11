@@ -1,16 +1,18 @@
 # Contract Upload Pipeline - What Happens When You Upload a Contract
 
-> **Codebase Stats (March 2026):** 44 routers, 53 models, 38 services, 11 agent files, 25 scripts, ~405 API endpoints, 38 Alembic migrations, 37 frontend pages, 28 frontend components.
+> **Codebase Stats (March 2026):** 44 routers, 53 models, 40 services, 6 hierarchy detection modules, 11 agent files, 25 scripts, ~405 API endpoints, 38 Alembic migrations, 37 frontend pages, 28 frontend components.
 
 ## The Short Version
 
-When you upload a contract (MSA, SOW, NDA, Addendum, etc.), the platform:
+When you **create a tenant**, the platform auto-provisions an internal Organization so the governance bridge can link contracts to relationships immediately.
+
+When you **upload a contract** (MSA, SOW, NDA, Addendum, etc.), the platform:
 
 1. **Creates** a contract record and returns immediately (status: pending)
 2. **Parses** the document (PDF/DOCX to text, with OCR fallback for image-based PDFs)
 3. **Chunks & classifies** each section semantically via LLM (scope, payment, SLA, termination, etc.)
 4. **Embeds** chunks into ChromaDB for AI-powered search
-5. **Runs AI agents** to extract metadata, assess risks, detect links, extract clauses, obligations, SLAs, renewals, and compliance gaps
+5. **Runs AI agents** to extract metadata, assess risks, detect hierarchy and contract family relationships, extract clauses, obligations, SLAs, renewals, and compliance gaps
 6. **Bridges to governance** -- auto-creates organizations, business relationships, KPIs from SLAs, and improvement points from high-risk clauses
 7. **Populates** the dashboard, compliance tracker, renewal calendar, and risk register
 
@@ -21,6 +23,17 @@ All of this happens **automatically in the background** via `asyncio.create_task
 ## End-to-End Flow
 
 ```
+Super Admin Creates Tenant
+       |
+       v
++-----------------------------+
+|  PHASE 0: TENANT SETUP      |  Immediate (< 1 second)
+|  Create tenant record       |
+|  Provision integrations     |
+|  Create internal org        |
++-----------------------------+
+       (one-time, then contracts flow below)
+
 User Uploads File
        |
        v
@@ -44,7 +57,7 @@ User Uploads File
 |  Extract custom fields      |
 |  Flush metadata to DB       |
 |  Assess risk (AI)           |
-|  Auto-detect links (pass 1) |
+|  Hierarchy detection (v2)   |
 |  Mark contract COMPLETED    |
 +-------------+---------------+
               | (called immediately after indexing)
@@ -60,11 +73,38 @@ User Uploads File
 |  Store all results to DB    |
 |  Extract renewal terms (AI) |
 |  Schema-based extraction    |
-|  Auto-link detection (pass 2)|
+|  Hierarchy detection (pass 2)|
 |  Compliance analysis        |
 |  Knowledge graph extraction |
 |  Governance bridge (7 auto) |
 +-----------------------------+
+```
+
+---
+
+## Phase 0: Tenant Creation (One-Time Setup)
+
+**Endpoint:** `POST /api/tenants` (super-admin only)
+
+When a new tenant is created, the platform auto-provisions two things:
+
+| Step | Action | Result |
+|------|--------|--------|
+| 1 | Create tenant record | Name, slug, plan, contact info |
+| 2 | Provision integration configs | Demo configs for ServiceNow, Teams, Slack, etc. |
+| 3 | **Bootstrap internal Organization** | Creates `{TenantName}` org with `org_type=internal`, code=`{SLUG}-INT` |
+
+The internal Organization is the **critical prerequisite** for the governance bridge. Without it, contract uploads cannot auto-create business relationships (the bridge needs an internal org as one side of every relationship).
+
+**Code path:** `tenants.py:create_tenant` -> `tenant_provisioner.provision_integrations()` + `_bootstrap_internal_org()`
+
+**Backfill for existing tenants:** `POST /api/tenants/bootstrap-governance` creates internal orgs for any tenant that doesn't already have one (idempotent, safe to run multiple times).
+
+```
+Tenant Created: "Acme Corporation" (slug: acme)
+  ├── Integration configs provisioned (ServiceNow, Teams, Slack, SendGrid, Webhook)
+  └── Internal org created: "Acme Corporation" (code: ACME-INT, type: internal)
+       └── Ready for governance bridge on first contract upload
 ```
 
 ---
@@ -231,20 +271,24 @@ MSA Risk: score=45, level=MEDIUM
   - weak_termination: MEDIUM (score 20) -- "Client may terminate for convenience with 30 days notice"
 ```
 
-### Step 2.8 -- Auto-Link Detection (First Pass)
+### Step 2.8 -- Hierarchy Detection (v2)
 
-After marking the contract as COMPLETED, the **Auto-Link Detector** runs a first pass using 6 weighted signals. At this point, `extracted_text` may not yet be available (it is stored during deep analysis), so this pass relies on metadata and filename signals.
+After marking the contract as COMPLETED, the **Hierarchy Detection** pipeline runs. Unlike the original auto-link detector (6 weighted signals), this uses AI-powered pairwise classification for higher accuracy.
 
-| Signal | Weight | Description |
-|--------|--------|-------------|
-| **Counterparty Match** | 0.30 | Exact or fuzzy match of counterparty names |
-| **Type Hierarchy** | 0.25 | SOW is child of MSA, Amendment modifies parent, etc. |
-| **Semantic Similarity** | 0.20 | Vector similarity of document content |
-| **Filename Pattern** | 0.15 | "SOW" or "Amendment" in filename |
-| **Date Proximity** | 0.10 | Dates fall within parent contract term |
-| **Same Batch** | 0.15 | Uploaded together in a batch |
+**4-Stage Pipeline:**
 
-Creates `SuggestedContractLink` records with confidence scores. Minimum confidence threshold: 0.30.
+| Stage | Component | What It Does |
+|-------|-----------|-------------|
+| 1 | SmartDocumentExtractor | Section-targeted extraction (8000 char budget) via GPT-4o-mini. Builds a "document card" per contract. |
+| 2 | CandidatePairGenerator | 6 heuristic strategies reduce N^2 pairs to ~250 candidates (cross-ref, filename, type, party, hash, sibling). |
+| 3 | RelationshipClassifier | GPT-4o classifies each pair into 5-level taxonomy (SAME_DOCUMENT, SAME_DOCUMENT_FAMILY, SAME_MASTER_FRAMEWORK, RELATED_BUT_INDIRECT, UNRELATED). Batched: 8 pairs/call, 3 concurrent. |
+| 4 | HierarchyBuilder | Filters by confidence thresholds, resolves conflicts, determines parent/child direction, creates `SuggestedContractLink` records with `detection_method: "hierarchy_v2"`. |
+
+**Confidence thresholds:** Family: 0.50, Framework: 0.40, Indirect: 0.30.
+
+**Verified results:** Novartis enterprise deal (64 docs): 219 suggestions, 95-100% confidence on parent-child links. Acme Corp (22 docs): 12 suggestions, 100% confidence on real relationships.
+
+Creates `SuggestedContractLink` records that appear in the "Related Docs" tab for user review.
 
 ---
 
@@ -399,11 +443,11 @@ For known contract types (MSA, SOW, NDA, etc.), a type-specific schema extracts 
 
 Stored as JSONB in `contract.schema_data` for flexible querying. Schema data is also synced to relational structure via `sync_schema_to_db()`.
 
-### Step 3.10 -- Auto-Link Detection (Second Pass)
+### Step 3.10 -- Hierarchy Detection (Second Pass)
 
-A second auto-link detection pass runs with the full `extracted_text` now available on the contract. This enables richer semantic similarity matching and can find links that the first pass missed.
+A second hierarchy detection pass runs with the full `extracted_text` now available, plus enriched data from clause, obligation, and SLA extraction. This enables richer document cards and better classification accuracy.
 
-**Verified test data:** Addendum auto-link found 1 suggestion (confidence 0.50, amendment type, matching on counterparty + filename signals).
+**Batch ID:** `deep_analysis_{contract_id}`
 
 ### Step 3.11 -- Compliance Analysis
 
@@ -432,10 +476,17 @@ The **Governance Bridge** (`GovernanceBridgeService`) automatically populates re
 | 6 | **SOW Service Linking** | `_link_sow_services` | SOW service descriptions -> ServicePortfolio -> RelationshipService records |
 | 7 | **Auto-Link Re-Run** | (in `_run_deep_analysis`) | Re-runs auto-link detection with enriched metadata from all deep analysis stages |
 
+**Prerequisite:** The tenant must have an internal Organization (org_type=internal). This is auto-created during tenant creation (Phase 0) or can be backfilled via `POST /api/tenants/bootstrap-governance`.
+
 **Organization matching strategy:**
 1. Exact case-insensitive match on counterparty name
 2. Fuzzy match: org name contains counterparty or first 10 chars overlap
-3. Auto-create with type inferred from contract type (MSA/SOW -> CUSTOMER, VENDOR_AGREEMENT -> VENDOR, NDA -> PARTNER)
+3. Auto-create with type inferred via 4-signal detection:
+   - Signal 1: ContractParty role (vendor/client/provider from AI extraction)
+   - Signal 2: Preamble party_role field
+   - Signal 3: Contract text analysis (keyword proximity scoring)
+   - Signal 4: Contract type mapping fallback (MSA/SOW -> CUSTOMER, VENDOR_AGREEMENT -> VENDOR, NDA -> PARTNER)
+4. AI enrichment: GPT-4o-mini extracts industry, country, region if structured data is unavailable
 
 **Health score formula:**
 - **Risk health (30% weight):** `100 - contract.risk_score` (inverted: low risk = high health)
@@ -512,9 +563,14 @@ The **Governance Bridge** (`GovernanceBridgeService`) automatically populates re
 +-----------------------------------------------------------------+
 ```
 
-### Governance Impact (7 Automations)
-- **Organization** created or matched for counterparty (exact -> fuzzy -> auto-create)
-- **Business Relationship** created or matched (checks both directions)
+### Governance Impact (Fully Automatic)
+
+**On tenant creation (Phase 0):**
+- **Internal Organization** auto-created (e.g., "Acme Corporation", code: ACME-INT)
+
+**On each contract upload (Phase 3 governance bridge):**
+- **Organization** created or matched for counterparty (exact -> fuzzy -> auto-create with 4-signal type detection + AI enrichment)
+- **Business Relationship** created or matched between internal org and counterparty (checks both directions)
 - **KPIs** created from extracted SLAs with targets and measurement types (14 metric type mappings)
 - **Improvement Points** flagged for high/critical-risk clauses (8 clause types mapped)
 - **Health Score** calculated from risk (30%) + SLA compliance (40%) + obligation health (30%)
@@ -683,8 +739,8 @@ Addendum -> MSA link:
 
 ## Key Architecture Decisions
 
-### Why Two Auto-Link Passes?
-Pass 1 (indexing) runs before `extracted_text` is stored, so it relies on metadata and filename signals. Pass 2 (deep analysis) runs after the full text is available, enabling richer semantic similarity matching.
+### Why Two Hierarchy Detection Passes?
+Pass 1 (indexing) runs with basic metadata and contract references. Pass 2 (deep analysis) runs after the full text, clauses, obligations, and SLAs are extracted, enabling richer document cards and more accurate pairwise classification.
 
 ### Why Re-Parse in Deep Analysis?
 The indexer stores chunks in ChromaDB but does not persist the full `extracted_text` on the contract record. Deep analysis re-parses to get the complete text for AI agents that need the full document context (clause extraction, obligation extraction, etc.).
@@ -697,3 +753,5 @@ The metadata flush at step 2.5 ensures that even if risk assessment or subsequen
 
 ### Governance Bridge Fault Tolerance
 Each sub-step of the governance bridge (org match, relationship match, KPI creation, improvement points, health score, service portfolio) runs independently. One failure does not block others.
+
+> **See also:** [DOCUMENT_PROCESSING_SEQUENCE.md](./DOCUMENT_PROCESSING_SEQUENCE.md) for the complete step-by-step processing sequence diagram.

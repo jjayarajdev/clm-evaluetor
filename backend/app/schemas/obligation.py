@@ -61,6 +61,8 @@ class ObligationResponse(BaseModel):
     last_compliance_date: date | None
     next_compliance_due: date | None
     section_reference: str | None
+    source_text: str | None = None
+    consequence_of_breach: str | None = None
     created_at: datetime
     updated_at: datetime
 

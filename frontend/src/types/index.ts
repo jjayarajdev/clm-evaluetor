@@ -106,11 +106,11 @@ export interface Contract extends ContractSummary {
 }
 
 export interface ContractListResponse {
-  contracts: ContractSummary[]
+  items: ContractSummary[]
   total: number
   page: number
   page_size: number
-  total_pages: number
+  pages: number
 }
 
 // Upload types
@@ -292,6 +292,7 @@ export interface ObligationItem {
   beneficiary_party: string | null
   deadline: string | null
   status: string
+  source_text: string | null
 }
 
 export interface ObligationsMatrix {
@@ -687,6 +688,7 @@ export interface SuggestedLink {
   created_at: string
   updated_at: string
   target_contract: ContractBrief | null
+  source_contract: ContractBrief | null
 }
 
 export interface SuggestedLinksListResponse {

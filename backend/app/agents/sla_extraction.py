@@ -75,7 +75,7 @@ class ExtractedSLA(BaseModel):
     metric_unit: str = Field(description="Unit of measurement (from UNITS)")
 
     target_value: float = Field(description="Target value to meet")
-    target_operator: str = Field(default=">=", description="Comparison operator: >=, <=, >, <, =")
+    target_operator: str | None = Field(default=">=", description="Comparison operator: >=, <=, >, <, =")
     warning_threshold: float | None = Field(default=None, description="Warning threshold before breach")
 
     severity: str = Field(default="MEDIUM", description="Severity level: CRITICAL, HIGH, MEDIUM, LOW")
@@ -149,6 +149,8 @@ def preprocess_sla_data(data: dict) -> dict:
                 sla["metric_type"] = "CUSTOM"
             if not sla.get("metric_unit"):
                 sla["metric_unit"] = "SCORE"
+            if not sla.get("target_operator"):
+                sla["target_operator"] = ">="
 
             cleaned_slas.append(sla)
 

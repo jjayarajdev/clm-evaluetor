@@ -89,20 +89,20 @@ export default function ContractsPage() {
 
   // Toggle all contracts on current page
   const toggleAllContracts = () => {
-    if (!data?.contracts) return
-    const allSelected = data.contracts.every(c => selectedContracts.has(c.id))
+    if (!data?.items) return
+    const allSelected = data.items.every(c => selectedContracts.has(c.id))
     if (allSelected) {
       // Deselect all on current page
       setSelectedContracts(prev => {
         const next = new Set(prev)
-        data.contracts.forEach(c => next.delete(c.id))
+        data.items.forEach(c => next.delete(c.id))
         return next
       })
     } else {
       // Select all on current page
       setSelectedContracts(prev => {
         const next = new Set(prev)
-        data.contracts.forEach(c => next.add(c.id))
+        data.items.forEach(c => next.add(c.id))
         return next
       })
     }
@@ -251,7 +251,7 @@ export default function ContractsPage() {
           />
           <StatCard
             title="High Risk"
-            value={data.contracts.filter(c => c.risk_level === 'high' || c.risk_level === 'critical').length}
+            value={data.items.filter(c => c.risk_level === 'high' || c.risk_level === 'critical').length}
             icon={ExclamationTriangleIcon}
             color="danger"
             variant="filled"
@@ -259,14 +259,14 @@ export default function ContractsPage() {
           />
           <StatCard
             title="Processing"
-            value={data.contracts.filter(c => c.status === 'processing').length}
+            value={data.items.filter(c => c.status === 'processing').length}
             icon={DocumentTextIcon}
             color="warning"
             variant="filled"
           />
           <StatCard
             title="Completed"
-            value={data.contracts.filter(c => c.status === 'completed').length}
+            value={data.items.filter(c => c.status === 'completed').length}
             icon={DocumentTextIcon}
             color="success"
             variant="filled"
@@ -659,7 +659,7 @@ export default function ContractsPage() {
                 <th className="px-4 py-3 w-10">
                   <input
                     type="checkbox"
-                    checked={data?.contracts && data.contracts.length > 0 && data.contracts.every(c => selectedContracts.has(c.id))}
+                    checked={data?.items && data.items.length > 0 && data.items.every(c => selectedContracts.has(c.id))}
                     onChange={toggleAllContracts}
                     className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
@@ -685,7 +685,7 @@ export default function ContractsPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {data?.contracts.map((contract) => (
+              {data?.items.map((contract) => (
                 <tr
                   key={contract.id}
                   className={cn(
@@ -761,7 +761,7 @@ export default function ContractsPage() {
           </table>
 
           {/* Empty state */}
-          {data?.contracts.length === 0 && (
+          {data?.items.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500">No contracts found matching your filters.</p>
               {hasActiveFilters && (
@@ -776,10 +776,10 @@ export default function ContractsPage() {
           )}
 
           {/* Pagination */}
-          {data && data.total_pages > 1 && (
+          {data && data.pages > 1 && (
             <div className="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between">
               <p className="text-sm text-gray-700">
-                Page {data.page} of {data.total_pages} ({data.total} total)
+                Page {data.page} of {data.pages} ({data.total} total)
               </p>
               <div className="flex gap-2">
                 <button
@@ -790,8 +790,8 @@ export default function ContractsPage() {
                   Previous
                 </button>
                 <button
-                  onClick={() => setPage((p) => Math.min(data.total_pages, p + 1))}
-                  disabled={page === data.total_pages}
+                  onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
+                  disabled={page === data.pages}
                   className="btn-secondary text-sm disabled:opacity-50"
                 >
                   Next

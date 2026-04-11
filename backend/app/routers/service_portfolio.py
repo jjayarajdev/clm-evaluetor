@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.core.deps import get_current_user, require_role, CurrentTenantId, RequiredTenantId
+from app.core.tenant import apply_tenant_filter
 from app.models import User, Organization, BusinessRelationship
 from app.models.service_portfolio import ServicePortfolio, RelationshipService, ServiceType, ServiceStatus
 from app.schemas.service_portfolio import (
@@ -21,13 +22,6 @@ from app.schemas.service_portfolio import (
 )
 
 router = APIRouter(prefix="/api/service-portfolio", tags=["Service Portfolio"])
-
-
-def apply_tenant_filter(query, tenant_id):
-    """Apply tenant filter to ServicePortfolio query if tenant_id is set."""
-    if tenant_id is not None:
-        return query.where(ServicePortfolio.tenant_id == tenant_id)
-    return query
 
 
 @router.get("", response_model=ServicePortfolioListResponse)
@@ -44,7 +38,7 @@ async def list_service_portfolios(
 ):
     """List service portfolios with filtering and pagination."""
     query = select(ServicePortfolio)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, ServicePortfolio)
 
     # Apply filters
     if search:
@@ -151,7 +145,7 @@ async def get_services_for_organization(
         )
 
     query = select(ServicePortfolio).where(ServicePortfolio.organization_id == org_id)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, ServicePortfolio)
 
     if service_type:
         query = query.where(ServicePortfolio.service_type == service_type)
@@ -188,7 +182,7 @@ async def get_service_portfolio(
 ):
     """Get service portfolio by ID."""
     query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, ServicePortfolio)
     result = await db.execute(query)
     service = result.scalar_one_or_none()
 
@@ -211,7 +205,7 @@ async def update_service_portfolio(
 ):
     """Update a service portfolio entry."""
     query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, ServicePortfolio)
     result = await db.execute(query)
     service = result.scalar_one_or_none()
 
@@ -227,7 +221,7 @@ async def update_service_portfolio(
             ServicePortfolio.code == data.code,
             ServicePortfolio.id != service_id,
         )
-        conflict_query = apply_tenant_filter(conflict_query, tenant_id)
+        conflict_query = apply_tenant_filter(conflict_query, tenant_id, ServicePortfolio)
         existing = await db.execute(conflict_query)
         if existing.scalar_one_or_none():
             raise HTTPException(
@@ -267,7 +261,7 @@ async def delete_service_portfolio(
 ):
     """Soft delete a service portfolio entry (sets status to deprecated)."""
     query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, ServicePortfolio)
     result = await db.execute(query)
     service = result.scalar_one_or_none()
 
@@ -293,7 +287,7 @@ async def get_service_relationships(
     """Get all business relationships using this service."""
     # Verify service exists and belongs to tenant
     svc_query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
-    svc_query = apply_tenant_filter(svc_query, tenant_id)
+    svc_query = apply_tenant_filter(svc_query, tenant_id, ServicePortfolio)
     svc_result = await db.execute(svc_query)
     if not svc_result.scalar_one_or_none():
         raise HTTPException(
@@ -325,7 +319,7 @@ async def link_service_to_relationship(
     """Link a service portfolio entry to a business relationship."""
     # Verify service exists and belongs to tenant
     svc_query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
-    svc_query = apply_tenant_filter(svc_query, tenant_id)
+    svc_query = apply_tenant_filter(svc_query, tenant_id, ServicePortfolio)
     svc_result = await db.execute(svc_query)
     if not svc_result.scalar_one_or_none():
         raise HTTPException(
@@ -383,7 +377,7 @@ async def unlink_service_from_relationship(
     """Unlink a service from a business relationship."""
     # Verify service exists and belongs to tenant
     svc_query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
-    svc_query = apply_tenant_filter(svc_query, tenant_id)
+    svc_query = apply_tenant_filter(svc_query, tenant_id, ServicePortfolio)
     svc_result = await db.execute(svc_query)
     if not svc_result.scalar_one_or_none():
         raise HTTPException(

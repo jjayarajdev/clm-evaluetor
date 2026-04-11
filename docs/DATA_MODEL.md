@@ -2,7 +2,7 @@
 
 Comprehensive data model documentation with Mermaid diagrams for the Contract Lifecycle Management platform.
 
-**53 model files** defining **~77 database tables** across multi-tenancy, contract intelligence, post-signing management, relationship governance, compliance, workflows, integrations, and supporting entities.
+**53 model files** defining **77 database tables** across multi-tenancy, contract intelligence, post-signing management, relationship governance, compliance, workflows, integrations, and supporting entities.
 
 ---
 
@@ -888,7 +888,7 @@ erDiagram
         uuid id PK
         uuid sla_id FK
         decimal actual_value
-        date measured_at
+        timestamp measured_at
         date measurement_period_start
         date measurement_period_end
         boolean is_compliant
@@ -896,11 +896,11 @@ erDiagram
         enum breach_severity "none|minor|major|critical"
         boolean penalty_applied
         decimal penalty_amount
-        boolean credit_issued
-        decimal credit_amount
+        decimal credit_issued
         text notes
-        string evidence_reference
+        string recorded_by
         timestamp created_at
+        timestamp updated_at
     }
 
     SLAAlert {
@@ -1066,14 +1066,15 @@ erDiagram
         uuid org_b_id FK
         enum relationship_type "customer|supplier|partner|joint_venture|reseller|distributor"
         enum status "prospecting|active|at_risk|on_hold|terminated"
-        enum governance_tier "operational|tactical|strategic|executive"
-        int health_score "0-100"
-        date start_date
-        date end_date
+        string name "optional friendly name"
         text description
-        text strategic_objectives
-        decimal annual_value
-        string currency
+        int health_score "0-100"
+        timestamp last_health_calculation
+        enum governance_tier "operational|tactical|strategic|executive"
+        json governance_config
+        timestamp start_date
+        int review_frequency_days
+        timestamp next_review_date
         timestamp created_at
         timestamp updated_at
     }
@@ -1082,11 +1083,14 @@ erDiagram
         uuid id PK
         uuid relationship_id FK
         uuid user_id FK
-        enum role "owner|sponsor|manager|member|observer"
-        string responsibilities
-        boolean is_primary_contact
-        boolean receives_alerts
-        timestamp assigned_at
+        enum role "relationship_manager|account_manager|executive_sponsor|technical_lead|operations_lead|finance_lead|member"
+        json responsibilities
+        boolean is_primary
+        boolean is_active
+        timestamp joined_at
+        timestamp left_at
+        timestamp created_at
+        timestamp updated_at
     }
 ```
 
@@ -1298,69 +1302,74 @@ graph LR
 erDiagram
     SurveyTemplate ||--o{ SurveyQuestion : "contains"
     SurveyTemplate ||--o{ SurveyInstance : "instantiated as"
-    SurveyInstance ||--o{ SurveyRespondent : "sent to"
-    SurveyRespondent ||--o{ SurveyResponse : "submits"
-    SurveyQuestion ||--o{ SurveyResponse : "answered by"
+    SurveyInstance ||--o{ SurveyResponse : "has responses"
+    SurveyQuestion }o--o| KPI : "linked to"
     BusinessRelationship ||--o{ SurveyInstance : "subject of"
+    Organization }o--o| SurveyResponse : "respondent org"
 
     SurveyTemplate {
         uuid id PK
-        uuid tenant_id FK
         string name
         text description
-        enum survey_type "satisfaction|performance|relationship_health|custom"
+        enum frequency "one_time|monthly|quarterly|semi_annual|annual"
+        text introduction_text
+        text closing_text
+        boolean allow_anonymous
+        boolean require_all_questions
         boolean is_active
-        boolean is_anonymous
-        jsonb settings
+        int version
         timestamp created_at
+        timestamp updated_at
     }
 
     SurveyQuestion {
         uuid id PK
         uuid template_id FK
-        string question_text
-        enum question_type "rating|text|multiple_choice|yes_no|scale"
-        jsonb options
-        int display_order
+        text text
+        text help_text
+        enum question_type "rating|rating_5|multiple_choice|single_choice|text|text_long|yes_no|nps"
+        json options
+        string rating_min_label
+        string rating_max_label
+        uuid kpi_id FK "optional"
+        int sequence
         boolean is_required
-        string category
+        boolean is_active
+        timestamp created_at
     }
 
     SurveyInstance {
         uuid id PK
         uuid template_id FK
         uuid relationship_id FK
-        string title
-        enum status "draft|sent|in_progress|completed|cancelled"
-        date start_date
-        date end_date
-        int response_count
-        decimal average_score
+        string period "e.g. 2024-Q1"
+        enum status "draft|scheduled|sent|in_progress|completed|expired|cancelled"
+        date scheduled_send_date
         timestamp sent_at
-        timestamp completed_at
-    }
-
-    SurveyRespondent {
-        uuid id PK
-        uuid instance_id FK
-        string email
-        string name
-        string organization
-        enum perspective "internal|external"
-        string access_token UK
-        boolean has_responded
-        timestamp invited_at
-        timestamp responded_at
+        date due_date
+        timestamp closed_at
+        int target_respondent_count
+        int actual_respondent_count
+        text notes
+        timestamp created_at
+        timestamp updated_at
     }
 
     SurveyResponse {
         uuid id PK
-        uuid respondent_id FK
-        uuid question_id FK
-        text answer_text
-        int answer_rating
-        jsonb answer_data
+        uuid survey_instance_id FK
+        string respondent_email
+        string respondent_name
+        uuid respondent_org_id FK "optional"
+        boolean is_anonymous
+        json answers "question_id to answer_value map"
+        int completion_time_seconds
+        boolean is_complete
         timestamp submitted_at
+        string access_token UK
+        timestamp first_accessed_at
+        timestamp last_accessed_at
+        timestamp created_at
     }
 ```
 
@@ -1848,23 +1857,28 @@ erDiagram
         uuid id PK
         uuid tenant_id FK
         uuid contract_id FK
-        enum entity_type "party|clause|obligation|sla|date|amount|term|risk|other"
+        enum entity_type "party|clause|obligation|term|date|amount|jurisdiction|sla_metric"
         string name
-        text description
+        string normalized_name
         jsonb properties
-        decimal confidence
+        text source_text
+        string source_section
+        int source_page
+        float confidence "0.0-1.0"
         timestamp created_at
+        timestamp updated_at
     }
 
     KGRelationship {
         uuid id PK
         uuid tenant_id FK
+        uuid contract_id FK
         uuid source_entity_id FK
         uuid target_entity_id FK
-        enum relationship_type "defines|obligates|modifies|references|depends_on|conflicts_with|supersedes"
-        string label
-        decimal weight
+        enum relationship_type "has_party|has_obligation|benefits_from|references|limited_by|defined_as|triggered_by|governed_by|amends|expires_on"
         jsonb properties
+        text source_text
+        float confidence "0.0-1.0"
         timestamp created_at
     }
 ```
@@ -1904,6 +1918,49 @@ erDiagram
         int items_processed
         jsonb run_metadata
     }
+```
+
+### Contract Processing Queue
+
+```mermaid
+erDiagram
+    Tenant ||--o{ ContractProcessingJob : "has jobs"
+    Contract ||--o{ ContractProcessingJob : "processed by"
+    User ||--o{ ContractProcessingJob : "initiated by"
+
+    ContractProcessingJob {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK
+        uuid user_id FK
+        string batch_id "optional group key"
+        string file_path
+        enum status "queued|processing|completed|failed|stuck"
+        string stage "current processing stage"
+        int progress_percent "0-100"
+        text message
+        text error
+        int retry_count
+        int max_retries "default 3"
+        int priority "higher = first"
+        timestamp started_at
+        timestamp completed_at
+        jsonb details "extraction results"
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Queued: Job created
+    Queued --> Processing: Worker picks up
+    Processing --> Completed: All stages pass
+    Processing --> Failed: Error (retryable)
+    Failed --> Queued: Retry (count < max)
+    Failed --> Stuck: Retries exhausted
+    Completed --> [*]
+    Stuck --> [*]
 ```
 
 ### Master Data
@@ -2103,7 +2160,6 @@ graph TB
         ST[SurveyTemplate]
         SQ[SurveyQuestion]
         SI[SurveyInstance]
-        SR[SurveyRespondent]
         SRESP[SurveyResponse]
     end
 
@@ -2130,6 +2186,7 @@ graph TB
         CLINK[ContractLink]
         CS[ContractShare]
         CC[ContractComment]
+        CPJ[ProcessingJob]
         SJ[SchedulerJob]
         SJH[SchedulerJobHistory]
         MS[MetricSnapshot]
@@ -2218,13 +2275,14 @@ graph TB
 
     ST --> SQ
     ST --> SI
-    SI --> SR
-    SR --> SRESP
-    SQ --> SRESP
+    SI --> SRESP
 
     EU --> CS
     EU --> CC
     EU --> EAT
+
+    C --> CPJ
+    U --> CPJ
 
     SJ --> SJH
 
@@ -2236,6 +2294,24 @@ graph TB
 ---
 
 ## 15. Data Flow Diagrams
+
+### Tenant Creation Flow
+
+```mermaid
+sequenceDiagram
+    participant SA as Super Admin
+    participant API as Tenants API
+    participant DB as Database
+    participant PROV as Provisioner
+
+    SA->>API: POST /api/tenants
+    API->>DB: Create Tenant record
+    API->>PROV: Provision integration configs
+    PROV->>DB: Create IntegrationConfig records (ServiceNow, Teams, etc.)
+    API->>DB: Create internal Organization (org_type=internal)
+    Note over DB: Internal org enables GovernanceBridge<br/>to auto-create relationships on contract upload
+    API-->>SA: Tenant ready (with internal org)
+```
 
 ### Contract Processing Pipeline
 
@@ -2267,6 +2343,44 @@ sequenceDiagram
     I->>I: Auto-Link Detection (multi-signal scoring)
     I-->>U: Processing Complete
     Note over API: Deep analysis runs async (clauses, obligations, SLAs, KG)
+```
+
+### Governance Bridge Flow (runs after deep analysis)
+
+```mermaid
+sequenceDiagram
+    participant DA as Deep Analysis
+    participant GB as GovernanceBridge
+    participant AI as GPT-4o-mini
+    participant DB as Database
+
+    DA->>GB: bridge_contract_to_governance(contract_id, tenant_id)
+
+    Note over GB: Automation 1: Counterparty → Organization
+    GB->>DB: Exact match on counterparty name?
+    alt No match
+        GB->>DB: Fuzzy match (substring)?
+        alt No match
+            GB->>DB: Determine org type (4 signals)
+            GB->>AI: Extract org details (industry, country)
+            GB->>DB: Create Organization
+        end
+    end
+
+    Note over GB: Automation 2: Contract → Relationship
+    GB->>DB: Find internal org (org_type=internal)
+    GB->>DB: Existing relationship (either direction)?
+    alt No match
+        GB->>DB: Create BusinessRelationship (internal ↔ counterparty)
+    end
+    GB->>DB: Link contract to relationship
+
+    Note over GB: Automation 3-6
+    GB->>DB: Create KPIs from extracted SLAs
+    GB->>DB: Create ImprovementPoints from high-risk clauses
+    GB->>DB: Calculate health score (risk 30% + SLA 40% + obligation 30%)
+    GB->>DB: Link SOW services to ServicePortfolio
+    GB->>DB: Commit all governance data
 ```
 
 ### Q&A Query Flow
@@ -2381,7 +2495,7 @@ sequenceDiagram
 
 ---
 
-## Complete Table Inventory (77 tables from 53 model files)
+## Complete Table Inventory (77 tables from 51 model files)
 
 | # | Table Name | Model File | Section |
 |---|-----------|------------|---------|
@@ -2421,7 +2535,7 @@ sequenceDiagram
 | 34 | organizations | organization.py | Governance |
 | 35 | organization_officers | organization_officer.py | Governance |
 | 36 | business_relationships | relationship.py | Governance |
-| 37 | relationship_team_members | relationship.py | Governance |
+| 37 | relationship_teams | relationship.py | Governance |
 | 38 | relationship_status_history | relationship_history.py | Governance |
 | 39 | kpis | kpi.py | Governance |
 | 40 | perception_scores | kpi.py | Governance |
@@ -2433,27 +2547,27 @@ sequenceDiagram
 | 46 | survey_templates | survey.py | Surveys |
 | 47 | survey_questions | survey.py | Surveys |
 | 48 | survey_instances | survey.py | Surveys |
-| 49 | survey_respondents | survey.py | Surveys |
-| 50 | survey_responses | survey.py | Surveys |
-| 51 | industry_compliance_rules | compliance_rule.py | Compliance |
-| 52 | compliance_gaps | compliance_gap.py | Compliance |
-| 53 | regulatory_obligations | regulatory_obligation.py | Compliance |
-| 54 | workflow_definitions | workflow.py | Workflows |
-| 55 | workflow_steps | workflow.py | Workflows |
-| 56 | action_executions | workflow.py | Workflows |
-| 57 | approvers | approval.py | Workflows |
-| 58 | approval_requests | approval.py | Workflows |
-| 59 | events | event.py | Events |
-| 60 | integration_configs | integration.py | Integrations |
-| 61 | integration_logs | integration.py | Integrations |
-| 62 | notification_templates | notification.py | Notifications |
-| 63 | notification_logs | notification.py | Notifications |
-| 64 | notification_rules | notification_rule.py | Notifications |
-| 65 | chat_sessions | chat_session.py | Chat |
-| 66 | chat_messages | chat_session.py | Chat |
-| 67 | clients | client.py | Supporting |
-| 68 | knowledge_graph_nodes | knowledge_graph.py | Supporting |
-| 69 | knowledge_graph_edges | knowledge_graph.py | Supporting |
+| 49 | survey_responses | survey.py | Surveys |
+| 50 | industry_compliance_rules | compliance_rule.py | Compliance |
+| 51 | compliance_gaps | compliance_gap.py | Compliance |
+| 52 | regulatory_obligations | regulatory_obligation.py | Compliance |
+| 53 | workflow_definitions | workflow.py | Workflows |
+| 54 | workflow_steps | workflow.py | Workflows |
+| 55 | action_executions | workflow.py | Workflows |
+| 56 | approvers | approval.py | Workflows |
+| 57 | approval_requests | approval.py | Workflows |
+| 58 | events | event.py | Events |
+| 59 | integration_configs | integration.py | Integrations |
+| 60 | integration_logs | integration.py | Integrations |
+| 61 | notification_templates | notification.py | Notifications |
+| 62 | notification_logs | notification.py | Notifications |
+| 63 | notification_rules | notification_rule.py | Notifications |
+| 64 | chat_sessions | chat_session.py | Chat |
+| 65 | chat_messages | chat_session.py | Chat |
+| 66 | clients | client.py | Supporting |
+| 67 | kg_entities | knowledge_graph.py | Supporting |
+| 68 | kg_relationships | knowledge_graph.py | Supporting |
+| 69 | contract_processing_jobs | processing_job.py | Supporting |
 | 70 | scheduler_jobs | scheduler.py | Supporting |
 | 71 | scheduler_job_history | scheduler.py | Supporting |
 | 72 | sla_master_data | master_data.py | Supporting |
@@ -2476,3 +2590,4 @@ sequenceDiagram
 | 1.4 | 2026-03-07 | Updated ContractLink (16 link types, parent/child model) and SuggestedContractLink (multi-signal scoring with 6 weighted signals). Added AutoLinkDetector flowchart. |
 | 1.5 | 2026-03-09 | Updated Contract Processing Pipeline: KG extraction deferred to deep_analysis, auto-link detection runs in indexer pipeline, metadata flush before optional stages, excluded parties in metadata extraction. |
 | 2.0 | 2026-03-29 | Comprehensive update: 53 models, ~77 tables. Added Contract Extraction Details (preambles, definitions, exhibits, process steps, financials, liabilities, key dates, clause indicators), Document Package (contract_documents, signatures, sections), Workflows & Approvals (workflow_definitions, workflow_steps, action_executions, approvers, approval_requests), Events, Integrations (integration_configs, integration_logs, sla_measurements), Notification templates/logs, External Access Tokens, Snow SLA Mappings, Organization Officers, Relationship Status History, Service Portfolio, Improvement Actions, Alert Configs, Project Tracking, Master Data. Fixed ExternalUser/ContractShare/ContractComment/NotificationRule/MetricSnapshot fields to match actual models. Added complete 77-table inventory. Added event-driven workflow flow diagram. |
+| 2.1 | 2026-04-08 | Accuracy audit against codebase. Added ContractProcessingJob (DB-backed processing queue). Fixed Survey section: removed phantom SurveyRespondent table, updated SurveyTemplate/Question/Instance/Response fields to match code. Fixed Knowledge Graph: entity types (party→sla_metric), relationship types (has_party→expires_on), table names (kg_entities, kg_relationships). Fixed BusinessRelationship fields (added name, governance_config, review_frequency_days). Fixed RelationshipTeam role enum and fields. Fixed SLAPerformance fields. Fixed 3 wrong table names in inventory (relationship_teams, kg_entities, kg_relationships). Added Tenant Creation Flow, Governance Bridge Flow diagrams to data flow section. |

@@ -1,39 +1,85 @@
 /**
  * ProcessingStatusIndicator component.
  *
- * Displays real-time processing status with a progress bar and stage indicator.
+ * Displays real-time processing status with a full pipeline visualization.
  * Uses SSE to receive updates from the backend.
  */
 
-import { useEffect } from 'react';
-import { useProcessingStatus, ProcessingStage } from '../../hooks/useProcessingStatus';
+import { useEffect, useMemo } from 'react'
+import { useProcessingStatus, type ProcessingStage, type StageInfo } from '../../hooks/useProcessingStatus'
+import {
+  CheckCircleIcon,
+  XCircleIcon,
+  ArrowPathIcon,
+  ClockIcon,
+} from '@heroicons/react/24/solid'
+import { cn } from '@/lib/utils'
 
 interface ProcessingStatusIndicatorProps {
-  contractId: string;
-  /** Whether to auto-connect when mounted */
-  autoConnect?: boolean;
-  /** Callback when processing completes */
-  onComplete?: () => void;
-  /** Callback when processing fails */
-  onError?: (error: string) => void;
-  /** Custom class name */
-  className?: string;
+  contractId: string
+  autoConnect?: boolean
+  onComplete?: () => void
+  onError?: (error: string) => void
+  className?: string
+  /** Compact mode — just progress bar, no stage list */
+  compact?: boolean
 }
 
-// Stage icons for visual feedback
-const stageIcons: Record<ProcessingStage, string> = {
-  queued: '\u23F3',      // hourglass
-  parsing: '\uD83D\uDCC4',    // document
-  chunking: '\u2702\uFE0F',    // scissors
-  classifying: '\uD83C\uDFF7\uFE0F', // label
-  metadata: '\uD83D\uDCCB',   // clipboard
-  custom_fields: '\u2699\uFE0F', // gear
-  risk: '\u26A0\uFE0F',       // warning
-  knowledge_graph: '\uD83D\uDD17', // link
-  completed: '\u2705',   // check mark
-  failed: '\u274C',      // X mark
-  idle: '\u23F8\uFE0F',       // pause
-};
+// Group stages into logical phases for cleaner display
+const STAGE_GROUPS: { label: string; stages: string[] }[] = [
+  {
+    label: 'Document Ingestion',
+    stages: ['queued', 'parsing', 'chunking', 'classifying'],
+  },
+  {
+    label: 'Metadata & Risk',
+    stages: ['metadata', 'custom_fields', 'risk', 'knowledge_graph'],
+  },
+  {
+    label: 'Deep Analysis',
+    stages: ['clause_extraction', 'obligation_detection', 'sla_extraction', 'renewal_analysis'],
+  },
+  {
+    label: 'Intelligence',
+    stages: ['schema_extraction', 'link_detection', 'compliance_check', 'governance_bridge'],
+  },
+]
+
+function getStageStatus(
+  stageId: string,
+  currentStage: ProcessingStage,
+  stages: StageInfo[]
+): 'completed' | 'active' | 'pending' | 'failed' {
+  if (currentStage === 'failed') {
+    const currentIdx = stages.findIndex((s) => s.id === currentStage)
+    const stageIdx = stages.findIndex((s) => s.id === stageId)
+    if (stageIdx < currentIdx) return 'completed'
+    if (stageId === currentStage) return 'failed'
+    return 'pending'
+  }
+
+  if (currentStage === 'completed') return 'completed'
+
+  const currentIdx = stages.findIndex((s) => s.id === currentStage)
+  const stageIdx = stages.findIndex((s) => s.id === stageId)
+
+  if (stageIdx < currentIdx) return 'completed'
+  if (stageIdx === currentIdx) return 'active'
+  return 'pending'
+}
+
+function StageIcon({ status }: { status: 'completed' | 'active' | 'pending' | 'failed' }) {
+  if (status === 'completed') {
+    return <CheckCircleIcon className="h-4 w-4 text-green-500" />
+  }
+  if (status === 'active') {
+    return <ArrowPathIcon className="h-4 w-4 text-violet-600 animate-spin" />
+  }
+  if (status === 'failed') {
+    return <XCircleIcon className="h-4 w-4 text-red-500" />
+  }
+  return <ClockIcon className="h-4 w-4 text-gray-300" />
+}
 
 export function ProcessingStatusIndicator({
   contractId,
@@ -41,180 +87,182 @@ export function ProcessingStatusIndicator({
   onComplete,
   onError,
   className = '',
+  compact = false,
 }: ProcessingStatusIndicatorProps) {
   const { progress, connect } = useProcessingStatus({
     onComplete: () => onComplete?.(),
     onError: (err) => onError?.(err),
-  });
+  })
 
-  // Auto-connect if specified
   useEffect(() => {
     if (autoConnect && contractId) {
-      connect(contractId);
+      connect(contractId)
     }
-  }, [autoConnect, contractId, connect]);
+  }, [autoConnect, contractId, connect])
 
-  // Don't render if not processing and no progress
+  const stages = useMemo(() => progress?.stages || [], [progress?.stages])
+
   if (!progress || progress.stage === 'idle') {
-    return null;
+    return null
   }
 
-  const icon = stageIcons[progress.stage] || '\uD83D\uDD04';
+  const isFailed = progress.stage === 'failed'
+  const isCompleted = progress.stage === 'completed'
+  const percent = progress.progress_percent
 
   return (
-    <div className={`processing-status-indicator ${className}`}>
-      <div className="processing-status-header">
-        <span className="processing-status-icon">{icon}</span>
-        <span className="processing-status-title">
-          {progress.stage_description || 'Processing...'}
+    <div
+      className={cn(
+        'rounded-lg border p-4',
+        isFailed
+          ? 'bg-red-50 border-red-200'
+          : isCompleted
+            ? 'bg-green-50 border-green-200'
+            : 'bg-white border-gray-200',
+        className
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {isFailed ? (
+            <XCircleIcon className="h-5 w-5 text-red-500" />
+          ) : isCompleted ? (
+            <CheckCircleIcon className="h-5 w-5 text-green-500" />
+          ) : (
+            <ArrowPathIcon className="h-5 w-5 text-violet-600 animate-spin" />
+          )}
+          <span
+            className={cn(
+              'text-sm font-semibold',
+              isFailed ? 'text-red-800' : isCompleted ? 'text-green-800' : 'text-gray-900'
+            )}
+          >
+            {progress.stage_description || 'Processing...'}
+          </span>
+        </div>
+        <span
+          className={cn(
+            'text-sm font-medium',
+            isFailed ? 'text-red-600' : isCompleted ? 'text-green-600' : 'text-violet-600'
+          )}
+        >
+          {percent}%
         </span>
       </div>
 
       {/* Progress bar */}
-      <div className="processing-status-progress">
+      <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
         <div
-          className="processing-status-progress-bar"
-          style={{ width: `${progress.progress_percent}%` }}
+          className={cn(
+            'h-full rounded-full transition-all duration-500 ease-out',
+            isFailed
+              ? 'bg-red-500'
+              : isCompleted
+                ? 'bg-green-500'
+                : 'bg-gradient-to-r from-violet-500 to-violet-400'
+          )}
+          style={{ width: `${percent}%` }}
         />
       </div>
 
-      {/* Stage message */}
-      <div className="processing-status-message">
+      {/* Status message */}
+      <p
+        className={cn(
+          'text-xs',
+          isFailed ? 'text-red-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
+        )}
+      >
         {progress.message}
-      </div>
+      </p>
 
-      {/* Error message */}
+      {/* Error details */}
       {progress.error && (
-        <div className="processing-status-error">
-          {progress.error}
-        </div>
+        <div className="mt-2 p-2 bg-red-100 rounded text-xs text-red-700">{progress.error}</div>
       )}
 
-      <style>{`
-        .processing-status-indicator {
-          padding: 12px 16px;
-          background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-          border-radius: 8px;
-          border: 1px solid #e2e8f0;
-          margin-bottom: 16px;
-        }
+      {/* Stage pipeline (non-compact only) */}
+      {!compact && stages.length > 0 && !isCompleted && (
+        <div className="mt-4 space-y-3">
+          {STAGE_GROUPS.map((group) => {
+            const groupStages = group.stages.filter((s) => stages.some((st) => st.id === s))
+            if (groupStages.length === 0) return null
 
-        .processing-status-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 8px;
-        }
-
-        .processing-status-icon {
-          font-size: 18px;
-        }
-
-        .processing-status-title {
-          font-weight: 600;
-          color: #1e293b;
-        }
-
-        .processing-status-progress {
-          height: 6px;
-          background: #e2e8f0;
-          border-radius: 3px;
-          overflow: hidden;
-          margin-bottom: 8px;
-        }
-
-        .processing-status-progress-bar {
-          height: 100%;
-          background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
-          border-radius: 3px;
-          transition: width 0.3s ease-out;
-        }
-
-        .processing-status-message {
-          font-size: 13px;
-          color: #64748b;
-        }
-
-        .processing-status-error {
-          margin-top: 8px;
-          padding: 8px 12px;
-          background: #fef2f2;
-          border: 1px solid #fecaca;
-          border-radius: 4px;
-          color: #dc2626;
-          font-size: 13px;
-        }
-
-        /* Completed state */
-        .processing-status-indicator:has(.processing-status-progress-bar[style*="100%"]) {
-          background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-          border-color: #bbf7d0;
-        }
-
-        /* Failed state */
-        .processing-status-indicator:has(.processing-status-error) {
-          background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-          border-color: #fecaca;
-        }
-      `}</style>
+            return (
+              <div key={group.label}>
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-1">
+                  {group.label}
+                </p>
+                <div className="grid grid-cols-4 gap-1">
+                  {groupStages.map((stageId) => {
+                    const stage = stages.find((s) => s.id === stageId)
+                    const status = getStageStatus(stageId, progress.stage, stages)
+                    return (
+                      <div
+                        key={stageId}
+                        className={cn(
+                          'flex items-center gap-1 px-2 py-1 rounded text-[11px]',
+                          status === 'completed' && 'bg-green-50 text-green-700',
+                          status === 'active' && 'bg-violet-50 text-violet-700 font-medium',
+                          status === 'pending' && 'bg-gray-50 text-gray-400',
+                          status === 'failed' && 'bg-red-50 text-red-600'
+                        )}
+                      >
+                        <StageIcon status={status} />
+                        <span className="truncate">{stage?.label || stageId}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
-  );
+  )
 }
 
 /**
- * Compact version for use in contract cards or lists.
+ * Compact badge for use in file list items.
  */
 export function ProcessingStatusBadge({
   contractId,
   autoConnect = false,
 }: {
-  contractId: string;
-  autoConnect?: boolean;
+  contractId: string
+  autoConnect?: boolean
 }) {
-  const { progress, connect } = useProcessingStatus();
+  const { progress, connect } = useProcessingStatus()
 
   useEffect(() => {
     if (autoConnect && contractId) {
-      connect(contractId);
+      connect(contractId)
     }
-  }, [autoConnect, contractId, connect]);
+  }, [autoConnect, contractId, connect])
 
   if (!progress || progress.stage === 'idle' || progress.stage === 'completed') {
-    return null;
+    return null
   }
 
-  const icon = stageIcons[progress.stage] || '\uD83D\uDD04';
+  const isFailed = progress.stage === 'failed'
 
   return (
     <span
-      className="processing-status-badge"
+      className={cn(
+        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium',
+        isFailed ? 'bg-red-100 text-red-700' : 'bg-violet-100 text-violet-700'
+      )}
       title={progress.message}
     >
-      <span className="processing-badge-icon">{icon}</span>
-      <span className="processing-badge-percent">{progress.progress_percent}%</span>
-
-      <style>{`
-        .processing-status-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 2px 8px;
-          background: #dbeafe;
-          border-radius: 12px;
-          font-size: 12px;
-          color: #1e40af;
-        }
-
-        .processing-badge-icon {
-          font-size: 12px;
-        }
-
-        .processing-badge-percent {
-          font-weight: 500;
-        }
-      `}</style>
+      {isFailed ? (
+        <XCircleIcon className="h-3 w-3" />
+      ) : (
+        <ArrowPathIcon className="h-3 w-3 animate-spin" />
+      )}
+      {progress.progress_percent}%
     </span>
-  );
+  )
 }
 
-export default ProcessingStatusIndicator;
+export default ProcessingStatusIndicator

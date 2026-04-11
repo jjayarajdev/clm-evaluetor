@@ -91,6 +91,10 @@ from app.models.scheduler import (
     SchedulerJobHistory,
     SchedulerJobStatus,
 )
+from app.models.processing_job import (
+    ContractProcessingJob,
+    ProcessingJobStatus,
+)
 # Relationship Governance (Evaluetor features)
 from app.models.organization import (
     Organization,
@@ -316,6 +320,9 @@ __all__ = [
     "SchedulerJob",
     "SchedulerJobHistory",
     "SchedulerJobStatus",
+    # Processing Job Queue
+    "ContractProcessingJob",
+    "ProcessingJobStatus",
     # Organization (Evaluetor)
     "Organization",
     "OrganizationType",

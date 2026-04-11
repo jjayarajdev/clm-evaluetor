@@ -17,7 +17,7 @@
               |                          |                       |
               v                          v                       v
 +-----------------------------------------------------------------------------+
-|                         API LAYER (FastAPI - 44 Routers)                      |
+|                         API LAYER (FastAPI - 43 Routers)                      |
 |                                                                              |
 |  +-- Contract Intelligence --+  +-- Post-Signing Management ----+           |
 |  | auth         contracts    |  | obligations   sla             |           |
@@ -51,7 +51,7 @@
                                       |
                                       v
 +-----------------------------------------------------------------------------+
-|                         SERVICE LAYER (38 Services)                          |
+|                   SERVICE LAYER (40 Services + 6 Hierarchy)                  |
 |  +-------------------------------------------------------------------+     |
 |  |                    Document Processing Pipeline                     |     |
 |  |  +---------+    +---------+    +----------+    +---------+         |     |
@@ -167,6 +167,11 @@ User Upload --> FastAPI --> UploadService --> FileStorage
                         Auto-Link Detection (6-Signal Scoring)
                         [counterparty, type hierarchy, semantic
                          similarity, filename, date, batch upload]
+                                  |
+                                  v
+                        Hierarchy Detection (AI-Powered)
+                        [pairwise classification, contract family
+                         detection, parent-child relationships]
                                   |
                                   v
                        PostgreSQL (Contract Marked Completed)
@@ -418,7 +423,7 @@ backend/
 |   |-- config.py               # Pydantic settings
 |   |-- database.py             # SQLAlchemy async setup
 |   |
-|   |-- routers/                # API Endpoints (44 routers)
+|   |-- routers/                # API Endpoints (43 routers)
 |   |   |-- auth.py             # Authentication (login, logout, me, refresh)
 |   |   |-- users.py            # User management (CRUD, roles)
 |   |   |-- tenants.py          # Tenant management (multi-tenancy)
@@ -463,7 +468,7 @@ backend/
 |   |   |-- external_users.py   # External user management
 |   |   +-- external_portal.py  # External portal (no auth)
 |   |
-|   |-- services/               # Business Logic (38 services)
+|   |-- services/               # Business Logic (40 services + 6 hierarchy detection modules)
 |   |   |-- orchestrator.py     # Agent routing + intent classification
 |   |   |-- indexer.py          # Document processing pipeline
 |   |   |-- parser.py           # PDF/DOCX/OCR text extraction
@@ -502,7 +507,15 @@ backend/
 |   |   |-- preamble_extraction.py   # Preamble extraction
 |   |   +-- exhibit_extraction.py    # Exhibit extraction
 |   |
-|   |-- agents/                 # AI Agents (11 files: 9 agents + base + intent router)
+|   |-- services/hierarchy_detection/ # AI-powered contract hierarchy detection pipeline
+|   |   |-- classifier.py         # Pairwise document classification
+|   |   |-- detector.py           # Contract family detection
+|   |   |-- models.py             # Hierarchy data models
+|   |   |-- prompts.py            # LLM prompt templates
+|   |   |-- scorer.py             # Relationship confidence scoring
+|   |   +-- pipeline.py           # Orchestration pipeline
+|   |
+|   |-- agents/                 # AI Agents (11 files: 10 agents + base + intent router)
 |   |   |-- __init__.py         # Agent registration
 |   |   |-- base.py             # Base utilities + ContractSearchTool
 |   |   |-- intent_router.py    # Intent classification + structured query handlers + LLM visualization
@@ -721,7 +734,7 @@ frontend/
 
 ---
 
-## API Endpoint Summary (~402 Endpoints)
+## API Endpoint Summary (~405 Endpoints)
 
 | # | Category | Prefix | Endpoints | Key Operations |
 |---|----------|--------|-----------|----------------|
@@ -771,6 +784,7 @@ frontend/
 | 44 | Health | `/api/health`, `/api/system-health` | 2 | system health checks |
 
 > See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for full endpoint details with request/response examples.
+> See [DOCUMENT_PROCESSING_SEQUENCE.md](./DOCUMENT_PROCESSING_SEQUENCE.md) for the document upload processing sequence.
 
 ---
 
@@ -809,8 +823,9 @@ JWT Token --> Extract tenant_id
 | SLA Extraction | Extract SLA metrics and targets | Contract text | SLA definitions + penalties |
 | Regulatory Extraction | Extract regulatory compliance clauses (FDA, HIPAA, GMP, GDPR, SOC2, etc.) across 10 obligation categories | Contract text + industry context | Regulatory obligations + regulation references + compliance categories |
 | Schema Extraction | Extract fields using 15 pre-built contract type schemas (1,235 fields total) | Contract text + schema definition | Structured field values per schema sections |
+| Hierarchy Detection | Pairwise document classification, contract family detection | Contract pairs + metadata | Parent-child relationships + hierarchy types |
 
-All 9 agents use the Agent Squad framework with OpenAI GPT-4o and are orchestrated via intent-based routing through `OpenAIClassifier`. The Regulatory Extraction agent is invoked automatically for contracts in regulated industries and covers 10 obligation categories. The Schema Extraction agent supports 15 pre-built contract type schemas with 1,235 extractable fields across 133 sections, providing competitive parity with enterprise CLM vendors.
+All 10 agents use the Agent Squad framework with OpenAI GPT-4o and are orchestrated via intent-based routing through `OpenAIClassifier`. The Regulatory Extraction agent is invoked automatically for contracts in regulated industries and covers 10 obligation categories. The Schema Extraction agent supports 15 pre-built contract type schemas with 1,235 extractable fields across 133 sections, providing competitive parity with enterprise CLM vendors.
 
 Post-agent processing includes the **Governance Bridge** service, which automatically creates relationship governance objects (organizations, business relationships, KPIs from SLAs, improvement points from risks) and calculates a composite health score for each business relationship.
 
@@ -901,5 +916,5 @@ SMTP_PASSWORD=...
 
 ---
 
-*Last updated: 2026-03-29*
-*Verified against actual codebase: 44 routers, 38 services, 11 agent files, 53 model files, 35 schema files + 15 extraction schemas, 38 migrations, 77 database tables, ~402 endpoints, 53 frontend pages, 25 seed/utility scripts*
+*Last updated: 2026-04-05*
+*Verified against actual codebase: 43 routers, 40 services + 6 hierarchy detection modules, 11 agent files, 53 model files, 35 schema files + 15 extraction schemas, 38 migrations, ~77 database tables, ~405 endpoints, 53 frontend pages, 25 seed/utility scripts*

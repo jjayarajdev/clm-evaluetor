@@ -23,15 +23,9 @@ from app.models.contract_link import ContractLink, LinkType
 from app.models.definition import ContractDefinition
 from app.models.exhibit import ContractExhibit, ExhibitFeeItem, ExhibitType
 from app.models.user import Role, User
+from app.core.tenant import apply_tenant_filter
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
-
-
-def apply_tenant_filter(query, tenant_id):
-    """Apply tenant filter to a Contract query if tenant_id is set."""
-    if tenant_id is not None:
-        return query.where(Contract.tenant_id == tenant_id)
-    return query
 
 
 # ============== Contract Summary for Dashboard ==============
@@ -86,7 +80,7 @@ async def get_contracts_summary(
     )
 
     # Apply tenant filter
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Contract)
 
     # Filter by client if specified
     if client_id:
@@ -210,13 +204,13 @@ async def get_admin_dashboard(
 
     # Contract stats by type
     type_query = select(Contract.contract_type, func.count(Contract.id)).group_by(Contract.contract_type)
-    type_query = apply_tenant_filter(type_query, tenant_id)
+    type_query = apply_tenant_filter(type_query, tenant_id, Contract)
     type_result = await db.execute(type_query)
     by_type = {(t.value if t else "unknown"): c for t, c in type_result.all()}
 
     # Contract stats by status
     status_query = select(Contract.status, func.count(Contract.id)).group_by(Contract.status)
-    status_query = apply_tenant_filter(status_query, tenant_id)
+    status_query = apply_tenant_filter(status_query, tenant_id, Contract)
     status_result = await db.execute(status_query)
     by_status = {s.value: c for s, c in status_result.all()}
 
@@ -278,7 +272,7 @@ async def get_admin_dashboard(
         .order_by(Contract.updated_at.desc())
         .limit(5)
     )
-    failures_query = apply_tenant_filter(failures_query, tenant_id)
+    failures_query = apply_tenant_filter(failures_query, tenant_id, Contract)
     failures_result = await db.execute(failures_query)
     recent_failures = [
         {
@@ -380,7 +374,7 @@ async def get_legal_dashboard(
         .where(Contract.risk_level.isnot(None))
         .group_by(Contract.risk_level)
     )
-    risk_query = apply_tenant_filter(risk_query, tenant_id)
+    risk_query = apply_tenant_filter(risk_query, tenant_id, Contract)
     risk_result = await db.execute(risk_query)
     by_level = {r.value: c for r, c in risk_result.all()}
 
@@ -401,7 +395,7 @@ async def get_legal_dashboard(
         .order_by(Contract.risk_score.desc().nulls_last())
         .limit(10)
     )
-    high_risk_query = apply_tenant_filter(high_risk_query, tenant_id)
+    high_risk_query = apply_tenant_filter(high_risk_query, tenant_id, Contract)
     high_risk_result = await db.execute(high_risk_query)
 
     high_risk_contracts = [
@@ -423,7 +417,7 @@ async def get_legal_dashboard(
             .where(Contract.expiration_date <= end)
             .order_by(Contract.expiration_date.asc())
         )
-        exp_query = apply_tenant_filter(exp_query, tenant_id)
+        exp_query = apply_tenant_filter(exp_query, tenant_id, Contract)
         result = await db.execute(exp_query)
         return [
             ExpirationItem(
@@ -448,7 +442,7 @@ async def get_legal_dashboard(
         .order_by(Clause.created_at.desc())
         .limit(20)
     )
-    clause_query = apply_tenant_filter(clause_query, tenant_id)
+    clause_query = apply_tenant_filter(clause_query, tenant_id, Contract)
     clauses_result = await db.execute(clause_query)
     high_risk_clauses = [
         HighRiskClause(
@@ -569,7 +563,7 @@ async def get_procurement_dashboard(
         .order_by(func.sum(Contract.contract_value).desc())
         .limit(20)
     )
-    spend_query = apply_tenant_filter(spend_query, tenant_id)
+    spend_query = apply_tenant_filter(spend_query, tenant_id, Contract)
     spend_result = await db.execute(spend_query)
     spend_commitments = [
         SpendCommitment(
@@ -591,7 +585,7 @@ async def get_procurement_dashboard(
         .order_by(Obligation.deadline.asc())
         .limit(20)
     )
-    obl_query = apply_tenant_filter(obl_query, tenant_id)
+    obl_query = apply_tenant_filter(obl_query, tenant_id, Contract)
     obligations_result = await db.execute(obl_query)
     upcoming_obligations = [
         VendorObligation(
@@ -615,7 +609,7 @@ async def get_procurement_dashboard(
         .order_by(Contract.expiration_date.asc())
         .limit(20)
     )
-    renewal_query = apply_tenant_filter(renewal_query, tenant_id)
+    renewal_query = apply_tenant_filter(renewal_query, tenant_id, Contract)
     renewal_result = await db.execute(renewal_query)
 
     auto_renewal_risks = []
@@ -658,7 +652,7 @@ async def get_procurement_dashboard(
         .order_by(func.count(Contract.id).desc())
         .limit(20)
     )
-    vendor_query = apply_tenant_filter(vendor_query, tenant_id)
+    vendor_query = apply_tenant_filter(vendor_query, tenant_id, Contract)
     vendor_result = await db.execute(vendor_query)
     vendor_summary = {row[0]: row[1] for row in vendor_result.all()}
 
@@ -691,6 +685,7 @@ class ObligationItem(BaseModel):
     beneficiary_party: str | None
     deadline: date | None
     status: str
+    source_text: str | None = None
 
 
 class ObligationsMatrix(BaseModel):
@@ -814,6 +809,7 @@ async def get_contract_intelligence(
             beneficiary_party=obl.beneficiary_party,
             deadline=obl.deadline,
             status=obl.status.value if obl.status else "pending",
+            source_text=obl.source_text,
         )
 
         # Categorize by obligated party
@@ -2115,7 +2111,7 @@ async def get_obligations_compliance_dashboard(
         Contract.filename,
         Contract.counterparty,
     ).join(Contract, Obligation.contract_id == Contract.id)
-    base_query = apply_tenant_filter(base_query, tenant_id)
+    base_query = apply_tenant_filter(base_query, tenant_id, Contract)
 
     if contract_id:
         base_query = base_query.where(Obligation.contract_id == uuid_mod.UUID(contract_id))
@@ -2448,7 +2444,7 @@ async def get_portfolio_dashboard(
         .group_by(Contract.id)
         .order_by(Contract.created_at.desc())
     )
-    contracts_query = apply_tenant_filter(contracts_query, tenant_id)
+    contracts_query = apply_tenant_filter(contracts_query, tenant_id, Contract)
     contracts_result = await db.execute(contracts_query)
 
     contracts_data = []

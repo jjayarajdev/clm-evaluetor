@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.core.deps import get_current_user, require_role, CurrentTenantId, RequiredTenantId
+from app.core.tenant import apply_tenant_filter
 from app.models import (
     User,
     Organization,
@@ -44,13 +45,6 @@ from app.schemas.relationship_history import (
 router = APIRouter(prefix="/api/relationships", tags=["Relationships"])
 
 
-def apply_tenant_filter(query, tenant_id):
-    """Apply tenant filter to BusinessRelationship query if tenant_id is set."""
-    if tenant_id is not None:
-        return query.where(BusinessRelationship.tenant_id == tenant_id)
-    return query
-
-
 @router.get("", response_model=RelationshipListResponse)
 async def list_relationships(
     tenant_id: CurrentTenantId,
@@ -69,7 +63,7 @@ async def list_relationships(
         selectinload(BusinessRelationship.org_a),
         selectinload(BusinessRelationship.org_b),
     )
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, BusinessRelationship)
 
     # Filter by organization
     if org_id:
@@ -113,8 +107,39 @@ async def list_relationships(
     result = await db.execute(query)
     items = result.scalars().all()
 
+    # Fetch contract and KPI counts for all relationships in one query each
+    from app.models.contract import Contract
+    from app.models.kpi import KPI
+
+    rel_ids = [r.id for r in items]
+
+    contract_counts = {}
+    if rel_ids:
+        cc_result = await db.execute(
+            select(Contract.business_relationship_id, func.count(Contract.id))
+            .where(Contract.business_relationship_id.in_(rel_ids))
+            .group_by(Contract.business_relationship_id)
+        )
+        contract_counts = dict(cc_result.all())
+
+    kpi_counts = {}
+    if rel_ids:
+        kc_result = await db.execute(
+            select(KPI.relationship_id, func.count(KPI.id))
+            .where(KPI.relationship_id.in_(rel_ids), KPI.is_active == True)
+            .group_by(KPI.relationship_id)
+        )
+        kpi_counts = dict(kc_result.all())
+
+    responses = []
+    for item in items:
+        resp = _to_response(item)
+        resp.contract_count = contract_counts.get(item.id, 0)
+        resp.kpi_count = kpi_counts.get(item.id, 0)
+        responses.append(resp)
+
     return RelationshipListResponse(
-        items=[_to_response(item) for item in items],
+        items=responses,
         total=total,
         page=page,
         page_size=page_size,
@@ -188,7 +213,7 @@ async def get_relationship(
             selectinload(BusinessRelationship.org_b),
         )
     )
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, BusinessRelationship)
     result = await db.execute(query)
     relationship = result.scalar_one_or_none()
 
@@ -229,7 +254,7 @@ async def update_relationship(
             selectinload(BusinessRelationship.org_b),
         )
     )
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, BusinessRelationship)
     result = await db.execute(query)
     relationship = result.scalar_one_or_none()
 
@@ -405,22 +430,122 @@ async def get_health_score(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get health score for a relationship."""
-    relationship = await db.get(BusinessRelationship, rel_id)
+    """Get health score for a relationship with full breakdown."""
+    from app.models.contract import Contract
+    from app.models.sla import ContractSLA
+    from app.models.obligation import Obligation
+    from app.models.kpi import KPI, PerceptionGap
 
+    relationship = await db.get(BusinessRelationship, rel_id)
     if not relationship:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Relationship not found",
         )
 
-    # TODO: Implement actual health score calculation service
-    # For now, return cached or default score
+    factors = {}
+
+    # Contract risk component
+    contracts_result = await db.execute(
+        select(Contract).where(Contract.business_relationship_id == rel_id)
+    )
+    contracts = contracts_result.scalars().all()
+    risk_score = None
+    if contracts:
+        risk_scores = [c.risk_score for c in contracts if c.risk_score is not None]
+        if risk_scores:
+            avg_risk = sum(risk_scores) / len(risk_scores)
+            risk_score = round(100 - avg_risk)
+            factors["risk"] = {
+                "label": "Contract Risk",
+                "score": risk_score,
+                "weight": 30,
+                "detail": f"{len(risk_scores)} contracts, avg risk {round(avg_risk)}%",
+            }
+        factors["contract_count"] = len(contracts)
+
+    # SLA compliance component
+    sla_result = await db.execute(
+        select(func.avg(ContractSLA.current_compliance_rate)).where(
+            ContractSLA.contract_id.in_(
+                select(Contract.id).where(Contract.business_relationship_id == rel_id)
+            ),
+            ContractSLA.is_active == True,
+            ContractSLA.current_compliance_rate.isnot(None),
+        )
+    )
+    avg_compliance = sla_result.scalar()
+    sla_score = None
+    if avg_compliance is not None:
+        sla_score = round(float(avg_compliance))
+        factors["sla"] = {
+            "label": "SLA Compliance",
+            "score": sla_score,
+            "weight": 40,
+            "detail": f"Avg compliance rate {sla_score}%",
+        }
+
+    # Obligation health component
+    rag_result = await db.execute(
+        select(Obligation.rag_status, func.count(Obligation.id)).where(
+            Obligation.contract_id.in_(
+                select(Contract.id).where(Contract.business_relationship_id == rel_id)
+            ),
+        ).group_by(Obligation.rag_status)
+    )
+    rag_counts = {row[0]: row[1] for row in rag_result.all()}
+    total_obligations = sum(rag_counts.values())
+    obligation_score = None
+    if total_obligations > 0:
+        score_map = {"green": 100, "amber": 50, "red": 0, "not_assessed": 75}
+        weighted_sum = sum(
+            score_map.get(s, 75) * cnt for s, cnt in rag_counts.items()
+        )
+        obligation_score = round(weighted_sum / total_obligations)
+        factors["obligations"] = {
+            "label": "Obligation Health",
+            "score": obligation_score,
+            "weight": 30,
+            "detail": f"{rag_counts.get('green', 0)} green, {rag_counts.get('amber', 0)} amber, {rag_counts.get('red', 0)} red of {total_obligations}",
+        }
+
+    # Perception gap (informational, not in health calc)
+    gap_result = await db.execute(
+        select(PerceptionGap).where(
+            PerceptionGap.kpi_id.in_(
+                select(KPI.id).where(KPI.relationship_id == rel_id)
+            )
+        ).order_by(PerceptionGap.calculated_at.desc())
+    )
+    gaps = gap_result.scalars().all()
+    perception_score = None
+    if gaps:
+        sev_scores = {"minor": 90, "moderate": 75, "significant": 55, "critical": 35}
+        gap_scores = [sev_scores.get(g.gap_severity, 75) for g in gaps]
+        perception_score = round(sum(gap_scores) / len(gap_scores))
+        sev_dist = {}
+        for g in gaps:
+            sev_dist[g.gap_severity] = sev_dist.get(g.gap_severity, 0) + 1
+        factors["perception"] = {
+            "label": "Perception Gap",
+            "score": perception_score,
+            "weight": 0,
+            "detail": ", ".join(f"{cnt} {sev}" for sev, cnt in sev_dist.items()),
+        }
+
+    # KPI count
+    kpi_count_result = await db.execute(
+        select(func.count(KPI.id)).where(
+            KPI.relationship_id == rel_id, KPI.is_active == True
+        )
+    )
+    factors["kpi_count"] = kpi_count_result.scalar() or 0
+
     breakdown = HealthScoreBreakdown(
-        compliance_score=None,
-        sla_score=None,
-        perception_score=None,
-        improvement_score=None,
+        compliance_score=sla_score,
+        sla_score=sla_score,
+        perception_score=perception_score,
+        improvement_score=obligation_score,
         overall_score=relationship.health_score or 0,
         calculated_at=relationship.last_health_calculation or datetime.utcnow(),
     )
@@ -430,7 +555,7 @@ async def get_health_score(
         health_score=relationship.health_score or 0,
         breakdown=breakdown,
         trend=None,
-        factors=None,
+        factors=factors,
     )
 
 
@@ -448,7 +573,7 @@ async def list_status_history(
     """List relationship performance status history entries (paginated, newest first)."""
     # Verify relationship exists
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
-    rel_query = apply_tenant_filter(rel_query, tenant_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
     rel_result = await db.execute(rel_query)
     relationship = rel_result.scalar_one_or_none()
     if not relationship:
@@ -496,7 +621,7 @@ async def record_status_history(
     """Manually record a relationship performance status entry."""
     # Verify relationship exists and belongs to tenant
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
-    rel_query = apply_tenant_filter(rel_query, tenant_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
     rel_result = await db.execute(rel_query)
     relationship = rel_result.scalar_one_or_none()
     if not relationship:
@@ -563,7 +688,7 @@ async def get_performance_trend(
     """
     # Verify relationship exists
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
-    rel_query = apply_tenant_filter(rel_query, tenant_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
     rel_result = await db.execute(rel_query)
     relationship = rel_result.scalar_one_or_none()
     if not relationship:

@@ -211,22 +211,42 @@ class SLAComparisonEngine:
             return summary
 
         # Get SLA references for connector query
-        # For SLAs without section_reference, try to infer from name
+        # Each SLA gets a unique ref key to ensure separate stub values
         sla_refs = []
-        sla_ref_map: dict[uuid.UUID, str] = {}  # Map SLA ID to effective reference
+        sla_ref_map: dict[uuid.UUID, str] = {}  # Map SLA ID to unique reference key
+        contracted_slas: dict[str, dict] = {}  # Pass target info to stub for scale-aware generation
+        used_refs: set[str] = set()  # Track all used refs to guarantee uniqueness
         for s in slas:
-            ref = s.section_reference
-            if not ref:
-                # Try to infer from name
-                ref = self._infer_section_reference(s.sla_name)
-            if ref:
-                sla_refs.append(ref)
-                sla_ref_map[s.id] = ref
+            base_ref = s.section_reference
+            if not base_ref:
+                base_ref = self._infer_section_reference(s.sla_name)
+            if not base_ref:
+                base_ref = s.sla_name.lower().replace(" ", "_")[:30]
+            # Ensure uniqueness across all generated refs
+            ref = base_ref
+            if ref in used_refs:
+                # Use full SLA name for disambiguation
+                name_slug = s.sla_name.lower().replace(" ", "_").replace("-", "_")
+                ref = f"{base_ref}::{name_slug}"
+                # If still colliding, append a counter
+                counter = 2
+                while ref in used_refs:
+                    ref = f"{base_ref}::{name_slug}_{counter}"
+                    counter += 1
+            used_refs.add(ref)
+            sla_refs.append(ref)
+            sla_ref_map[s.id] = ref
+            contracted_slas[ref] = {
+                "target_value": float(s.target_value) if s.target_value else 0.95,
+                "minimum_value": float(s.minimum_service_level or s.warning_threshold or 0),
+                "operator": s.target_operator or ">=",
+            }
 
         # Fetch actual values from connector
         await self._connector.connect()
         actuals_result = await self._connector.get_sla_actuals(
-            list(set(sla_refs)), start_date, end_date  # Dedupe refs
+            list(set(sla_refs)), start_date, end_date,
+            contracted_slas=contracted_slas,
         )
 
         # Build lookup map for actuals
@@ -340,32 +360,11 @@ class SLAComparisonEngine:
         result.source_system = actual.source_system
 
         # Calculate deviations
+        # Note: stub connector now generates scale-aware values (same unit as target),
+        # so no normalization needed here.
         target = sla.target_value
         minimum = sla.minimum_service_level or sla.warning_threshold or target * Decimal("0.9")
         actual_val = actual.actual_value
-
-        # Handle unit normalization: stub returns 0-1 decimal, but targets may be 0-100 percentage
-        # Normalize both to the same scale for comparison
-        if target > Decimal("1"):
-            # Target is in percentage form (e.g., 99.9 for 99.9%)
-            # Convert actual from decimal to percentage to match
-            actual_val_normalized = actual_val * Decimal("100")
-            target_normalized = target
-            minimum_normalized = minimum
-            # For display, show actual in percentage form
-            result.actual_value = actual_val_normalized.quantize(Decimal("0.01"))
-        else:
-            # Target is in decimal form (e.g., 0.999 for 99.9%)
-            # Keep actual as is
-            actual_val_normalized = actual_val
-            target_normalized = target
-            minimum_normalized = minimum
-            result.actual_value = actual_val.quantize(Decimal("0.0001"))
-
-        # Use normalized values for comparison
-        actual_val = actual_val_normalized
-        target = target_normalized
-        minimum = minimum_normalized
 
         # Deviation from target (percentage)
         if target and target != 0:

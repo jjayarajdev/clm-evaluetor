@@ -16,8 +16,10 @@ import {
   LinkIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import PageHeader from '@/components/ui/PageHeader'
+import { ProcessingStatusIndicator } from '@/components/contracts/ProcessingStatusIndicator'
 import { cn, formatFileSize } from '@/lib/utils'
 
 interface FileUpload {
@@ -60,6 +62,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 export default function UploadPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { user, isSuperAdmin } = useAuth()
   const [files, setFiles] = useState<FileUpload[]>([])
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [showClientDropdown, setShowClientDropdown] = useState(false)
@@ -335,7 +338,6 @@ export default function UploadPage() {
   }
 
   const pendingCount = files.filter((f) => f.status === 'pending').length
-  const processingCount = files.filter((f) => f.status === 'uploaded' || f.status === 'processing').length
   const completedCount = files.filter((f) => f.status === 'completed').length
 
   return (
@@ -348,104 +350,118 @@ export default function UploadPage() {
         variant="bordered"
       />
 
-      {/* Processing indicator */}
-      {processingCount > 0 && (
-        <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <ArrowPathIcon className="h-5 w-5 text-blue-600 animate-spin" />
+      {/* Processing progress trackers */}
+      {processingContractIds.map((contractId) => {
+        const file = files.find(f => f.contractId === contractId)
+        return (
+          <div key={contractId}>
+            {file && (
+              <p className="text-xs text-gray-500 mb-1 font-medium">{file.file.name}</p>
+            )}
+            <ProcessingStatusIndicator
+              contractId={contractId}
+              autoConnect
+              onComplete={() => {
+                queryClient.invalidateQueries({ queryKey: ['contracts-status'] })
+              }}
+            />
+          </div>
+        )
+      })}
+
+      {/* Tenant context + optional Client Selector */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        {/* Show tenant context for non-super-admin users */}
+        {!isSuperAdmin && user?.tenant_name && (
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary-100">
+              <BuildingOfficeIcon className="h-5 w-5 text-primary-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-blue-800">
-                Processing {processingCount} document{processingCount > 1 ? 's' : ''}...
-              </p>
-              <p className="text-xs text-blue-600 mt-0.5">
-                AI is extracting clauses, obligations, and analyzing risks
-              </p>
+              <p className="text-sm font-semibold text-gray-900">{user.tenant_name}</p>
+              <p className="text-xs text-gray-500">Uploading contracts to your organization</p>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Client Selector */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select Client (Optional)
-        </label>
-        <div className="relative" ref={dropdownRef}>
-          <button
-            type="button"
-            onClick={() => setShowClientDropdown(!showClientDropdown)}
-            className="w-full flex items-center justify-between px-4 py-2.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            <div className="flex items-center gap-2">
-              <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
-              {selectedClient ? (
-                <span className="text-gray-900">
-                  {selectedClient.name} <span className="text-gray-500">({selectedClient.code})</span>
-                </span>
-              ) : (
-                <span className="text-gray-500">No client selected - files will be ungrouped</span>
+        {/* Client grouping - show as optional sub-grouping */}
+        {clients.length > 0 && (
+          <>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              Group under client (optional)
+            </label>
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setShowClientDropdown(!showClientDropdown)}
+                className="w-full flex items-center justify-between px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              >
+                <div className="flex items-center gap-2">
+                  {selectedClient ? (
+                    <span className="text-gray-900">
+                      {selectedClient.name} <span className="text-gray-500">({selectedClient.code})</span>
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">None</span>
+                  )}
+                </div>
+                <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition-transform', showClientDropdown && 'rotate-180')} />
+              </button>
+
+              {showClientDropdown && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedClientId(null)
+                      setShowClientDropdown(false)
+                    }}
+                    className={cn(
+                      'w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2',
+                      !selectedClientId && 'bg-primary-50'
+                    )}
+                  >
+                    <span className="text-gray-600">None</span>
+                  </button>
+
+                  {clients.map((client) => (
+                    <button
+                      key={client.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedClientId(client.id)
+                        setShowClientDropdown(false)
+                      }}
+                      className={cn(
+                        'w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center justify-between',
+                        selectedClientId === client.id && 'bg-primary-50'
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <BuildingOfficeIcon className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-900">{client.name}</span>
+                        <span className="text-gray-500 text-sm">({client.code})</span>
+                      </div>
+                      <span className="text-xs text-gray-400">{client.contract_count} contracts</span>
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNewClientForm(true)
+                      setShowClientDropdown(false)
+                    }}
+                    className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2 border-t border-gray-200"
+                  >
+                    <PlusIcon className="h-4 w-4 text-primary-600" />
+                    <span className="text-primary-600 font-medium">Create New Client</span>
+                  </button>
+                </div>
               )}
             </div>
-            <ChevronDownIcon className={cn('h-5 w-5 text-gray-400 transition-transform', showClientDropdown && 'rotate-180')} />
-          </button>
-
-          {showClientDropdown && (
-            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-auto">
-              {/* No client option */}
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedClientId(null)
-                  setShowClientDropdown(false)
-                }}
-                className={cn(
-                  'w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2',
-                  !selectedClientId && 'bg-primary-50'
-                )}
-              >
-                <span className="text-gray-600">No client (ungrouped)</span>
-              </button>
-
-              {/* Existing clients */}
-              {clients.map((client) => (
-                <button
-                  key={client.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedClientId(client.id)
-                    setShowClientDropdown(false)
-                  }}
-                  className={cn(
-                    'w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center justify-between',
-                    selectedClientId === client.id && 'bg-primary-50'
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <BuildingOfficeIcon className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-900">{client.name}</span>
-                    <span className="text-gray-500 text-sm">({client.code})</span>
-                  </div>
-                  <span className="text-xs text-gray-400">{client.contract_count} contracts</span>
-                </button>
-              ))}
-
-              {/* Create new client option */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowNewClientForm(true)
-                  setShowClientDropdown(false)
-                }}
-                className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2 border-t border-gray-200"
-              >
-                <PlusIcon className="h-4 w-4 text-primary-600" />
-                <span className="text-primary-600 font-medium">Create New Client</span>
-              </button>
-            </div>
-          )}
-        </div>
+          </>
+        )}
 
         {/* New Client Form */}
         {showNewClientForm && (

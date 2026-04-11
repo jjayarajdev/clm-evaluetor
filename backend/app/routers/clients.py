@@ -11,15 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import Client, Contract
 from app.core.deps import CurrentUser, CurrentTenantId, RequiredTenantId
+from app.core.tenant import apply_tenant_filter
 
 router = APIRouter(prefix="/api/clients", tags=["Clients"])
-
-
-def apply_tenant_filter(query, tenant_id):
-    """Apply tenant filter to a Client query if tenant_id is set."""
-    if tenant_id is not None:
-        return query.where(Client.tenant_id == tenant_id)
-    return query
 
 
 # ============ Pydantic Schemas ============
@@ -210,7 +204,7 @@ async def list_clients(
     """
     # Base query with tenant filter
     query = select(Client)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Client)
 
     # Apply search filter
     if search:
@@ -279,7 +273,7 @@ async def list_clients_summary(
         .group_by(Client.id)
         .order_by(Client.name)
     )
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Client)
 
     result = await db.execute(query)
     rows = result.all()
@@ -314,7 +308,7 @@ async def get_client(
         Client details.
     """
     query = select(Client).where(Client.id == uuid.UUID(client_id))
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Client)
     result = await db.execute(query)
     client = result.scalar_one_or_none()
 
@@ -354,7 +348,7 @@ async def update_client(
         Updated client.
     """
     query = select(Client).where(Client.id == uuid.UUID(client_id))
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Client)
     result = await db.execute(query)
     client = result.scalar_one_or_none()
 
@@ -370,7 +364,7 @@ async def update_client(
             func.lower(Client.code) == data.code.lower(),
             Client.id != client.id,
         )
-        conflict_query = apply_tenant_filter(conflict_query, tenant_id)
+        conflict_query = apply_tenant_filter(conflict_query, tenant_id, Client)
         existing = await db.execute(conflict_query)
         if existing.scalar_one_or_none():
             raise HTTPException(
@@ -418,7 +412,7 @@ async def delete_client(
         Confirmation message.
     """
     query = select(Client).where(Client.id == uuid.UUID(client_id))
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Client)
     result = await db.execute(query)
     client = result.scalar_one_or_none()
 

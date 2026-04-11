@@ -170,6 +170,7 @@ class ServiceNowStubConnector(ITSMConnector):
         sla_references: list[str],
         start_date: date,
         end_date: date,
+        contracted_slas: dict[str, dict] | None = None,
     ) -> ConnectorResult:
         """Generate realistic SLA actual values.
 
@@ -177,6 +178,9 @@ class ServiceNowStubConnector(ITSMConnector):
             sla_references: List of SLA section references.
             start_date: Start of measurement period.
             end_date: End of measurement period.
+            contracted_slas: Optional dict mapping ref -> {target_value, minimum_value, operator}
+                from the actual contracted SLAs. When provided, the stub generates
+                values in the same scale as the target (not always 0-1).
 
         Returns:
             ConnectorResult with simulated SLA actuals.
@@ -186,8 +190,12 @@ class ServiceNowStubConnector(ITSMConnector):
         for ref in sla_references:
             config = SLA_CONFIGURATIONS.get(ref)
             if not config:
-                # Generate generic values for unknown SLAs
-                config = self._generate_generic_config(ref)
+                # If we have contracted SLA info, generate scale-aware config
+                contracted = (contracted_slas or {}).get(ref)
+                if contracted:
+                    config = self._generate_scale_aware_config(ref, contracted)
+                else:
+                    config = self._generate_generic_config(ref)
 
             # Generate actual value with realistic variance
             actual = self._generate_actual_value(config, start_date, end_date)
@@ -380,9 +388,69 @@ class ServiceNowStubConnector(ITSMConnector):
             actual = base_value + seasonal_factor - trend_factor
 
         # Clamp to reasonable range
-        actual = max(0, min(1.0, actual))
+        clamp_max = float(config.get("clamp_max", Decimal("1.0")))
+        # If target > 1, clamp to a reasonable range above 0 (not 0-1)
+        target_val = float(config["target"])
+        if target_val > 1:
+            # For large-scale targets, clamp between 0 and 2x target
+            clamp_max = max(clamp_max, target_val * 1.5)
+        actual = max(0, min(clamp_max, actual))
 
         return Decimal(str(round(actual, 4)))
+
+    def _generate_scale_aware_config(self, ref: str, contracted: dict) -> dict:
+        """Generate config scaled to the contracted SLA's target value.
+
+        Instead of always generating 0-1 values, this generates values
+        in the same unit/scale as the contract's target.
+
+        For example:
+        - target=99.9 (availability %) -> generates ~98-100
+        - target=15 (response time mins, <= operator) -> generates ~12-18
+        - target=4.5 (satisfaction score) -> generates ~4.0-4.8
+        """
+        target = Decimal(str(contracted.get("target_value", 0.95)))
+        minimum = Decimal(str(contracted.get("minimum_value", 0) or 0))
+        operator = contracted.get("operator", ">=")
+
+        if target == 0:
+            return self._generate_generic_config(ref)
+
+        # For "<=" operators (lower is better, e.g., response time),
+        # generate values slightly around and below the target
+        if operator in ("<=", "<"):
+            # typical is 80-95% of target (meeting it most of the time)
+            typical = target * Decimal("0.85")
+            volatility = target * Decimal("0.15")
+            min_val = minimum if minimum > 0 else target * Decimal("0.70")
+            return {
+                "name": f"SLA {ref}",
+                "target": target,
+                "minimum": min_val,
+                "typical_performance": typical,
+                "volatility": volatility,
+                "clamp_max": target * Decimal("1.5"),  # Can overshoot (breach)
+            }
+
+        # For ">=" operators (higher is better, e.g., availability, satisfaction)
+        if minimum > 0:
+            # We have both target and minimum
+            spread = target - minimum
+            typical = minimum + spread * Decimal("0.6")
+            volatility = spread * Decimal("0.3")
+        else:
+            # Only have target - generate 90-100% range
+            typical = target * Decimal("0.97")
+            volatility = target * Decimal("0.03")
+            minimum = target * Decimal("0.90")
+
+        return {
+            "name": f"SLA {ref}",
+            "target": target,
+            "minimum": minimum,
+            "typical_performance": typical,
+            "volatility": volatility,
+        }
 
     def _generate_generic_config(self, ref: str) -> dict:
         """Generate generic config for unknown SLA references."""

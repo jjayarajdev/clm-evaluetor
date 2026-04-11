@@ -72,6 +72,7 @@ export interface BusinessRelationship {
   org_b_id: string
   org_a?: Organization
   org_b?: Organization
+  name?: string
   relationship_type: RelationshipType
   status: RelationshipStatus
   governance_tier: GovernanceTier
@@ -82,9 +83,32 @@ export interface BusinessRelationship {
   strategic_objectives: string | null
   annual_value: number | null
   currency: string | null
+  contract_count?: number
+  kpi_count?: number
   created_at: string
   updated_at: string
   team?: RelationshipTeamMember[]
+}
+
+export interface HealthScoreFactor {
+  label: string
+  score: number
+  weight: number
+  detail: string
+}
+
+export interface HealthScoreResponse {
+  relationship_id: string
+  health_score: number
+  breakdown: {
+    compliance_score: number | null
+    sla_score: number | null
+    perception_score: number | null
+    improvement_score: number | null
+    overall_score: number
+    calculated_at: string
+  }
+  factors: Record<string, HealthScoreFactor | number> | null
 }
 
 export interface RelationshipCreate {

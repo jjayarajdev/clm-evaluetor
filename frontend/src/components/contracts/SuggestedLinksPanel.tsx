@@ -191,7 +191,10 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
     reviewMutation.mutate({ action: 'modify', modifiedLinkType: linkType })
   }
 
-  const target = suggestion.target_contract
+  // Show the "other" contract — if we're viewing the target, show source and vice versa
+  const isViewingTarget = suggestion.target_contract_id === contractId
+  const linkedContract = isViewingTarget ? suggestion.source_contract : suggestion.target_contract
+  const linkedContractId = isViewingTarget ? suggestion.source_contract_id : suggestion.target_contract_id
   const isHighConfidence = suggestion.confidence_score >= 0.8
   const isLowConfidence = suggestion.confidence_score < 0.5
 
@@ -210,22 +213,27 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
           </div>
           <div className="min-w-0">
             <Link
-              to={`/contracts/${suggestion.target_contract_id}`}
+              to={`/contracts/${linkedContractId}`}
               className="text-sm font-medium text-gray-900 hover:text-primary-600 truncate block"
             >
-              {target?.filename || 'Unknown Contract'}
+              {linkedContract?.filename || 'Unknown Contract'}
             </Link>
             <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-500">
-              {target?.contract_type && (
-                <span className="bg-gray-100 px-1.5 py-0.5 rounded uppercase">
-                  {target.contract_type}
+              {isViewingTarget && (
+                <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] font-medium uppercase">
+                  Child
                 </span>
               )}
-              {target?.counterparty && (
-                <span>{target.counterparty}</span>
+              {linkedContract?.contract_type && (
+                <span className="bg-gray-100 px-1.5 py-0.5 rounded uppercase">
+                  {linkedContract.contract_type}
+                </span>
               )}
-              {target?.effective_date && (
-                <span>Effective: {formatDate(target.effective_date)}</span>
+              {linkedContract?.counterparty && (
+                <span>{linkedContract.counterparty}</span>
+              )}
+              {linkedContract?.effective_date && (
+                <span>Effective: {formatDate(linkedContract.effective_date)}</span>
               )}
             </div>
           </div>

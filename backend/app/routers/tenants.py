@@ -1,15 +1,18 @@
 """Tenant management router (super-admin only)."""
 
+import logging
 import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import SuperAdminUser, AdminUser, CurrentUser
 from app.database import get_db
 from app.models import Tenant, TenantPlan
+from app.models.organization import Organization, OrganizationType, OrganizationLevel
 from app.services import tenant_service
 
 
@@ -86,6 +89,46 @@ class TenantStatsResponse(BaseModel):
 
 
 # =============================================================================
+# Helpers
+# =============================================================================
+
+
+async def _bootstrap_internal_org(db: AsyncSession, tenant: Tenant) -> None:
+    """Create an internal Organization representing the tenant itself.
+
+    The GovernanceBridgeService needs this to auto-create BusinessRelationships
+    when contracts are uploaded: internal org ↔ counterparty org.
+    """
+    # Check if one already exists (idempotent)
+    result = await db.execute(
+        select(Organization.id).where(
+            Organization.tenant_id == tenant.id,
+            Organization.org_type == OrganizationType.INTERNAL.value,
+        ).limit(1)
+    )
+    if result.scalar_one_or_none():
+        return
+
+    # Generate a unique code from tenant slug
+    code = tenant.slug.upper().replace("-", "")[:10] + "-INT"
+
+    org = Organization(
+        id=uuid.uuid4(),
+        tenant_id=tenant.id,
+        name=tenant.name,
+        code=code,
+        org_type=OrganizationType.INTERNAL.value,
+        organization_level=OrganizationLevel.HOLDING.value,
+        is_active=True,
+        primary_contact_name=tenant.contact_name,
+        primary_contact_email=tenant.contact_email,
+    )
+    db.add(org)
+    await db.flush()
+    logging.info(f"Created internal org '{tenant.name}' ({code}) for tenant {tenant.slug}")
+
+
+# =============================================================================
 # Endpoints
 # =============================================================================
 
@@ -142,6 +185,21 @@ async def create_tenant(
         contact_email=tenant_data.contact_email,
         contact_name=tenant_data.contact_name,
     )
+
+    # Auto-provision enterprise integration configs for the new tenant
+    try:
+        from app.services.tenant_provisioner import provision_integrations
+        await provision_integrations(db=db, tenant_id=tenant.id, tenant_name=tenant.name)
+    except Exception as e:
+        logging.warning(f"Integration provisioning failed for {tenant.name}: {e}")
+
+    # Auto-create internal Organization so GovernanceBridgeService can
+    # link contracts to relationships on upload
+    try:
+        await _bootstrap_internal_org(db, tenant)
+    except Exception as e:
+        logging.warning(f"Internal org bootstrap failed for {tenant.name}: {e}")
+
     return TenantResponse.from_model(tenant)
 
 
@@ -307,3 +365,40 @@ async def deactivate_tenant(
         )
 
     await tenant_service.update_tenant(db, tenant, is_active=False)
+
+
+@router.post("/bootstrap-governance", status_code=status.HTTP_200_OK)
+async def bootstrap_all_tenants_governance(
+    current_user: SuperAdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Backfill internal organizations for all existing tenants.
+
+    Idempotent — skips tenants that already have an internal org.
+    Enables GovernanceBridgeService to auto-link contracts to relationships.
+    """
+    tenants = await tenant_service.get_all_tenants(db, include_inactive=False)
+    created = []
+    skipped = []
+    for tenant in tenants:
+        result = await db.execute(
+            select(Organization.id).where(
+                Organization.tenant_id == tenant.id,
+                Organization.org_type == OrganizationType.INTERNAL.value,
+            ).limit(1)
+        )
+        if result.scalar_one_or_none():
+            skipped.append(tenant.name)
+            continue
+        try:
+            await _bootstrap_internal_org(db, tenant)
+            created.append(tenant.name)
+        except Exception as e:
+            logging.warning(f"Bootstrap failed for {tenant.name}: {e}")
+
+    await db.commit()
+    return {
+        "created": created,
+        "skipped": skipped,
+        "message": f"Bootstrapped {len(created)} tenants, {len(skipped)} already had internal orgs",
+    }

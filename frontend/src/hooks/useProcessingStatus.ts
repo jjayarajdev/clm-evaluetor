@@ -15,9 +15,23 @@ export type ProcessingStage =
   | 'custom_fields'
   | 'risk'
   | 'knowledge_graph'
+  | 'clause_extraction'
+  | 'obligation_detection'
+  | 'sla_extraction'
+  | 'renewal_analysis'
+  | 'schema_extraction'
+  | 'link_detection'
+  | 'compliance_check'
+  | 'governance_bridge'
   | 'completed'
   | 'failed'
   | 'idle';
+
+export interface StageInfo {
+  id: string;
+  label: string;
+  weight: number;
+}
 
 export interface ProcessingProgress {
   contract_id: string;
@@ -29,6 +43,7 @@ export interface ProcessingProgress {
   started_at?: string;
   updated_at?: string;
   details?: Record<string, unknown>;
+  stages?: StageInfo[];
 }
 
 interface UseProcessingStatusOptions {
@@ -109,7 +124,7 @@ export function useProcessingStatus(
       disconnect();
 
       contractIdRef.current = contractId;
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('access_token');
       const url = `${API_BASE_URL}/api/contracts/${contractId}/processing-status`;
 
       // Create EventSource
@@ -204,7 +219,7 @@ export function useProcessingStatus(
 export async function getProcessingStatus(
   contractId: string
 ): Promise<ProcessingProgress> {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('access_token');
   const response = await fetch(
     `${API_BASE_URL}/api/contracts/${contractId}/processing-status/current`,
     {

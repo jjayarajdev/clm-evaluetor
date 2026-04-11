@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.core.deps import get_current_user, require_role, CurrentTenantId, RequiredTenantId
+from app.core.tenant import apply_tenant_filter
 from app.models import User, Organization, OrganizationType, OrganizationSize
 from app.models.organization_officer import OrganizationOfficer, GovernanceRole, OfficerSide
 from app.schemas.organization import (
@@ -29,13 +30,6 @@ from app.schemas.organization_officer import (
 router = APIRouter(prefix="/api/organizations", tags=["Organizations"])
 
 
-def apply_tenant_filter(query, tenant_id):
-    """Apply tenant filter to Organization query if tenant_id is set."""
-    if tenant_id is not None:
-        return query.where(Organization.tenant_id == tenant_id)
-    return query
-
-
 @router.get("", response_model=OrganizationListResponse)
 async def list_organizations(
     tenant_id: CurrentTenantId,
@@ -51,7 +45,7 @@ async def list_organizations(
 ):
     """List organizations with filtering and pagination."""
     query = select(Organization)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Organization)
 
     # Apply filters
     if search:
@@ -164,7 +158,7 @@ async def get_organization_tree(
     Returns top-level organizations (those without a parent) with nested children.
     """
     query = select(Organization)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Organization)
     query = query.order_by(Organization.name)
 
     result = await db.execute(query)
@@ -191,7 +185,7 @@ async def get_organization(
 ):
     """Get organization by ID."""
     query = select(Organization).where(Organization.id == org_id)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Organization)
     result = await db.execute(query)
     org = result.scalar_one_or_none()
 
@@ -214,7 +208,7 @@ async def update_organization(
 ):
     """Update an organization."""
     query = select(Organization).where(Organization.id == org_id)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Organization)
     result = await db.execute(query)
     org = result.scalar_one_or_none()
 
@@ -230,7 +224,7 @@ async def update_organization(
             Organization.code == data.code,
             Organization.id != org_id,
         )
-        conflict_query = apply_tenant_filter(conflict_query, tenant_id)
+        conflict_query = apply_tenant_filter(conflict_query, tenant_id, Organization)
         existing = await db.execute(conflict_query)
         if existing.scalar_one_or_none():
             raise HTTPException(
@@ -259,7 +253,7 @@ async def delete_organization(
 ):
     """Delete or deactivate an organization."""
     query = select(Organization).where(Organization.id == org_id)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Organization)
     result = await db.execute(query)
     org = result.scalar_one_or_none()
 
@@ -335,7 +329,7 @@ async def get_subsidiaries(
     """Get direct child organizations (subsidiaries) of the given organization."""
     # Verify parent exists
     parent_query = select(Organization).where(Organization.id == org_id)
-    parent_query = apply_tenant_filter(parent_query, tenant_id)
+    parent_query = apply_tenant_filter(parent_query, tenant_id, Organization)
     parent_result = await db.execute(parent_query)
     parent_org = parent_result.scalar_one_or_none()
 
@@ -349,7 +343,7 @@ async def get_subsidiaries(
     children_query = select(Organization).where(
         Organization.parent_organization_id == org_id,
     )
-    children_query = apply_tenant_filter(children_query, tenant_id)
+    children_query = apply_tenant_filter(children_query, tenant_id, Organization)
     children_query = children_query.order_by(Organization.name)
 
     result = await db.execute(children_query)
@@ -372,7 +366,7 @@ async def get_organization_hierarchy(
     """
     # Fetch the target org
     org_query = select(Organization).where(Organization.id == org_id)
-    org_query = apply_tenant_filter(org_query, tenant_id)
+    org_query = apply_tenant_filter(org_query, tenant_id, Organization)
     result = await db.execute(org_query)
     org = result.scalar_one_or_none()
 
@@ -389,7 +383,7 @@ async def get_organization_hierarchy(
     while current_parent_id and current_parent_id not in visited:
         visited.add(current_parent_id)
         parent_q = select(Organization).where(Organization.id == current_parent_id)
-        parent_q = apply_tenant_filter(parent_q, tenant_id)
+        parent_q = apply_tenant_filter(parent_q, tenant_id, Organization)
         parent_result = await db.execute(parent_q)
         parent = parent_result.scalar_one_or_none()
         if parent:
@@ -409,7 +403,7 @@ async def get_organization_hierarchy(
     children_query = select(Organization).where(
         Organization.parent_organization_id == org_id,
     )
-    children_query = apply_tenant_filter(children_query, tenant_id)
+    children_query = apply_tenant_filter(children_query, tenant_id, Organization)
     children_query = children_query.order_by(Organization.name)
     children_result = await db.execute(children_query)
     children = children_result.scalars().all()
@@ -448,7 +442,7 @@ async def list_officers(
     """
     # Verify org exists
     org_query = select(Organization).where(Organization.id == org_id)
-    org_query = apply_tenant_filter(org_query, tenant_id)
+    org_query = apply_tenant_filter(org_query, tenant_id, Organization)
     org_result = await db.execute(org_query)
     if not org_result.scalar_one_or_none():
         raise HTTPException(

@@ -31,6 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-eng \
     libpq5 \
     curl \
+    libreoffice-writer \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

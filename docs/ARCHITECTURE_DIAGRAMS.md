@@ -111,7 +111,7 @@ flowchart TB
         API_Client["API Client<br/>Axios/Fetch"]
     end
 
-    subgraph Routers["API Routers (29 routers)"]
+    subgraph Routers["API Routers (43 routers)"]
         direction TB
         subgraph Business["Business APIs"]
             R_Contracts["contracts.py<br/>/api/contracts"]
@@ -139,7 +139,7 @@ flowchart TB
         end
     end
 
-    subgraph Services["Services Layer (23 services)"]
+    subgraph Services["Services Layer (40+ services)"]
         direction TB
         subgraph Processing["Document Processing"]
             S_Upload["upload.py<br/>File Handling"]
@@ -160,7 +160,7 @@ flowchart TB
         end
     end
 
-    subgraph Agents["AI Agents (8 agents)"]
+    subgraph Agents["AI Agents (11 agents)"]
         direction LR
         A_QA["Contract Q&A<br/>RAG + Citations"]
         A_Metadata["Metadata<br/>Extraction"]
@@ -170,6 +170,9 @@ flowchart TB
         A_Renewal["Renewal<br/>Monitoring"]
         A_SLA["SLA<br/>Extraction"]
         A_Schema["Schema<br/>Extraction"]
+        A_RefExtract["Reference<br/>Extraction"]
+        A_Regulatory["Regulatory<br/>Extraction"]
+        A_Hierarchy["Hierarchy<br/>Detection"]
     end
 
     subgraph Connectors["External Connectors"]
@@ -181,7 +184,7 @@ flowchart TB
 
     subgraph Storage["Data Storage"]
         direction TB
-        DB_Postgres[("PostgreSQL<br/>50+ Tables")]
+        DB_Postgres[("PostgreSQL<br/>77+ Tables")]
         DB_Chroma[("ChromaDB<br/>Vector Embeddings")]
         DB_Files[("File System<br/>uploads/processed")]
     end
@@ -1073,6 +1076,55 @@ sequenceDiagram
     F-->>User: Action visible in improvement
 ```
 
+### 4.9 Hierarchy Detection Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Worker as ProcessingWorker
+    participant Indexer as IndexingService
+    participant Extract as SmartDocumentExtractor
+    participant CandGen as CandidatePairGenerator
+    participant Classifier as RelationshipClassifier
+    participant Builder as HierarchyBuilder
+    participant LLM as OpenAI GPT-4o
+    participant PG as PostgreSQL
+
+    Note over Worker,PG: Triggered after contract marked COMPLETED
+
+    Worker->>Indexer: index_contract() complete
+    Indexer->>PG: Get 50 most recent completed contracts for tenant
+    PG-->>Indexer: contract_ids[]
+
+    Indexer->>Extract: extract_batch(contract_ids)
+    Extract->>PG: Load contract text and metadata
+    Extract->>LLM: GPT-4o-mini: Extract document cards (section-targeted)
+    LLM-->>Extract: DocumentCard per contract (title, type, parties, refs)
+    Extract-->>Indexer: document_cards[]
+
+    Indexer->>CandGen: generate(document_cards)
+    CandGen->>CandGen: 6 heuristic strategies (cross-ref, filename, type, party, hash, sibling)
+    CandGen-->>Indexer: candidate_pairs[] (max 250)
+
+    Indexer->>Classifier: classify_batch(pairs, cards)
+    loop Batches of 8 pairs, 3 concurrent
+        Classifier->>LLM: GPT-4o: Classify relationship for each pair
+        LLM-->>Classifier: RelationshipType + confidence + reasoning
+    end
+    Classifier-->>Indexer: classified_pairs[]
+
+    Indexer->>Builder: build_and_persist(classified_pairs)
+    Builder->>Builder: Filter by confidence thresholds
+    Builder->>Builder: Resolve conflicts (keep highest confidence)
+    Builder->>Builder: Determine parent/child direction
+    Builder->>Builder: Map to LinkType (amendment, sow, exhibit, etc.)
+    Builder->>PG: INSERT SuggestedContractLink records
+    PG-->>Builder: suggestions created
+    Builder-->>Indexer: suggestion_count
+
+    Note over Worker,PG: Suggestions visible in Related Docs tab
+```
+
 ---
 
 ## 5. Data Flow Diagrams
@@ -1413,6 +1465,6 @@ flowchart TB
 ---
 
 *Diagrams created: 2026-02-12*
-*Updated: 2026-02-16 - Updated router count (29), added FX connector, added Governance API group*
+*Updated: 2026-04-05*
 *Based on CLM codebase analysis*
 *Render with any Mermaid-compatible viewer (GitHub, VS Code, etc.)*

@@ -27,6 +27,7 @@ from app.services.vector_store import get_vector_store
 from app.services.orchestrator import get_orchestrator, initialize_default_agents
 from app.services.langfuse_service import flush_langfuse
 from app.services.scheduler_service import start_scheduler, stop_scheduler
+from app.services.processing_worker import start_processing_worker, stop_processing_worker
 from app.services.master_data_repository import auto_seed_master_data
 from app.agents import register_all_agents
 from app.schemas import get_schema_registry
@@ -65,6 +66,10 @@ async def lifespan(app: FastAPI):
         app.state._scheduler_lock = _scheduler_lock  # keep reference so GC doesn't release
         await start_scheduler()
         logger.info("Scheduler started successfully")
+
+        # Start the processing worker alongside the scheduler
+        await start_processing_worker()
+        logger.info("Processing worker started successfully")
     except OSError:
         logger.info("Scheduler skipped (another worker owns it)")
     except Exception as e:
@@ -78,10 +83,11 @@ async def lifespan(app: FastAPI):
 
     # Stop the scheduler
     try:
+        await stop_processing_worker()
         await stop_scheduler()
-        logger.info("Scheduler stopped successfully")
+        logger.info("Scheduler and processing worker stopped")
     except Exception as e:
-        logger.error(f"Error stopping scheduler: {e}")
+        logger.error(f"Error stopping scheduler/worker: {e}")
 
     flush_langfuse()
     orchestrator = get_orchestrator()

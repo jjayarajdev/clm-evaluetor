@@ -5,6 +5,7 @@ Called at the end of _run_deep_analysis after all AI agents have completed.
 Each automation is independent and fault-tolerant: one failure does not block others.
 """
 
+import json
 import logging
 import re
 import uuid
@@ -12,13 +13,18 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
+from openai import AsyncOpenAI
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import settings
 
 from app.models.contract import Contract, ContractType, RiskLevel
 from app.models.clause import Clause
 from app.models.sla import ContractSLA, SLAMetricType, SLAUnit
 from app.models.organization import Organization, OrganizationType, OrganizationLevel
+from app.models.party import ContractParty, PartyRole
+from app.models.preamble import ContractPreamble, ContractPartyDetail
 from app.models.relationship import (
     BusinessRelationship,
     RelationshipType,
@@ -232,11 +238,8 @@ class GovernanceBridgeService:
         if org:
             return org
 
-        # No match — auto-create
-        org_type = CONTRACT_TYPE_TO_ORG.get(
-            contract.contract_type.value if contract.contract_type else "",
-            OrganizationType.CUSTOMER.value,
-        )
+        # Determine the counterparty's role using AI-extracted data
+        org_type = await self._determine_counterparty_role(contract)
 
         code = self._generate_org_code(counterparty)
         # Ensure code is unique
@@ -249,6 +252,25 @@ class GovernanceBridgeService:
                 code = candidate
                 break
 
+        # Gather enrichment data from AI extraction
+        enrichment = await self._extract_org_details(contract, counterparty)
+
+        # If key fields are still missing, use AI to extract them
+        needs_ai = (
+            not enrichment.get("country")
+            or not enrichment.get("industry")
+        )
+        if needs_ai:
+            ai_data = await self._ai_extract_org_info(contract, counterparty)
+            if ai_data:
+                # AI can also correct the org_type
+                if ai_data.get("org_type"):
+                    org_type = ai_data.pop("org_type")
+                # Merge AI data without overwriting existing values
+                for key, val in ai_data.items():
+                    if val and not enrichment.get(key):
+                        enrichment[key] = val
+
         org = Organization(
             id=uuid.uuid4(),
             tenant_id=tenant_id,
@@ -257,9 +279,290 @@ class GovernanceBridgeService:
             org_type=org_type,
             organization_level=OrganizationLevel.HOLDING.value,
             is_active=True,
+            **enrichment,
         )
         self.db.add(org)
         return org
+
+    async def _determine_counterparty_role(
+        self, contract: Contract
+    ) -> str:
+        """Determine if the counterparty is a vendor, customer, or partner.
+
+        Uses multiple signals in priority order:
+        1. ContractParty table (explicit roles from AI extraction)
+        2. ContractPartyDetail from preamble (party_role field)
+        3. Contract text analysis (looks for role labels near party names)
+        4. Contract type mapping (fallback)
+        """
+        counterparty = (contract.counterparty or "").strip().lower()
+
+        # ── Signal 1: ContractParty table ─────────────────────────────────
+        result = await self.db.execute(
+            select(ContractParty).where(
+                ContractParty.contract_id == contract.id,
+                ContractParty.is_primary == False,
+            )
+        )
+        parties = result.scalars().all()
+        for party in parties:
+            if party.legal_name and counterparty in party.legal_name.lower():
+                role_map = {
+                    PartyRole.VENDOR: OrganizationType.VENDOR.value,
+                    PartyRole.PROVIDER: OrganizationType.VENDOR.value,
+                    PartyRole.CUSTOMER: OrganizationType.CUSTOMER.value,
+                    PartyRole.CLIENT: OrganizationType.CUSTOMER.value,
+                    PartyRole.LICENSOR: OrganizationType.VENDOR.value,
+                    PartyRole.LICENSEE: OrganizationType.CUSTOMER.value,
+                    PartyRole.DISCLOSING_PARTY: OrganizationType.PARTNER.value,
+                    PartyRole.RECEIVING_PARTY: OrganizationType.PARTNER.value,
+                }
+                if party.role in role_map:
+                    logger.info(f"Org type from ContractParty role: {party.role.value} → {role_map[party.role]}")
+                    return role_map[party.role]
+
+        # ── Signal 2: Preamble party details ──────────────────────────────
+        result = await self.db.execute(
+            select(ContractPartyDetail)
+            .join(ContractPreamble, ContractPartyDetail.preamble_id == ContractPreamble.id)
+            .where(ContractPreamble.contract_id == contract.id)
+        )
+        preamble_parties = result.scalars().all()
+        for pp in preamble_parties:
+            if pp.party_name and counterparty in pp.party_name.lower():
+                role_text = (pp.party_role or "").lower()
+                if any(kw in role_text for kw in ["vendor", "provider", "supplier", "licensor"]):
+                    logger.info(f"Org type from preamble party_role: {pp.party_role} → vendor")
+                    return OrganizationType.VENDOR.value
+                if any(kw in role_text for kw in ["customer", "client", "buyer", "licensee"]):
+                    logger.info(f"Org type from preamble party_role: {pp.party_role} → customer")
+                    return OrganizationType.CUSTOMER.value
+
+        # ── Signal 3: Contract text analysis ──────────────────────────────
+        text = (contract.extracted_text or "")[:3000].lower()
+        if text and counterparty:
+            # Find counterparty position in text
+            cp_pos = text.find(counterparty[:30].lower())
+            if cp_pos == -1:
+                # Try shorter prefix
+                cp_pos = text.find(counterparty[:15].lower())
+
+            if cp_pos != -1:
+                # Look at surrounding context (500 chars around the mention)
+                start = max(0, cp_pos - 200)
+                end = min(len(text), cp_pos + len(counterparty) + 200)
+                context = text[start:end]
+
+                # Check for role labels near the counterparty name
+                vendor_signals = ["vendor", "provider", "supplier", "service provider"]
+                customer_signals = ["customer", "client", "buyer", "purchaser"]
+                partner_signals = ["partner", "collaborator"]
+
+                vendor_score = sum(1 for kw in vendor_signals if kw in context)
+                customer_score = sum(1 for kw in customer_signals if kw in context)
+                partner_score = sum(1 for kw in partner_signals if kw in context)
+
+                if vendor_score > customer_score and vendor_score > partner_score:
+                    logger.info(f"Org type from text analysis: vendor (score {vendor_score})")
+                    return OrganizationType.VENDOR.value
+                if customer_score > vendor_score and customer_score > partner_score:
+                    logger.info(f"Org type from text analysis: customer (score {customer_score})")
+                    return OrganizationType.CUSTOMER.value
+                if partner_score > 0:
+                    logger.info(f"Org type from text analysis: partner (score {partner_score})")
+                    return OrganizationType.PARTNER.value
+
+            # Also check schema_data reference_text for role clues
+            if contract.schema_data and isinstance(contract.schema_data, dict):
+                refs = contract.schema_data.get("_contract_references", {})
+                ref_text = ""
+                for pref in refs.get("parent_references", []):
+                    ref_text += " " + (pref.get("reference_text", "") or "")
+                ref_text = ref_text.lower()
+                if ref_text:
+                    vendor_hit = any(kw in ref_text for kw in ["vendor", "provider", "supplier"])
+                    customer_hit = any(kw in ref_text for kw in ["customer", "client", "buyer"])
+                    if vendor_hit and not customer_hit:
+                        logger.info("Org type from schema_data reference_text: vendor")
+                        return OrganizationType.VENDOR.value
+                    if customer_hit and not vendor_hit:
+                        logger.info("Org type from schema_data reference_text: customer")
+                        return OrganizationType.CUSTOMER.value
+
+        # ── Signal 4: Contract type mapping (fallback) ────────────────────
+        org_type = CONTRACT_TYPE_TO_ORG.get(
+            contract.contract_type.value if contract.contract_type else "",
+            OrganizationType.CUSTOMER.value,
+        )
+        logger.info(f"Org type from contract_type fallback: {org_type}")
+        return org_type
+
+    async def _extract_org_details(
+        self, contract: Contract, counterparty: str
+    ) -> dict:
+        """Extract organization details from AI-extracted contract data.
+
+        Returns a dict of Organization fields to set.
+        """
+        details: dict = {}
+        counterparty_lower = counterparty.lower()
+
+        # ── From ContractParty table ──────────────────────────────────────
+        result = await self.db.execute(
+            select(ContractParty).where(
+                ContractParty.contract_id == contract.id,
+            )
+        )
+        parties = result.scalars().all()
+        for party in parties:
+            if party.legal_name and counterparty_lower in party.legal_name.lower():
+                if party.jurisdiction and not details.get("country"):
+                    details["country"] = party.jurisdiction
+                if party.registered_address and not details.get("address"):
+                    details["address"] = party.registered_address
+                if party.entity_type and not details.get("notes"):
+                    details["notes"] = f"Entity type: {party.entity_type}"
+                if party.contact_name and not details.get("primary_contact_name"):
+                    details["primary_contact_name"] = party.contact_name
+                if party.contact_email and not details.get("primary_contact_email"):
+                    details["primary_contact_email"] = party.contact_email
+                break
+
+        # ── From preamble party details ───────────────────────────────────
+        result = await self.db.execute(
+            select(ContractPartyDetail)
+            .join(ContractPreamble, ContractPartyDetail.preamble_id == ContractPreamble.id)
+            .where(ContractPreamble.contract_id == contract.id)
+        )
+        preamble_parties = result.scalars().all()
+        for pp in preamble_parties:
+            if pp.party_name and counterparty_lower in pp.party_name.lower():
+                if pp.jurisdiction_of_incorporation and not details.get("country"):
+                    details["country"] = pp.jurisdiction_of_incorporation
+                if pp.address and not details.get("address"):
+                    details["address"] = pp.address
+                if pp.legal_form and not details.get("notes"):
+                    details["notes"] = f"Legal form: {pp.legal_form}"
+                break
+
+        # ── Infer region from country ─────────────────────────────────────
+        if details.get("country") and not details.get("region"):
+            country = details["country"].lower()
+            region_map = {
+                "india": "Asia Pacific", "japan": "Asia Pacific", "china": "Asia Pacific",
+                "australia": "Asia Pacific", "singapore": "Asia Pacific", "korea": "Asia Pacific",
+                "united states": "North America", "usa": "North America", "canada": "North America",
+                "united kingdom": "Europe", "uk": "Europe", "germany": "Europe",
+                "france": "Europe", "netherlands": "Europe", "switzerland": "Europe",
+                "ireland": "Europe", "spain": "Europe", "italy": "Europe",
+                "brazil": "Latin America", "mexico": "Latin America",
+                "uae": "Middle East", "saudi arabia": "Middle East",
+                "south africa": "Africa", "nigeria": "Africa",
+            }
+            for key, region in region_map.items():
+                if key in country:
+                    details["region"] = region
+                    break
+
+        # ── Infer industry from contract context ──────────────────────────
+        if not details.get("industry") and contract.extracted_text:
+            text_sample = contract.extracted_text[:2000].lower()
+            industry_keywords = {
+                "Technology": ["software", "technology", "saas", "cloud", "platform", "digital", "it services"],
+                "Financial Services": ["banking", "financial", "investment", "insurance", "fintech"],
+                "Healthcare": ["healthcare", "medical", "pharmaceutical", "biotech", "hospital"],
+                "Manufacturing": ["manufacturing", "production", "industrial", "factory"],
+                "Professional Services": ["consulting", "advisory", "professional services", "managed services"],
+                "Telecommunications": ["telecom", "telecommunications", "wireless", "network"],
+                "Energy": ["energy", "oil", "gas", "renewable", "power"],
+                "Retail": ["retail", "commerce", "consumer goods"],
+                "Legal": ["legal", "law firm", "attorney"],
+            }
+            best_industry = None
+            best_score = 0
+            for industry, keywords in industry_keywords.items():
+                score = sum(1 for kw in keywords if kw in text_sample)
+                if score > best_score:
+                    best_score = score
+                    best_industry = industry
+            if best_industry and best_score >= 2:
+                details["industry"] = best_industry
+
+        return details
+
+    async def _ai_extract_org_info(
+        self, contract: Contract, counterparty: str
+    ) -> Optional[dict]:
+        """Use GPT to extract organization details from contract text.
+
+        Called when structured data (ContractParty, preamble) is unavailable.
+        Returns dict with org_type, industry, country, region fields.
+        """
+        text_sample = (contract.extracted_text or "")[:3000]
+        if not text_sample or len(text_sample) < 100:
+            return None
+
+        try:
+            client = AsyncOpenAI(api_key=settings.openai_api_key)
+
+            prompt = f"""Analyze this contract text and determine the following about the counterparty "{counterparty}":
+
+1. **role**: Is "{counterparty}" the vendor/provider/supplier, the customer/client/buyer, or a partner? Answer one of: vendor, customer, partner
+2. **industry**: What industry does "{counterparty}" operate in? (e.g. Technology, Financial Services, Healthcare, Manufacturing, Professional Services, Education, Government, Non-Profit, Legal, Real Estate, Consulting, Telecommunications, Energy, Retail)
+3. **country**: What country is "{counterparty}" based in? Use full country name.
+4. **region**: What region? (North America, Europe, Asia Pacific, Latin America, Middle East, Africa)
+
+Contract text (first 3000 chars):
+---
+{text_sample}
+---
+
+Respond ONLY with valid JSON, no markdown:
+{{"role": "vendor|customer|partner", "industry": "...", "country": "...", "region": "..."}}
+
+If you cannot determine a field, use null for that field."""
+
+            response = await client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=200,
+            )
+
+            content = (response.choices[0].message.content or "").strip()
+            # Strip markdown fences if present
+            if content.startswith("```"):
+                content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+            data = json.loads(content)
+            result = {}
+
+            # Map role to org_type
+            role = (data.get("role") or "").lower()
+            role_map = {
+                "vendor": OrganizationType.VENDOR.value,
+                "provider": OrganizationType.VENDOR.value,
+                "supplier": OrganizationType.VENDOR.value,
+                "customer": OrganizationType.CUSTOMER.value,
+                "client": OrganizationType.CUSTOMER.value,
+                "partner": OrganizationType.PARTNER.value,
+            }
+            if role in role_map:
+                result["org_type"] = role_map[role]
+
+            if data.get("industry"):
+                result["industry"] = data["industry"]
+            if data.get("country"):
+                result["country"] = data["country"]
+            if data.get("region"):
+                result["region"] = data["region"]
+
+            logger.info(f"AI org extraction for '{counterparty}': {result}")
+            return result
+
+        except Exception as e:
+            logger.warning(f"AI org extraction failed for '{counterparty}': {e}")
+            return None
 
     @staticmethod
     def _generate_org_code(name: str) -> str:

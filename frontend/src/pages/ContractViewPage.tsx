@@ -7,28 +7,28 @@ import {
   ShieldExclamationIcon,
   ArrowPathIcon,
   TrashIcon,
-  ClipboardDocumentListIcon,
   ChartBarIcon,
   LinkIcon,
   InformationCircleIcon,
   ShareIcon,
+  DocumentMagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import ContractIntelligence from '@/components/dashboard/ContractIntelligence'
 import SLASummary from '@/components/dashboard/SLASummary'
 import CustomFieldsDisplay from '@/components/contracts/CustomFieldsDisplay'
 import SuggestedLinksPanel from '@/components/contracts/SuggestedLinksPanel'
 import ContractSharing from '@/components/contracts/ContractSharing'
 import ContractDocumentsTab from '@/components/contracts/ContractDocumentsTab'
+import ContractReviewPane from '@/components/contracts/ContractReviewPane'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn, formatDate, formatCurrency, formatFileSize, getRiskColor, getStatusColor } from '@/lib/utils'
 
-type TabType = 'overview' | 'intelligence' | 'slas' | 'related' | 'documents' | 'sharing'
+type TabType = 'overview' | 'review' | 'slas' | 'related' | 'documents' | 'sharing'
 
 const TABS = [
   { id: 'overview' as const, label: 'Overview', icon: InformationCircleIcon },
-  { id: 'intelligence' as const, label: 'Intelligence', icon: ClipboardDocumentListIcon },
+  { id: 'review' as const, label: 'Review', icon: DocumentMagnifyingGlassIcon },
   { id: 'slas' as const, label: 'SLAs', icon: ChartBarIcon },
   { id: 'related' as const, label: 'Related Docs', icon: LinkIcon },
   { id: 'documents' as const, label: 'Documents', icon: DocumentTextIcon },
@@ -236,7 +236,15 @@ export default function ContractViewPage() {
         </nav>
       </div>
 
-      {/* Tab Content */}
+      {/* Review Tab - full-bleed, no padding */}
+      {activeTab === 'review' && isCompleted && id && (
+        <div className="flex-1 overflow-hidden">
+          <ContractReviewPane contractId={id} contract={contract} />
+        </div>
+      )}
+
+      {/* Tab Content (all tabs except review) */}
+      {activeTab !== 'review' && (
       <div className="flex-1 overflow-auto p-6 bg-gray-50">
         {/* Processing error banner */}
         {contract.processing_error && (
@@ -338,7 +346,7 @@ export default function ContractViewPage() {
                         </p>
                         {isCompleted && (
                           <button
-                            onClick={() => setActiveTab('intelligence')}
+                            onClick={() => setActiveTab('review')}
                             className="text-sm text-primary-600 hover:text-primary-700 mt-2"
                           >
                             View detailed analysis →
@@ -392,14 +400,14 @@ export default function ContractViewPage() {
                   <div className="card-body">
                     <div className="grid grid-cols-2 gap-4">
                       <button
-                        onClick={() => setActiveTab('intelligence')}
+                        onClick={() => setActiveTab('review')}
                         className="text-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                       >
                         <p className="text-2xl font-bold text-gray-900">{contract.clause_count}</p>
                         <p className="text-xs text-gray-500">Clauses</p>
                       </button>
                       <button
-                        onClick={() => setActiveTab('intelligence')}
+                        onClick={() => setActiveTab('review')}
                         className="text-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                       >
                         <p className="text-2xl font-bold text-gray-900">{contract.obligation_count}</p>
@@ -427,11 +435,6 @@ export default function ContractViewPage() {
           </div>
         )}
 
-        {/* Intelligence Tab */}
-        {activeTab === 'intelligence' && isCompleted && id && (
-          <ContractIntelligence contractId={id} />
-        )}
-
         {/* SLAs Tab */}
         {activeTab === 'slas' && isCompleted && id && (
           <SLASummary contractId={id} />
@@ -452,6 +455,7 @@ export default function ContractViewPage() {
           <ContractSharing contractId={id} />
         )}
       </div>
+      )}
     </div>
   )
 }

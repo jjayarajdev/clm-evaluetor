@@ -147,6 +147,7 @@ class ITSMConnector(ConnectorBase):
         sla_references: list[str],
         start_date: date,
         end_date: date,
+        contracted_slas: dict[str, dict] | None = None,
     ) -> ConnectorResult:
         """Get actual SLA performance values.
 
@@ -154,6 +155,7 @@ class ITSMConnector(ConnectorBase):
             sla_references: List of SLA section references to query.
             start_date: Start of measurement period.
             end_date: End of measurement period.
+            contracted_slas: Optional contracted SLA target info for scale-aware generation.
 
         Returns:
             ConnectorResult with list of SLAActualValue.

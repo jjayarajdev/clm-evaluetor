@@ -33,7 +33,7 @@ class SuggestedLinkResponse(BaseModel):
     suggested_direction: str
     confidence_score: float = Field(ge=0.0, le=1.0)
     reasoning: str | None
-    matching_signals: dict[str, float] | None
+    matching_signals: dict[str, Any] | None
     status: str
     reviewed_by: str | None
     reviewed_at: datetime | None
@@ -44,53 +44,57 @@ class SuggestedLinkResponse(BaseModel):
 
     # Nested contract info for display
     target_contract: ContractBrief | None = None
+    source_contract: ContractBrief | None = None
 
     model_config = {"from_attributes": True}
 
     @classmethod
+    def _contract_brief(cls, contract) -> ContractBrief | None:
+        if not contract:
+            return None
+        return ContractBrief(
+            id=str(contract.id),
+            filename=contract.filename,
+            contract_type=(
+                contract.contract_type.value
+                if contract.contract_type else None
+            ),
+            counterparty=contract.counterparty,
+            effective_date=(
+                contract.effective_date.isoformat()
+                if contract.effective_date else None
+            ),
+            expiration_date=(
+                contract.expiration_date.isoformat()
+                if contract.expiration_date else None
+            ),
+            risk_level=(
+                contract.risk_level.value
+                if contract.risk_level else None
+            ),
+        )
+
+    @classmethod
     def from_model(cls, model: "SuggestedContractLink") -> "SuggestedLinkResponse":
         """Create response from model with nested contract."""
-        target_brief = None
-        if model.target_contract:
-            target_brief = ContractBrief(
-                id=str(model.target_contract.id),
-                filename=model.target_contract.filename,
-                contract_type=(
-                    model.target_contract.contract_type.value
-                    if model.target_contract.contract_type else None
-                ),
-                counterparty=model.target_contract.counterparty,
-                effective_date=(
-                    model.target_contract.effective_date.isoformat()
-                    if model.target_contract.effective_date else None
-                ),
-                expiration_date=(
-                    model.target_contract.expiration_date.isoformat()
-                    if model.target_contract.expiration_date else None
-                ),
-                risk_level=(
-                    model.target_contract.risk_level.value
-                    if model.target_contract.risk_level else None
-                ),
-            )
-
         return cls(
             id=str(model.id),
             source_contract_id=str(model.source_contract_id),
             target_contract_id=str(model.target_contract_id),
-            suggested_link_type=model.suggested_link_type,  # Already a string
+            suggested_link_type=model.suggested_link_type,
             suggested_direction=model.suggested_direction,
             confidence_score=model.confidence_score,
             reasoning=model.reasoning,
             matching_signals=model.matching_signals,
-            status=model.status,  # Already a string
+            status=model.status,
             reviewed_by=str(model.reviewed_by) if model.reviewed_by else None,
             reviewed_at=model.reviewed_at,
             created_link_id=str(model.created_link_id) if model.created_link_id else None,
             batch_id=model.batch_id,
             created_at=model.created_at,
             updated_at=model.updated_at,
-            target_contract=target_brief,
+            target_contract=cls._contract_brief(model.target_contract),
+            source_contract=cls._contract_brief(model.source_contract),
         )
 
 

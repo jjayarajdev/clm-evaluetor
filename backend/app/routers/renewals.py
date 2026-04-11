@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import CurrentUser, CurrentTenantId
+from app.core.tenant import apply_tenant_filter
 from app.database import get_db
 from app.models import Contract, ContractStatus, ContractSLA, SLAPerformance
 from app.models.obligation import Obligation
@@ -27,13 +28,6 @@ from app.schemas.renewal import (
 )
 
 router = APIRouter(prefix="/api/renewals", tags=["renewals"])
-
-
-def apply_tenant_filter(query, tenant_id):
-    """Apply tenant filter to a Contract query if tenant_id is set."""
-    if tenant_id is not None:
-        return query.where(Contract.tenant_id == tenant_id)
-    return query
 
 
 def calculate_notice_deadline(expiration_date: date | None, notice_period_days: int | None) -> date | None:
@@ -181,7 +175,7 @@ async def get_renewal_calendar(
             Contract.expiration_date <= cutoff_90,
         )
     ).order_by(Contract.expiration_date)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Contract)
 
     result = await db.execute(query)
     contracts = result.scalars().all()
@@ -264,7 +258,7 @@ async def get_at_risk_contracts(
             Contract.expiration_date > today,
         )
     ).order_by(Contract.expiration_date)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Contract)
 
     result = await db.execute(query)
     contracts = result.scalars().all()
@@ -346,7 +340,7 @@ async def get_renewal_summary(
     total_query = select(func.count(Contract.id)).where(
         Contract.status == ContractStatus.COMPLETED
     )
-    total_query = apply_tenant_filter(total_query, tenant_id)
+    total_query = apply_tenant_filter(total_query, tenant_id, Contract)
     total_result = await db.execute(total_query)
     total_active = total_result.scalar() or 0
 
@@ -357,7 +351,7 @@ async def get_renewal_summary(
             Contract.expiration_date.isnot(None),
         )
     )
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Contract)
     result = await db.execute(query)
     contracts = result.scalars().all()
 
@@ -451,7 +445,7 @@ async def update_renewal_status(
     """
     # Get the contract with tenant filter
     query = select(Contract).where(Contract.id == contract_id)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Contract)
     result = await db.execute(query)
     contract = result.scalar_one_or_none()
 
@@ -506,7 +500,7 @@ async def get_renewal_recommendation(
     """
     # Get the contract with tenant filter
     query = select(Contract).where(Contract.id == contract_id)
-    query = apply_tenant_filter(query, tenant_id)
+    query = apply_tenant_filter(query, tenant_id, Contract)
     result = await db.execute(query)
     contract = result.scalar_one_or_none()
 
@@ -739,7 +733,7 @@ async def export_calendar_ics(
                 Contract.expiration_date <= cutoff,
             )
         )
-        contracts_query = apply_tenant_filter(contracts_query, tenant_id)
+        contracts_query = apply_tenant_filter(contracts_query, tenant_id, Contract)
         result = await db.execute(contracts_query)
         contracts = result.scalars().all()
 

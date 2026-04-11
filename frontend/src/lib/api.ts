@@ -510,6 +510,28 @@ class ApiClient {
     return response.data
   }
 
+  // Contract update endpoints (for review pane)
+  async updateContract(contractId: string, data: Record<string, unknown>): Promise<unknown> {
+    const response = await this.client.patch(`/contracts/${contractId}`, data)
+    return response.data
+  }
+
+  async updateClause(contractId: string, clauseId: string, data: Record<string, unknown>): Promise<unknown> {
+    const response = await this.client.patch(`/contracts/${contractId}/clauses/${clauseId}`, data)
+    return response.data
+  }
+
+  async updateObligation(obligationId: string, data: Record<string, unknown>): Promise<unknown> {
+    const response = await this.client.patch(`/obligations/${obligationId}`, data)
+    return response.data
+  }
+
+  async downloadContractFile(contractId: string, asPdf = false): Promise<Blob> {
+    const params = asPdf ? { as_pdf: true } : {}
+    const response = await this.client.get(`/contracts/${contractId}/download`, { responseType: 'blob', params })
+    return response.data
+  }
+
   // SLA endpoints
   async getContractSLAs(contractId: string): Promise<SLADetail[]> {
     const response = await this.client.get<SLADetail[]>(`/sla/${contractId}`)
@@ -1443,6 +1465,11 @@ class ApiClient {
 
   async removeTeamMember(relationshipId: string, memberId: string): Promise<void> {
     await this.client.delete(`/relationships/${relationshipId}/team/${memberId}`)
+  }
+
+  async getRelationshipHealth(id: string): Promise<import('@/types/governance').HealthScoreResponse> {
+    const response = await this.client.get(`/relationships/${id}/health`)
+    return response.data
   }
 
   // ============================================================================

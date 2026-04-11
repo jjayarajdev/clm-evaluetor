@@ -109,11 +109,11 @@ class ContractResponse(BaseModel):
 class ContractListResponse(BaseModel):
     """Paginated contract list response."""
 
-    contracts: list[ContractSummary]
+    items: list[ContractSummary]
     total: int
     page: int
     page_size: int
-    total_pages: int
+    pages: int
 
 
 class ContractFilter(BaseModel):

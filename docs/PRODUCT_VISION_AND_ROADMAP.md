@@ -237,6 +237,10 @@ This platform focuses on **post-execution operational management**:
 | Filename pattern recognition | Complete |
 | Established links (approved parent-child relationships, 16 link types) | Complete |
 | Batch approve/reject workflow for suggested links | Complete |
+| Hierarchy Detection v2 (pairwise AI classification) | Complete |
+| 4-stage pipeline: smart extraction, candidate generation, GPT-4o classification, hierarchy building | Complete |
+| 5-level relationship taxonomy (same doc, family, framework, indirect, unrelated) | Complete |
+| Bidirectional suggested links query (view from parent or child) | Complete |
 
 ---
 
@@ -399,7 +403,7 @@ This platform focuses on **post-execution operational management**:
 |-----------|-------|
 | API Routers | 44 |
 | SQLAlchemy Models | 53 |
-| Service Modules | 38 |
+| Service Modules | 40 + 6 hierarchy detection |
 | AI Agent Files | 11 (9+ functional agents) |
 | API Endpoints | ~405 |
 | Alembic Migrations | 38 |
@@ -408,7 +412,7 @@ This platform focuses on **post-execution operational management**:
 | Frontend Components | 28 |
 | Backend Scripts | 25 |
 
-### AI Agents (11 files)
+### AI Agents (11 files + 6 hierarchy detection modules)
 
 | # | Agent | Purpose |
 |---|-------|---------|
@@ -422,6 +426,8 @@ This platform focuses on **post-execution operational management**:
 | 8 | Schema/Custom Field Extraction | 15 contract types, 1,235 fields |
 | 9 | Intent Router | Query routing with LLM visualization |
 | 10 | Regulatory Extraction | Regulatory obligations and compliance |
+| 11 | Hierarchy Detection | Pairwise document classification, contract family detection |
+| 12 | Contract Reference Extraction | Cross-reference and parent document identification |
 | - | base.py | Shared agent base class |
 | - | __init__.py | Agent registry |
 
@@ -440,7 +446,7 @@ This platform focuses on **post-execution operational management**:
 | 6 | Compliance, Knowledge Graph, Schema Library | Complete |
 | 7 | Integration & Delivery (Docker, AWS, Seeding) | Complete |
 | 8 | Chat, Intent Router, Visualizations | Complete |
-| 9 | Auto-Link Detection, Enhanced Metadata, Custom Fields | Complete |
+| 9 | Auto-Link Detection, Hierarchy Detection v2, Enhanced Metadata, Custom Fields | Complete |
 | 10 | Governance Bridge, Business Units, External Users, Contract Sharing | Complete |
 
 ---
@@ -467,5 +473,5 @@ This platform focuses on **post-execution operational management**:
 
 ---
 
-*Last Updated: 2026-03-29*
+*Last Updated: 2026-04-05*
 *Document Owner: Development Team*

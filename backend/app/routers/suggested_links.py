@@ -197,11 +197,19 @@ async def get_suggested_links(
             detail=f"Contract not found: {contract_id}",
         )
 
-    # Build query
+    # Build query — show suggestions where this contract is source OR target
+    from sqlalchemy import or_
+    contract_uuid = uuid.UUID(contract_id)
     query = (
         select(SuggestedContractLink)
-        .where(SuggestedContractLink.source_contract_id == uuid.UUID(contract_id))
-        .options(selectinload(SuggestedContractLink.target_contract))
+        .where(or_(
+            SuggestedContractLink.source_contract_id == contract_uuid,
+            SuggestedContractLink.target_contract_id == contract_uuid,
+        ))
+        .options(
+            selectinload(SuggestedContractLink.target_contract),
+            selectinload(SuggestedContractLink.source_contract),
+        )
         .order_by(SuggestedContractLink.confidence_score.desc())
     )
 
@@ -525,3 +533,84 @@ async def batch_review_suggestions(
         failed=failed,
         results=results,
     )
+
+
+# -- Hierarchy detection endpoint --
+
+
+class HierarchyDetectionRequest(BaseModel):
+    """Request body for hierarchy detection."""
+    contract_ids: list[str] | None = None  # Optional: specific contract IDs to analyse
+
+
+class HierarchyDetectionResponse(BaseModel):
+    """Response from hierarchy detection."""
+    suggestions_created: int
+    contracts_analysed: int
+    message: str
+
+
+@router.post(
+    "/hierarchy-detect",
+    response_model=HierarchyDetectionResponse,
+    tags=["Hierarchy Detection"],
+)
+async def run_hierarchy_detection(
+    body: HierarchyDetectionRequest | None = None,
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
+    db: AsyncSession = Depends(get_db),
+) -> HierarchyDetectionResponse:
+    """Run hierarchy detection on tenant's contracts.
+
+    If contract_ids are provided, only those contracts are analysed.
+    Otherwise, all completed contracts for the tenant are used.
+    """
+    if not tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tenant context required for hierarchy detection",
+        )
+
+    from app.models.contract import ContractStatus
+
+    # Resolve contract IDs
+    if body and body.contract_ids:
+        contract_uuids = [uuid.UUID(cid) for cid in body.contract_ids]
+    else:
+        result = await db.execute(
+            select(Contract.id).where(
+                Contract.tenant_id == tenant_id,
+                Contract.status == ContractStatus.COMPLETED,
+            )
+        )
+        contract_uuids = list(result.scalars().all())
+
+    if len(contract_uuids) < 2:
+        return HierarchyDetectionResponse(
+            suggestions_created=0,
+            contracts_analysed=len(contract_uuids),
+            message="Need at least 2 contracts for hierarchy detection",
+        )
+
+    try:
+        from app.services.hierarchy_detection import detect_hierarchy
+
+        num_suggestions = await detect_hierarchy(
+            db=db,
+            contract_ids=contract_uuids,
+            tenant_id=tenant_id,
+            batch_id=f"manual_{tenant_id}",
+        )
+        await db.commit()
+
+        return HierarchyDetectionResponse(
+            suggestions_created=num_suggestions,
+            contracts_analysed=len(contract_uuids),
+            message=f"Hierarchy detection complete: {num_suggestions} suggestions created from {len(contract_uuids)} contracts",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Hierarchy detection failed: {str(e)}",
+        )

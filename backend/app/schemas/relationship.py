@@ -101,6 +101,10 @@ class RelationshipResponse(BaseModel):
     org_b: Optional[OrganizationSummary] = None
     team_members: Optional[List[TeamMemberResponse]] = None
 
+    # Summary counts for list view
+    contract_count: Optional[int] = None
+    kpi_count: Optional[int] = None
+
     class Config:
         from_attributes = True
 

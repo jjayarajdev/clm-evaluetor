@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 class ProcessingStage(str, Enum):
     """Stages of contract processing."""
 
+    # Indexer stages
     QUEUED = "queued"
     PARSING = "parsing"
     CHUNKING = "chunking"
@@ -24,6 +25,18 @@ class ProcessingStage(str, Enum):
     CUSTOM_FIELDS = "custom_fields"
     RISK = "risk"
     KNOWLEDGE_GRAPH = "knowledge_graph"
+
+    # Deep analysis stages
+    CLAUSE_EXTRACTION = "clause_extraction"
+    OBLIGATION_DETECTION = "obligation_detection"
+    SLA_EXTRACTION = "sla_extraction"
+    RENEWAL_ANALYSIS = "renewal_analysis"
+    SCHEMA_EXTRACTION = "schema_extraction"
+    LINK_DETECTION = "link_detection"
+    COMPLIANCE_CHECK = "compliance_check"
+    GOVERNANCE_BRIDGE = "governance_bridge"
+
+    # Terminal stages
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -37,7 +50,15 @@ STAGE_DESCRIPTIONS = {
     ProcessingStage.METADATA: "Extracting metadata",
     ProcessingStage.CUSTOM_FIELDS: "Extracting custom fields",
     ProcessingStage.RISK: "Assessing risk",
-    ProcessingStage.KNOWLEDGE_GRAPH: "Building knowledge graph",
+    ProcessingStage.KNOWLEDGE_GRAPH: "Extracting references",
+    ProcessingStage.CLAUSE_EXTRACTION: "Extracting clauses",
+    ProcessingStage.OBLIGATION_DETECTION: "Detecting obligations",
+    ProcessingStage.SLA_EXTRACTION: "Extracting SLAs",
+    ProcessingStage.RENEWAL_ANALYSIS: "Analyzing renewal terms",
+    ProcessingStage.SCHEMA_EXTRACTION: "Structured data extraction",
+    ProcessingStage.LINK_DETECTION: "Finding related contracts",
+    ProcessingStage.COMPLIANCE_CHECK: "Checking compliance",
+    ProcessingStage.GOVERNANCE_BRIDGE: "Setting up governance",
     ProcessingStage.COMPLETED: "Processing complete",
     ProcessingStage.FAILED: "Processing failed",
 }
@@ -45,16 +66,45 @@ STAGE_DESCRIPTIONS = {
 # Stage weights for progress percentage (total = 100)
 STAGE_WEIGHTS = {
     ProcessingStage.QUEUED: 0,
-    ProcessingStage.PARSING: 10,
-    ProcessingStage.CHUNKING: 15,
-    ProcessingStage.CLASSIFYING: 25,
-    ProcessingStage.METADATA: 45,
-    ProcessingStage.CUSTOM_FIELDS: 55,
-    ProcessingStage.RISK: 70,
-    ProcessingStage.KNOWLEDGE_GRAPH: 85,
+    ProcessingStage.PARSING: 5,
+    ProcessingStage.CHUNKING: 8,
+    ProcessingStage.CLASSIFYING: 12,
+    ProcessingStage.METADATA: 20,
+    ProcessingStage.CUSTOM_FIELDS: 25,
+    ProcessingStage.RISK: 30,
+    ProcessingStage.KNOWLEDGE_GRAPH: 35,
+    ProcessingStage.CLAUSE_EXTRACTION: 45,
+    ProcessingStage.OBLIGATION_DETECTION: 55,
+    ProcessingStage.SLA_EXTRACTION: 63,
+    ProcessingStage.RENEWAL_ANALYSIS: 70,
+    ProcessingStage.SCHEMA_EXTRACTION: 76,
+    ProcessingStage.LINK_DETECTION: 82,
+    ProcessingStage.COMPLIANCE_CHECK: 88,
+    ProcessingStage.GOVERNANCE_BRIDGE: 94,
     ProcessingStage.COMPLETED: 100,
     ProcessingStage.FAILED: 100,
 }
+
+# Ordered list of all stages for frontend rendering
+STAGE_ORDER = [
+    ProcessingStage.QUEUED,
+    ProcessingStage.PARSING,
+    ProcessingStage.CHUNKING,
+    ProcessingStage.CLASSIFYING,
+    ProcessingStage.METADATA,
+    ProcessingStage.CUSTOM_FIELDS,
+    ProcessingStage.RISK,
+    ProcessingStage.KNOWLEDGE_GRAPH,
+    ProcessingStage.CLAUSE_EXTRACTION,
+    ProcessingStage.OBLIGATION_DETECTION,
+    ProcessingStage.SLA_EXTRACTION,
+    ProcessingStage.RENEWAL_ANALYSIS,
+    ProcessingStage.SCHEMA_EXTRACTION,
+    ProcessingStage.LINK_DETECTION,
+    ProcessingStage.COMPLIANCE_CHECK,
+    ProcessingStage.GOVERNANCE_BRIDGE,
+    ProcessingStage.COMPLETED,
+]
 
 
 @dataclass
@@ -82,6 +132,14 @@ class ProcessingProgress:
             "started_at": self.started_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "details": self.details,
+            "stages": [
+                {
+                    "id": s.value,
+                    "label": STAGE_DESCRIPTIONS.get(s, s.value),
+                    "weight": STAGE_WEIGHTS.get(s, 0),
+                }
+                for s in STAGE_ORDER
+            ],
         }
 
 

@@ -83,6 +83,8 @@ class IntegrationConfig(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     # Only one default per system type
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
+    # True for auto-provisioned mock data; False for real integrations
 
     # Health monitoring
     health_status: Mapped[IntegrationStatus] = mapped_column(

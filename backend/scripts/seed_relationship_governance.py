@@ -58,15 +58,15 @@ from app.models.survey import (
 SAMPLE_ORGANIZATIONS = [
     # Internal
     {
-        "name": "Our Company",
+        "name": None,  # Set dynamically from tenant name
         "code": "OC",
         "org_type": "internal",
         "size": "enterprise",
         "industry": "Technology",
-        "website": "https://ourcompany.com",
+        "website": None,
         "address": "123 Tech Boulevard, San Francisco, CA 94105",
         "country": "USA",
-        "notes": "Our internal organization",
+        "notes": "Internal organization (auto-named from tenant)",
     },
     # Clients
     {
@@ -332,304 +332,313 @@ SAMPLE_SURVEY_QUESTIONS = [
 ]
 
 
-async def seed_relationship_governance():
-    """Seed the database with relationship governance sample data."""
-    print("Starting relationship governance seeding...")
+async def seed_governance_for_tenant(session, admin_user, tenant_id, tenant_name):
+    """Seed governance data for a single tenant.
 
-    # Create async engine
-    engine = create_async_engine(settings.database_url, echo=False)
+    Returns counts dict for reporting.
+    """
+    from app.models.tenant import Tenant
 
-    # Create session factory
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    print(f"\n{'='*60}")
+    print(f"Seeding governance for: {tenant_name} ({tenant_id})")
+    print(f"{'='*60}")
 
-    async with async_session() as session:
-        # Get existing admin user
-        result = await session.execute(
-            select(User).where(User.role == "admin").limit(1)
+    # Check if tenant already has organizations
+    result = await session.execute(
+        select(Organization).where(Organization.tenant_id == tenant_id).limit(1)
+    )
+    if result.scalar_one_or_none():
+        print(f"  Tenant {tenant_name} already has organizations — skipping")
+        return None
+
+    # Build a short tenant prefix for unique org codes (first 3 chars of tenant name)
+    prefix = tenant_name[:3].upper()
+
+    # Create Organizations
+    print("\nCreating organizations...")
+    orgs = {}
+    for org_data in SAMPLE_ORGANIZATIONS:
+        data = dict(org_data)
+        original_code = data["code"]
+        data["code"] = f"{prefix}_{original_code}"  # e.g. "TEC_OC", "LEG_ACME"
+        org = Organization(
+            id=uuid4(),
+            tenant_id=tenant_id,
+            **data
         )
-        admin_user = result.scalar_one_or_none()
+        session.add(org)
+        orgs[original_code] = org
+        print(f"  Created organization: {org.name} ({org.org_type}) [code={data['code']}]")
 
-        if not admin_user:
-            print("Error: No admin user found. Please run seed_data.py first.")
-            return
+    await session.flush()
 
-        tenant_id = admin_user.tenant_id
+    internal_org = orgs["OC"]
 
-        # Create Organizations
-        print("\nCreating organizations...")
-        orgs = {}
-        for org_data in SAMPLE_ORGANIZATIONS:
-            org = Organization(
-                id=uuid4(),
-                tenant_id=tenant_id,
-                **org_data
-            )
-            session.add(org)
-            orgs[org_data["code"]] = org
-            print(f"  Created organization: {org.name} ({org.org_type})")
+    # Create Business Relationships
+    print("\nCreating business relationships...")
+    relationships = []
+    relationship_configs = [
+        {
+            "name": "Acme Corporation - Strategic Client",
+            "org_a": internal_org,
+            "org_b": orgs["ACME"],
+            "type": "customer",
+            "tier": "strategic",
+            "review_days": 30,
+        },
+        {
+            "name": "TechStart - Growth Client",
+            "org_a": internal_org,
+            "org_b": orgs["TECH"],
+            "type": "customer",
+            "tier": "operational",
+            "review_days": 90,
+        },
+        {
+            "name": "GlobalSupply - Key Vendor",
+            "org_a": internal_org,
+            "org_b": orgs["GSI"],
+            "type": "supplier",
+            "tier": "strategic",
+            "review_days": 30,
+        },
+        {
+            "name": "CloudServices Pro - Vendor",
+            "org_a": internal_org,
+            "org_b": orgs["CSP"],
+            "type": "supplier",
+            "tier": "operational",
+            "review_days": 90,
+        },
+        {
+            "name": "Strategic Partners - Implementation Partner",
+            "org_a": internal_org,
+            "org_b": orgs["SPL"],
+            "type": "partner",
+            "tier": "strategic",
+            "review_days": 30,
+        },
+    ]
 
-        await session.flush()
+    today = date.today()
+    for config in relationship_configs:
+        rel = BusinessRelationship(
+            id=uuid4(),
+            tenant_id=tenant_id,
+            org_a_id=config["org_a"].id,
+            org_b_id=config["org_b"].id,
+            relationship_type=config["type"],
+            status="active",
+            name=config["name"],
+            description=f"Business relationship with {config['org_b'].name}",
+            health_score=75.0 + (hash(config["name"]) % 20),  # Random 75-95
+            last_health_calculation=datetime.utcnow(),
+            governance_tier=config["tier"],
+            start_date=today - timedelta(days=365),
+            review_frequency_days=config["review_days"],
+            next_review_date=today + timedelta(days=config["review_days"]),
+        )
+        session.add(rel)
+        relationships.append(rel)
+        print(f"  Created relationship: {rel.name}")
 
-        internal_org = orgs["OC"]
+    await session.flush()
 
-        # Create Business Relationships
-        print("\nCreating business relationships...")
-        relationships = []
-        relationship_configs = [
-            {
-                "name": "Acme Corporation - Strategic Client",
-                "org_a": internal_org,
-                "org_b": orgs["ACME"],
-                "type": "customer",
-                "tier": "strategic",
-                "review_days": 30,
-            },
-            {
-                "name": "TechStart - Growth Client",
-                "org_a": internal_org,
-                "org_b": orgs["TECH"],
-                "type": "customer",
-                "tier": "operational",
-                "review_days": 90,
-            },
-            {
-                "name": "GlobalSupply - Key Vendor",
-                "org_a": internal_org,
-                "org_b": orgs["GSI"],
-                "type": "supplier",
-                "tier": "strategic",
-                "review_days": 30,
-            },
-            {
-                "name": "CloudServices Pro - Vendor",
-                "org_a": internal_org,
-                "org_b": orgs["CSP"],
-                "type": "supplier",
-                "tier": "operational",
-                "review_days": 90,
-            },
-            {
-                "name": "Strategic Partners - Implementation Partner",
-                "org_a": internal_org,
-                "org_b": orgs["SPL"],
-                "type": "partner",
-                "tier": "strategic",
-                "review_days": 30,
-            },
-        ]
+    # Add team members to relationships
+    print("\nAdding team members to relationships...")
+    for rel in relationships:
+        team_member = RelationshipTeam(
+            id=uuid4(),
+            relationship_id=rel.id,
+            user_id=admin_user.id,
+            role="relationship_manager",
+            responsibilities=["Overall relationship management and governance"],
+            is_primary=True,
+            is_active=True,
+            joined_at=datetime.utcnow(),
+        )
+        session.add(team_member)
 
-        today = date.today()
-        for config in relationship_configs:
-            rel = BusinessRelationship(
-                id=uuid4(),
-                tenant_id=tenant_id,
-                org_a_id=config["org_a"].id,
-                org_b_id=config["org_b"].id,
-                relationship_type=config["type"],
-                status="active",
-                name=config["name"],
-                description=f"Business relationship with {config['org_b'].name}",
-                health_score=75.0 + (hash(config["name"]) % 20),  # Random 75-95
-                last_health_calculation=datetime.utcnow(),
-                governance_tier=config["tier"],
-                start_date=today - timedelta(days=365),
-                review_frequency_days=config["review_days"],
-                next_review_date=today + timedelta(days=config["review_days"]),
-            )
-            session.add(rel)
-            relationships.append(rel)
-            print(f"  Created relationship: {rel.name}")
+    await session.flush()
 
-        await session.flush()
+    # Create KPIs (assigned to the first relationship)
+    print("\nCreating KPIs...")
+    primary_rel = relationships[0]
+    kpis = {}
+    for kpi_data in SAMPLE_KPIS:
+        kpi = KPI(
+            id=uuid4(),
+            relationship_id=primary_rel.id,
+            **kpi_data,
+            is_active=True,
+        )
+        session.add(kpi)
+        kpis[kpi_data["code"]] = kpi
+        print(f"  Created KPI: {kpi.name} ({kpi.category})")
 
-        # Add team members to relationships
-        print("\nAdding team members to relationships...")
-        for rel in relationships:
-            team_member = RelationshipTeam(
-                id=uuid4(),
-                relationship_id=rel.id,
-                user_id=admin_user.id,
-                role="relationship_manager",
-                responsibilities=["Overall relationship management and governance"],
-                is_primary=True,
-                is_active=True,
-                joined_at=datetime.utcnow(),
-            )
-            session.add(team_member)
+    await session.flush()
 
-        await session.flush()
+    # Create Perception Scores
+    print("\nCreating sample perception scores...")
+    periods = ["2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4"]
 
-        # Create KPIs (assigned to the Acme relationship)
-        print("\nCreating KPIs...")
-        acme_rel = relationships[0]
-        kpis = {}
-        for kpi_data in SAMPLE_KPIS:
-            kpi = KPI(
-                id=uuid4(),
-                relationship_id=acme_rel.id,
-                **kpi_data,
-                is_active=True,
-            )
-            session.add(kpi)
-            kpis[kpi_data["code"]] = kpi
-            print(f"  Created KPI: {kpi.name} ({kpi.category})")
-
-        await session.flush()
-
-        # Create Perception Scores for first relationship (Acme)
-        print("\nCreating sample perception scores...")
-        periods = ["2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4"]
-
-        for period in periods:
-            for kpi_code, kpi in kpis.items():
-                if kpi.measurement_type in [KPIMeasurementType.RATING, KPIMeasurementType.PERCENTAGE]:
-                    # Internal score
-                    internal_score = PerceptionScore(
-                        id=uuid4(),
-                        kpi_id=kpi.id,
-                        scorer_org_id=internal_org.id,
-                        score=3.5 + (hash(f"{kpi_code}{period}i") % 15) / 10,
-                        period=period,
-                        is_internal=True,
-                    )
-                    session.add(internal_score)
-
-                    # External score
-                    external_score = PerceptionScore(
-                        id=uuid4(),
-                        kpi_id=kpi.id,
-                        scorer_org_id=orgs["ACME"].id,
-                        score=3.0 + (hash(f"{kpi_code}{period}e") % 20) / 10,
-                        period=period,
-                        is_internal=False,
-                    )
-                    session.add(external_score)
-
-        print(f"  Created perception scores for {len(periods)} periods")
-
-        await session.flush()
-
-        # Create Perception Gaps
-        print("\nCreating perception gaps...")
+    for period in periods:
         for kpi_code, kpi in kpis.items():
-            if kpi.measurement_type == KPIMeasurementType.RATING:
-                # Calculate gap for most recent period
-                internal_value = 4.0 + (hash(f"{kpi_code}gap_i") % 10) / 10
-                external_value = 3.0 + (hash(f"{kpi_code}gap_e") % 15) / 10
-                gap_value = internal_value - external_value
-                severity = PerceptionGap.calculate_severity(gap_value)
-
-                perception_gap = PerceptionGap(
+            if kpi.measurement_type in [KPIMeasurementType.RATING, KPIMeasurementType.PERCENTAGE]:
+                # Internal score
+                internal_score = PerceptionScore(
                     id=uuid4(),
                     kpi_id=kpi.id,
-                    period="2024-Q4",
-                    internal_score=internal_value,
-                    external_score=external_value,
-                    gap=gap_value,
-                    gap_severity=severity,
-                    requires_action=severity in ("significant", "critical"),
+                    scorer_org_id=internal_org.id,
+                    score=3.5 + (hash(f"{kpi_code}{period}i") % 15) / 10,
+                    period=period,
+                    is_internal=True,
                 )
-                session.add(perception_gap)
+                session.add(internal_score)
 
-        print(f"  Created perception gaps for Acme relationship")
+                # External score
+                external_score = PerceptionScore(
+                    id=uuid4(),
+                    kpi_id=kpi.id,
+                    scorer_org_id=orgs["ACME"].id,
+                    score=3.0 + (hash(f"{kpi_code}{period}e") % 20) / 10,
+                    period=period,
+                    is_internal=False,
+                )
+                session.add(external_score)
 
-        await session.flush()
+    print(f"  Created perception scores for {len(periods)} periods")
 
-        # Create Improvement Points
-        print("\nCreating improvement points...")
-        improvement_data = [
-            {
-                "title": "Improve Communication Response Time",
-                "description": "External stakeholders perceive slower response times than our internal metrics suggest. Need to investigate and address communication bottlenecks.",
-                "priority": "high",
-                "status": "in_progress",
-                "kpi": kpis["RT"],
-            },
-            {
-                "title": "Enhance Quality Assurance Process",
-                "description": "Gap identified between internal quality assessment and client perception. Review QA processes and implement additional checkpoints.",
-                "priority": "medium",
-                "status": "open",
-                "kpi": kpis["QS"],
-            },
-            {
-                "title": "SLA Reporting Enhancement",
-                "description": "Improve visibility of SLA compliance metrics to external stakeholders through automated reporting.",
-                "priority": "low",
-                "status": "open",
-                "kpi": kpis["SLA"],
-            },
-        ]
+    await session.flush()
 
-        improvements = []
-        for imp_data in improvement_data:
-            improvement = ImprovementPoint(
+    # Create Perception Gaps
+    print("\nCreating perception gaps...")
+    for kpi_code, kpi in kpis.items():
+        if kpi.measurement_type == KPIMeasurementType.RATING:
+            # Calculate gap for most recent period
+            internal_value = 4.0 + (hash(f"{kpi_code}gap_i") % 10) / 10
+            external_value = 3.0 + (hash(f"{kpi_code}gap_e") % 15) / 10
+            gap_value = internal_value - external_value
+            severity = PerceptionGap.calculate_severity(gap_value)
+
+            perception_gap = PerceptionGap(
                 id=uuid4(),
-                relationship_id=acme_rel.id,
-                kpi_id=imp_data["kpi"].id if imp_data["kpi"] else None,
-                title=imp_data["title"],
-                description=imp_data["description"],
-                priority=imp_data["priority"],
-                status=imp_data["status"],
-                source="perception_gap",
-                owner_id=admin_user.id,
-                due_date=today + timedelta(days=90),
+                kpi_id=kpi.id,
+                period="2024-Q4",
+                internal_score=internal_value,
+                external_score=external_value,
+                gap=gap_value,
+                gap_severity=severity,
+                requires_action=severity in ("significant", "critical"),
             )
-            session.add(improvement)
-            improvements.append(improvement)
-            print(f"  Created improvement: {improvement.title}")
+            session.add(perception_gap)
 
-        await session.flush()
+    print(f"  Created perception gaps")
 
-        # Create Improvement Actions
-        print("\nCreating improvement actions...")
-        action_data = [
-            {
-                "improvement": improvements[0],
-                "title": "Implement email response SLA monitoring",
-                "description": "Set up automated tracking of response times for all client communications",
-                "status": "completed",
-                "due_days": 14,
-            },
-            {
-                "improvement": improvements[0],
-                "title": "Create communication templates",
-                "description": "Develop standard response templates to reduce turnaround time",
-                "status": "in_progress",
-                "due_days": 30,
-            },
-            {
-                "improvement": improvements[0],
-                "title": "Weekly communication metrics review",
-                "description": "Establish weekly review of communication metrics with team",
-                "status": "todo",
-                "due_days": 7,
-            },
-            {
-                "improvement": improvements[1],
-                "title": "Conduct quality perception survey",
-                "description": "Deep dive survey with client to understand quality perception gaps",
-                "status": "todo",
-                "due_days": 21,
-            },
-        ]
+    await session.flush()
 
-        for action_info in action_data:
-            action = ImprovementAction(
-                id=uuid4(),
-                improvement_id=action_info["improvement"].id,
-                description=f"{action_info['title']}: {action_info['description']}",
-                status=action_info["status"],
-                owner_id=admin_user.id,
-                due_date=today + timedelta(days=action_info["due_days"]),
-                completed_at=datetime.now() if action_info["status"] == "completed" else None,
-            )
-            session.add(action)
-            print(f"  Created action: {action_info['title']}")
+    # Create Improvement Points
+    print("\nCreating improvement points...")
+    improvement_data = [
+        {
+            "title": "Improve Communication Response Time",
+            "description": "External stakeholders perceive slower response times than our internal metrics suggest. Need to investigate and address communication bottlenecks.",
+            "priority": "high",
+            "status": "in_progress",
+            "kpi": kpis["RT"],
+        },
+        {
+            "title": "Enhance Quality Assurance Process",
+            "description": "Gap identified between internal quality assessment and client perception. Review QA processes and implement additional checkpoints.",
+            "priority": "medium",
+            "status": "open",
+            "kpi": kpis["QS"],
+        },
+        {
+            "title": "SLA Reporting Enhancement",
+            "description": "Improve visibility of SLA compliance metrics to external stakeholders through automated reporting.",
+            "priority": "low",
+            "status": "open",
+            "kpi": kpis["SLA"],
+        },
+    ]
 
-        await session.flush()
+    improvements = []
+    for imp_data in improvement_data:
+        improvement = ImprovementPoint(
+            id=uuid4(),
+            relationship_id=primary_rel.id,
+            kpi_id=imp_data["kpi"].id if imp_data["kpi"] else None,
+            title=imp_data["title"],
+            description=imp_data["description"],
+            priority=imp_data["priority"],
+            status=imp_data["status"],
+            source="perception_gap",
+            owner_id=admin_user.id,
+            due_date=today + timedelta(days=90),
+        )
+        session.add(improvement)
+        improvements.append(improvement)
+        print(f"  Created improvement: {improvement.title}")
 
-        # Create Survey Template
+    await session.flush()
+
+    # Create Improvement Actions
+    print("\nCreating improvement actions...")
+    action_data = [
+        {
+            "improvement": improvements[0],
+            "title": "Implement email response SLA monitoring",
+            "description": "Set up automated tracking of response times for all client communications",
+            "status": "completed",
+            "due_days": 14,
+        },
+        {
+            "improvement": improvements[0],
+            "title": "Create communication templates",
+            "description": "Develop standard response templates to reduce turnaround time",
+            "status": "in_progress",
+            "due_days": 30,
+        },
+        {
+            "improvement": improvements[0],
+            "title": "Weekly communication metrics review",
+            "description": "Establish weekly review of communication metrics with team",
+            "status": "todo",
+            "due_days": 7,
+        },
+        {
+            "improvement": improvements[1],
+            "title": "Conduct quality perception survey",
+            "description": "Deep dive survey with client to understand quality perception gaps",
+            "status": "todo",
+            "due_days": 21,
+        },
+    ]
+
+    for action_info in action_data:
+        action = ImprovementAction(
+            id=uuid4(),
+            improvement_id=action_info["improvement"].id,
+            description=f"{action_info['title']}: {action_info['description']}",
+            status=action_info["status"],
+            owner_id=admin_user.id,
+            due_date=today + timedelta(days=action_info["due_days"]),
+            completed_at=datetime.now() if action_info["status"] == "completed" else None,
+        )
+        session.add(action)
+        print(f"  Created action: {action_info['title']}")
+
+    await session.flush()
+
+    # Create Survey Template (shared, only create once)
+    template = None
+    result = await session.execute(
+        select(SurveyTemplate).limit(1)
+    )
+    template = result.scalar_one_or_none()
+
+    if not template:
         print("\nCreating survey template...")
         template = SurveyTemplate(
             id=uuid4(),
@@ -664,22 +673,72 @@ async def seed_relationship_governance():
 
         await session.flush()
 
-        # Create Survey Instance
-        print("\nCreating survey instance...")
-        instance = SurveyInstance(
-            id=uuid4(),
-            template_id=template.id,
-            relationship_id=acme_rel.id,
-            period="2025-Q1",
-            status="in_progress",
-            scheduled_send_date=today - timedelta(days=7),
-            sent_at=datetime.now() - timedelta(days=7),
-            due_date=today + timedelta(days=14),
-            target_respondent_count=5,
-            actual_respondent_count=2,
+    # Create Survey Instance for this tenant's primary relationship
+    print("\nCreating survey instance...")
+    instance = SurveyInstance(
+        id=uuid4(),
+        template_id=template.id,
+        relationship_id=primary_rel.id,
+        period="2025-Q1",
+        status="in_progress",
+        scheduled_send_date=today - timedelta(days=7),
+        sent_at=datetime.now() - timedelta(days=7),
+        due_date=today + timedelta(days=14),
+        target_respondent_count=5,
+        actual_respondent_count=2,
+    )
+    session.add(instance)
+    print(f"  Created survey instance for: {primary_rel.name}")
+
+    return {
+        "organizations": len(SAMPLE_ORGANIZATIONS),
+        "relationships": len(relationship_configs),
+        "kpis": len(SAMPLE_KPIS),
+        "improvements": len(improvement_data),
+    }
+
+
+async def seed_relationship_governance():
+    """Seed the database with relationship governance sample data for ALL tenants."""
+    print("Starting relationship governance seeding (all tenants)...")
+
+    # Create async engine
+    engine = create_async_engine(settings.database_url, echo=False)
+
+    # Create session factory
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with async_session() as session:
+        # Get all admin users (one per tenant)
+        result = await session.execute(
+            select(User).where(User.role == "admin")
         )
-        session.add(instance)
-        print(f"  Created survey instance for: {acme_rel.name}")
+        admin_users = result.scalars().all()
+
+        if not admin_users:
+            print("Error: No admin users found. Please run seed_data.py first.")
+            return
+
+        # Get tenant names for display
+        from app.models.tenant import Tenant
+        tenant_map = {}
+        for user in admin_users:
+            if user.tenant_id and user.tenant_id not in tenant_map:
+                t = await session.get(Tenant, user.tenant_id)
+                tenant_map[user.tenant_id] = (user, t.name if t else str(user.tenant_id))
+
+        print(f"Found {len(tenant_map)} tenants to seed:")
+        for tid, (u, tname) in tenant_map.items():
+            print(f"  - {tname} (admin: {u.username})")
+
+        seeded = 0
+        skipped = 0
+        for tenant_id, (admin_user, tenant_name) in tenant_map.items():
+            counts = await seed_governance_for_tenant(session, admin_user, tenant_id, tenant_name)
+            if counts:
+                seeded += 1
+            else:
+                skipped += 1
 
         # Commit all changes
         await session.commit()
@@ -687,17 +746,12 @@ async def seed_relationship_governance():
     await engine.dispose()
 
     print("\n" + "=" * 60)
-    print("Relationship Governance seeding completed successfully!")
+    print("Relationship Governance seeding completed!")
     print("=" * 60)
-    print("\nCreated:")
-    print(f"  - {len(SAMPLE_ORGANIZATIONS)} Organizations")
-    print(f"  - {len(relationship_configs)} Business Relationships")
-    print(f"  - {len(SAMPLE_KPIS)} KPIs")
-    print(f"  - Perception scores for 4 quarters")
-    print(f"  - Perception gaps for current period")
-    print(f"  - {len(improvement_data)} Improvement Points with actions")
-    print(f"  - 1 Survey Template with {len(SAMPLE_SURVEY_QUESTIONS)} questions")
-    print(f"  - 1 Active Survey Instance")
+    print(f"  Tenants seeded: {seeded}")
+    print(f"  Tenants skipped (already had data): {skipped}")
+    if seeded > 0:
+        print(f"  Per tenant: {len(SAMPLE_ORGANIZATIONS)} orgs, 5 relationships, {len(SAMPLE_KPIS)} KPIs")
     print("=" * 60)
 
 
