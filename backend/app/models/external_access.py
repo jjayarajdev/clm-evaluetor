@@ -57,7 +57,7 @@ class ExternalAccessToken(Base):
     revoked_reason = Column(Text, nullable=True)
 
     # Usage tracking
-    max_uses = Column(Integer, nullable=True, default=1)  # None = unlimited
+    max_uses = Column(Integer, nullable=True, default=None)  # None = unlimited
     use_count = Column(Integer, default=0, nullable=False)
     first_used_at = Column(DateTime, nullable=True)
     last_used_at = Column(DateTime, nullable=True)
