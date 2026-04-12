@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     jwt_expiration_hours: int = 24
     access_token_expire_minutes: int = 30  # Alternative config option
 
+    # Public URL (used for email links to external portal)
+    public_url: str = Field(
+        default="http://localhost:3000",
+        description="Public-facing URL of the frontend app (e.g. http://52.21.204.211)",
+    )
+
     # CORS - allow all origins for demo/dev (restrict in production)
     cors_origins: list[str] = ["*"]
 

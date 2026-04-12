@@ -293,10 +293,14 @@ case "${1:-}" in
     backup)
         backup
         ;;
+    ses)
+        shift
+        "$SCRIPT_DIR/setup-ses.sh" "$@"
+        ;;
     *)
         echo "CLM Platform Deployment"
         echo ""
-        echo "Usage: $0 {setup|deploy|logs|restart|stop|status|seed|reindex|destroy|backup}"
+        echo "Usage: $0 {setup|deploy|logs|restart|stop|status|seed|reindex|ses|destroy|backup}"
         echo ""
         echo "Commands:"
         echo "  setup    - Initialize environment (creates .env from template)"
@@ -307,6 +311,7 @@ case "${1:-}" in
         echo "  status   - Show service status"
         echo "  seed     - Manually seed demo data (use with caution)"
         echo "  reindex  - Reindex contracts in ChromaDB (fixes Q&A issues)"
+        echo "  ses      - Setup AWS SES email (ses setup|status|test|...)"
         echo "  backup   - Backup PostgreSQL and ChromaDB data"
         echo "  destroy  - DELETE ALL DATA (requires confirmation)"
         exit 1

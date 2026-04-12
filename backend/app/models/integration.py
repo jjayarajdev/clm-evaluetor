@@ -25,6 +25,7 @@ class IntegrationSystem(str, enum.Enum):
     slack = "slack"
     teams = "teams"
     webhook = "webhook"
+    aws_ses = "aws_ses"
 
 
 class IntegrationStatus(str, enum.Enum):

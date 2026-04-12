@@ -42,6 +42,7 @@ class RecipientType(str, enum.Enum):
     vendor_contact = "vendor_contact"
     approver = "approver"
     escalation_contact = "escalation_contact"
+    external_user = "external_user"
     custom = "custom"
 
 

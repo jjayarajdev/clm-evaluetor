@@ -1,10 +1,11 @@
 """API endpoints for External User management."""
 
+import logging
 from uuid import UUID
 from typing import Optional
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +24,8 @@ from app.schemas.external_user import (
     ExternalUserListResponse,
     ExternalUserWithShares,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/external-users", tags=["External Users"])
 
@@ -127,11 +130,12 @@ async def create_external_user(
 @router.post("/invite", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def invite_external_user(
     data: ExternalUserInvite,
+    request: Request,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
 ):
-    """Invite an external user and optionally share contracts with them."""
+    """Invite an external user, share contracts, and send invitation email."""
     # Check for existing user or create new one
     existing_query = select(ExternalUser).where(
         ExternalUser.tenant_id == tenant_id,
@@ -214,11 +218,48 @@ async def invite_external_user(
     await db.commit()
     await db.refresh(external_user)
 
+    # Build full access URL using configured public URL
+    from app.config import settings
+    base_url = settings.public_url.rstrip("/")
+    access_path = f"/external/contracts?token={access_token.token}"
+    full_access_url = f"{base_url}{access_path}"
+
+    # Build permission summary
+    perms = []
+    if True:
+        perms.append("View")
+    if data.can_comment:
+        perms.append("Comment")
+    if data.can_download:
+        perms.append("Download")
+
+    # Send invitation email
+    email_result = {"email_sent": False}
+    try:
+        from app.services.external_email_service import ExternalEmailService
+
+        email_svc = ExternalEmailService(db)
+        email_result = await email_svc.send_portal_invitation(
+            recipient_email=data.email,
+            recipient_name=data.full_name or data.email.split("@")[0],
+            inviter_name=current_user.full_name or current_user.username,
+            access_url=full_access_url,
+            contract_count=len(shares_created),
+            message=data.message,
+            permissions=", ".join(perms),
+            expires_at=access_token.expires_at,
+        )
+        await db.commit()  # Commit notification log
+    except Exception as e:
+        logger.warning(f"Failed to send invitation email to {data.email}: {e}")
+        email_result = {"email_sent": False, "error": str(e)[:200]}
+
     return {
         "external_user": ExternalUserResponse.model_validate(external_user).model_dump(),
         "shares_created": len(shares_created),
         "access_token": access_token.token,
-        "access_url": f"/external/contracts?token={access_token.token}",
+        "access_url": access_path,
+        "email_sent": email_result.get("email_sent", False),
     }
 
 
@@ -363,12 +404,13 @@ async def revoke_external_user(
 @router.post("/{external_user_id}/resend-invite", response_model=dict)
 async def resend_invite(
     external_user_id: UUID,
+    request: Request,
     tenant_id: RequiredTenantId,
     expires_in_days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
 ):
-    """Resend invitation to an external user with a new token."""
+    """Resend invitation to an external user with a new token and email."""
     query = select(ExternalUser).where(
         ExternalUser.id == external_user_id,
         ExternalUser.tenant_id == tenant_id,
@@ -401,11 +443,35 @@ async def resend_invite(
     db.add(access_token)
     await db.commit()
 
+    # Build full access URL using configured public URL
+    from app.config import settings
+    base_url = settings.public_url.rstrip("/")
+    access_path = f"/external/contracts?token={access_token.token}"
+    full_access_url = f"{base_url}{access_path}"
+
+    # Send email with new link
+    email_result = {"email_sent": False}
+    try:
+        from app.services.external_email_service import ExternalEmailService
+
+        email_svc = ExternalEmailService(db)
+        email_result = await email_svc.send_resend_invitation(
+            recipient_email=external_user.email,
+            recipient_name=external_user.full_name or external_user.email.split("@")[0],
+            access_url=full_access_url,
+            expires_at=access_token.expires_at,
+        )
+        await db.commit()  # Commit notification log
+    except Exception as e:
+        logger.warning(f"Failed to send resend email to {external_user.email}: {e}")
+        email_result = {"email_sent": False, "error": str(e)[:200]}
+
     return {
         "external_user_id": str(external_user_id),
         "access_token": access_token.token,
-        "access_url": f"/external/contracts?token={access_token.token}",
+        "access_url": access_path,
         "expires_at": access_token.expires_at.isoformat(),
+        "email_sent": email_result.get("email_sent", False),
     }
 
 

@@ -58,6 +58,14 @@ services:
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
       LANGFUSE_HOST: ${LANGFUSE_HOST:-}
 
+      # Public URL (for links in emails)
+      PUBLIC_URL: ${PUBLIC_URL:-http://52.21.204.211}
+
+      # AWS SES (email)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_JSON: "true"

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.contract import Contract
@@ -15,6 +16,8 @@ from app.models.contract_share import ContractShare
 from app.models.contract_comment import ContractComment
 from app.models.external_user import ExternalUser
 from app.models.external_access import ExternalAccessToken, TokenType
+from app.models.obligation import Obligation
+from app.models.sla import ContractSLA
 from app.schemas.contract_comment import (
     ContractCommentCreate,
     ContractCommentResponse,
@@ -235,7 +238,22 @@ async def get_shared_contract(
             detail="Contract not found",
         )
 
-    # Build response with limited info
+    # Load obligations for this contract
+    obligations_result = await db.execute(
+        select(Obligation)
+        .where(Obligation.contract_id == contract.id)
+        .order_by(Obligation.deadline.asc().nullslast())
+    )
+    obligations = obligations_result.scalars().all()
+
+    # Load SLAs for this contract
+    sla_result = await db.execute(
+        select(ContractSLA)
+        .where(ContractSLA.contract_id == contract.id, ContractSLA.is_active == True)
+    )
+    slas = sla_result.scalars().all()
+
+    # Build response with full context for external user
     return {
         "id": str(contract.id),
         "filename": contract.filename,
@@ -244,18 +262,57 @@ async def get_shared_contract(
         "effective_date": contract.effective_date.isoformat() if contract.effective_date else None,
         "expiration_date": contract.expiration_date.isoformat() if contract.expiration_date else None,
         "contract_value": float(contract.contract_value) if contract.contract_value else None,
+        "total_value": float(contract.total_value) if contract.total_value else None,
         "currency": contract.currency,
         "jurisdiction": contract.jurisdiction,
+        "governing_law": contract.governing_law,
         "status": contract.status.value,
+        "risk_level": contract.risk_level.value if contract.risk_level else None,
+        "risk_score": contract.risk_score,
+        "auto_renewal": contract.auto_renewal,
+        "notice_period_days": contract.notice_period_days,
+        "summary": contract.ai_summary,
         "clauses": [
             {
                 "id": str(c.id),
                 "clause_type": c.clause_type.value if c.clause_type else None,
                 "title": c.title,
-                "text": c.text[:500] + "..." if len(c.text) > 500 else c.text,
+                "text": c.text[:800] + "..." if c.text and len(c.text) > 800 else c.text,
                 "section_number": c.section_number,
+                "risk_level": c.risk_level.value if hasattr(c, 'risk_level') and c.risk_level else None,
             }
-            for c in (contract.clauses or [])[:20]  # Limit to first 20 clauses
+            for c in (contract.clauses or [])[:30]
+        ],
+        "obligations": [
+            {
+                "id": str(o.id),
+                "description": o.description,
+                "obligation_type": o.obligation_type.value if o.obligation_type else None,
+                "responsible_party": o.responsible_party,
+                "deadline": o.deadline.isoformat() if o.deadline else None,
+                "status": o.status,
+                "priority": o.priority,
+                "is_critical": o.is_critical,
+                "consequence": o.consequence,
+            }
+            for o in obligations
+        ],
+        "slas": [
+            {
+                "id": str(s.id),
+                "sla_name": s.sla_name,
+                "sla_description": s.sla_description,
+                "metric_type": s.metric_type.value if s.metric_type else None,
+                "metric_unit": s.metric_unit,
+                "target_value": float(s.target_value) if s.target_value else None,
+                "target_operator": s.target_operator,
+                "severity": s.severity.value if s.severity else None,
+                "current_compliance_rate": float(s.current_compliance_rate) if s.current_compliance_rate else None,
+                "measurement_period": s.measurement_period,
+                "has_penalty": s.has_penalty,
+                "penalty_description": s.penalty_description,
+            }
+            for s in slas
         ],
         "can_download": share.can_download,
         "can_comment": share.can_comment,

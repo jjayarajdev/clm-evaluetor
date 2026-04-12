@@ -235,14 +235,35 @@ class EmailService:
         self._client = None
 
     async def _get_client(self):
-        """Get or create email client."""
+        """Get or create email client.
+
+        Priority order: AWS SES > SendGrid > SMTP > mock fallback.
+        Only considers non-demo configs first; falls back to demo if nothing else.
+        """
         if self._client:
             return self._client
 
         from sqlalchemy import select
         from app.models.integration import IntegrationConfig, IntegrationSystem
 
-        # Try SendGrid first
+        # Try AWS SES first (preferred for production)
+        result = await self.db.execute(
+            select(IntegrationConfig)
+            .where(
+                IntegrationConfig.system == IntegrationSystem.aws_ses,
+                IntegrationConfig.is_active == True,
+                IntegrationConfig.is_demo == False,
+            )
+            .limit(1)
+        )
+        config = result.scalar_one_or_none()
+
+        if config:
+            from app.integrations.ses import SESClient
+            self._client = SESClient(config)
+            return self._client
+
+        # Try SendGrid
         result = await self.db.execute(
             select(IntegrationConfig)
             .where(
@@ -253,7 +274,7 @@ class EmailService:
         )
         config = result.scalar_one_or_none()
 
-        if config:
+        if config and not config.is_demo:
             self._client = SendGridClient(config, self.db)
             return self._client
 
@@ -272,7 +293,7 @@ class EmailService:
             self._client = SMTPClient(config)
             return self._client
 
-        # No email configured, use mock
+        # No real email configured, use mock
         logger.warning("No email service configured, using mock")
         return None
 
@@ -306,7 +327,11 @@ class EmailService:
                 "mock": True,
             }
 
-        if isinstance(client, SendGridClient):
+        from app.integrations.ses import SESClient
+
+        if isinstance(client, SESClient):
+            return await client.send_email(to_email, subject, body, **kwargs)
+        elif isinstance(client, SendGridClient):
             async with client:
                 return await client.send_email(to_email, subject, body, **kwargs)
         else:
