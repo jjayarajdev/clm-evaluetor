@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -15,6 +15,8 @@ import {
   ExclamationCircleIcon,
   CheckCircleIcon,
   ArrowPathIcon,
+  EyeIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import axios from 'axios'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -117,6 +119,8 @@ interface ValidateResponse {
   token_expires_at: string
 }
 
+type TabId = 'document' | 'clauses' | 'obligations' | 'sla' | 'comments'
+
 // ── Main Component ─────────────────────────────────────────────────
 
 export default function ExternalContractPage() {
@@ -124,7 +128,7 @@ export default function ExternalContractPage() {
   const queryClient = useQueryClient()
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
   const [newComment, setNewComment] = useState('')
-  const [activeTab, setActiveTab] = useState<'overview' | 'clauses' | 'obligations' | 'sla' | 'comments'>('overview')
+  const [activeTab, setActiveTab] = useState<TabId>('document')
 
   const accessToken = searchParams.get('token') || ''
 
@@ -171,7 +175,7 @@ export default function ExternalContractPage() {
       )
       return response.data
     },
-    enabled: !!effectiveContractId && !!contract?.can_comment,
+    enabled: !!effectiveContractId && !!validation,
   })
 
   // ── Add comment ────────────────────────────────────────────────
@@ -190,6 +194,17 @@ export default function ExternalContractPage() {
       setNewComment('')
     },
   })
+
+  // Pick best default tab based on what data is available
+  useEffect(() => {
+    if (contract) {
+      if (contract.can_download) setActiveTab('document')
+      else if (contract.obligations?.length) setActiveTab('obligations')
+      else if (contract.clauses?.length) setActiveTab('clauses')
+      else if (contract.slas?.length) setActiveTab('sla')
+      else if (contract.can_comment) setActiveTab('comments')
+    }
+  }, [contract?.id])
 
   // ── Handlers ───────────────────────────────────────────────────
 
@@ -259,36 +274,57 @@ export default function ExternalContractPage() {
       <div className="min-h-screen bg-gray-50">
         <PortalHeader user={validation.external_user} expiresAt={validation.token_expires_at} />
         <main className="max-w-5xl mx-auto px-4 py-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Shared Contracts ({validation.contracts.length})
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">
+            Shared Contracts
           </h2>
+          <p className="text-sm text-gray-500 mb-6">
+            {validation.contracts.length} contracts have been shared with you. Click to view details.
+          </p>
           <div className="space-y-3">
             {validation.contracts.map((c) => (
               <button
                 key={c.id}
-                onClick={() => { setSelectedContractId(c.id); setActiveTab('overview'); }}
-                className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-violet-300 hover:shadow-md transition-all text-left"
+                onClick={() => { setSelectedContractId(c.id); setActiveTab('document'); }}
+                className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-violet-300 hover:shadow-md transition-all text-left group"
               >
-                <div className="flex items-start gap-4">
-                  <div className="p-2.5 bg-violet-100 rounded-lg shrink-0">
-                    <DocumentTextIcon className="w-6 h-6 text-violet-600" />
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-violet-100 rounded-lg shrink-0 group-hover:bg-violet-200 transition-colors">
+                    <DocumentTextIcon className="w-7 h-7 text-violet-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{c.filename}</p>
+                    <p className="font-semibold text-gray-900 truncate group-hover:text-violet-700 transition-colors">
+                      {c.filename}
+                    </p>
                     {c.counterparty && (
                       <p className="text-sm text-gray-500 mt-0.5">{c.counterparty}</p>
                     )}
-                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                    <div className="flex items-center gap-2 mt-2">
                       {c.contract_type && (
-                        <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">
                           {c.contract_type.replace(/_/g, ' ')}
                         </span>
                       )}
-                      {c.can_download && <span>Download</span>}
-                      {c.can_comment && <span>Comment</span>}
+                      {c.expires_at && (
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <ClockIcon className="w-3 h-3" />
+                          Expires {formatDate(c.expires_at)}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <ChevronLeftIcon className="w-5 h-5 text-gray-400 rotate-180 shrink-0 mt-1" />
+                  <div className="flex items-center gap-2 shrink-0">
+                    {c.can_download && (
+                      <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded flex items-center gap-1">
+                        <ArrowDownTrayIcon className="w-3 h-3" /> Download
+                      </span>
+                    )}
+                    {c.can_comment && (
+                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded flex items-center gap-1">
+                        <ChatBubbleLeftIcon className="w-3 h-3" /> Comment
+                      </span>
+                    )}
+                    <ChevronLeftIcon className="w-5 h-5 text-gray-300 rotate-180 group-hover:text-violet-400 transition-colors" />
+                  </div>
                 </div>
               </button>
             ))}
@@ -325,7 +361,7 @@ export default function ExternalContractPage() {
         {/* Back to list */}
         {showBackButton && (
           <button
-            onClick={() => { setSelectedContractId(null); setActiveTab('overview'); }}
+            onClick={() => { setSelectedContractId(null); setActiveTab('document'); }}
             className="flex items-center gap-1 text-sm text-violet-600 hover:text-violet-800 mb-4"
           >
             <ChevronLeftIcon className="w-4 h-4" />
@@ -443,21 +479,30 @@ export default function ExternalContractPage() {
             {/* Tab navigation */}
             <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="border-b border-gray-200 flex overflow-x-auto">
-                <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}
+                {contract.can_download && (
+                  <TabButton active={activeTab === 'document'} onClick={() => setActiveTab('document')}
+                    icon={<EyeIcon className="w-4 h-4" />} label="Document" />
+                )}
+                <TabButton active={activeTab === 'clauses'} onClick={() => setActiveTab('clauses')}
                   icon={<DocumentTextIcon className="w-4 h-4" />} label="Key Clauses" count={contract.clauses?.length} />
                 <TabButton active={activeTab === 'obligations'} onClick={() => setActiveTab('obligations')}
                   icon={<BellAlertIcon className="w-4 h-4" />} label="Obligations" count={contract.obligations?.length} />
                 <TabButton active={activeTab === 'sla'} onClick={() => setActiveTab('sla')}
                   icon={<ChartBarIcon className="w-4 h-4" />} label="SLAs" count={contract.slas?.length} />
-                {contract.can_comment && (
-                  <TabButton active={activeTab === 'comments'} onClick={() => setActiveTab('comments')}
-                    icon={<ChatBubbleLeftIcon className="w-4 h-4" />} label="Comments" count={commentsData?.total} />
-                )}
+                <TabButton active={activeTab === 'comments'} onClick={() => setActiveTab('comments')}
+                  icon={<ChatBubbleLeftIcon className="w-4 h-4" />} label="Comments" count={commentsData?.total} />
               </div>
 
               {/* Tab Content */}
               <div className="p-6">
-                {activeTab === 'overview' && (
+                {activeTab === 'document' && (
+                  <DocumentPreview
+                    contractId={effectiveContractId!}
+                    accessToken={accessToken}
+                    filename={contract.filename}
+                  />
+                )}
+                {activeTab === 'clauses' && (
                   <ClausesSection clauses={contract.clauses} />
                 )}
                 {activeTab === 'obligations' && (
@@ -466,13 +511,15 @@ export default function ExternalContractPage() {
                 {activeTab === 'sla' && (
                   <SLASection slas={contract.slas} />
                 )}
-                {activeTab === 'comments' && contract.can_comment && (
+                {activeTab === 'comments' && (
                   <CommentsSection
                     comments={commentsData?.items || []}
                     newComment={newComment}
                     setNewComment={setNewComment}
                     onSubmit={handleSubmitComment}
                     isPending={addCommentMutation.isPending}
+                    canComment={contract.can_comment}
+                    error={addCommentMutation.error ? 'Failed to post comment. Please try again.' : undefined}
                   />
                 )}
               </div>
@@ -564,6 +611,125 @@ function TabButton({ active, onClick, icon, label, count }: {
         </span>
       )}
     </button>
+  )
+}
+
+// ── Document Preview ────────────────────────────────────────────────
+
+function DocumentPreview({ contractId, accessToken, filename }: {
+  contractId: string; accessToken: string; filename: string
+}) {
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    axios.get(`${apiBase}/contracts/${contractId}/download`, {
+      params: { token: accessToken },
+      responseType: 'blob',
+    }).then((response) => {
+      if (cancelled) return
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      setPdfUrl(url)
+      setLoading(false)
+    }).catch(() => {
+      if (cancelled) return
+      setError('Unable to load document preview.')
+      setLoading(false)
+    })
+
+    return () => {
+      cancelled = true
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl)
+    }
+  }, [contractId, accessToken])
+
+  const isPdf = filename?.toLowerCase().endsWith('.pdf')
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <LoadingSpinner size="lg" />
+        <p className="mt-4 text-sm text-gray-500">Loading document preview...</p>
+      </div>
+    )
+  }
+
+  if (error || !pdfUrl) {
+    return (
+      <div className="text-center py-12">
+        <DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+        <p className="text-gray-500 text-sm">{error || 'Preview not available for this document type.'}</p>
+        <p className="text-xs text-gray-400 mt-1">Use the Download button to view the full document.</p>
+      </div>
+    )
+  }
+
+  if (!isPdf) {
+    return (
+      <div className="text-center py-12">
+        <DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+        <p className="text-gray-500 text-sm">Preview is available for PDF documents only.</p>
+        <p className="text-xs text-gray-400 mt-1">Use the Download button to view this {filename?.split('.').pop()?.toUpperCase()} file.</p>
+      </div>
+    )
+  }
+
+  // Fullscreen modal
+  if (fullscreen) {
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 bg-gray-900">
+            <p className="text-white text-sm font-medium truncate">{filename}</p>
+            <button
+              onClick={() => setFullscreen(false)}
+              className="text-gray-300 hover:text-white p-1 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          </div>
+          <div className="flex-1">
+            <iframe
+              src={`${pdfUrl}#toolbar=1&navpanes=1`}
+              className="w-full h-full border-0"
+              title="Contract Document"
+            />
+          </div>
+        </div>
+        {/* Still render inline so tab doesn't jump */}
+        <div className="h-[600px]" />
+      </>
+    )
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm text-gray-500">{filename}</p>
+        <button
+          onClick={() => setFullscreen(true)}
+          className="text-xs text-violet-600 hover:text-violet-800 flex items-center gap-1"
+        >
+          <EyeIcon className="w-3.5 h-3.5" />
+          Fullscreen
+        </button>
+      </div>
+      <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-100">
+        <iframe
+          src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1`}
+          className="w-full border-0"
+          style={{ height: '700px' }}
+          title="Contract Document"
+        />
+      </div>
+    </div>
   )
 }
 
@@ -769,39 +935,60 @@ function SLASection({ slas }: { slas: SLAItem[] }) {
 
 // ── Comments ───────────────────────────────────────────────────────
 
-function CommentsSection({ comments, newComment, setNewComment, onSubmit, isPending }: {
+function CommentsSection({ comments, newComment, setNewComment, onSubmit, isPending, canComment, error }: {
   comments: Comment[]
   newComment: string
   setNewComment: (v: string) => void
   onSubmit: (e: React.FormEvent) => void
   isPending: boolean
+  canComment: boolean
+  error?: string
 }) {
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
   return (
     <div>
       {/* Add comment form */}
-      <form onSubmit={onSubmit} className="flex gap-2 mb-6">
-        <input
-          type="text"
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Add a comment..."
-          className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
-        />
-        <button
-          type="submit"
-          disabled={!newComment.trim() || isPending}
-          className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center gap-2"
-        >
-          <PaperAirplaneIcon className="w-4 h-4" />
-          Send
-        </button>
-      </form>
+      {canComment ? (
+        <form onSubmit={onSubmit} className="mb-6">
+          <div className="border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-violet-500 focus-within:border-violet-500">
+            <textarea
+              ref={inputRef}
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Add a comment or question about this contract..."
+              rows={3}
+              className="w-full px-4 py-3 border-0 resize-none focus:ring-0 text-sm"
+            />
+            <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200">
+              <p className="text-xs text-gray-400">
+                Comments are visible to both parties
+              </p>
+              <button
+                type="submit"
+                disabled={!newComment.trim() || isPending}
+                className="px-4 py-1.5 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+              >
+                <PaperAirplaneIcon className="w-4 h-4" />
+                {isPending ? 'Sending...' : 'Send'}
+              </button>
+            </div>
+          </div>
+          {error && (
+            <p className="text-sm text-red-600 mt-2">{error}</p>
+          )}
+        </form>
+      ) : (
+        <div className="mb-6 p-3 bg-gray-50 rounded-lg text-sm text-gray-500 text-center">
+          Commenting is not enabled for this shared contract.
+        </div>
+      )}
 
       {/* Comment list */}
       {comments.length === 0 ? (
-        <EmptyState text="No comments yet. Be the first to add one." />
+        <EmptyState text={canComment ? "No comments yet. Be the first to add one." : "No comments on this contract."} />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {comments.map((comment) => (
             <div key={comment.id} className="flex items-start gap-3">
               <div className={cn(
@@ -812,7 +999,7 @@ function CommentsSection({ comments, newComment, setNewComment, onSubmit, isPend
               )}>
                 {comment.author_name?.charAt(0).toUpperCase() || '?'}
               </div>
-              <div className="flex-1">
+              <div className="flex-1 bg-gray-50 rounded-lg px-4 py-3">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-gray-900 text-sm">{comment.author_name}</span>
                   <span className={cn(
@@ -825,7 +1012,7 @@ function CommentsSection({ comments, newComment, setNewComment, onSubmit, isPend
                   </span>
                   <span className="text-xs text-gray-400">{formatDate(comment.created_at)}</span>
                 </div>
-                <p className="text-sm text-gray-700 mt-1">{comment.content}</p>
+                <p className="text-sm text-gray-700 mt-1.5">{comment.content}</p>
               </div>
             </div>
           ))}
