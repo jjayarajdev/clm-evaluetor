@@ -41,6 +41,7 @@ import type {
   ChatSession,
   ChatSessionDetail,
   ChatMessageOut,
+  ContractCommentItem,
 } from '@/types'
 import type {
   PostSigningDashboard,
@@ -385,7 +386,7 @@ class ApiClient {
     return response.data.users
   }
 
-  async createUser(data: { username: string; email: string; password: string; role: string }): Promise<User> {
+  async createUser(data: { username: string; email: string; full_name?: string; password: string; role: string }): Promise<User> {
     const response = await this.client.post<User>('/users', data)
     return response.data
   }
@@ -1067,6 +1068,29 @@ class ApiClient {
     const response = await this.client.patch<Contract>(`/contracts/${contractId}`, {
       custom_fields: customFields
     })
+    return response.data
+  }
+
+  // ============ CONTRACT HIERARCHY / TREE ============
+
+  async getContractHierarchy(): Promise<import('@/types').ContractHierarchyResponse> {
+    const response = await this.client.get<import('@/types').ContractHierarchyResponse>(
+      '/contracts/hierarchy'
+    )
+    return response.data
+  }
+
+  async createContractLink(data: import('@/types').CreateLinkRequest): Promise<any> {
+    const response = await this.client.post('/contracts/links', data)
+    return response.data
+  }
+
+  async deleteContractLink(linkId: string): Promise<void> {
+    await this.client.delete(`/contracts/links/${linkId}`)
+  }
+
+  async moveContract(data: import('@/types').MoveContractRequest): Promise<any> {
+    const response = await this.client.post('/contracts/links/move', data)
     return response.data
   }
 
@@ -1862,6 +1886,18 @@ class ApiClient {
 
   async getSnowIntegrationLogs(limit?: number): Promise<import('@/types/snow-integration').SnowIntegrationLog[]> {
     const response = await this.client.get('/integrations/servicenow/admin/logs', { params: { limit } })
+    return response.data
+  }
+
+  // ===== Contract Comments =====
+
+  async getContractComments(contractId: string): Promise<{ items: ContractCommentItem[]; total: number }> {
+    const response = await this.client.get(`/contracts/${contractId}/comments`)
+    return response.data
+  }
+
+  async addContractComment(contractId: string, data: { content: string; section_reference?: string; clause_id?: string; is_internal?: boolean }): Promise<ContractCommentItem> {
+    const response = await this.client.post(`/contracts/${contractId}/comments`, data)
     return response.data
   }
 }

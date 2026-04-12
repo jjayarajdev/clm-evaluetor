@@ -11,11 +11,14 @@ import {
   ExclamationTriangleIcon,
   DocumentTextIcon,
   PlusIcon,
+  ListBulletIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import PageHeader from '@/components/ui/PageHeader'
 import StatCard from '@/components/ui/StatCard'
+import ContractTreeView from '@/components/contracts/ContractTreeView'
 import { cn, formatDate, getRiskColor, getStatusColor } from '@/lib/utils'
 
 export default function ContractsPage() {
@@ -33,6 +36,7 @@ export default function ContractsPage() {
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false)
   const [selectedContracts, setSelectedContracts] = useState<Set<string>>(new Set())
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [viewMode, setViewMode] = useState<'table' | 'tree'>('table')
   const partyDropdownRef = useRef<HTMLDivElement>(null)
   const partyInputRef = useRef<HTMLInputElement>(null)
   const clientDropdownRef = useRef<HTMLDivElement>(null)
@@ -55,6 +59,13 @@ export default function ContractsPage() {
       risk_level: selectedRisk || undefined,
       client_id: selectedClientId || undefined,
     }),
+  })
+
+  // Fetch contract hierarchy for tree view
+  const { data: hierarchyData, isLoading: hierarchyLoading } = useQuery({
+    queryKey: ['contract-hierarchy'],
+    queryFn: () => api.getContractHierarchy(),
+    enabled: viewMode === 'tree',
   })
 
   // Batch delete mutation
@@ -313,6 +324,29 @@ export default function ContractsPage() {
               Clear all
             </button>
           )}
+          {/* View mode toggle */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-0.5 ml-auto">
+            <button
+              onClick={() => setViewMode('table')}
+              className={cn(
+                'p-1.5 rounded-md transition-colors',
+                viewMode === 'table' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              )}
+              title="Table view"
+            >
+              <ListBulletIcon className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('tree')}
+              className={cn(
+                'p-1.5 rounded-md transition-colors',
+                viewMode === 'tree' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              )}
+              title="Tree view"
+            >
+              <Squares2X2Icon className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Filter Panel */}
@@ -646,8 +680,23 @@ export default function ContractsPage() {
         )}
       </div>
 
+      {/* Tree View */}
+      {viewMode === 'tree' && (
+        hierarchyLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : hierarchyData ? (
+          <ContractTreeView
+            roots={hierarchyData.roots}
+            totalContracts={hierarchyData.total_contracts}
+            totalLinks={hierarchyData.total_links}
+          />
+        ) : null
+      )}
+
       {/* Table */}
-      {isLoading ? (
+      {viewMode === 'table' && (isLoading ? (
         <div className="flex items-center justify-center h-64">
           <LoadingSpinner size="lg" />
         </div>
@@ -800,7 +849,7 @@ export default function ContractsPage() {
             </div>
           )}
         </div>
-      )}
+      ))}
     </div>
   )
 }

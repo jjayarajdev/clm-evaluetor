@@ -78,9 +78,38 @@ function ConfidenceBar({ score }: { score: number }) {
 
 // ============ ESTABLISHED LINK CARD ============
 
-function EstablishedLinkCard({ link }: { link: ContractLinkOut }) {
+function EstablishedLinkCard({ link, contractId, onRemoved }: { link: ContractLinkOut; contractId: string; onRemoved: () => void }) {
   const c = link.linked_contract
   const isParent = link.direction === 'parent'
+
+  const removeMutation = useMutation({
+    mutationFn: () => api.deleteContractLink(link.id),
+    onSuccess: onRemoved,
+  })
+
+  // Swap: if this is a parent, make it a child, and vice versa
+  // Remove old link and create new one with swapped direction
+  const swapMutation = useMutation({
+    mutationFn: async () => {
+      await api.deleteContractLink(link.id)
+      if (isParent) {
+        // Currently parent → make current contract the parent
+        await api.createContractLink({
+          parent_contract_id: contractId,
+          child_contract_id: c.id,
+          link_type: link.link_type,
+        })
+      } else {
+        // Currently child → make linked contract the parent
+        await api.createContractLink({
+          parent_contract_id: c.id,
+          child_contract_id: contractId,
+          link_type: link.link_type,
+        })
+      }
+    },
+    onSuccess: onRemoved,
+  })
 
   return (
     <div className="border rounded-lg p-4 bg-white border-gray-200">
@@ -144,6 +173,35 @@ function EstablishedLinkCard({ link }: { link: ContractLinkOut }) {
           {link.link_description}
         </div>
       )}
+
+      {/* Actions: swap direction / remove */}
+      <div className="mt-3 flex items-center gap-2 pt-2 border-t border-gray-100">
+        <button
+          onClick={() => swapMutation.mutate()}
+          disabled={swapMutation.isPending || removeMutation.isPending}
+          className="text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded transition-colors disabled:opacity-50"
+        >
+          {swapMutation.isPending ? 'Swapping...' : `Make ${isParent ? 'Child' : 'Parent'}`}
+        </button>
+        <button
+          onClick={() => {
+            if (confirm(`Remove link to ${c.filename}?`)) {
+              removeMutation.mutate()
+            }
+          }}
+          disabled={removeMutation.isPending || swapMutation.isPending}
+          className="text-xs text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-1 rounded transition-colors disabled:opacity-50"
+        >
+          {removeMutation.isPending ? 'Removing...' : 'Remove Link'}
+        </button>
+        {(swapMutation.isError || removeMutation.isError) && (
+          <span className="text-xs text-red-600">
+            {(swapMutation.error as any)?.response?.data?.detail ||
+             (removeMutation.error as any)?.response?.data?.detail ||
+             'Action failed'}
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -374,6 +432,11 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
     // Queries are invalidated by the mutation
   }
 
+  const handleLinkChanged = () => {
+    queryClient.invalidateQueries({ queryKey: ['contract-links', contractId] })
+    queryClient.invalidateQueries({ queryKey: ['contract-hierarchy'] })
+  }
+
   const handleApproveAll = () => {
     const pendingSuggestions = suggestionsData?.suggestions.filter(s => s.status === 'pending') || []
     const ids = pendingSuggestions.map(s => s.id)
@@ -451,7 +514,7 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
                 </p>
                 <div className="space-y-2">
                   {parentLinks.map(link => (
-                    <EstablishedLinkCard key={link.id} link={link} />
+                    <EstablishedLinkCard key={link.id} link={link} contractId={contractId} onRemoved={handleLinkChanged} />
                   ))}
                 </div>
               </div>
@@ -463,7 +526,7 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
                 </p>
                 <div className="space-y-2">
                   {childLinks.map(link => (
-                    <EstablishedLinkCard key={link.id} link={link} />
+                    <EstablishedLinkCard key={link.id} link={link} contractId={contractId} onRemoved={handleLinkChanged} />
                   ))}
                 </div>
               </div>

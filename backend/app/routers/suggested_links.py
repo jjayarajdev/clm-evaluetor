@@ -263,10 +263,16 @@ async def review_suggested_link(
         Review result with created link ID if approved.
     """
     # Get the suggestion with related contracts
+    # Accept either source or target contract_id so reviews work from either side
+    from sqlalchemy import or_
+    contract_uuid = uuid.UUID(contract_id)
     query = (
         select(SuggestedContractLink)
         .where(SuggestedContractLink.id == uuid.UUID(suggestion_id))
-        .where(SuggestedContractLink.source_contract_id == uuid.UUID(contract_id))
+        .where(or_(
+            SuggestedContractLink.source_contract_id == contract_uuid,
+            SuggestedContractLink.target_contract_id == contract_uuid,
+        ))
         .options(
             selectinload(SuggestedContractLink.source_contract),
             selectinload(SuggestedContractLink.target_contract),

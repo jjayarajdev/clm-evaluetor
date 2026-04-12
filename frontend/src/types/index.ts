@@ -718,6 +718,39 @@ export interface PendingSuggestionsResponse {
   suggestions: SuggestedLink[]
 }
 
+// ============ CONTRACT HIERARCHY / TREE ============
+
+export interface ContractTreeNode {
+  id: string
+  filename: string
+  contract_type: string | null
+  counterparty: string | null
+  status: string | null
+  risk_level: string | null
+  uploaded_at: string | null
+  link_type: string | null
+  link_id: string | null
+  children: ContractTreeNode[]
+}
+
+export interface ContractHierarchyResponse {
+  roots: ContractTreeNode[]
+  total_contracts: number
+  total_links: number
+}
+
+export interface CreateLinkRequest {
+  parent_contract_id: string
+  child_contract_id: string
+  link_type?: string
+}
+
+export interface MoveContractRequest {
+  contract_id: string
+  new_parent_id: string | null
+  link_type?: string
+}
+
 // ============ CHAT SESSION TYPES ============
 
 export interface ChatSession {
@@ -741,4 +774,24 @@ export interface ChatMessageOut {
 
 export interface ChatSessionDetail extends ChatSession {
   messages: ChatMessageOut[]
+}
+
+// Contract comments
+export interface ContractCommentItem {
+  id: string
+  contract_id: string
+  user_id?: string | null
+  external_user_id?: string | null
+  parent_id?: string | null
+  content: string
+  clause_id?: string | null
+  section_reference?: string | null
+  is_internal: boolean
+  is_resolved: boolean
+  author_name?: string | null
+  author_email?: string | null
+  is_internal_author: boolean
+  created_at: string
+  updated_at?: string | null
+  reply_count: number
 }

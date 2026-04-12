@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.audit import log_audit
 from app.core.deps import AdminUser, CurrentUser, CurrentTenantId
@@ -1405,6 +1406,346 @@ async def search_contracts(
     ]
 
 
+# ============ CONTRACT HIERARCHY / TREE VIEW ============
+
+
+class ContractTreeNode(BaseModel):
+    """A contract with its children for tree display."""
+    id: str
+    filename: str
+    contract_type: str | None = None
+    counterparty: str | None = None
+    status: str | None = None
+    risk_level: str | None = None
+    uploaded_at: str | None = None
+    link_type: str | None = None  # How this contract relates to its parent
+    link_id: str | None = None  # The ContractLink ID
+    children: list["ContractTreeNode"] = []
+
+
+class ContractHierarchyResponse(BaseModel):
+    """Response containing the full contract tree."""
+    roots: list[ContractTreeNode]
+    total_contracts: int
+    total_links: int
+
+
+@router.get("/hierarchy", response_model=ContractHierarchyResponse)
+async def get_contract_hierarchy(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ContractHierarchyResponse:
+    """Get contracts arranged in a parent-child tree hierarchy.
+
+    Root contracts are those with no parent links.
+    Children are arranged under their parents based on ContractLink relationships.
+    """
+    from app.models.contract_link import ContractLink
+    from app.core.tenant import apply_tenant_filter
+
+    # Get all contracts for the tenant
+    contracts_query = select(Contract)
+    contracts_query = apply_tenant_filter(contracts_query, tenant_id, Contract)
+    result = await db.execute(contracts_query)
+    contracts = result.scalars().all()
+
+    # Build a dict for quick lookup
+    contract_map: dict[str, Any] = {}
+    for c in contracts:
+        contract_map[str(c.id)] = c
+
+    if not contracts:
+        return ContractHierarchyResponse(roots=[], total_contracts=0, total_links=0)
+
+    # Get all active links for these contracts
+    contract_ids = [c.id for c in contracts]
+    links_query = select(ContractLink).where(
+        ContractLink.is_active == True,
+        or_(
+            ContractLink.parent_contract_id.in_(contract_ids),
+            ContractLink.child_contract_id.in_(contract_ids),
+        ),
+    )
+    link_result = await db.execute(links_query)
+    links = link_result.scalars().all()
+
+    # Build a single-parent tree from the link graph.
+    # Contracts may have multiple parent links or bidirectional links,
+    # so we must pick one parent per child and break cycles.
+
+    # Priority: specific link types are better parents than generic ones
+    LINK_PRIORITY = {
+        'sow': 0, 'work_order': 0, 'service_order': 0, 'purchase_order': 0,
+        'amendment': 1, 'addendum': 1, 'change_order': 1, 'modification': 1,
+        'renewal': 2, 'exhibit': 2, 'schedule': 2, 'appendix': 2, 'attachment': 2,
+        'supersedes': 3, 'references': 4, 'related': 5,
+    }
+
+    # For each child, pick the best (most specific) parent link
+    child_to_parent: dict[str, tuple[str, str, str]] = {}
+    for link in links:
+        child_id = str(link.child_contract_id)
+        parent_id = str(link.parent_contract_id)
+        lt = link.link_type if isinstance(link.link_type, str) else link.link_type.value
+        # Skip links to contracts outside this tenant
+        if parent_id not in contract_map or child_id not in contract_map:
+            continue
+        priority = LINK_PRIORITY.get(lt, 5)
+        existing = child_to_parent.get(child_id)
+        if existing is None or priority < LINK_PRIORITY.get(existing[1], 5):
+            child_to_parent[child_id] = (parent_id, lt, str(link.id))
+
+    # Break cycles using DFS: walk from each node up the parent chain;
+    # if we revisit a node, remove that node's parent to make it a root.
+    for start_id in list(child_to_parent.keys()):
+        visited: set[str] = set()
+        current = start_id
+        while current in child_to_parent:
+            if current in visited:
+                # Cycle detected — break it by removing this node's parent
+                del child_to_parent[current]
+                break
+            visited.add(current)
+            current = child_to_parent[current][0]
+
+    # Build parent_to_children from the clean single-parent mapping
+    parent_to_children: dict[str, list[str]] = {}
+    for child_id, (parent_id, _, _) in child_to_parent.items():
+        parent_to_children.setdefault(parent_id, []).append(child_id)
+
+    # Roots: contracts with no parent in the mapping
+    root_ids = [cid for cid in contract_map if cid not in child_to_parent]
+
+    # Build tree recursively
+    placed: set[str] = set()  # Track placed nodes to avoid duplicates
+
+    def build_node(contract_id: str) -> ContractTreeNode | None:
+        if contract_id in placed:
+            return None
+        placed.add(contract_id)
+
+        c = contract_map.get(contract_id)
+        if not c:
+            return None
+
+        link_info = child_to_parent.get(contract_id)
+        children_nodes = []
+        for child_id in parent_to_children.get(contract_id, []):
+            child_node = build_node(child_id)
+            if child_node:
+                children_nodes.append(child_node)
+
+        return ContractTreeNode(
+            id=contract_id,
+            filename=c.filename,
+            contract_type=c.contract_type.value if c.contract_type else None,
+            counterparty=c.counterparty,
+            status=c.status.value if c.status else None,
+            risk_level=c.risk_level.value if c.risk_level else None,
+            uploaded_at=str(c.created_at) if c.created_at else None,
+            link_type=link_info[1] if link_info else None,
+            link_id=link_info[2] if link_info else None,
+            children=children_nodes,
+        )
+
+    roots = []
+    for root_id in root_ids:
+        node = build_node(root_id)
+        if node:
+            roots.append(node)
+
+    # Sort roots: those with children first, then by filename
+    roots.sort(key=lambda n: (len(n.children) == 0, n.filename or ""))
+
+    return ContractHierarchyResponse(
+        roots=roots,
+        total_contracts=len(contracts),
+        total_links=len(links),
+    )
+
+
+class CreateLinkRequest(BaseModel):
+    """Request to create a contract link."""
+    parent_contract_id: str
+    child_contract_id: str
+    link_type: str = "related"
+
+
+class CreateLinkResponse(BaseModel):
+    """Response after creating a link."""
+    id: str
+    parent_contract_id: str
+    child_contract_id: str
+    link_type: str
+    message: str
+
+
+@router.post("/links", response_model=CreateLinkResponse, status_code=status.HTTP_201_CREATED)
+async def create_contract_link(
+    body: CreateLinkRequest,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> CreateLinkResponse:
+    """Create a parent-child link between two contracts."""
+    from app.models.contract_link import ContractLink
+
+    parent_uuid = uuid.UUID(body.parent_contract_id)
+    child_uuid = uuid.UUID(body.child_contract_id)
+
+    if parent_uuid == child_uuid:
+        raise HTTPException(status_code=400, detail="Cannot link a contract to itself")
+
+    # Verify both contracts exist
+    parent = await db.get(Contract, parent_uuid)
+    child = await db.get(Contract, child_uuid)
+    if not parent or not child:
+        raise HTTPException(status_code=404, detail="One or both contracts not found")
+
+    # Check for existing link
+    existing = await db.execute(
+        select(ContractLink).where(
+            ContractLink.parent_contract_id == parent_uuid,
+            ContractLink.child_contract_id == child_uuid,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Link already exists between these contracts")
+
+    # Check for reverse link (child is already parent of parent -> would create cycle)
+    reverse = await db.execute(
+        select(ContractLink).where(
+            ContractLink.parent_contract_id == child_uuid,
+            ContractLink.child_contract_id == parent_uuid,
+        )
+    )
+    if reverse.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Reverse link exists — would create a cycle")
+
+    link = ContractLink(
+        parent_contract_id=parent_uuid,
+        child_contract_id=child_uuid,
+        link_type=body.link_type,
+        is_active=True,
+    )
+    db.add(link)
+    await db.commit()
+    await db.refresh(link)
+
+    return CreateLinkResponse(
+        id=str(link.id),
+        parent_contract_id=body.parent_contract_id,
+        child_contract_id=body.child_contract_id,
+        link_type=body.link_type,
+        message="Link created successfully",
+    )
+
+
+@router.delete("/links/{link_id}", status_code=status.HTTP_200_OK)
+async def delete_contract_link(
+    link_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Delete (deactivate) a contract link."""
+    from app.models.contract_link import ContractLink
+
+    link = await db.get(ContractLink, uuid.UUID(link_id))
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    await db.delete(link)
+    await db.commit()
+    return {"message": "Link deleted", "id": link_id}
+
+
+class MoveContractRequest(BaseModel):
+    """Request to move a contract to a new parent (or to root)."""
+    contract_id: str
+    new_parent_id: str | None = None  # None = move to root
+    link_type: str = "related"
+
+
+@router.post("/links/move", response_model=CreateLinkResponse | dict)
+async def move_contract(
+    body: MoveContractRequest,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Move a contract to a new parent or to root level.
+
+    This removes the existing parent link (if any) and creates a new one.
+    """
+    from app.models.contract_link import ContractLink
+
+    contract_uuid = uuid.UUID(body.contract_id)
+
+    # Remove existing parent link (where this contract is the child)
+    existing_parent_query = select(ContractLink).where(
+        ContractLink.child_contract_id == contract_uuid,
+        ContractLink.is_active == True,
+    )
+    result = await db.execute(existing_parent_query)
+    existing_links = result.scalars().all()
+    for old_link in existing_links:
+        await db.delete(old_link)
+
+    # If new_parent_id is None, we just removed the parent link (move to root)
+    if body.new_parent_id is None:
+        await db.commit()
+        return {"message": "Contract moved to root level", "contract_id": body.contract_id}
+
+    new_parent_uuid = uuid.UUID(body.new_parent_id)
+
+    if new_parent_uuid == contract_uuid:
+        raise HTTPException(status_code=400, detail="Cannot link a contract to itself")
+
+    # Verify parent exists
+    parent = await db.get(Contract, new_parent_uuid)
+    if not parent:
+        raise HTTPException(status_code=404, detail="Parent contract not found")
+
+    # Prevent cycle: check if new_parent is a descendant of contract_id
+    async def is_descendant(ancestor_id: uuid.UUID, target_id: uuid.UUID) -> bool:
+        """Check if target_id is a descendant of ancestor_id."""
+        children_q = select(ContractLink.child_contract_id).where(
+            ContractLink.parent_contract_id == ancestor_id,
+            ContractLink.is_active == True,
+        )
+        r = await db.execute(children_q)
+        child_ids = list(r.scalars().all())
+        for cid in child_ids:
+            if cid == target_id:
+                return True
+            if await is_descendant(cid, target_id):
+                return True
+        return False
+
+    if await is_descendant(contract_uuid, new_parent_uuid):
+        raise HTTPException(status_code=400, detail="Cannot move: would create a cycle")
+
+    link = ContractLink(
+        parent_contract_id=new_parent_uuid,
+        child_contract_id=contract_uuid,
+        link_type=body.link_type,
+        is_active=True,
+    )
+    db.add(link)
+    await db.commit()
+    await db.refresh(link)
+
+    return CreateLinkResponse(
+        id=str(link.id),
+        parent_contract_id=body.new_parent_id,
+        child_contract_id=body.contract_id,
+        link_type=body.link_type,
+        message="Contract moved successfully",
+    )
+
+
 @router.get("/{contract_id}", response_model=ContractResponse)
 async def get_contract(
     contract_id: str,
@@ -2664,14 +3005,14 @@ async def share_contract(
             detail="External user not found or inactive",
         )
 
-    # Check if already shared
+    # Check if already shared (including revoked, due to unique constraint)
     existing_query = select(ContractShare).where(
         ContractShare.contract_id == uuid_mod.UUID(contract_id),
         ContractShare.external_user_id == share_data.external_user_id,
-        ContractShare.is_revoked == False,
     )
     existing = (await db.execute(existing_query)).scalar_one_or_none()
-    if existing:
+
+    if existing and not existing.is_revoked:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Contract is already shared with this user",
@@ -2683,17 +3024,31 @@ async def share_contract(
     if share_data.expires_in_days:
         expires_at = datetime.utcnow() + timedelta(days=share_data.expires_in_days)
 
-    # Create share
-    share = ContractShare(
-        contract_id=uuid_mod.UUID(contract_id),
-        external_user_id=share_data.external_user_id,
-        shared_by_id=current_user.id,
-        can_download=share_data.can_download,
-        can_comment=share_data.can_comment,
-        expires_at=expires_at,
-        message=share_data.message,
-    )
-    db.add(share)
+    if existing and existing.is_revoked:
+        # Reactivate revoked share
+        existing.is_revoked = False
+        existing.revoked_at = None
+        existing.revoked_by_id = None
+        existing.shared_by_id = current_user.id
+        existing.can_download = share_data.can_download
+        existing.can_comment = share_data.can_comment
+        existing.expires_at = expires_at
+        existing.message = share_data.message
+        existing.access_count = 0
+        existing.updated_at = datetime.utcnow()
+        share = existing
+    else:
+        # Create new share
+        share = ContractShare(
+            contract_id=uuid_mod.UUID(contract_id),
+            external_user_id=share_data.external_user_id,
+            shared_by_id=current_user.id,
+            can_download=share_data.can_download,
+            can_comment=share_data.can_comment,
+            expires_at=expires_at,
+            message=share_data.message,
+        )
+        db.add(share)
 
     # Create access token
     access_token = ExternalAccessToken.create_token(
@@ -2712,16 +3067,16 @@ async def share_contract(
     await db.refresh(share)
 
     # Send email notification to the external user
-    access_url = f"/external/contracts/{access_token.token}"
+    access_url = f"/external/contracts?token={access_token.token}"
     try:
         from app.integrations.email import EmailService
-        from app.core.config import settings
+        from app.config import settings
 
         email_service = EmailService(db)
 
         # Build the full URL
-        base_url = getattr(settings, 'FRONTEND_URL', None) or "https://34.204.15.143"
-        full_url = f"{base_url}{access_url}"
+        base_url = getattr(settings, 'public_url', None) or "http://52.21.204.211"
+        full_url = f"{base_url.rstrip('/')}{access_url}"
 
         # Create email body
         shared_by_name = current_user.full_name or current_user.email
