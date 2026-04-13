@@ -12,6 +12,7 @@ class UserCreate(BaseModel):
 
     username: str = Field(..., min_length=3, max_length=50, pattern=r'^[^\s]+$')
     email: EmailStr
+    full_name: str | None = Field(None, max_length=255)
     password: str = Field(..., min_length=8)
     role: Role = Role.LEGAL
     tenant_id: str | None = None  # Super admin can specify target tenant
@@ -22,6 +23,7 @@ class UserUpdate(BaseModel):
 
     username: str | None = Field(None, min_length=3, max_length=50, pattern=r'^[^\s]+$')
     email: EmailStr | None = None
+    full_name: str | None = Field(None, max_length=255)
     role: Role | None = None
     is_active: bool | None = None
 
@@ -38,6 +40,7 @@ class UserResponse(BaseModel):
     id: str
     username: str
     email: str
+    full_name: str | None = None
     role: str
     is_active: bool
     tenant_id: str | None = None

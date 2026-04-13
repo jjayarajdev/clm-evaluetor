@@ -28,6 +28,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [generatedLink, setGeneratedLink] = useState('')
+  const [shareError, setShareError] = useState<string | null>(null)
 
   // Fetch existing shares
   const { data: sharesData, isLoading: sharesLoading } = useQuery({
@@ -46,6 +47,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
     mutationFn: (data: ContractShareCreate) => api.shareContract(contractId, data),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['contract-shares', contractId] })
+      setShareError(null)
       closeModal()
       // Show the access URL in a modal
       if (response.access_url) {
@@ -53,6 +55,9 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
         setGeneratedLink(fullUrl)
         setShowLinkModal(true)
       }
+    },
+    onError: (err: any) => {
+      setShareError(err?.response?.data?.detail || err?.message || 'Failed to share contract')
     },
   })
 
@@ -75,6 +80,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
 
   const handleShare = (e: React.FormEvent) => {
     e.preventDefault()
+    setShareError(null)
     if (!selectedUserId) return
 
     shareMutation.mutate({
@@ -243,6 +249,11 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
             </div>
 
             <form onSubmit={handleShare} className="p-6 space-y-4">
+              {shareError && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                  {shareError}
+                </div>
+              )}
               {/* External user select */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

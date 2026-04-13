@@ -384,6 +384,65 @@ async def download_shared_contract(
     )
 
 
+@router.get("/contracts/{contract_id}/view")
+async def view_shared_contract(
+    contract_id: str,
+    token: str = Query(..., description="Access token"),
+    db: AsyncSession = Depends(get_db),
+):
+    """View a shared contract file inline (no download permission required)."""
+    access_token, external_user, _ = await validate_token(token, db)
+
+    # Verify access to this specific contract
+    share_query = select(ContractShare).where(
+        ContractShare.contract_id == UUID(contract_id),
+        ContractShare.external_user_id == external_user.id,
+        ContractShare.is_revoked == False,
+    )
+    share = (await db.execute(share_query)).scalar_one_or_none()
+
+    if not share or not share.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No access to this contract",
+        )
+
+    contract = share.contract
+    if not contract or not contract.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contract file not found",
+        )
+
+    # Record access
+    share.record_access()
+    await db.commit()
+
+    # Stream the file inline (for preview)
+    import os
+    from pathlib import Path
+
+    file_path = Path(contract.file_path)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contract file not found on disk",
+        )
+
+    def iterfile():
+        with open(file_path, "rb") as f:
+            yield from f
+
+    return StreamingResponse(
+        iterfile(),
+        media_type=contract.mime_type or "application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{contract.filename}"',
+            "Content-Length": str(os.path.getsize(file_path)),
+        },
+    )
+
+
 @router.get("/contracts/{contract_id}/comments", response_model=ContractCommentListResponse)
 async def list_shared_contract_comments(
     contract_id: str,

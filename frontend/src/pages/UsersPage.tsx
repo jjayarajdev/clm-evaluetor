@@ -33,6 +33,7 @@ const ROLE_COLORS: Record<Role, string> = {
 interface UserFormData {
   username: string
   email: string
+  full_name: string
   role: Role
   password?: string
 }
@@ -41,9 +42,11 @@ export default function UsersPage() {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
   const [formData, setFormData] = useState<UserFormData>({
     email: '',
     username: '',
+    full_name: '',
     role: 'viewer',
     password: '',
   })
@@ -62,21 +65,30 @@ export default function UsersPage() {
     mutationFn: (data: UserFormData) => api.createUser({
       username: data.username,
       email: data.email,
+      full_name: data.full_name || undefined,
       password: data.password || '',
       role: data.role,
     }),
     onSuccess: () => {
+      setFormError(null)
       queryClient.invalidateQueries({ queryKey: ['users'] })
       closeModal()
+    },
+    onError: (err: any) => {
+      setFormError(err?.response?.data?.detail || err?.message || 'Failed to create user')
     },
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<UserFormData> }) =>
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
       api.updateUser(id, data),
     onSuccess: () => {
+      setFormError(null)
       queryClient.invalidateQueries({ queryKey: ['users'] })
       closeModal()
+    },
+    onError: (err: any) => {
+      setFormError(err?.response?.data?.detail || err?.message || 'Failed to update user')
     },
   })
 
@@ -89,15 +101,18 @@ export default function UsersPage() {
 
   const openCreateModal = () => {
     setEditingUser(null)
-    setFormData({ email: '', username: '', role: 'viewer', password: '' })
+    setFormError(null)
+    setFormData({ email: '', username: '', full_name: '', role: 'viewer', password: '' })
     setIsModalOpen(true)
   }
 
   const openEditModal = (user: User) => {
     setEditingUser(user)
+    setFormError(null)
     setFormData({
       email: user.email,
       username: user.username,
+      full_name: user.full_name || '',
       role: user.role,
       password: '',
     })
@@ -107,18 +122,22 @@ export default function UsersPage() {
   const closeModal = () => {
     setIsModalOpen(false)
     setEditingUser(null)
-    setFormData({ email: '', username: '', role: 'viewer', password: '' })
+    setFormError(null)
+    setFormData({ email: '', username: '', full_name: '', role: 'viewer', password: '' })
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError(null)
     if (editingUser) {
-      const updateData: Partial<UserFormData> = {
+      const updateData: Record<string, unknown> = {
         email: formData.email,
         username: formData.username,
+        full_name: formData.full_name || null,
         role: formData.role,
       }
       if (formData.password) {
+        // Password is updated separately but we include it for convenience
         updateData.password = formData.password
       }
       updateMutation.mutate({ id: editingUser.id, data: updateData })
@@ -251,6 +270,11 @@ export default function UsersPage() {
                 {editingUser ? 'Edit User' : 'Create User'}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {formError && (
+                  <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                    {formError}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Username
@@ -263,6 +287,20 @@ export default function UsersPage() {
                     }
                     className="input"
                     required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.full_name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, full_name: e.target.value })
+                    }
+                    className="input"
+                    placeholder="e.g. Alex Morgan"
                   />
                 </div>
                 <div>

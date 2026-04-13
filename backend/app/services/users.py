@@ -138,6 +138,7 @@ class UserService:
         user = User(
             username=data.username,
             email=data.email,
+            full_name=data.full_name,
             password_hash=hash_password(data.password),
             role=data.role,
             is_active=True,
@@ -176,6 +177,8 @@ class UserService:
             user.email = data.email
 
         # Update other fields
+        if data.full_name is not None:
+            user.full_name = data.full_name
         if data.role is not None:
             user.role = data.role
         if data.is_active is not None:

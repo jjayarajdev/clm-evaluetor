@@ -175,33 +175,46 @@ async def invite_external_user(
         if not contract:
             continue  # Skip invalid contracts
 
-        # Check if share already exists
+        # Check if share already exists (including revoked ones due to unique constraint)
         existing_share_query = select(ContractShare).where(
             ContractShare.contract_id == contract_id,
             ContractShare.external_user_id == external_user.id,
-            ContractShare.is_revoked == False,
         )
         existing_share = (await db.execute(existing_share_query)).scalar_one_or_none()
-        if existing_share:
-            continue  # Skip if already shared
 
         # Calculate expiration
         expires_at = None
         if data.expires_in_days:
             expires_at = datetime.utcnow() + timedelta(days=data.expires_in_days)
 
-        # Create share
-        share = ContractShare(
-            contract_id=contract_id,
-            external_user_id=external_user.id,
-            shared_by_id=current_user.id,
-            can_download=data.can_download,
-            can_comment=data.can_comment,
-            expires_at=expires_at,
-            message=data.message,
-        )
-        db.add(share)
-        shares_created.append(share)
+        if existing_share and not existing_share.is_revoked:
+            continue  # Already actively shared
+
+        if existing_share and existing_share.is_revoked:
+            # Reactivate revoked share
+            existing_share.is_revoked = False
+            existing_share.revoked_at = None
+            existing_share.revoked_by_id = None
+            existing_share.shared_by_id = current_user.id
+            existing_share.can_download = data.can_download
+            existing_share.can_comment = data.can_comment
+            existing_share.expires_at = expires_at
+            existing_share.message = data.message
+            existing_share.updated_at = datetime.utcnow()
+            shares_created.append(existing_share)
+        else:
+            # Create new share
+            share = ContractShare(
+                contract_id=contract_id,
+                external_user_id=external_user.id,
+                shared_by_id=current_user.id,
+                can_download=data.can_download,
+                can_comment=data.can_comment,
+                expires_at=expires_at,
+                message=data.message,
+            )
+            db.add(share)
+            shares_created.append(share)
 
     # Create access token for the external user
     access_token = ExternalAccessToken.create_token(

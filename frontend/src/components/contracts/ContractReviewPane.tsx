@@ -7,13 +7,14 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   DocumentMagnifyingGlassIcon,
+  ChatBubbleLeftIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ContractPdfViewer from './ContractPdfViewer'
 import { cn, formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
-import type { Contract, ClauseDetail, ObligationItem } from '@/types'
+import type { Contract, ClauseDetail, ObligationItem, ContractCommentItem } from '@/types'
 
 interface ContractReviewPaneProps {
   contractId: string
@@ -249,6 +250,24 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
     queryFn: () => api.getContractSLAs(contractId),
   })
 
+  // Fetch comments
+  const { data: commentsData } = useQuery({
+    queryKey: ['contract-comments', contractId],
+    queryFn: () => api.getContractComments(contractId),
+  })
+
+  const comments = commentsData?.items || []
+
+  const getCommentsFor = (ref: string) =>
+    comments.filter((c) => c.section_reference === ref)
+
+  // Add comment mutation
+  const addCommentMut = useMutation({
+    mutationFn: (data: { content: string; section_reference?: string; clause_id?: string }) =>
+      api.addContractComment(contractId, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contract-comments', contractId] }),
+  })
+
   // ── Metadata update mutation ──
   const updateMeta = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -450,6 +469,8 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
                   key={clause.id}
                   clause={clause}
                   canEdit={canEdit}
+                  comments={getCommentsFor(`clause:${clause.id}`)}
+                  onAddComment={(content) => addCommentMut.mutate({ content, section_reference: `clause:${clause.id}`, clause_id: clause.id })}
                   onViewSource={() => {
                     setHighlightPage(clause.page_number || null)
                     setHighlightText(clause.text)
@@ -474,6 +495,8 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
                   key={obl.id}
                   obligation={obl}
                   canEdit={canEdit}
+                  comments={getCommentsFor(`obligation:${obl.id}`)}
+                  onAddComment={(content) => addCommentMut.mutate({ content, section_reference: `obligation:${obl.id}` })}
                   onViewSource={() => {
                     const text = obl.source_text || obl.description
                     setHighlightText(text)
@@ -495,31 +518,16 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
           ) : (
             <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
               {slas.map((sla: any) => (
-                <div key={sla.id} className="px-4 py-2.5 hover:bg-gray-50">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-gray-900 truncate flex-1">{sla.sla_name}</span>
-                    <RiskBadge level={sla.severity} />
-                    {sla.source_text && (
-                      <button
-                        onClick={() => {
-                          setHighlightText(sla.source_text)
-                          setHighlightPage(null)
-                        }}
-                        title="View in document"
-                        className="p-1 rounded hover:bg-primary-100 text-primary-600 flex-shrink-0"
-                      >
-                        <DocumentMagnifyingGlassIcon className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                    <span>{sla.metric_type?.replace(/_/g, ' ')}</span>
-                    <span>{sla.target_operator} {sla.target_value} {sla.metric_unit}</span>
-                    {sla.has_penalty && (
-                      <span className="text-orange-600">Has penalty</span>
-                    )}
-                  </div>
-                </div>
+                <SLARow
+                  key={sla.id}
+                  sla={sla}
+                  comments={getCommentsFor(`sla:${sla.id}`)}
+                  onAddComment={(content) => addCommentMut.mutate({ content, section_reference: `sla:${sla.id}` })}
+                  onViewSource={() => {
+                    setHighlightText(sla.source_text)
+                    setHighlightPage(null)
+                  }}
+                />
               ))}
             </div>
           )}
@@ -547,16 +555,90 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
 }
 
 
+// ── Inline Comments Widget ──────────────────────────────────────────
+
+function InlineComments({
+  comments,
+  onAddComment,
+}: {
+  comments: ContractCommentItem[]
+  onAddComment: (content: string) => void
+}) {
+  const [showComments, setShowComments] = useState(false)
+  const [newComment, setNewComment] = useState('')
+
+  const handleSubmit = () => {
+    if (!newComment.trim()) return
+    onAddComment(newComment.trim())
+    setNewComment('')
+  }
+
+  return (
+    <div className="mt-1.5">
+      <button
+        onClick={() => setShowComments(!showComments)}
+        className={cn(
+          'flex items-center gap-1 text-xs px-1.5 py-0.5 rounded',
+          comments.length > 0
+            ? 'text-violet-600 bg-violet-50 hover:bg-violet-100'
+            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+        )}
+      >
+        <ChatBubbleLeftIcon className="h-3 w-3" />
+        {comments.length > 0 ? `${comments.length} comment${comments.length > 1 ? 's' : ''}` : 'Comment'}
+      </button>
+
+      {showComments && (
+        <div className="mt-1.5 ml-1 border-l-2 border-violet-200 pl-2 space-y-1.5">
+          {comments.map((c) => (
+            <div key={c.id} className="text-xs">
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium text-gray-800">{c.author_name || 'Unknown'}</span>
+                {!c.is_internal_author && (
+                  <span className="text-[10px] bg-blue-50 text-blue-600 px-1 rounded">External</span>
+                )}
+                <span className="text-gray-400">{formatDate(c.created_at)}</span>
+              </div>
+              <p className="text-gray-600 mt-0.5">{c.content}</p>
+            </div>
+          ))}
+          <div className="flex gap-1">
+            <input
+              type="text"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
+              placeholder="Add comment..."
+              className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-violet-400"
+            />
+            <button
+              onClick={handleSubmit}
+              disabled={!newComment.trim()}
+              className="text-xs px-2 py-1 bg-violet-600 text-white rounded hover:bg-violet-700 disabled:opacity-40"
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Clause Row Component ────────────────────────────────────────────
 
 function ClauseRow({
   clause,
   canEdit,
+  comments,
+  onAddComment,
   onViewSource,
   onUpdate,
 }: {
   clause: ClauseDetail & { _type: string }
   canEdit: boolean
+  comments: ContractCommentItem[]
+  onAddComment: (content: string) => void
   onViewSource: () => void
   onUpdate: (data: Record<string, unknown>) => void
 }) {
@@ -628,6 +710,7 @@ function ClauseRow({
           {clause.page_number && (
             <p className="text-xs text-gray-400">Page {clause.page_number}</p>
           )}
+          <InlineComments comments={comments} onAddComment={onAddComment} />
         </div>
       )}
     </div>
@@ -640,11 +723,15 @@ function ClauseRow({
 function ObligationRow({
   obligation,
   canEdit,
+  comments,
+  onAddComment,
   onViewSource,
   onUpdate,
 }: {
   obligation: ObligationItem
   canEdit: boolean
+  comments: ContractCommentItem[]
+  onAddComment: (content: string) => void
   onViewSource: () => void
   onUpdate: (data: Record<string, unknown>) => void
 }) {
@@ -670,6 +757,12 @@ function ObligationRow({
         <span className={cn('px-1.5 py-0.5 rounded text-xs font-medium capitalize flex-shrink-0', statusColors[obligation.status] || 'bg-gray-100')}>
           {obligation.status?.replace('_', ' ')}
         </span>
+        {comments.length > 0 && (
+          <span className="flex items-center gap-0.5 text-xs text-violet-600 flex-shrink-0">
+            <ChatBubbleLeftIcon className="h-3 w-3" />
+            {comments.length}
+          </span>
+        )}
         <button
           onClick={onViewSource}
           title="View in document"
@@ -722,6 +815,63 @@ function ObligationRow({
             {obligation.obligated_party && <span>Party: {obligation.obligated_party}</span>}
             {obligation.deadline && <span>Deadline: {formatDate(obligation.deadline)}</span>}
           </div>
+          <InlineComments comments={comments} onAddComment={onAddComment} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ── SLA Row Component ────────────────────────────────────────────────
+
+function SLARow({
+  sla,
+  comments,
+  onAddComment,
+  onViewSource,
+}: {
+  sla: any
+  comments: ContractCommentItem[]
+  onAddComment: (content: string) => void
+  onViewSource: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="px-4 py-2.5 hover:bg-gray-50">
+      <div className="flex items-center gap-2">
+        <button onClick={() => setExpanded(!expanded)} className="flex-1 flex items-center gap-2 text-left min-w-0">
+          {expanded ? <ChevronDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" /> : <ChevronRightIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />}
+          <span className="text-sm font-medium text-gray-900 truncate">{sla.sla_name}</span>
+        </button>
+        <RiskBadge level={sla.severity} />
+        {comments.length > 0 && (
+          <span className="flex items-center gap-0.5 text-xs text-violet-600">
+            <ChatBubbleLeftIcon className="h-3 w-3" />
+            {comments.length}
+          </span>
+        )}
+        {sla.source_text && (
+          <button
+            onClick={onViewSource}
+            title="View in document"
+            className="p-1 rounded hover:bg-primary-100 text-primary-600 flex-shrink-0"
+          >
+            <DocumentMagnifyingGlassIcon className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+        <span>{sla.metric_type?.replace(/_/g, ' ')}</span>
+        <span>{sla.target_operator} {sla.target_value} {sla.metric_unit}</span>
+        {sla.has_penalty && (
+          <span className="text-orange-600">Has penalty</span>
+        )}
+      </div>
+      {expanded && (
+        <div className="mt-2 ml-5">
+          <InlineComments comments={comments} onAddComment={onAddComment} />
         </div>
       )}
     </div>

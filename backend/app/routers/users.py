@@ -29,6 +29,7 @@ def user_to_response(user) -> UserResponse:
         id=str(user.id),
         username=user.username,
         email=user.email,
+        full_name=user.full_name,
         role=user.role.value,
         is_active=user.is_active,
         tenant_id=str(user.tenant_id) if user.tenant_id else None,
