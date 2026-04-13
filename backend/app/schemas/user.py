@@ -16,6 +16,7 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=8)
     role: Role = Role.LEGAL
     tenant_id: str | None = None  # Super admin can specify target tenant
+    business_unit_id: str | None = None
 
 
 class UserUpdate(BaseModel):
@@ -26,6 +27,7 @@ class UserUpdate(BaseModel):
     full_name: str | None = Field(None, max_length=255)
     role: Role | None = None
     is_active: bool | None = None
+    business_unit_id: str | None = None
 
 
 class UserPasswordUpdate(BaseModel):
@@ -45,6 +47,8 @@ class UserResponse(BaseModel):
     is_active: bool
     tenant_id: str | None = None
     tenant_name: str | None = None
+    business_unit_id: str | None = None
+    business_unit_name: str | None = None
     created_at: datetime
     updated_at: datetime
 

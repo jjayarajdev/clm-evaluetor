@@ -34,6 +34,8 @@ def user_to_response(user) -> UserResponse:
         is_active=user.is_active,
         tenant_id=str(user.tenant_id) if user.tenant_id else None,
         tenant_name=user.tenant.name if user.tenant else None,
+        business_unit_id=str(user.business_unit_id) if user.business_unit_id else None,
+        business_unit_name=user.business_unit.name if user.business_unit else None,
         created_at=user.created_at,
         updated_at=user.updated_at,
     )

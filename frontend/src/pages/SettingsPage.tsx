@@ -118,6 +118,19 @@ export default function SettingsPage() {
 
 function GeneralSettings() {
   const { user } = useAuth()
+  const [settings, setSettings] = useState({
+    orgName: user?.tenant_name || 'My Organization',
+    currency: 'USD',
+    dateFormat: 'MM/DD/YYYY',
+  })
+  const [saved, setSaved] = useState(false)
+
+  const handleSave = () => {
+    // Settings are stored locally for now — backend tenant settings API can be wired up later
+    localStorage.setItem('clm_settings', JSON.stringify(settings))
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
 
   return (
     <div className="space-y-6">
@@ -127,7 +140,8 @@ function GeneralSettings() {
         </label>
         <input
           type="text"
-          defaultValue={user?.tenant_name || 'My Organization'}
+          value={settings.orgName}
+          onChange={(e) => setSettings(s => ({ ...s, orgName: e.target.value }))}
           className="input max-w-md"
         />
       </div>
@@ -135,7 +149,11 @@ function GeneralSettings() {
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Default Currency
         </label>
-        <select className="input max-w-md">
+        <select
+          className="input max-w-md"
+          value={settings.currency}
+          onChange={(e) => setSettings(s => ({ ...s, currency: e.target.value }))}
+        >
           <option value="USD">USD - US Dollar</option>
           <option value="EUR">EUR - Euro</option>
           <option value="GBP">GBP - British Pound</option>
@@ -145,14 +163,19 @@ function GeneralSettings() {
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Date Format
         </label>
-        <select className="input max-w-md">
+        <select
+          className="input max-w-md"
+          value={settings.dateFormat}
+          onChange={(e) => setSettings(s => ({ ...s, dateFormat: e.target.value }))}
+        >
           <option value="MM/DD/YYYY">MM/DD/YYYY</option>
           <option value="DD/MM/YYYY">DD/MM/YYYY</option>
           <option value="YYYY-MM-DD">YYYY-MM-DD</option>
         </select>
       </div>
-      <div className="pt-4">
-        <button className="btn-primary">Save Changes</button>
+      <div className="pt-4 flex items-center gap-3">
+        <button className="btn-primary" onClick={handleSave}>Save Changes</button>
+        {saved && <span className="text-sm text-green-600">Settings saved</span>}
       </div>
     </div>
   )
@@ -386,6 +409,35 @@ function NotificationSettings() {
 }
 
 function SecuritySettings() {
+  const { user } = useAuth()
+  const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' })
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+
+  const handleUpdatePassword = async () => {
+    setPasswordError('')
+    if (!passwords.current || !passwords.newPass || !passwords.confirm) {
+      setPasswordError('All fields are required')
+      return
+    }
+    if (passwords.newPass.length < 6) {
+      setPasswordError('New password must be at least 6 characters')
+      return
+    }
+    if (passwords.newPass !== passwords.confirm) {
+      setPasswordError('Passwords do not match')
+      return
+    }
+    try {
+      await api.updateUserPassword(user!.id, passwords.newPass)
+      setPasswords({ current: '', newPass: '', confirm: '' })
+      setPasswordSuccess(true)
+      setTimeout(() => setPasswordSuccess(false), 3000)
+    } catch (err: any) {
+      setPasswordError(err?.response?.data?.detail || 'Failed to update password')
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -394,19 +446,29 @@ function SecuritySettings() {
           <input
             type="password"
             placeholder="Current password"
+            value={passwords.current}
+            onChange={(e) => setPasswords(p => ({ ...p, current: e.target.value }))}
             className="input"
           />
           <input
             type="password"
             placeholder="New password"
+            value={passwords.newPass}
+            onChange={(e) => setPasswords(p => ({ ...p, newPass: e.target.value }))}
             className="input"
           />
           <input
             type="password"
             placeholder="Confirm new password"
+            value={passwords.confirm}
+            onChange={(e) => setPasswords(p => ({ ...p, confirm: e.target.value }))}
             className="input"
           />
-          <button className="btn-primary">Update Password</button>
+          <div className="flex items-center gap-3">
+            <button className="btn-primary" onClick={handleUpdatePassword}>Update Password</button>
+            {passwordSuccess && <span className="text-sm text-green-600">Password updated</span>}
+          </div>
+          {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
         </div>
       </div>
       <div className="pt-4 border-t border-gray-200">
@@ -414,16 +476,22 @@ function SecuritySettings() {
         <p className="text-sm text-gray-500 mb-3">
           Add an extra layer of security to your account
         </p>
-        <button className="btn-secondary">Enable 2FA</button>
+        <div className="flex items-center gap-2">
+          <button className="btn-secondary opacity-60 cursor-not-allowed" disabled>Enable 2FA</button>
+          <span className="text-xs text-gray-400">Coming soon</span>
+        </div>
       </div>
       <div className="pt-4 border-t border-gray-200">
         <h3 className="text-sm font-medium text-gray-900 mb-3">Active Sessions</h3>
         <p className="text-sm text-gray-500 mb-3">
           Manage your active sessions across devices
         </p>
-        <button className="btn-secondary text-red-600 hover:text-red-700">
-          Sign Out All Devices
-        </button>
+        <div className="flex items-center gap-2">
+          <button className="btn-secondary text-red-600 hover:text-red-700 opacity-60 cursor-not-allowed" disabled>
+            Sign Out All Devices
+          </button>
+          <span className="text-xs text-gray-400">Coming soon</span>
+        </div>
       </div>
     </div>
   )
@@ -431,10 +499,10 @@ function SecuritySettings() {
 
 function IntegrationSettings() {
   const integrations = [
-    { name: 'OpenAI', description: 'AI-powered contract analysis', connected: true },
-    { name: 'Google Drive', description: 'Import contracts from Drive', connected: false },
-    { name: 'Dropbox', description: 'Import contracts from Dropbox', connected: false },
-    { name: 'Slack', description: 'Send notifications to Slack', connected: false },
+    { name: 'OpenAI', description: 'AI-powered contract analysis', connected: true, configurable: false },
+    { name: 'ServiceNow', description: 'SLA sync and incident management', connected: false, configurable: true, configPath: '/admin/servicenow' },
+    { name: 'Microsoft Teams', description: 'Send notifications to Teams channels', connected: false, configurable: false },
+    { name: 'Slack', description: 'Send notifications to Slack', connected: false, configurable: false },
   ]
 
   return (
@@ -448,16 +516,22 @@ function IntegrationSettings() {
             <p className="text-sm font-medium text-gray-900">{integration.name}</p>
             <p className="text-xs text-gray-500">{integration.description}</p>
           </div>
-          <button
-            className={cn(
-              'text-sm font-medium px-3 py-1.5 rounded-lg',
-              integration.connected
-                ? 'bg-green-100 text-green-700'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            )}
-          >
-            {integration.connected ? 'Connected' : 'Connect'}
-          </button>
+          {integration.connected ? (
+            <span className="text-sm font-medium px-3 py-1.5 rounded-lg bg-green-100 text-green-700">
+              Connected
+            </span>
+          ) : integration.configurable ? (
+            <a
+              href={integration.configPath}
+              className="text-sm font-medium px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
+            >
+              Configure
+            </a>
+          ) : (
+            <span className="text-sm font-medium px-3 py-1.5 rounded-lg bg-gray-50 text-gray-400">
+              Coming soon
+            </span>
+          )}
         </div>
       ))}
     </div>
@@ -465,6 +539,14 @@ function IntegrationSettings() {
 }
 
 function AppearanceSettings() {
+  const [theme, setTheme] = useState('light')
+
+  const themes = [
+    { id: 'light', label: 'Light', preview: 'bg-white border border-gray-200' },
+    { id: 'dark', label: 'Dark', preview: 'bg-gray-800', disabled: true },
+    { id: 'system', label: 'System', preview: 'bg-gradient-to-b from-white to-gray-800', disabled: true },
+  ]
+
   return (
     <div className="space-y-6">
       <div>
@@ -472,37 +554,48 @@ function AppearanceSettings() {
           Theme
         </label>
         <div className="flex gap-3">
-          <button className="flex-1 p-4 border-2 border-primary-500 rounded-lg bg-white">
-            <div className="h-16 bg-white border border-gray-200 rounded mb-2" />
-            <p className="text-sm font-medium text-gray-900">Light</p>
-          </button>
-          <button className="flex-1 p-4 border-2 border-gray-200 rounded-lg bg-white hover:border-gray-300">
-            <div className="h-16 bg-gray-800 rounded mb-2" />
-            <p className="text-sm font-medium text-gray-900">Dark</p>
-          </button>
-          <button className="flex-1 p-4 border-2 border-gray-200 rounded-lg bg-white hover:border-gray-300">
-            <div className="h-16 bg-gradient-to-b from-white to-gray-800 rounded mb-2" />
-            <p className="text-sm font-medium text-gray-900">System</p>
-          </button>
+          {themes.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => !t.disabled && setTheme(t.id)}
+              className={cn(
+                'flex-1 p-4 border-2 rounded-lg bg-white transition-colors',
+                theme === t.id ? 'border-primary-500' : 'border-gray-200 hover:border-gray-300',
+                t.disabled && 'opacity-50 cursor-not-allowed',
+              )}
+            >
+              <div className={cn('h-16 rounded mb-2', t.preview)} />
+              <div className="flex items-center justify-center gap-1">
+                <p className="text-sm font-medium text-gray-900">{t.label}</p>
+                {t.disabled && <span className="text-[10px] text-gray-400">(soon)</span>}
+              </div>
+            </button>
+          ))}
         </div>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Sidebar Position
         </label>
-        <select className="input max-w-md">
-          <option value="left">Left</option>
-          <option value="right">Right</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <select className="input max-w-md opacity-60" disabled>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+          <span className="text-xs text-gray-400">Coming soon</span>
+        </div>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Density
         </label>
-        <select className="input max-w-md">
-          <option value="comfortable">Comfortable</option>
-          <option value="compact">Compact</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <select className="input max-w-md opacity-60" disabled>
+            <option value="comfortable">Comfortable</option>
+            <option value="compact">Compact</option>
+          </select>
+          <span className="text-xs text-gray-400">Coming soon</span>
+        </div>
       </div>
     </div>
   )

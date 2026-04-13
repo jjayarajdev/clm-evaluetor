@@ -29,6 +29,8 @@ class UserInfo(BaseModel):
     role: str
     tenant_id: str | None = None
     tenant_name: str | None = None
+    business_unit_id: str | None = None
+    business_unit_name: str | None = None
 
 
 class RefreshTokenRequest(BaseModel):

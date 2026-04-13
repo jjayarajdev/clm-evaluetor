@@ -94,6 +94,7 @@ async def login(
         username=user.username,
         role=user.role.value,
         tenant_id=str(user.tenant_id) if user.tenant_id else None,
+        business_unit_id=str(user.business_unit_id) if user.business_unit_id else None,
     )
 
     # Get tenant name if user has a tenant
@@ -113,6 +114,8 @@ async def login(
             role=user.role.value,
             tenant_id=str(user.tenant_id) if user.tenant_id else None,
             tenant_name=tenant_name,
+            business_unit_id=str(user.business_unit_id) if user.business_unit_id else None,
+            business_unit_name=user.business_unit.name if user.business_unit else None,
         ),
     )
 
@@ -141,6 +144,8 @@ async def get_current_user_info(
         role=current_user.role.value,
         tenant_id=str(current_user.tenant_id) if current_user.tenant_id else None,
         tenant_name=tenant_name,
+        business_unit_id=str(current_user.business_unit_id) if current_user.business_unit_id else None,
+        business_unit_name=current_user.business_unit.name if current_user.business_unit else None,
     )
 
 

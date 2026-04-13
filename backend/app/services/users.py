@@ -5,6 +5,7 @@ from typing import Sequence
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.security import hash_password
 from app.models.user import Role, User
@@ -28,7 +29,7 @@ class UserService:
         Returns:
             User if found, None otherwise.
         """
-        query = select(User).where(User.id == user_id)
+        query = select(User).where(User.id == user_id).options(selectinload(User.business_unit))
         if self.tenant_id is not None:
             query = query.where(User.tenant_id == self.tenant_id)
         result = await self.db.execute(query)
@@ -106,7 +107,12 @@ class UserService:
 
         # Apply pagination
         offset = (page - 1) * page_size
-        query = query.offset(offset).limit(page_size).order_by(User.created_at.desc())
+        query = (
+            query.options(selectinload(User.business_unit))
+            .offset(offset)
+            .limit(page_size)
+            .order_by(User.created_at.desc())
+        )
 
         # Execute query
         result = await self.db.execute(query)
@@ -134,6 +140,13 @@ class UserService:
         if await self.get_by_email(data.email):
             raise ValueError(f"Email '{data.email}' already exists")
 
+        # Validate business unit belongs to the same tenant
+        if data.business_unit_id:
+            from app.models.business_unit import BusinessUnit
+            bu = await self.db.get(BusinessUnit, uuid.UUID(data.business_unit_id))
+            if not bu or (self.tenant_id and bu.tenant_id != self.tenant_id):
+                raise ValueError("Business unit not found or belongs to a different tenant")
+
         # Create user
         user = User(
             username=data.username,
@@ -143,11 +156,12 @@ class UserService:
             role=data.role,
             is_active=True,
             tenant_id=self.tenant_id,
+            business_unit_id=uuid.UUID(data.business_unit_id) if data.business_unit_id else None,
         )
 
         self.db.add(user)
         await self.db.flush()
-        await self.db.refresh(user)
+        await self.db.refresh(user, attribute_names=["business_unit"])
 
         return user
 
@@ -183,9 +197,16 @@ class UserService:
             user.role = data.role
         if data.is_active is not None:
             user.is_active = data.is_active
+        if data.business_unit_id is not None:
+            if data.business_unit_id:
+                from app.models.business_unit import BusinessUnit
+                bu = await self.db.get(BusinessUnit, uuid.UUID(data.business_unit_id))
+                if not bu or (self.tenant_id and bu.tenant_id != self.tenant_id):
+                    raise ValueError("Business unit not found or belongs to a different tenant")
+            user.business_unit_id = uuid.UUID(data.business_unit_id) if data.business_unit_id else None
 
         await self.db.flush()
-        await self.db.refresh(user)
+        await self.db.refresh(user, attribute_names=["business_unit"])
 
         return user
 

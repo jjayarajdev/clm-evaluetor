@@ -185,10 +185,17 @@ async def calculate_obligation_compliance(db: AsyncSession, contract_ids: list[U
         rag_val = o.rag_status.value if o.rag_status else "not_assessed"
         by_rag[rag_val] = by_rag.get(rag_val, 0) + 1
 
-    # Compliance rate: completed / (total - waived)
+    # Compliance rate: (completed + in_progress) / assessable
+    # Exclude waived and pending obligations with future deadlines
+    from datetime import date
+    today = date.today()
     waived = sum(1 for o in obligations if o.status == ObligationStatus.WAIVED)
-    denominator = total - waived
-    compliance_rate = (completed / denominator * 100) if denominator > 0 else 100.0
+    in_progress = sum(1 for o in obligations if o.status == ObligationStatus.IN_PROGRESS)
+    pending_future = sum(1 for o in obligations
+                         if o.status == ObligationStatus.PENDING
+                         and o.deadline and o.deadline > today)
+    assessable = total - waived - pending_future
+    compliance_rate = ((completed + in_progress) / assessable * 100) if assessable > 0 else 100.0
 
     return compliance_rate, {
         "total": total,
@@ -214,8 +221,9 @@ async def calculate_sla_compliance(db: AsyncSession, contract_ids: list[UUID]) -
 
     total = len(slas)
     active = sum(1 for s in slas if s.is_active)
-    total_breaches = sum(s.consecutive_breaches for s in slas)
-    critical_breaches = sum(s.consecutive_breaches for s in slas if s.severity and s.severity.value == "critical")
+    # Count unique SLAs currently breaching, not cumulative breach counts
+    total_breaches = sum(1 for s in slas if s.consecutive_breaches > 0)
+    critical_breaches = sum(1 for s in slas if s.consecutive_breaches > 0 and s.severity and s.severity.value == "critical")
 
     # Get penalties
     sla_ids = [s.id for s in slas]
@@ -290,7 +298,7 @@ async def build_vendor_metrics(db: AsyncSession, vendor_name: str, contracts: li
 
     # Contract summary
     total_value = sum(float(c.contract_value) for c in contracts if c.contract_value)
-    active_contracts = [c for c in contracts if c.expiration_date and c.expiration_date >= datetime.now().date()]
+    active_contracts = [c for c in contracts if not c.expiration_date or c.expiration_date >= datetime.now().date()]
 
     contract_types = {}
     for c in contracts:
@@ -392,7 +400,8 @@ async def list_vendors(
             continue
 
         if not include_inactive:
-            active = [c for c in contracts if c.expiration_date and c.expiration_date >= datetime.now().date()]
+            # Treat contracts with no expiration date as active (they haven't expired)
+            active = [c for c in contracts if not c.expiration_date or c.expiration_date >= datetime.now().date()]
             if not active:
                 continue
 

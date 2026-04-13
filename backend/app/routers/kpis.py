@@ -32,6 +32,7 @@ from app.schemas.kpi import (
     PerceptionScoreCreate,
     PerceptionScoreResponse,
     PerceptionScoreListResponse,
+    PerceptionScoreUpdate,
     PerceptionGapResponse,
     PerceptionGapListResponse,
     GapSummary,
@@ -120,6 +121,8 @@ async def create_kpi(
 
 @router.get("/pending-approvals", response_model=List[PendingApprovalResponse])
 async def list_pending_approvals(
+    approval_status: Optional[str] = Query(None, description="Filter by status: pending_approval, approved, rejected"),
+    relationship_id: Optional[UUID] = Query(None, description="Filter by relationship"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = None,
     tenant_id: CurrentTenantId = None,
@@ -138,22 +141,28 @@ async def list_pending_approvals(
 
     query = (
         select(PerceptionScore)
-        .where(PerceptionScore.approval_status == "pending_approval")
-        .options(
+    )
+    if approval_status:
+        query = query.where(PerceptionScore.approval_status == approval_status)
+
+    query = query.options(
             selectinload(PerceptionScore.scorer_org),
             selectinload(PerceptionScore.scored_by),
             selectinload(PerceptionScore.kpi).selectinload(KPI.relationship),
-        )
-        .order_by(PerceptionScore.scored_at.desc())
-    )
+        ).order_by(PerceptionScore.scored_at.desc())
 
-    # Apply tenant filter via KPI -> relationship -> org
-    if tenant_id is not None:
-        query = query.join(KPI, PerceptionScore.kpi_id == KPI.id).join(
-            BusinessRelationship, KPI.relationship_id == BusinessRelationship.id
-        ).join(
-            Organization, BusinessRelationship.org_a_id == Organization.id
-        ).where(Organization.tenant_id == tenant_id)
+    # Join through KPI -> relationship -> org for filtering
+    needs_kpi_join = tenant_id is not None or relationship_id is not None
+    if needs_kpi_join:
+        query = query.join(KPI, PerceptionScore.kpi_id == KPI.id)
+        if relationship_id:
+            query = query.where(KPI.relationship_id == relationship_id)
+        if tenant_id is not None:
+            query = query.join(
+                BusinessRelationship, KPI.relationship_id == BusinessRelationship.id
+            ).join(
+                Organization, BusinessRelationship.org_a_id == Organization.id
+            ).where(Organization.tenant_id == tenant_id)
 
     result = await db.execute(query)
     scores = result.scalars().all()
@@ -311,12 +320,11 @@ async def submit_perception_score(
     tenant_id: CurrentTenantId = None,
 ):
     """Submit a perception score for a KPI."""
-    # Get KPI with relationship
-    result = await db.execute(
-        select(KPI).where(KPI.id == kpi_id).options(
-            selectinload(KPI.relationship)
-        )
-    )
+    # Get KPI with relationship (tenant-scoped)
+    query = select(KPI).where(KPI.id == kpi_id)
+    query = apply_tenant_filter_kpi(query, tenant_id)
+    query = query.options(selectinload(KPI.relationship))
+    result = await db.execute(query)
     kpi = result.scalar_one_or_none()
 
     if not kpi:
@@ -385,6 +393,16 @@ async def approve_perception_score(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin and legal users can approve scores",
+        )
+
+    # Verify KPI exists and belongs to tenant
+    kpi_query = select(KPI).where(KPI.id == kpi_id)
+    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id)
+    kpi_result = await db.execute(kpi_query)
+    if not kpi_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="KPI not found",
         )
 
     result = await db.execute(
@@ -456,6 +474,16 @@ async def reject_perception_score(
             detail="Only admin and legal users can reject scores",
         )
 
+    # Verify KPI exists and belongs to tenant
+    kpi_query = select(KPI).where(KPI.id == kpi_id)
+    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id)
+    kpi_result = await db.execute(kpi_query)
+    if not kpi_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="KPI not found",
+        )
+
     result = await db.execute(
         select(PerceptionScore).where(
             PerceptionScore.id == score_id,
@@ -499,6 +527,124 @@ async def reject_perception_score(
     score = result.scalar_one()
 
     return _score_to_response(score)
+
+
+@router.put("/{kpi_id}/scores/{score_id}", response_model=PerceptionScoreResponse)
+async def update_perception_score(
+    kpi_id: UUID,
+    score_id: UUID,
+    data: PerceptionScoreUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
+):
+    """Update a perception score value or comments."""
+    from app.models.user import Role
+    if not current_user.is_super_admin and current_user.role not in [Role.ADMIN, Role.LEGAL]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin and legal users can update scores",
+        )
+
+    # Verify KPI exists and belongs to tenant
+    kpi_query = select(KPI).where(KPI.id == kpi_id)
+    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id)
+    kpi_result = await db.execute(kpi_query)
+    if not kpi_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="KPI not found",
+        )
+
+    result = await db.execute(
+        select(PerceptionScore).where(
+            PerceptionScore.id == score_id,
+            PerceptionScore.kpi_id == kpi_id,
+        ).options(
+            selectinload(PerceptionScore.scorer_org),
+            selectinload(PerceptionScore.scored_by),
+            selectinload(PerceptionScore.approver),
+        )
+    )
+    score = result.scalar_one_or_none()
+
+    if not score:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Score not found",
+        )
+
+    if data.score is not None:
+        score.score = data.score
+    if data.comments is not None:
+        score.comments = data.comments
+
+    await db.commit()
+    await db.refresh(score)
+
+    # Recalculate gap after score modification
+    await _recalculate_gap(kpi_id, score.period, db)
+
+    result = await db.execute(
+        select(PerceptionScore).where(PerceptionScore.id == score.id).options(
+            selectinload(PerceptionScore.scorer_org),
+            selectinload(PerceptionScore.scored_by),
+            selectinload(PerceptionScore.approver),
+        )
+    )
+    score = result.scalar_one()
+
+    return _score_to_response(score)
+
+
+@router.delete("/{kpi_id}/scores/{score_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_perception_score(
+    kpi_id: UUID,
+    score_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = None,
+    tenant_id: CurrentTenantId = None,
+):
+    """Delete a perception score."""
+    from app.models.user import Role
+    if not current_user.is_super_admin and current_user.role not in [Role.ADMIN, Role.LEGAL]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin and legal users can delete scores",
+        )
+
+    # Verify KPI exists and belongs to tenant
+    kpi_query = select(KPI).where(KPI.id == kpi_id)
+    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id)
+    kpi_result = await db.execute(kpi_query)
+    if not kpi_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="KPI not found",
+        )
+
+    result = await db.execute(
+        select(PerceptionScore).where(
+            PerceptionScore.id == score_id,
+            PerceptionScore.kpi_id == kpi_id,
+        )
+    )
+    score = result.scalar_one_or_none()
+
+    if not score:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Score not found",
+        )
+
+    # Capture period before deleting for gap recalculation
+    score_period = score.period
+
+    await db.delete(score)
+    await db.commit()
+
+    # Recalculate gap after score deletion
+    await _recalculate_gap(kpi_id, score_period, db)
 
 
 # ===== Perception Gaps =====

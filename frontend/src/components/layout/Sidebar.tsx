@@ -14,7 +14,6 @@ import {
   DocumentChartBarIcon,
   CircleStackIcon,
   ClockIcon,
-  FlagIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   GlobeAltIcon,
@@ -22,10 +21,7 @@ import {
   UserGroupIcon,
   BuildingLibraryIcon,
   LinkIcon,
-  ChartBarSquareIcon,
-  LightBulbIcon,
   ClipboardDocumentListIcon,
-  CubeIcon,
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
@@ -38,12 +34,12 @@ interface SidebarProps {
 }
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'Contracts', href: '/contracts', icon: DocumentTextIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'Compliance', href: '/compliance', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'Renewals', href: '/renewals', icon: CalendarDaysIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'Vendors', href: '/vendors', icon: BuildingOffice2Icon, roles: ['admin', 'procurement'] },
-  { name: 'Reports', href: '/reports', icon: DocumentChartBarIcon, roles: ['admin', 'legal'] },
+  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
+  { name: 'Contracts', href: '/contracts', icon: DocumentTextIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
+  { name: 'Compliance', href: '/compliance', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
+  { name: 'Renewals', href: '/renewals', icon: CalendarDaysIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
+  { name: 'Vendors', href: '/vendors', icon: BuildingOffice2Icon, roles: ['admin', 'procurement', 'bu_head'] },
+  { name: 'Reports', href: '/reports', icon: DocumentChartBarIcon, roles: ['admin', 'legal', 'bu_head'] },
   { name: 'Upload', href: '/upload', icon: CloudArrowUpIcon, roles: ['admin', 'legal', 'procurement'] },
   { name: 'Ask AI', href: '/query', icon: ChatBubbleLeftRightIcon, roles: ['admin', 'legal', 'procurement'] },
 ]
@@ -56,10 +52,7 @@ const bottomNavigation = [
 const governanceNavigation = [
   { name: 'Organizations', href: '/organizations', icon: BuildingLibraryIcon, roles: ['admin', 'legal', 'procurement'] },
   { name: 'Relationships', href: '/relationships', icon: LinkIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'Service Portfolio', href: '/service-portfolio', icon: CubeIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'KPI Scorecard', href: '/kpis', icon: ChartBarSquareIcon, roles: ['admin', 'legal', 'procurement'] },
   { name: 'KPI Approvals', href: '/kpi-approvals', icon: ShieldCheckIcon, roles: ['admin'] },
-  { name: 'Improvements', href: '/improvements', icon: LightBulbIcon, roles: ['admin', 'legal', 'procurement'] },
   { name: 'Surveys', href: '/surveys', icon: ClipboardDocumentListIcon, roles: ['admin', 'legal'] },
 ]
 
@@ -67,8 +60,7 @@ const adminNavigation = [
   { name: 'Business Units', href: '/admin/business-units', icon: BuildingOffice2Icon, roles: ['admin'] },
   { name: 'External Users', href: '/admin/external-users', icon: UserGroupIcon, roles: ['admin'] },
   { name: 'ServiceNow', href: '/admin/integrations/servicenow', icon: CloudArrowUpIcon, roles: ['admin'] },
-  { name: 'SLA Config', href: '/admin/sla-config', icon: CircleStackIcon, roles: ['admin'] },
-  { name: 'Milestones', href: '/admin/milestone-config', icon: FlagIcon, roles: ['admin'] },
+  { name: 'Master Data', href: '/admin/master-data', icon: CircleStackIcon, roles: ['admin'] },
   { name: 'Scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
 ]
 

@@ -10,9 +10,8 @@ import {
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDate } from '@/lib/utils'
-import type { User } from '@/types'
-
-import type { Role } from '@/types'
+import type { User, Role } from '@/types'
+import type { BusinessUnit } from '@/types/business-unit'
 
 const ROLE_LABELS: Record<Role, string> = {
   admin: 'Administrator',
@@ -20,6 +19,7 @@ const ROLE_LABELS: Record<Role, string> = {
   procurement: 'Procurement',
   viewer: 'Viewer',
   super_admin: 'Super Admin',
+  bu_head: 'BU Head',
 }
 
 const ROLE_COLORS: Record<Role, string> = {
@@ -28,6 +28,7 @@ const ROLE_COLORS: Record<Role, string> = {
   procurement: 'bg-green-100 text-green-700',
   viewer: 'bg-gray-100 text-gray-700',
   super_admin: 'bg-rose-100 text-rose-700',
+  bu_head: 'bg-amber-100 text-amber-700',
 }
 
 interface UserFormData {
@@ -36,6 +37,7 @@ interface UserFormData {
   full_name: string
   role: Role
   password?: string
+  business_unit_id?: string
 }
 
 export default function UsersPage() {
@@ -56,6 +58,13 @@ export default function UsersPage() {
     queryFn: () => api.getUsers(),
   })
 
+  const { data: businessUnitsData } = useQuery({
+    queryKey: ['business-units'],
+    queryFn: () => api.getBusinessUnits({ page: 1, page_size: 100 }),
+  })
+
+  const businessUnits: BusinessUnit[] = businessUnitsData?.items ?? []
+
   // Log error for debugging
   if (error) {
     console.error('Error fetching users:', error)
@@ -68,6 +77,7 @@ export default function UsersPage() {
       full_name: data.full_name || undefined,
       password: data.password || '',
       role: data.role,
+      business_unit_id: data.business_unit_id || undefined,
     }),
     onSuccess: () => {
       setFormError(null)
@@ -102,7 +112,7 @@ export default function UsersPage() {
   const openCreateModal = () => {
     setEditingUser(null)
     setFormError(null)
-    setFormData({ email: '', username: '', full_name: '', role: 'viewer', password: '' })
+    setFormData({ email: '', username: '', full_name: '', role: 'viewer', password: '', business_unit_id: '' })
     setIsModalOpen(true)
   }
 
@@ -115,6 +125,7 @@ export default function UsersPage() {
       full_name: user.full_name || '',
       role: user.role,
       password: '',
+      business_unit_id: user.business_unit_id || '',
     })
     setIsModalOpen(true)
   }
@@ -123,7 +134,7 @@ export default function UsersPage() {
     setIsModalOpen(false)
     setEditingUser(null)
     setFormError(null)
-    setFormData({ email: '', username: '', full_name: '', role: 'viewer', password: '' })
+    setFormData({ email: '', username: '', full_name: '', role: 'viewer', password: '', business_unit_id: '' })
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -135,6 +146,7 @@ export default function UsersPage() {
         username: formData.username,
         full_name: formData.full_name || null,
         role: formData.role,
+        business_unit_id: formData.business_unit_id || null,
       }
       if (formData.password) {
         // Password is updated separately but we include it for convenience
@@ -185,6 +197,9 @@ export default function UsersPage() {
                   Role
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Business Unit
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -219,6 +234,9 @@ export default function UsersPage() {
                       {user.role === 'admin' && <ShieldCheckIcon className="h-3 w-3 mr-1" />}
                       {ROLE_LABELS[user.role]}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {user.business_unit_name || '--'}
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn(
@@ -333,6 +351,27 @@ export default function UsersPage() {
                       .map(([value, label]) => (
                         <option key={value} value={value}>
                           {label}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Business Unit
+                  </label>
+                  <select
+                    value={formData.business_unit_id || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, business_unit_id: e.target.value })
+                    }
+                    className="input"
+                  >
+                    <option value="">-- None --</option>
+                    {businessUnits
+                      .filter((bu) => bu.is_active)
+                      .map((bu) => (
+                        <option key={bu.id} value={bu.id}>
+                          {bu.name}
                         </option>
                       ))}
                   </select>

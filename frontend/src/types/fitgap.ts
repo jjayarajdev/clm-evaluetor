@@ -135,8 +135,8 @@ export interface OrganizationHierarchy {
     organization_level: OrganizationLevel | null
   }
   parent: { id: string; name: string; code: string } | null
-  subsidiaries: Array<{ id: string; name: string; code: string; organization_level: OrganizationLevel | null }>
-  total_subsidiaries: number
+  parent_chain: Array<{ id: string; name: string; code: string; organization_level: OrganizationLevel | null }>
+  children: Array<{ id: string; name: string; code: string; organization_level: OrganizationLevel | null }>
 }
 
 // --- Contract Documents ---
@@ -245,17 +245,25 @@ export interface DocumentSectionCreate {
 export type ScoreApprovalStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected'
 
 export interface PendingApproval {
+  id: string
   score_id: string
   kpi_id: string
   kpi_name: string
+  kpi_category: string | null
   relationship_id: string
   relationship_name: string
+  scorer_org_id: string | null
+  scored_by_user_id: string | null
   perspective: 'internal' | 'external'
+  is_internal: boolean
   score: number
   period: string | null
   comments: string | null
   scored_by: string | null
+  scored_at: string | null
   approval_status: ScoreApprovalStatus
+  scorer_org_name: string | null
+  scored_by_name: string | null
   created_at: string
 }
 

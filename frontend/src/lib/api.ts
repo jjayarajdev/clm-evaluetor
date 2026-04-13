@@ -386,7 +386,7 @@ class ApiClient {
     return response.data.users
   }
 
-  async createUser(data: { username: string; email: string; full_name?: string; password: string; role: string }): Promise<User> {
+  async createUser(data: { username: string; email: string; full_name?: string; password: string; role: string; business_unit_id?: string }): Promise<User> {
     const response = await this.client.post<User>('/users', data)
     return response.data
   }
@@ -441,6 +441,16 @@ class ApiClient {
   // Post-Signing Dashboard
   async getPostSigningDashboard(): Promise<PostSigningDashboard> {
     const response = await this.client.get<PostSigningDashboard>('/dashboard/postsigning')
+    return response.data
+  }
+
+  async getPostSigningObligations(filters?: { status?: string; rag?: string }): Promise<unknown[]> {
+    const response = await this.client.get('/dashboard/postsigning/obligations', { params: filters })
+    return response.data
+  }
+
+  async getPostSigningSLAs(filters?: { breached_only?: boolean }): Promise<unknown[]> {
+    const response = await this.client.get('/dashboard/postsigning/slas', { params: filters })
     return response.data
   }
 
@@ -1001,7 +1011,7 @@ class ApiClient {
     return response.data.users.map((u: any) => ({ ...u, tenant_id: u.tenant_id || '' }))
   }
 
-  async createUserForTenant(tenantId: string, data: { username: string; email: string; password: string; role: string }): Promise<User> {
+  async createUserForTenant(tenantId: string, data: { username: string; email: string; password: string; role: string; business_unit_id?: string }): Promise<User> {
     const response = await this.client.post<User>('/users', { ...data, tenant_id: tenantId })
     return response.data
   }
@@ -1806,8 +1816,8 @@ class ApiClient {
   // Fit-Gap Features: KPI Approval Workflow
   // ============================================================================
 
-  async getPendingApprovals(): Promise<import('@/types/fitgap').PendingApproval[]> {
-    const response = await this.client.get('/kpis/pending-approvals')
+  async getPendingApprovals(filters?: { approval_status?: string; relationship_id?: string }): Promise<import('@/types/fitgap').PendingApproval[]> {
+    const response = await this.client.get('/kpis/pending-approvals', { params: filters })
     return response.data
   }
 
@@ -1819,6 +1829,15 @@ class ApiClient {
   async rejectScore(kpiId: string, scoreId: string, data?: { comments?: string }): Promise<unknown> {
     const response = await this.client.post(`/kpis/${kpiId}/scores/${scoreId}/reject`, data || {})
     return response.data
+  }
+
+  async updateScore(kpiId: string, scoreId: string, data: { score?: number; comments?: string }): Promise<unknown> {
+    const response = await this.client.put(`/kpis/${kpiId}/scores/${scoreId}`, data)
+    return response.data
+  }
+
+  async deleteScore(kpiId: string, scoreId: string): Promise<void> {
+    await this.client.delete(`/kpis/${kpiId}/scores/${scoreId}`)
   }
 
   // ============================================================================

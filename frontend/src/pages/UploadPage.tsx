@@ -181,20 +181,22 @@ export default function UploadPage() {
       queryClient.invalidateQueries({ queryKey: ['compliance-report'] })
 
       // Check for suggested links on newly completed contracts
-      newlyCompletedIds.forEach(async (contractId) => {
-        try {
-          const suggestions = await api.getSuggestedLinks(contractId)
-          if (suggestions.pending_count > 0) {
-            setFiles(prev => prev.map(f =>
-              f.contractId === contractId
-                ? { ...f, hasSuggestions: true, suggestionCount: suggestions.pending_count }
-                : f
-            ))
+      Promise.all(
+        newlyCompletedIds.map(async (contractId) => {
+          try {
+            const suggestions = await api.getSuggestedLinks(contractId)
+            if (suggestions.pending_count > 0) {
+              setFiles(prev => prev.map(f =>
+                f.contractId === contractId
+                  ? { ...f, hasSuggestions: true, suggestionCount: suggestions.pending_count }
+                  : f
+              ))
+            }
+          } catch {
+            // Ignore errors - suggestions are optional
           }
-        } catch {
-          // Ignore errors - suggestions are optional
-        }
-      })
+        })
+      )
     }
   }, [contractsData, queryClient])
 

@@ -56,7 +56,7 @@ export default function TenantManagementPage() {
 
   // Fetch stats for each tenant to show contract counts
   const { data: tenantStatsMap } = useQuery({
-    queryKey: ['tenant-stats-all', tenants?.map(t => t.id)],
+    queryKey: ['tenant-stats-all', tenants?.length],
     queryFn: async () => {
       if (!tenants?.length) return {}
       const results = await Promise.all(

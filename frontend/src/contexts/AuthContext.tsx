@@ -12,6 +12,7 @@ interface AuthContextType {
   isLegal: boolean
   isProcurement: boolean
   isSuperAdmin: boolean
+  isBuHead: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -57,6 +58,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       case 'procurement':
         navigate('/dashboard')
         break
+      case 'bu_head':
+        navigate('/dashboard')
+        break
       default:
         navigate('/dashboard')
     }
@@ -77,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLegal: user?.role === 'legal',
     isProcurement: user?.role === 'procurement',
     isSuperAdmin: user?.role === 'super_admin',
+    isBuHead: user?.role === 'bu_head',
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

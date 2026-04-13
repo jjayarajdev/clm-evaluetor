@@ -3,12 +3,14 @@
 Provides a generic apply_tenant_filter function that works with any
 SQLAlchemy model that has a tenant_id column, plus specialized variants
 for models that require joins to reach the tenant scope.
+
+Also provides apply_bu_filter for business-unit-level access control.
 """
 
 import uuid
 from typing import Any
 
-from sqlalchemy import Select
+from sqlalchemy import Select, or_
 
 
 def apply_tenant_filter(
@@ -67,3 +69,41 @@ def apply_tenant_filter_via_join(
             target.tenant_id == tenant_id
         )
     return query
+
+
+def apply_bu_filter(
+    query: Select,
+    business_unit_id: uuid.UUID | None,
+    user_role: str | None,
+    model: Any = None,
+) -> Select:
+    """Apply business unit filter to a query.
+
+    Admin and super_admin roles see all contracts regardless of BU.
+    Other roles see only contracts in their BU or unassigned contracts.
+    Users without a BU assigned see all contracts (legacy behavior).
+
+    Args:
+        query: SQLAlchemy select statement.
+        business_unit_id: User's business unit UUID, or None if unassigned.
+        user_role: User's role value string (e.g., 'admin', 'legal').
+        model: SQLAlchemy model class with a business_unit_id column.
+               Defaults to Contract if not specified.
+
+    Returns:
+        Filtered query.
+    """
+    # Admin and super_admin see everything
+    if not business_unit_id or user_role in ("admin", "super_admin"):
+        return query
+
+    if model is None:
+        from app.models.contract import Contract
+        model = Contract
+
+    return query.where(
+        or_(
+            model.business_unit_id == business_unit_id,
+            model.business_unit_id.is_(None),
+        )
+    )

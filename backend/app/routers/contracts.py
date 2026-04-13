@@ -158,7 +158,7 @@ async def upload_single_file(
             detail="Tenant context required for upload. Super-admin must specify tenant.",
         )
 
-    service = UploadService(db, tenant_id=tenant_id)
+    service = UploadService(db, tenant_id=tenant_id, business_unit_id=current_user.business_unit_id)
 
     try:
         contract = await service.upload_single(file, str(current_user.id))
@@ -699,7 +699,7 @@ async def upload_batch_files(
             detail="Tenant context required for upload. Super-admin must specify tenant.",
         )
 
-    service = UploadService(db, tenant_id=tenant_id)
+    service = UploadService(db, tenant_id=tenant_id, business_unit_id=current_user.business_unit_id)
 
     # Use client-based upload if client_id provided
     if client_id:
@@ -808,7 +808,7 @@ async def upload_zip_archive(
             detail="Tenant context required for upload. Super-admin must specify tenant.",
         )
 
-    service = UploadService(db, tenant_id=tenant_id)
+    service = UploadService(db, tenant_id=tenant_id, business_unit_id=current_user.business_unit_id)
     batch_id, successful, failed = await service.extract_zip(file, str(current_user.id))
 
     # Enqueue for reliable processing via the job queue
@@ -1327,7 +1327,12 @@ async def list_contracts(
         except ValueError:
             pass
 
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     contracts, total = await service.list_contracts(
         page=page,
         page_size=page_size,
@@ -1376,7 +1381,12 @@ async def search_contracts(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     results = await service.search_contracts(
         query_text=query,
         user_id=str(current_user.id),
@@ -1768,7 +1778,12 @@ async def get_contract(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     contract = await service.get_contract(contract_id)
 
     if not contract:
@@ -1815,7 +1830,12 @@ async def delete_contract(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     deleted = await service.delete_contract(contract_id)
 
     if not deleted:
@@ -1877,7 +1897,12 @@ async def batch_delete_contracts(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     deleted: list[str] = []
     failed: list[dict] = []
 
@@ -2984,7 +3009,12 @@ async def share_contract(
     import uuid as uuid_mod
 
     # Verify contract exists and user has access
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     contract = await service.get_contract(contract_id)
     if not contract:
         raise HTTPException(
@@ -3160,7 +3190,12 @@ async def list_contract_shares(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3203,7 +3238,12 @@ async def revoke_contract_share(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3250,7 +3290,12 @@ async def list_contract_comments(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3323,7 +3368,12 @@ async def add_contract_comment(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3395,7 +3445,12 @@ async def resolve_contract_comment(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3433,7 +3488,12 @@ async def delete_contract_comment(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3491,7 +3551,12 @@ async def download_contract_file(
     from pathlib import Path
     from app.services.contracts import ContractService
 
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3580,7 +3645,12 @@ async def update_clause(
     from app.models.clause import Clause, ClauseType
 
     # Verify contract exists and belongs to tenant
-    service = ContractService(db, tenant_id=tenant_id)
+    service = ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+    )
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(

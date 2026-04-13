@@ -7,10 +7,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, case, literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentUser, CurrentTenantId
+from app.core.tenant import apply_bu_filter
 from app.database import get_db
 from app.models import (
     Contract, ContractStatus, Obligation, ObligationStatus,
@@ -34,6 +35,8 @@ async def get_obligations_in_period(
     start_date: date,
     end_date: date,
     tenant_id=None,
+    business_unit_id=None,
+    user_role=None,
 ) -> list[tuple]:
     """Get obligations with activity in the date range."""
     query = select(Obligation, Contract).join(
@@ -60,38 +63,103 @@ async def get_obligations_in_period(
     if tenant_id is not None:
         query = query.where(Contract.tenant_id == tenant_id)
 
+    if business_unit_id and user_role not in ("admin", "super_admin"):
+        query = query.where(
+            or_(
+                Contract.business_unit_id == business_unit_id,
+                Contract.business_unit_id.is_(None),
+            )
+        )
+
     query = query.order_by(Obligation.deadline)
     result = await db.execute(query)
     return result.all()
 
 
-async def get_sla_performances_in_period(
+async def get_sla_aggregates_in_period(
     db: AsyncSession,
     start_date: date,
     end_date: date,
     tenant_id=None,
-) -> list[tuple]:
-    """Get SLA performances measured in the date range."""
-    query = select(SLAPerformance, ContractSLA, Contract).join(
-        ContractSLA,
-        SLAPerformance.sla_id == ContractSLA.id
-    ).join(
-        Contract,
-        ContractSLA.contract_id == Contract.id
-    ).where(
-        and_(
-            Contract.status == ContractStatus.COMPLETED,
-            SLAPerformance.measured_at >= datetime.combine(start_date, datetime.min.time()),
-            SLAPerformance.measured_at <= datetime.combine(end_date, datetime.max.time()),
+    business_unit_id=None,
+    user_role=None,
+) -> list[dict]:
+    """
+    Get per-SLA aggregated performance stats in the date range.
+    Uses SQL aggregation instead of loading 100K+ rows.
+    """
+    query = (
+        select(
+            ContractSLA.id.label("sla_id"),
+            ContractSLA.sla_name,
+            ContractSLA.metric_type,
+            ContractSLA.target_value,
+            ContractSLA.current_compliance_rate,
+            ContractSLA.severity,
+            Contract.id.label("contract_id"),
+            Contract.filename.label("contract_filename"),
+            Contract.counterparty,
+            func.count(SLAPerformance.id).label("total_count"),
+            func.sum(case((SLAPerformance.is_compliant == True, 1), else_=0)).label("compliant_count"),
+            func.sum(case((SLAPerformance.is_compliant == False, 1), else_=0)).label("breach_count"),
+            func.coalesce(func.sum(
+                case((SLAPerformance.penalty_applied == True, SLAPerformance.penalty_amount), else_=literal(0))
+            ), 0).label("total_penalties"),
+        )
+        .join(ContractSLA, SLAPerformance.sla_id == ContractSLA.id)
+        .join(Contract, ContractSLA.contract_id == Contract.id)
+        .where(
+            and_(
+                Contract.status == ContractStatus.COMPLETED,
+                SLAPerformance.measured_at >= datetime.combine(start_date, datetime.min.time()),
+                SLAPerformance.measured_at <= datetime.combine(end_date, datetime.max.time()),
+            )
+        )
+        .group_by(
+            ContractSLA.id,
+            ContractSLA.sla_name,
+            ContractSLA.metric_type,
+            ContractSLA.target_value,
+            ContractSLA.current_compliance_rate,
+            ContractSLA.severity,
+            Contract.id,
+            Contract.filename,
+            Contract.counterparty,
         )
     )
 
     if tenant_id is not None:
         query = query.where(Contract.tenant_id == tenant_id)
 
-    query = query.order_by(SLAPerformance.measured_at)
+    if business_unit_id and user_role not in ("admin", "super_admin"):
+        query = query.where(
+            or_(
+                Contract.business_unit_id == business_unit_id,
+                Contract.business_unit_id.is_(None),
+            )
+        )
+
     result = await db.execute(query)
-    return result.all()
+    rows = result.all()
+
+    return [
+        {
+            "sla_id": str(row.sla_id),
+            "sla_name": row.sla_name,
+            "metric_type": row.metric_type.value if row.metric_type else "unknown",
+            "target_value": float(row.target_value) if row.target_value else 0,
+            "current_compliance_rate": float(row.current_compliance_rate) if row.current_compliance_rate else None,
+            "severity": row.severity.value if row.severity else "medium",
+            "contract_id": str(row.contract_id),
+            "contract_filename": row.contract_filename,
+            "counterparty": row.counterparty,
+            "total_count": row.total_count,
+            "compliant_count": row.compliant_count,
+            "breach_count": row.breach_count,
+            "total_penalties": float(row.total_penalties),
+        }
+        for row in rows
+    ]
 
 
 def determine_trend(values: list[float]) -> str:
@@ -130,7 +198,9 @@ async def get_compliance_report(
         )
 
     # Get obligations
-    obl_rows = await get_obligations_in_period(db, start_date, end_date, tenant_id)
+    bu_id = current_user.business_unit_id if current_user else None
+    bu_role = current_user.role.value if current_user and current_user.role else None
+    obl_rows = await get_obligations_in_period(db, start_date, end_date, tenant_id, bu_id, bu_role)
 
     obligation_items = []
     obligations_completed = 0
@@ -196,88 +266,60 @@ async def get_compliance_report(
         completed = by_category[cat]["completed"]
         by_category[cat]["compliance_rate"] = (completed / total * 100) if total > 0 else 0
 
-    # Get SLA performances
-    sla_rows = await get_sla_performances_in_period(db, start_date, end_date, tenant_id)
+    # Get SLA aggregates (SQL-level aggregation — no N+1)
+    sla_aggregates = await get_sla_aggregates_in_period(db, start_date, end_date, tenant_id, bu_id, bu_role)
 
     sla_items = []
     slas_compliant = 0
     slas_breached = 0
     total_penalties = 0.0
 
-    # Track unique SLAs
-    sla_stats: dict[str, dict] = {}
+    for agg in sla_aggregates:
+        compliance_rate = (agg["compliant_count"] / agg["total_count"] * 100) if agg["total_count"] > 0 else 0
+        is_compliant = compliance_rate >= 80  # SLA meets target if >= 80% of measurements pass
 
-    for perf, sla, contract in sla_rows:
-        sla_id = str(sla.id)
-
-        if sla_id not in sla_stats:
-            sla_stats[sla_id] = {
-                "sla": sla,
-                "contract": contract,
-                "breaches": 0,
-                "penalties": 0.0,
-                "compliant_count": 0,
-                "total_count": 0,
-            }
-
-        sla_stats[sla_id]["total_count"] += 1
-        if perf.is_compliant:
-            sla_stats[sla_id]["compliant_count"] += 1
+        if is_compliant:
+            slas_compliant += 1
         else:
-            sla_stats[sla_id]["breaches"] += 1
+            slas_breached += 1
 
-        if perf.penalty_amount:
-            sla_stats[sla_id]["penalties"] += float(perf.penalty_amount)
-            total_penalties += float(perf.penalty_amount)
+        total_penalties += agg["total_penalties"]
 
-        # Track by contract for SLAs
-        cid = str(contract.id)
+        item = SLAReportItem(
+            sla_id=agg["sla_id"],
+            contract_id=agg["contract_id"],
+            contract_filename=agg["contract_filename"],
+            counterparty=agg["counterparty"],
+            sla_name=agg["sla_name"],
+            metric_type=agg["metric_type"],
+            target_value=agg["target_value"],
+            actual_value=agg["current_compliance_rate"],
+            compliance_rate=compliance_rate,
+            is_compliant=is_compliant,
+            breaches_in_period=agg["breach_count"],
+            penalties_in_period=agg["total_penalties"],
+        )
+        sla_items.append(item)
+
+        # Track unique SLAs per contract
+        cid = agg["contract_id"]
         if cid not in by_contract:
             by_contract[cid] = {
-                "filename": contract.filename,
+                "filename": agg["contract_filename"],
                 "obligation_total": 0,
                 "obligation_completed": 0,
                 "sla_total": 0,
                 "sla_compliant": 0,
             }
         by_contract[cid]["sla_total"] += 1
-        if perf.is_compliant:
-            by_contract[cid]["sla_compliant"] += 1
-
-    # Build SLA report items
-    for sla_id, stats in sla_stats.items():
-        sla = stats["sla"]
-        contract = stats["contract"]
-
-        is_compliant = stats["breaches"] == 0
         if is_compliant:
-            slas_compliant += 1
-        else:
-            slas_breached += 1
-
-        compliance_rate = (stats["compliant_count"] / stats["total_count"] * 100) if stats["total_count"] > 0 else 0
-
-        item = SLAReportItem(
-            sla_id=sla_id,
-            contract_id=str(contract.id),
-            contract_filename=contract.filename,
-            counterparty=contract.counterparty,
-            sla_name=sla.sla_name,
-            metric_type=sla.metric_type.value if sla.metric_type else "unknown",
-            target_value=float(sla.target_value) if sla.target_value else 0,
-            actual_value=float(sla.current_compliance_rate) if sla.current_compliance_rate else None,
-            compliance_rate=compliance_rate,
-            is_compliant=is_compliant,
-            breaches_in_period=stats["breaches"],
-            penalties_in_period=stats["penalties"],
-        )
-        sla_items.append(item)
+            by_contract[cid]["sla_compliant"] += 1
 
     # Calculate compliance rates
     total_obligations = len(obligation_items)
     obligation_compliance_rate = (obligations_completed / total_obligations * 100) if total_obligations > 0 else 100.0
 
-    total_slas = len(sla_stats)
+    total_slas = len(sla_aggregates)
     sla_compliance_rate = (slas_compliant / total_slas * 100) if total_slas > 0 else 100.0
 
     overall_compliance_rate = (obligation_compliance_rate * 0.6 + sla_compliance_rate * 0.4)

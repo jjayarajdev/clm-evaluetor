@@ -277,7 +277,7 @@ class GovernanceBridgeService:
             name=counterparty,
             code=code,
             org_type=org_type,
-            organization_level=OrganizationLevel.HOLDING.value,
+            organization_level=None,
             is_active=True,
             **enrichment,
         )

@@ -23,7 +23,7 @@ from app.models.contract_link import ContractLink, LinkType
 from app.models.definition import ContractDefinition
 from app.models.exhibit import ContractExhibit, ExhibitFeeItem, ExhibitType
 from app.models.user import Role, User
-from app.core.tenant import apply_tenant_filter
+from app.core.tenant import apply_bu_filter, apply_tenant_filter
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
@@ -81,6 +81,7 @@ async def get_contracts_summary(
 
     # Apply tenant filter
     query = apply_tenant_filter(query, tenant_id, Contract)
+    query = apply_bu_filter(query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
 
     # Filter by client if specified
     if client_id:
@@ -205,12 +206,14 @@ async def get_admin_dashboard(
     # Contract stats by type
     type_query = select(Contract.contract_type, func.count(Contract.id)).group_by(Contract.contract_type)
     type_query = apply_tenant_filter(type_query, tenant_id, Contract)
+    type_query = apply_bu_filter(type_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     type_result = await db.execute(type_query)
     by_type = {(t.value if t else "unknown"): c for t, c in type_result.all()}
 
     # Contract stats by status
     status_query = select(Contract.status, func.count(Contract.id)).group_by(Contract.status)
     status_query = apply_tenant_filter(status_query, tenant_id, Contract)
+    status_query = apply_bu_filter(status_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     status_result = await db.execute(status_query)
     by_status = {s.value: c for s, c in status_result.all()}
 
@@ -218,10 +221,10 @@ async def get_admin_dashboard(
     total_contracts = sum(by_status.values())
 
     # User stats
-    user_result = await db.execute(
-        select(User.role, User.is_active, func.count(User.id))
-        .group_by(User.role, User.is_active)
-    )
+    user_query = select(User.role, User.is_active, func.count(User.id)).group_by(User.role, User.is_active)
+    if tenant_id is not None:
+        user_query = user_query.where(User.tenant_id == tenant_id)
+    user_result = await db.execute(user_query)
     by_role: dict[str, int] = {}
     active_users = 0
     inactive_users = 0
@@ -232,30 +235,42 @@ async def get_admin_dashboard(
         else:
             inactive_users += count
 
-    # Activity metrics
-    queries_7d = await db.scalar(
+    # Activity metrics (join through User to filter by tenant)
+    queries_7d_query = (
         select(func.count(AuditLog.id))
         .where(AuditLog.action == AuditAction.QUERY_EXECUTE)
         .where(func.date(AuditLog.created_at) >= week_ago)
-    ) or 0
+    )
+    if tenant_id is not None:
+        queries_7d_query = queries_7d_query.join(User, AuditLog.user_id == User.id).where(User.tenant_id == tenant_id)
+    queries_7d = await db.scalar(queries_7d_query) or 0
 
-    queries_30d = await db.scalar(
+    queries_30d_query = (
         select(func.count(AuditLog.id))
         .where(AuditLog.action == AuditAction.QUERY_EXECUTE)
         .where(func.date(AuditLog.created_at) >= month_ago)
-    ) or 0
+    )
+    if tenant_id is not None:
+        queries_30d_query = queries_30d_query.join(User, AuditLog.user_id == User.id).where(User.tenant_id == tenant_id)
+    queries_30d = await db.scalar(queries_30d_query) or 0
 
-    uploads_7d = await db.scalar(
+    uploads_7d_query = (
         select(func.count(AuditLog.id))
         .where(AuditLog.action == AuditAction.CONTRACT_UPLOAD)
         .where(func.date(AuditLog.created_at) >= week_ago)
-    ) or 0
+    )
+    if tenant_id is not None:
+        uploads_7d_query = uploads_7d_query.join(User, AuditLog.user_id == User.id).where(User.tenant_id == tenant_id)
+    uploads_7d = await db.scalar(uploads_7d_query) or 0
 
-    uploads_30d = await db.scalar(
+    uploads_30d_query = (
         select(func.count(AuditLog.id))
         .where(AuditLog.action == AuditAction.CONTRACT_UPLOAD)
         .where(func.date(AuditLog.created_at) >= month_ago)
-    ) or 0
+    )
+    if tenant_id is not None:
+        uploads_30d_query = uploads_30d_query.join(User, AuditLog.user_id == User.id).where(User.tenant_id == tenant_id)
+    uploads_30d = await db.scalar(uploads_30d_query) or 0
 
     # Ingestion status
     ingestion = IngestionStatus(
@@ -273,6 +288,7 @@ async def get_admin_dashboard(
         .limit(5)
     )
     failures_query = apply_tenant_filter(failures_query, tenant_id, Contract)
+    failures_query = apply_bu_filter(failures_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     failures_result = await db.execute(failures_query)
     recent_failures = [
         {
@@ -375,6 +391,7 @@ async def get_legal_dashboard(
         .group_by(Contract.risk_level)
     )
     risk_query = apply_tenant_filter(risk_query, tenant_id, Contract)
+    risk_query = apply_bu_filter(risk_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     risk_result = await db.execute(risk_query)
     by_level = {r.value: c for r, c in risk_result.all()}
 
@@ -396,6 +413,7 @@ async def get_legal_dashboard(
         .limit(10)
     )
     high_risk_query = apply_tenant_filter(high_risk_query, tenant_id, Contract)
+    high_risk_query = apply_bu_filter(high_risk_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     high_risk_result = await db.execute(high_risk_query)
 
     high_risk_contracts = [
@@ -418,6 +436,7 @@ async def get_legal_dashboard(
             .order_by(Contract.expiration_date.asc())
         )
         exp_query = apply_tenant_filter(exp_query, tenant_id, Contract)
+        exp_query = apply_bu_filter(exp_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
         result = await db.execute(exp_query)
         return [
             ExpirationItem(
@@ -443,6 +462,7 @@ async def get_legal_dashboard(
         .limit(20)
     )
     clause_query = apply_tenant_filter(clause_query, tenant_id, Contract)
+    clause_query = apply_bu_filter(clause_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     clauses_result = await db.execute(clause_query)
     high_risk_clauses = [
         HighRiskClause(
@@ -564,6 +584,7 @@ async def get_procurement_dashboard(
         .limit(20)
     )
     spend_query = apply_tenant_filter(spend_query, tenant_id, Contract)
+    spend_query = apply_bu_filter(spend_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     spend_result = await db.execute(spend_query)
     spend_commitments = [
         SpendCommitment(
@@ -586,6 +607,7 @@ async def get_procurement_dashboard(
         .limit(20)
     )
     obl_query = apply_tenant_filter(obl_query, tenant_id, Contract)
+    obl_query = apply_bu_filter(obl_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     obligations_result = await db.execute(obl_query)
     upcoming_obligations = [
         VendorObligation(
@@ -610,6 +632,7 @@ async def get_procurement_dashboard(
         .limit(20)
     )
     renewal_query = apply_tenant_filter(renewal_query, tenant_id, Contract)
+    renewal_query = apply_bu_filter(renewal_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     renewal_result = await db.execute(renewal_query)
 
     auto_renewal_risks = []
@@ -653,6 +676,7 @@ async def get_procurement_dashboard(
         .limit(20)
     )
     vendor_query = apply_tenant_filter(vendor_query, tenant_id, Contract)
+    vendor_query = apply_bu_filter(vendor_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     vendor_result = await db.execute(vendor_query)
     vendor_summary = {row[0]: row[1] for row in vendor_result.all()}
 
@@ -2112,6 +2136,7 @@ async def get_obligations_compliance_dashboard(
         Contract.counterparty,
     ).join(Contract, Obligation.contract_id == Contract.id)
     base_query = apply_tenant_filter(base_query, tenant_id, Contract)
+    base_query = apply_bu_filter(base_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
 
     if contract_id:
         base_query = base_query.where(Obligation.contract_id == uuid_mod.UUID(contract_id))
@@ -2445,6 +2470,7 @@ async def get_portfolio_dashboard(
         .order_by(Contract.created_at.desc())
     )
     contracts_query = apply_tenant_filter(contracts_query, tenant_id, Contract)
+    contracts_query = apply_bu_filter(contracts_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     contracts_result = await db.execute(contracts_query)
 
     contracts_data = []
@@ -3528,20 +3554,20 @@ async def get_dashboard_insights(
             variant="info"
         ))
 
-    # 2. Compliance Alert - SLA breaches (count non-compliant SLA performances)
-    sla_query = select(func.count(SLAPerformance.id)).where(
-        SLAPerformance.is_compliant == False
-    ).join(ContractSLA)
+    # 2. Compliance Alert - SLA breaches (count unique SLAs currently breaching)
+    sla_query = select(func.count(ContractSLA.id)).where(
+        ContractSLA.consecutive_breaches > 0
+    ).join(Contract, ContractSLA.contract_id == Contract.id)
     if tenant_id:
-        sla_query = sla_query.join(Contract).where(Contract.tenant_id == tenant_id)
+        sla_query = sla_query.where(Contract.tenant_id == tenant_id)
 
     sla_result = await db.execute(sla_query)
-    critical_slas = sla_result.scalar() or 0
+    breached_sla_count = sla_result.scalar() or 0
 
-    if critical_slas > 0:
+    if breached_sla_count > 0:
         insights.append(InsightItem(
             title="Compliance Alert",
-            description=f"{critical_slas} critical SLA breach{'es' if critical_slas > 1 else ''} need{'s' if critical_slas == 1 else ''} attention.",
+            description=f"{breached_sla_count} SLA{'s' if breached_sla_count > 1 else ''} currently breaching target{'s' if breached_sla_count > 1 else ''}. Review and escalate.",
             action="/compliance",
             action_label="Review compliance",
             variant="warning"
@@ -3550,7 +3576,7 @@ async def get_dashboard_insights(
     # 3. Overdue Obligations
     overdue_query = select(func.count(Obligation.id)).where(
         Obligation.deadline < today,
-        Obligation.status != ObligationStatus.COMPLETED
+        Obligation.status.notin_([ObligationStatus.COMPLETED, ObligationStatus.WAIVED])
     )
     if tenant_id:
         overdue_query = overdue_query.join(Contract).where(Contract.tenant_id == tenant_id)
@@ -3710,6 +3736,59 @@ async def get_recent_activity(
             subtitle=obl.description[:50] + "..." if len(obl.description) > 50 else obl.description,
             time=time_ago(ts),
             color="green"
+        )))
+
+    # Get recent SLA breaches (cap at 3 to keep feed balanced)
+    from app.models.sla import ContractSLA, SLAPerformance
+    breach_query = (
+        select(SLAPerformance)
+        .join(ContractSLA, SLAPerformance.sla_id == ContractSLA.id)
+        .where(SLAPerformance.is_compliant == False)
+        .order_by(SLAPerformance.measured_at.desc())
+        .limit(3)
+    )
+    if tenant_id:
+        breach_query = breach_query.join(Contract, ContractSLA.contract_id == Contract.id).where(Contract.tenant_id == tenant_id)
+
+    breach_result = await db.execute(breach_query)
+    breaches = breach_result.scalars().all()
+
+    for perf in breaches:
+        ts = perf.measured_at
+        if ts:
+            ts = ts.replace(tzinfo=timezone.utc) if ts.tzinfo is None else ts
+        else:
+            ts = datetime.min.replace(tzinfo=timezone.utc)
+        timed_activities.append((ts, ActivityItem(
+            icon="warning",
+            title="SLA breach detected",
+            subtitle=f"Target missed — actual {perf.actual_value}",
+            time=time_ago(ts),
+            color="red"
+        )))
+
+    # Get recently processed contracts (status changed to completed)
+    recent_contracts_query = select(Contract).where(
+        Contract.status == ContractStatus.COMPLETED
+    ).order_by(Contract.updated_at.desc()).limit(5)
+    if tenant_id:
+        recent_contracts_query = recent_contracts_query.where(Contract.tenant_id == tenant_id)
+
+    recent_result = await db.execute(recent_contracts_query)
+    recent_contracts = recent_result.scalars().all()
+
+    for c in recent_contracts:
+        ts = c.updated_at or c.created_at
+        if ts:
+            ts = ts.replace(tzinfo=timezone.utc) if ts.tzinfo is None else ts
+        else:
+            ts = datetime.min.replace(tzinfo=timezone.utc)
+        timed_activities.append((ts, ActivityItem(
+            icon="document",
+            title="Contract analyzed",
+            subtitle=c.filename[:50] if c.filename else "Unknown",
+            time=time_ago(ts),
+            color="blue"
         )))
 
     # Sort by timestamp descending and take top N

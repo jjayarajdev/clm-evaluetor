@@ -444,14 +444,22 @@ export default function VendorsPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {data.vendors.map((vendor) => (
-              <VendorRow
-                key={vendor.normalized_name}
-                vendor={vendor}
-                onClick={() => setSelectedVendor(vendor.vendor_name)}
-                showType={partyFilter === 'all'}
-              />
-            ))}
+            {data.vendors.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
+                  No counterparties found
+                </td>
+              </tr>
+            ) : (
+              data.vendors.map((vendor) => (
+                <VendorRow
+                  key={vendor.normalized_name}
+                  vendor={vendor}
+                  onClick={() => setSelectedVendor(vendor.vendor_name)}
+                  showType={partyFilter === 'all'}
+                />
+              ))
+            )}
           </tbody>
         </table>
       </div>

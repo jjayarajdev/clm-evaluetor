@@ -9,7 +9,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentUser, CurrentTenantId
-from app.core.tenant import apply_tenant_filter
+from app.core.tenant import apply_bu_filter, apply_tenant_filter
 from app.database import get_db
 from app.models import (
     Contract, ContractStatus, Obligation, ObligationStatus, RAGStatus,
@@ -48,6 +48,7 @@ async def get_postsigning_dashboard(
         Contract.status == ContractStatus.COMPLETED
     )
     contract_query = apply_tenant_filter(contract_query, tenant_id, Contract)
+    contract_query = apply_bu_filter(contract_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     contract_result = await db.execute(contract_query)
     contracts = list(contract_result.scalars().all())
 
@@ -59,6 +60,7 @@ async def get_postsigning_dashboard(
         Contract, Obligation.contract_id == Contract.id
     ).where(Contract.status == ContractStatus.COMPLETED)
     obl_query = apply_tenant_filter(obl_query, tenant_id, Contract)
+    obl_query = apply_bu_filter(obl_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     obl_result = await db.execute(obl_query)
     obligations = list(obl_result.scalars().all())
 
@@ -78,7 +80,13 @@ async def get_postsigning_dashboard(
     obl_red = sum(1 for o in obligations if o.rag_status == RAGStatus.RED)
 
     waived = sum(1 for o in obligations if o.status == ObligationStatus.WAIVED)
-    obl_compliance = (obl_completed / (obl_total - waived) * 100) if (obl_total - waived) > 0 else 100.0
+    # For compliance rate, only consider obligations that are due (deadline passed or no deadline)
+    # Exclude pending obligations with future deadlines — they haven't come due yet
+    pending_future = sum(1 for o in obligations
+                         if o.status == ObligationStatus.PENDING
+                         and o.deadline and o.deadline > today)
+    assessable = obl_total - waived - pending_future
+    obl_compliance = ((obl_completed + obl_in_progress) / assessable * 100) if assessable > 0 else 100.0
 
     # Urgent obligations (use deadline field)
     urgent_obls = [o for o in obligations if o.status == ObligationStatus.OVERDUE or
@@ -114,6 +122,7 @@ async def get_postsigning_dashboard(
         Contract, ContractSLA.contract_id == Contract.id
     ).where(Contract.status == ContractStatus.COMPLETED)
     sla_query = apply_tenant_filter(sla_query, tenant_id, Contract)
+    sla_query = apply_bu_filter(sla_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     sla_result = await db.execute(sla_query)
     slas = list(sla_result.scalars().all())
 
@@ -143,6 +152,7 @@ async def get_postsigning_dashboard(
     )
     if tenant_id is not None:
         penalty_query = penalty_query.where(Contract.tenant_id == tenant_id)
+    penalty_query = apply_bu_filter(penalty_query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
     penalty_result = await db.execute(penalty_query)
     total_penalties_mtd = float(penalty_result.scalar() or 0)
 
@@ -409,6 +419,7 @@ async def get_obligation_details(
         Contract, Obligation.contract_id == Contract.id
     ).where(Contract.status == ContractStatus.COMPLETED)
     query = apply_tenant_filter(query, tenant_id, Contract)
+    query = apply_bu_filter(query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
 
     if status:
         query = query.where(Obligation.status == ObligationStatus(status))
@@ -455,6 +466,7 @@ async def get_sla_details(
         )
     )
     query = apply_tenant_filter(query, tenant_id, Contract)
+    query = apply_bu_filter(query, current_user.business_unit_id, current_user.role.value if current_user.role else None)
 
     if breached_only:
         query = query.where(ContractSLA.consecutive_breaches > 0)

@@ -176,15 +176,17 @@ export default function ModernDashboardPage() {
   })
 
   // Fetch AI insights
-  const { data: insightsData } = useQuery({
+  const { data: insightsData, isError: insightsError } = useQuery({
     queryKey: ['dashboard-insights'],
     queryFn: () => api.getDashboardInsights(),
+    retry: 1,
   })
 
   // Fetch recent activity
-  const { data: activityData } = useQuery({
+  const { data: activityData, isError: activityError } = useQuery({
     queryKey: ['recent-activity'],
     queryFn: () => api.getRecentActivity(10),
+    retry: 1,
   })
 
   if (isLoading) {
@@ -288,7 +290,7 @@ export default function ModernDashboardPage() {
         />
         <StatCard
           title="Contract Value"
-          value={formatCurrency(complianceData?.total_value || 0)}
+          value={complianceData?.total_value ? formatCurrency(complianceData.total_value) : 'N/A'}
           icon={CurrencyDollarIcon}
           color="blue"
           variant="filled"
@@ -402,7 +404,11 @@ export default function ModernDashboardPage() {
                 variant={insight.variant as 'info' | 'warning' | 'success'}
               />
             ))}
-            {!insightsData?.insights?.length && (
+            {insightsError ? (
+              <div className="p-4 rounded-lg bg-red-50 text-sm text-red-600">
+                Failed to load insights. Try refreshing the page.
+              </div>
+            ) : !insightsData?.insights?.length && (
               <InsightCard
                 title="All Clear"
                 description="No critical issues detected. All contracts and obligations are on track."
@@ -440,17 +446,21 @@ export default function ModernDashboardPage() {
                   />
                 )
               })}
-              {!activityData?.activities?.length && (
+              {activityError ? (
+                <div className="py-4 text-center text-sm text-red-500">
+                  Failed to load activity
+                </div>
+              ) : !activityData?.activities?.length && (
                 <div className="py-4 text-center text-sm text-gray-500">
                   No recent activity
                 </div>
               )}
             </div>
             <Link
-              to="/activity"
+              to="/compliance"
               className="block px-5 py-3 text-center text-sm font-medium text-primary-600 hover:bg-primary-50 border-t border-gray-100"
             >
-              View All Activity
+              View Compliance
             </Link>
           </div>
 

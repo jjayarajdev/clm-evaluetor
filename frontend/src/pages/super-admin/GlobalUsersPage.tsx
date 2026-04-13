@@ -13,6 +13,7 @@ import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDate } from '@/lib/utils'
 import type { Tenant, Role, UserWithTenant } from '@/types'
+import type { BusinessUnit } from '@/types/business-unit'
 
 const ROLE_LABELS: Record<Role, string> = {
   admin: 'Administrator',
@@ -20,6 +21,7 @@ const ROLE_LABELS: Record<Role, string> = {
   procurement: 'Procurement',
   viewer: 'Viewer',
   super_admin: 'Super Admin',
+  bu_head: 'BU Head',
 }
 
 const ROLE_COLORS: Record<Role, string> = {
@@ -28,6 +30,7 @@ const ROLE_COLORS: Record<Role, string> = {
   procurement: 'bg-green-100 text-green-700',
   viewer: 'bg-gray-100 text-gray-700',
   super_admin: 'bg-rose-100 text-rose-700',
+  bu_head: 'bg-amber-100 text-amber-700',
 }
 
 interface UserFormData {
@@ -36,6 +39,7 @@ interface UserFormData {
   email: string
   role: Role
   password: string
+  business_unit_id: string
 }
 
 interface EditFormData {
@@ -43,6 +47,7 @@ interface EditFormData {
   role: Role
   is_active: boolean
   new_password: string
+  business_unit_id: string
 }
 
 export default function GlobalUsersPage() {
@@ -59,12 +64,14 @@ export default function GlobalUsersPage() {
     email: '',
     role: 'viewer',
     password: '',
+    business_unit_id: '',
   })
   const [editFormData, setEditFormData] = useState<EditFormData>({
     username: '',
     role: 'viewer',
     is_active: true,
     new_password: '',
+    business_unit_id: '',
   })
 
   const { data: users, isLoading: usersLoading, error } = useQuery<UserWithTenant[]>({
@@ -77,12 +84,22 @@ export default function GlobalUsersPage() {
     queryFn: () => api.getTenants(false),
   })
 
+  // Fetch BUs for the selected tenant (used in create modal) or editing user's tenant
+  const buTenantId = formData.tenant_id || editingUser?.tenant_id || ''
+  const { data: businessUnitsData } = useQuery({
+    queryKey: ['business-units', buTenantId],
+    queryFn: () => api.getBusinessUnits({ page: 1, page_size: 100 }, buTenantId),
+    enabled: !!buTenantId,
+  })
+  const businessUnits: BusinessUnit[] = businessUnitsData?.items ?? []
+
   const createMutation = useMutation({
     mutationFn: (data: UserFormData) => api.createUserForTenant(data.tenant_id, {
       username: data.username,
       email: data.email,
       password: data.password,
       role: data.role,
+      business_unit_id: data.business_unit_id || undefined,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-users'] })
@@ -93,7 +110,10 @@ export default function GlobalUsersPage() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: EditFormData }) => {
       const { new_password, ...updateData } = data
-      await api.updateUser(id, updateData)
+      await api.updateUser(id, {
+        ...updateData,
+        business_unit_id: updateData.business_unit_id || null,
+      })
       if (new_password) {
         await api.updateUserPassword(id, new_password)
       }
@@ -127,6 +147,7 @@ export default function GlobalUsersPage() {
       email: '',
       role: 'viewer',
       password: '',
+      business_unit_id: '',
     })
     setIsCreateModalOpen(true)
   }
@@ -139,6 +160,7 @@ export default function GlobalUsersPage() {
       email: '',
       role: 'viewer',
       password: '',
+      business_unit_id: '',
     })
   }
 
@@ -149,6 +171,7 @@ export default function GlobalUsersPage() {
       role: user.role,
       is_active: user.is_active,
       new_password: '',
+      business_unit_id: user.business_unit_id || '',
     })
   }
 
@@ -238,6 +261,9 @@ export default function GlobalUsersPage() {
                   Role
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Business Unit
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -277,6 +303,9 @@ export default function GlobalUsersPage() {
                       {user.role === 'admin' && <ShieldCheckIcon className="h-3 w-3 mr-1" />}
                       {ROLE_LABELS[user.role]}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {user.business_unit_name || '--'}
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn(
@@ -402,6 +431,29 @@ export default function GlobalUsersPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Business Unit
+                  </label>
+                  <select
+                    value={formData.business_unit_id}
+                    onChange={(e) => setFormData({ ...formData, business_unit_id: e.target.value })}
+                    className="input"
+                    disabled={!formData.tenant_id}
+                  >
+                    <option value="">-- None --</option>
+                    {businessUnits
+                      .filter((bu) => bu.is_active)
+                      .map((bu) => (
+                        <option key={bu.id} value={bu.id}>
+                          {bu.name}
+                        </option>
+                      ))}
+                  </select>
+                  {!formData.tenant_id && (
+                    <p className="mt-1 text-xs text-gray-400">Select a tenant first</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Password *
                   </label>
                   <input
@@ -500,6 +552,25 @@ export default function GlobalUsersPage() {
                       .map(([value, label]) => (
                         <option key={value} value={value}>
                           {label}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Business Unit
+                  </label>
+                  <select
+                    value={editFormData.business_unit_id}
+                    onChange={(e) => setEditFormData({ ...editFormData, business_unit_id: e.target.value })}
+                    className="input"
+                  >
+                    <option value="">-- None --</option>
+                    {businessUnits
+                      .filter((bu) => bu.is_active)
+                      .map((bu) => (
+                        <option key={bu.id} value={bu.id}>
+                          {bu.name}
                         </option>
                       ))}
                   </select>

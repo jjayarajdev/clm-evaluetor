@@ -13,8 +13,7 @@ import QueryPage from './pages/QueryPage'
 import UsersPage from './pages/UsersPage'
 import SettingsPage from './pages/SettingsPage'
 import PostSigningPage from './pages/PostSigningPage'
-import SLAConfigPage from './pages/admin/SLAConfigPage'
-import MilestoneConfigPage from './pages/admin/MilestoneConfigPage'
+import MasterDataPage from './pages/admin/MasterDataPage'
 import SchedulerPage from './pages/admin/SchedulerPage'
 import BusinessUnitsPage from './pages/admin/BusinessUnitsPage'
 import ExternalUsersPage from './pages/admin/ExternalUsersPage'
@@ -32,10 +31,7 @@ import SnowAdminPage from './pages/super-admin/SnowAdminPage'
 import OrganizationsPage from './pages/governance/OrganizationsPage'
 import RelationshipsPage from './pages/governance/RelationshipsPage'
 import RelationshipDetailPage from './pages/governance/RelationshipDetailPage'
-import KPIScorecardPage from './pages/governance/KPIScorecardPage'
-import ImprovementsPage from './pages/governance/ImprovementsPage'
 import SurveysPage from './pages/governance/SurveysPage'
-import ServicePortfolioPage from './pages/governance/ServicePortfolioPage'
 import OrganizationDetailPage from './pages/governance/OrganizationDetailPage'
 import KPIApprovalsPage from './pages/governance/KPIApprovalsPage'
 import LoadingSpinner from './components/ui/LoadingSpinner'
@@ -90,18 +86,21 @@ function App() {
         <Route path="query" element={<QueryPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="admin/sla-config" element={<SLAConfigPage />} />
-        <Route path="admin/milestone-config" element={<MilestoneConfigPage />} />
+        <Route path="admin/master-data" element={<MasterDataPage />} />
+        {/* Redirects for old routes */}
+        <Route path="admin/sla-config" element={<Navigate to="/admin/master-data" replace />} />
+        <Route path="admin/milestone-config" element={<Navigate to="/admin/master-data" replace />} />
         <Route path="admin/scheduler" element={<SchedulerPage />} />
         {/* Governance Routes */}
         <Route path="organizations" element={<OrganizationsPage />} />
         <Route path="organizations/:id" element={<OrganizationDetailPage />} />
         <Route path="relationships" element={<RelationshipsPage />} />
         <Route path="relationships/:id" element={<RelationshipDetailPage />} />
-        <Route path="kpis" element={<KPIScorecardPage />} />
         <Route path="kpi-approvals" element={<KPIApprovalsPage />} />
-        <Route path="service-portfolio" element={<ServicePortfolioPage />} />
-        <Route path="improvements" element={<ImprovementsPage />} />
+        {/* Redirects for consolidated governance pages */}
+        <Route path="kpis" element={<Navigate to="/relationships" replace />} />
+        <Route path="service-portfolio" element={<Navigate to="/organizations" replace />} />
+        <Route path="improvements" element={<Navigate to="/relationships" replace />} />
         <Route path="surveys" element={<SurveysPage />} />
         <Route path="admin/business-units" element={<BusinessUnitsPage />} />
         <Route path="admin/external-users" element={<ExternalUsersPage />} />

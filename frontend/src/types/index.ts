@@ -1,5 +1,5 @@
 // User types
-export type Role = 'admin' | 'legal' | 'procurement' | 'viewer' | 'super_admin'
+export type Role = 'admin' | 'legal' | 'procurement' | 'viewer' | 'super_admin' | 'bu_head'
 
 export interface User {
   id: string
@@ -10,6 +10,8 @@ export interface User {
   is_active: boolean
   tenant_id?: string | null
   tenant_name?: string | null
+  business_unit_id?: string | null
+  business_unit_name?: string | null
   created_at: string
   updated_at?: string
 }
@@ -164,7 +166,7 @@ export interface QueryResponse {
 }
 
 // Additional role type with viewer
-export type UserRole = 'admin' | 'legal' | 'procurement' | 'viewer' | 'super_admin'
+export type UserRole = 'admin' | 'legal' | 'procurement' | 'viewer' | 'super_admin' | 'bu_head'
 
 // Dashboard types
 export interface AdminDashboard {

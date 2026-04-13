@@ -189,6 +189,12 @@ class ExternalScoreSubmission(BaseModel):
 
 # ===== Approval Workflow Schemas =====
 
+class PerceptionScoreUpdate(BaseModel):
+    """Schema for updating a perception score."""
+    score: Optional[Decimal] = Field(None, ge=1, le=10)
+    comments: Optional[str] = None
+
+
 class ScoreApprovalAction(BaseModel):
     """Schema for approving or rejecting a perception score."""
     comments: Optional[str] = None

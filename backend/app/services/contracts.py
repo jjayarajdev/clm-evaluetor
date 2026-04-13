@@ -26,6 +26,7 @@ class ContractService:
         tenant_id: uuid_module.UUID | None = None,
         business_unit_id: uuid_module.UUID | None = None,
         user_role: str | None = None,
+        bu_child_ids: list | None = None,
     ) -> None:
         """Initialize with database session and optional filters.
 
@@ -35,11 +36,13 @@ class ContractService:
                       (used by super-admin or system operations).
             business_unit_id: Business unit ID to filter by. Only applies for certain roles.
             user_role: User's role for BU-aware filtering.
+            bu_child_ids: List of child BU IDs for BU_HEAD role hierarchical access.
         """
         self.db = db
         self.tenant_id = tenant_id
         self.business_unit_id = business_unit_id
         self.user_role = user_role
+        self.bu_child_ids = bu_child_ids
         self.vector_store = get_vector_store()
 
     def _apply_tenant_filter(self, query):
@@ -57,6 +60,7 @@ class ContractService:
         - BU_HEAD: Sees all contracts in their BU and child BUs
         - LEGAL/PROCUREMENT/VIEWER: Sees contracts in their BU only, or all if no BU assigned
         """
+        from sqlalchemy import or_
         from app.models.user import Role
 
         # Super admin and tenant admin see everything
@@ -69,17 +73,20 @@ class ContractService:
 
         # BU_HEAD sees their BU and child BUs
         if self.user_role in [Role.BU_HEAD.value, "bu_head"]:
-            # For now, just filter by their BU
-            # TODO: Include child BUs in filter
+            all_bu_ids = [self.business_unit_id] + list(self.bu_child_ids or [])
             return query.where(
-                (Contract.business_unit_id == self.business_unit_id) |
-                (Contract.business_unit_id.is_(None))  # Also include unassigned contracts
+                or_(
+                    Contract.business_unit_id.in_(all_bu_ids),
+                    Contract.business_unit_id.is_(None),
+                )
             )
 
         # Other roles see only their BU or unassigned
         return query.where(
-            (Contract.business_unit_id == self.business_unit_id) |
-            (Contract.business_unit_id.is_(None))
+            or_(
+                Contract.business_unit_id == self.business_unit_id,
+                Contract.business_unit_id.is_(None),
+            )
         )
 
     async def get_contract(

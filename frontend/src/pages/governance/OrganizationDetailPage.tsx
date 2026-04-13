@@ -309,18 +309,18 @@ export default function OrganizationDetailPage() {
               </div>
               <div className="card card-body">
                 <p className="text-xs text-gray-500 mb-1">Subsidiaries</p>
-                <p className="text-2xl font-bold text-gray-900">{hierarchy.total_subsidiaries}</p>
+                <p className="text-2xl font-bold text-gray-900">{hierarchy.children?.length ?? 0}</p>
               </div>
             </div>
           )}
 
-          {hierarchy && hierarchy.subsidiaries.length > 0 && (
+          {hierarchy && hierarchy.children && hierarchy.children.length > 0 && (
             <div className="card">
               <div className="card-header">
                 <h3 className="text-sm font-medium text-gray-900">Direct Subsidiaries</h3>
               </div>
               <div className="card-body p-0 divide-y divide-gray-200">
-                {hierarchy.subsidiaries.map((sub) => (
+                {hierarchy.children.map((sub) => (
                   <Link
                     key={sub.id}
                     to={`/organizations/${sub.id}`}
