@@ -366,13 +366,23 @@ async def _clean_counterparty_with_llm(value: str, excluded_parties: list[str] |
     # Normalize whitespace
     value = re.sub(r'\s+', ' ', value).strip()
 
-    # Check against excluded parties (uploader's org) — exact match only
+    # Check against excluded parties (uploader's org) — exact or substring match
     if excluded_parties:
         value_lower = value.strip().lower()
         for ep in excluded_parties:
             ep_lower = ep.strip().lower()
+            # Exact match
             if value_lower == ep_lower:
                 logger.info(f"LLM cleaning rejected '{value}' — matches excluded party '{ep}'")
+                return None
+            # Substring match: tenant name appears within the extracted counterparty
+            # e.g. "Vialto Partners" in "CD&R Galaxy UK OpCo Ltd. d/b/a Vialto Partners"
+            if len(ep_lower) >= 4 and ep_lower in value_lower:
+                logger.info(f"LLM cleaning rejected '{value}' — contains excluded party '{ep}'")
+                return None
+            # Reverse: extracted value appears within the tenant name
+            if len(value_lower) >= 4 and value_lower in ep_lower:
+                logger.info(f"LLM cleaning rejected '{value}' — is substring of excluded party '{ep}'")
                 return None
 
     # If it looks clean already (short, has legal suffix), return as-is
@@ -715,14 +725,18 @@ async def update_contract_metadata(
         value_lower = value.strip().lower()
         for ep in excluded_parties:
             ep_lower = ep.strip().lower()
-            # Only match if excluded party name is a meaningful prefix/match of the value
-            # e.g., "ClientAA" matches "ClientAA B.V." or "ClientAA Pvt Ltd"
-            # but "DemoSup" should NOT match "DemoSup1 BPO Limited" (different entity)
+            # Exact match
             if value_lower == ep_lower:
                 return True
-            # Check if the excluded party is a prefix followed by a legal suffix
+            # Substring: tenant name appears in the extracted value
+            # e.g. "Vialto Partners" in "CD&R Galaxy UK OpCo Ltd. d/b/a Vialto Partners"
+            if len(ep_lower) >= 4 and ep_lower in value_lower:
+                return True
+            # Reverse: extracted value appears in tenant name
+            if len(value_lower) >= 4 and value_lower in ep_lower:
+                return True
+            # Prefix followed by legal suffix (e.g. "ClientAA" → "ClientAA B.V.")
             if value_lower.startswith(ep_lower + " ") and len(ep_lower) > 4:
-                # Make sure it's not a different entity (e.g., "DemoSup" vs "DemoSup1")
                 remainder = value_lower[len(ep_lower):].strip()
                 if remainder and remainder[0].isdigit():
                     continue  # Different entity (e.g., "DemoSup1" is not "DemoSup")
