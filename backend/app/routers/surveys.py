@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.core.deps import get_current_user, require_role, CurrentTenantId
+from app.core.tenant import apply_tenant_filter
 from app.models import (
     User,
     SurveyTemplate,
@@ -43,6 +44,28 @@ from app.schemas.survey import (
 )
 
 router = APIRouter(prefix="/api/surveys", tags=["Surveys"])
+
+
+async def _verify_instance_tenant(
+    db: AsyncSession, instance_id: UUID, tenant_id: UUID | None,
+) -> SurveyInstance | None:
+    """Verify a survey instance belongs to the current tenant via its relationship chain."""
+    from app.models import Organization
+
+    query = (
+        select(SurveyInstance)
+        .where(SurveyInstance.id == instance_id)
+        .options(
+            selectinload(SurveyInstance.template),
+            selectinload(SurveyInstance.relationship),
+        )
+    )
+    if tenant_id is not None:
+        query = query.join(
+            BusinessRelationship, SurveyInstance.relationship_id == BusinessRelationship.id
+        ).where(BusinessRelationship.tenant_id == tenant_id)
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
 
 
 # ===== Templates =====
@@ -367,6 +390,7 @@ async def list_instances(
 @router.post("/instances", response_model=InstanceResponse, status_code=status.HTTP_201_CREATED)
 async def create_instance(
     data: InstanceCreate,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
@@ -379,8 +403,11 @@ async def create_instance(
             detail="Template not found or inactive",
         )
 
-    # Validate relationship exists
-    relationship = await db.get(BusinessRelationship, data.relationship_id)
+    # Validate relationship exists and belongs to tenant
+    rel_query = select(BusinessRelationship).where(BusinessRelationship.id == data.relationship_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    rel_result = await db.execute(rel_query)
+    relationship = rel_result.scalar_one_or_none()
     if not relationship:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -417,19 +444,12 @@ async def create_instance(
 @router.get("/instances/{instance_id}", response_model=InstanceResponse)
 async def get_instance(
     instance_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get a survey instance by ID."""
-    result = await db.execute(
-        select(SurveyInstance)
-        .where(SurveyInstance.id == instance_id)
-        .options(
-            selectinload(SurveyInstance.template),
-            selectinload(SurveyInstance.relationship),
-        )
-    )
-    instance = result.scalar_one_or_none()
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
 
     if not instance:
         raise HTTPException(
@@ -444,19 +464,12 @@ async def get_instance(
 async def update_instance(
     instance_id: UUID,
     data: InstanceUpdate,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
     """Update a survey instance."""
-    result = await db.execute(
-        select(SurveyInstance)
-        .where(SurveyInstance.id == instance_id)
-        .options(
-            selectinload(SurveyInstance.template),
-            selectinload(SurveyInstance.relationship),
-        )
-    )
-    instance = result.scalar_one_or_none()
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
 
     if not instance:
         raise HTTPException(
@@ -486,19 +499,12 @@ async def update_instance(
 @router.post("/instances/{instance_id}/send", response_model=InstanceResponse)
 async def send_survey(
     instance_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
     """Send a survey (transition from DRAFT to IN_PROGRESS)."""
-    result = await db.execute(
-        select(SurveyInstance)
-        .where(SurveyInstance.id == instance_id)
-        .options(
-            selectinload(SurveyInstance.template),
-            selectinload(SurveyInstance.relationship),
-        )
-    )
-    instance = result.scalar_one_or_none()
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
 
     if not instance:
         raise HTTPException(
@@ -523,19 +529,12 @@ async def send_survey(
 @router.post("/instances/{instance_id}/close", response_model=InstanceResponse)
 async def close_survey(
     instance_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
     """Close a survey (transition from IN_PROGRESS to CLOSED)."""
-    result = await db.execute(
-        select(SurveyInstance)
-        .where(SurveyInstance.id == instance_id)
-        .options(
-            selectinload(SurveyInstance.template),
-            selectinload(SurveyInstance.relationship),
-        )
-    )
-    instance = result.scalar_one_or_none()
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
 
     if not instance:
         raise HTTPException(
@@ -562,10 +561,16 @@ async def close_survey(
 @router.get("/instances/{instance_id}/responses", response_model=ResponseListResponse)
 async def list_responses(
     instance_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """List responses for a survey instance."""
+    # Verify instance belongs to tenant
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
+    if not instance:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey instance not found")
+
     result = await db.execute(
         select(SurveyResponse)
         .where(SurveyResponse.survey_instance_id == instance_id)
@@ -583,10 +588,16 @@ async def list_responses(
 async def get_response(
     instance_id: UUID,
     response_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get a specific survey response."""
+    # Verify instance belongs to tenant
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
+    if not instance:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey instance not found")
+
     result = await db.execute(
         select(SurveyResponse).where(
             SurveyResponse.id == response_id,
@@ -610,11 +621,12 @@ async def get_response(
 async def generate_survey_token(
     instance_id: UUID,
     org_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
     """Generate an external access token for survey completion."""
-    instance = await db.get(SurveyInstance, instance_id)
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
     if not instance:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

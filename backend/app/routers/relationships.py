@@ -155,9 +155,16 @@ async def create_relationship(
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
     """Create a new business relationship."""
-    # Validate organizations exist
-    org_a = await db.get(Organization, data.org_a_id)
-    org_b = await db.get(Organization, data.org_b_id)
+    # Validate organizations exist and belong to tenant
+    org_a_query = select(Organization).where(Organization.id == data.org_a_id)
+    org_a_query = apply_tenant_filter(org_a_query, tenant_id, Organization)
+    org_a_result = await db.execute(org_a_query)
+    org_a = org_a_result.scalar_one_or_none()
+
+    org_b_query = select(Organization).where(Organization.id == data.org_b_id)
+    org_b_query = apply_tenant_filter(org_b_query, tenant_id, Organization)
+    org_b_result = await db.execute(org_b_query)
+    org_b = org_b_result.scalar_one_or_none()
 
     if not org_a:
         raise HTTPException(
@@ -279,11 +286,19 @@ async def update_relationship(
 @router.get("/{rel_id}/team", response_model=List[TeamMemberResponse])
 async def get_team_members(
     rel_id: UUID,
+    tenant_id: CurrentTenantId,
     active_only: bool = Query(True),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get team members for a relationship."""
+    # Verify relationship belongs to tenant
+    rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    rel_result = await db.execute(rel_query)
+    if not rel_result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relationship not found")
+
     query = select(RelationshipTeam).where(
         RelationshipTeam.relationship_id == rel_id
     ).options(selectinload(RelationshipTeam.user))
@@ -301,12 +316,16 @@ async def get_team_members(
 async def add_team_member(
     rel_id: UUID,
     data: TeamMemberCreate,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
     """Add a team member to a relationship."""
-    # Verify relationship exists
-    relationship = await db.get(BusinessRelationship, rel_id)
+    # Verify relationship exists and belongs to tenant
+    rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    rel_result = await db.execute(rel_query)
+    relationship = rel_result.scalar_one_or_none()
     if not relationship:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -359,10 +378,18 @@ async def update_team_member(
     rel_id: UUID,
     member_id: UUID,
     data: TeamMemberUpdate,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
     """Update a team member."""
+    # Verify relationship belongs to tenant
+    rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    rel_result = await db.execute(rel_query)
+    if not rel_result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relationship not found")
+
     result = await db.execute(
         select(RelationshipTeam)
         .where(
@@ -398,10 +425,18 @@ async def update_team_member(
 async def remove_team_member(
     rel_id: UUID,
     member_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "legal"])),
 ):
     """Remove a team member (soft delete)."""
+    # Verify relationship belongs to tenant
+    rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    rel_result = await db.execute(rel_query)
+    if not rel_result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relationship not found")
+
     result = await db.execute(
         select(RelationshipTeam).where(
             RelationshipTeam.id == member_id,
@@ -426,6 +461,7 @@ async def remove_team_member(
 @router.get("/{rel_id}/health", response_model=HealthScoreResponse)
 async def get_health_score(
     rel_id: UUID,
+    tenant_id: CurrentTenantId,
     recalculate: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -436,7 +472,11 @@ async def get_health_score(
     from app.models.obligation import Obligation
     from app.models.kpi import KPI, PerceptionGap
 
-    relationship = await db.get(BusinessRelationship, rel_id)
+    # Verify relationship belongs to tenant
+    rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
+    rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    rel_result = await db.execute(rel_query)
+    relationship = rel_result.scalar_one_or_none()
     if not relationship:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

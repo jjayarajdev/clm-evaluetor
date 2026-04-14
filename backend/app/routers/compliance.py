@@ -54,6 +54,7 @@ from app.schemas.compliance import (
     MatchingDocumentResponse,
     SuggestMatchingDocumentsResponse,
 )
+from app.core.tenant import apply_bu_filter
 from app.services.industry_detector import IndustryDetector
 from app.services.compliance_gap_detector import ComplianceGapDetector
 from app.services.compliance_alert_service import ComplianceAlertService, create_compliance_alerts_for_gaps
@@ -302,11 +303,15 @@ async def list_compliance_gaps(
     tenant_id: UUID = Depends(get_current_tenant_id),
 ):
     """List compliance gaps with filters."""
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
+
     query = (
         select(ComplianceGap)
         .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(Contract.tenant_id == tenant_id)
     )
+    query = apply_bu_filter(query, bu_id, role)
 
     if contract_id:
         query = query.where(ComplianceGap.contract_id == contract_id)
@@ -374,12 +379,17 @@ async def get_compliance_gap(
     tenant_id: UUID = Depends(get_current_tenant_id),
 ):
     """Get compliance gap details."""
-    result = await db.execute(
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
+
+    query = (
         select(ComplianceGap)
         .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(ComplianceGap.id == gap_id)
         .where(Contract.tenant_id == tenant_id)
     )
+    query = apply_bu_filter(query, bu_id, role)
+    result = await db.execute(query)
     gap = result.scalar_one_or_none()
 
     if not gap:
@@ -481,12 +491,17 @@ async def update_gap_status(
     tenant_id: UUID = Depends(get_current_tenant_id),
 ):
     """Update gap status."""
-    result = await db.execute(
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
+
+    query = (
         select(ComplianceGap)
         .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(ComplianceGap.id == gap_id)
         .where(Contract.tenant_id == tenant_id)
     )
+    query = apply_bu_filter(query, bu_id, role)
+    result = await db.execute(query)
     gap = result.scalar_one_or_none()
 
     if not gap:
@@ -514,14 +529,19 @@ async def suggest_matching_documents(
     tenant_id: UUID = Depends(get_current_tenant_id),
 ):
     """Get document suggestions that could resolve a gap."""
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
+
     # Get the gap
-    result = await db.execute(
+    query = (
         select(ComplianceGap)
         .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(ComplianceGap.id == gap_id)
         .where(Contract.tenant_id == tenant_id)
         .options(selectinload(ComplianceGap.contract))
     )
+    query = apply_bu_filter(query, bu_id, role)
+    result = await db.execute(query)
     gap = result.scalar_one_or_none()
 
     if not gap:
@@ -570,12 +590,15 @@ async def list_regulatory_obligations(
 ):
     """List regulatory obligations with filters."""
     from app.models.obligation import RAGStatus
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
 
     query = (
         select(RegulatoryObligation)
         .join(Contract)
         .where(Contract.tenant_id == tenant_id)
     )
+    query = apply_bu_filter(query, bu_id, role)
 
     if contract_id:
         query = query.where(RegulatoryObligation.contract_id == contract_id)
@@ -623,12 +646,17 @@ async def get_regulatory_obligation(
     tenant_id: UUID = Depends(get_current_tenant_id),
 ):
     """Get regulatory obligation details."""
-    result = await db.execute(
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
+
+    query = (
         select(RegulatoryObligation)
         .join(Contract)
         .where(RegulatoryObligation.id == obligation_id)
         .where(Contract.tenant_id == tenant_id)
     )
+    query = apply_bu_filter(query, bu_id, role)
+    result = await db.execute(query)
     obl = result.scalar_one_or_none()
 
     if not obl:
@@ -671,13 +699,17 @@ async def update_obligation_status(
 ):
     """Update regulatory obligation compliance status."""
     from app.models.obligation import RAGStatus
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
 
-    result = await db.execute(
+    query = (
         select(RegulatoryObligation)
         .join(Contract)
         .where(RegulatoryObligation.id == obligation_id)
         .where(Contract.tenant_id == tenant_id)
     )
+    query = apply_bu_filter(query, bu_id, role)
+    result = await db.execute(query)
     obl = result.scalar_one_or_none()
 
     if not obl:
@@ -717,12 +749,17 @@ async def check_contract_compliance(
     tenant_id: UUID = Depends(get_current_tenant_id),
 ):
     """Run compliance check on a contract."""
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
+
     # Get contract
-    result = await db.execute(
+    query = (
         select(Contract)
         .where(Contract.id == contract_id)
         .where(Contract.tenant_id == tenant_id)
     )
+    query = apply_bu_filter(query, bu_id, role)
+    result = await db.execute(query)
     contract = result.scalar_one_or_none()
 
     if not contract:
@@ -790,12 +827,17 @@ async def detect_contract_industry(
     tenant_id: UUID = Depends(get_current_tenant_id),
 ):
     """Detect industry for a contract."""
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
+
     # Get contract
-    result = await db.execute(
+    query = (
         select(Contract)
         .where(Contract.id == contract_id)
         .where(Contract.tenant_id == tenant_id)
     )
+    query = apply_bu_filter(query, bu_id, role)
+    result = await db.execute(query)
     contract = result.scalar_one_or_none()
 
     if not contract:
@@ -854,58 +896,67 @@ async def get_compliance_dashboard(
 ):
     """Get compliance dashboard summary."""
     from app.models.obligation import RAGStatus
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
 
     # Total contracts
-    contract_count_result = await db.execute(
-        select(func.count(Contract.id))
-        .where(Contract.tenant_id == tenant_id)
-    )
+    q = select(func.count(Contract.id)).where(Contract.tenant_id == tenant_id)
+    q = apply_bu_filter(q, bu_id, role)
+    contract_count_result = await db.execute(q)
     total_contracts = contract_count_result.scalar() or 0
 
     # Contracts by industry
-    industry_result = await db.execute(
+    q = (
         select(Contract.detected_industry, func.count(Contract.id))
         .where(Contract.tenant_id == tenant_id)
         .where(Contract.detected_industry != None)
         .group_by(Contract.detected_industry)
     )
+    q = apply_bu_filter(q, bu_id, role)
+    industry_result = await db.execute(q)
     contracts_by_industry = {
         row[0].value if row[0] else "unknown": row[1]
         for row in industry_result.fetchall()
     }
 
     # Total gaps
-    gap_count_result = await db.execute(
+    q = (
         select(func.count(ComplianceGap.id))
         .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(Contract.tenant_id == tenant_id)
     )
+    q = apply_bu_filter(q, bu_id, role)
+    gap_count_result = await db.execute(q)
     total_gaps = gap_count_result.scalar() or 0
 
     # Gaps by severity
-    severity_result = await db.execute(
+    q = (
         select(ComplianceGap.severity, func.count(ComplianceGap.id))
         .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(Contract.tenant_id == tenant_id)
         .group_by(ComplianceGap.severity)
     )
+    q = apply_bu_filter(q, bu_id, role)
+    severity_result = await db.execute(q)
     gaps_by_severity = {
         row[0].value: row[1] for row in severity_result.fetchall()
     }
 
     # Gaps by status
-    status_result = await db.execute(
+    q = (
         select(ComplianceGap.status, func.count(ComplianceGap.id))
         .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(Contract.tenant_id == tenant_id)
         .group_by(ComplianceGap.status)
     )
+    q = apply_bu_filter(q, bu_id, role)
+    status_result = await db.execute(q)
     gaps_by_status = {
         row[0].value: row[1] for row in status_result.fetchall()
     }
 
     # Overdue gaps
-    overdue_result = await db.execute(
+    q = (
         select(func.count(ComplianceGap.id))
         .join(Contract, ComplianceGap.contract_id == Contract.id)
         .where(Contract.tenant_id == tenant_id)
@@ -916,29 +967,35 @@ async def get_compliance_dashboard(
             ComplianceGapStatus.IN_PROGRESS,
         ]))
     )
+    q = apply_bu_filter(q, bu_id, role)
+    overdue_result = await db.execute(q)
     overdue_gaps = overdue_result.scalar() or 0
 
     # Average compliance score
-    avg_score_result = await db.execute(
+    q = (
         select(func.avg(Contract.compliance_score))
         .where(Contract.tenant_id == tenant_id)
         .where(Contract.compliance_score != None)
     )
+    q = apply_bu_filter(q, bu_id, role)
+    avg_score_result = await db.execute(q)
     average_compliance_score = float(avg_score_result.scalar() or 0)
 
     # Critical gaps count
     critical_gaps = gaps_by_severity.get("critical", 0)
 
     # Regulatory obligations
-    obl_count_result = await db.execute(
+    q = (
         select(func.count(RegulatoryObligation.id))
         .join(Contract)
         .where(Contract.tenant_id == tenant_id)
     )
+    q = apply_bu_filter(q, bu_id, role)
+    obl_count_result = await db.execute(q)
     regulatory_obligations_count = obl_count_result.scalar() or 0
 
     # Obligations needing attention
-    obl_attention_result = await db.execute(
+    q = (
         select(func.count(RegulatoryObligation.id))
         .join(Contract)
         .where(Contract.tenant_id == tenant_id)
@@ -947,6 +1004,8 @@ async def get_compliance_dashboard(
             RAGStatus.RED,
         ]))
     )
+    q = apply_bu_filter(q, bu_id, role)
+    obl_attention_result = await db.execute(q)
     obligations_needing_attention = obl_attention_result.scalar() or 0
 
     return ComplianceDashboardSummary(
@@ -970,6 +1029,9 @@ async def get_compliance_by_industry(
     tenant_id: UUID = Depends(get_current_tenant_id),
 ):
     """Get compliance summary by industry."""
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
+
     # Get contracts grouped by industry
     query = (
         select(
@@ -981,6 +1043,7 @@ async def get_compliance_by_industry(
         .where(Contract.detected_industry != None)
         .group_by(Contract.detected_industry)
     )
+    query = apply_bu_filter(query, bu_id, role)
 
     result = await db.execute(query)
     industry_stats = result.fetchall()
@@ -999,6 +1062,7 @@ async def get_compliance_by_industry(
             .where(Contract.detected_industry == industry)
             .group_by(ComplianceGap.severity, ComplianceGap.status)
         )
+        gap_query = apply_bu_filter(gap_query, bu_id, role)
         gap_result = await db.execute(gap_query)
         gap_rows = gap_result.fetchall()
 
@@ -1045,6 +1109,9 @@ async def list_contracts_compliance(
     tenant_id: UUID = Depends(get_current_tenant_id),
 ):
     """List contracts with their compliance summaries."""
+    bu_id = getattr(current_user, "business_unit_id", None)
+    role = current_user.role.value if current_user.role else None
+
     query = (
         select(
             Contract,
@@ -1064,6 +1131,7 @@ async def list_contracts_compliance(
         .where(Contract.tenant_id == tenant_id)
         .group_by(Contract.id)
     )
+    query = apply_bu_filter(query, bu_id, role)
 
     if industry:
         try:

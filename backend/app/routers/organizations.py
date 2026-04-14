@@ -276,15 +276,16 @@ async def delete_organization(
 @router.get("/{org_id}/relationships", response_model=List[dict])
 async def get_organization_relationships(
     org_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get all business relationships for an organization."""
     from app.models import BusinessRelationship
 
-    result = await db.execute(
-        select(Organization).where(Organization.id == org_id)
-    )
+    query = select(Organization).where(Organization.id == org_id)
+    query = apply_tenant_filter(query, tenant_id, Organization)
+    result = await db.execute(query)
     org = result.scalar_one_or_none()
 
     if not org:
@@ -300,6 +301,7 @@ async def get_organization_relationships(
             BusinessRelationship.org_b_id == org_id,
         )
     )
+    relationships_query = apply_tenant_filter(relationships_query, tenant_id, BusinessRelationship)
     result = await db.execute(relationships_query)
     relationships = result.scalars().all()
 
