@@ -1,4 +1,7 @@
-"""API endpoints for KPI management (Evaluetor features)."""
+"""API endpoints for KPI management (Evaluetor features).
+
+Thin HTTP handlers delegating to kpi_service for business logic.
+"""
 
 from uuid import UUID
 from datetime import datetime
@@ -6,21 +9,18 @@ from decimal import Decimal
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func, and_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role, CurrentUser, CurrentTenantId
+from app.core.deps import CurrentUser, CurrentTenantId
 from app.models import (
-    User,
     KPI,
     KPICategory,
-    KPIMeasurementType,
     PerceptionScore,
     PerceptionGap,
     GapSeverity,
-    ScoreApprovalStatus,
     BusinessRelationship,
     Organization,
 )
@@ -39,20 +39,15 @@ from app.schemas.kpi import (
     ScoreApprovalAction,
     PendingApprovalResponse,
 )
+from app.services.kpi_service import (
+    apply_tenant_filter_kpi,
+    enrich_kpi_response,
+    recalculate_gap,
+    score_to_response,
+    gap_to_response,
+)
 
 router = APIRouter(prefix="/api/kpis", tags=["KPIs"])
-
-
-def apply_tenant_filter_kpi(query, tenant_id):
-    """Apply tenant filter to KPI query via relationship/organization join."""
-    if tenant_id is not None:
-        # Filter by checking if the KPI's relationship's organization belongs to tenant
-        query = query.join(
-            BusinessRelationship, KPI.relationship_id == BusinessRelationship.id
-        ).join(
-            Organization, BusinessRelationship.org_a_id == Organization.id
-        ).where(Organization.tenant_id == tenant_id)
-    return query
 
 
 # ===== KPI CRUD =====
@@ -87,7 +82,7 @@ async def list_kpis(
     # Enrich with latest scores
     items = []
     for kpi in kpis:
-        response = await _enrich_kpi_response(kpi, db)
+        response = await enrich_kpi_response(kpi, db)
         items.append(response)
 
     return KPIListResponse(items=items, total=len(items))
@@ -114,7 +109,7 @@ async def create_kpi(
     await db.commit()
     await db.refresh(kpi)
 
-    return await _enrich_kpi_response(kpi, db)
+    return await enrich_kpi_response(kpi, db)
 
 
 # ===== Score Approval Workflow =====
@@ -209,7 +204,7 @@ async def get_kpi(
             detail="KPI not found",
         )
 
-    return await _enrich_kpi_response(kpi, db)
+    return await enrich_kpi_response(kpi, db)
 
 
 @router.put("/{kpi_id}", response_model=KPIResponse)
@@ -238,7 +233,7 @@ async def update_kpi(
     await db.commit()
     await db.refresh(kpi)
 
-    return await _enrich_kpi_response(kpi, db)
+    return await enrich_kpi_response(kpi, db)
 
 
 @router.delete("/{kpi_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -306,7 +301,7 @@ async def list_perception_scores(
     scores = result.scalars().all()
 
     return PerceptionScoreListResponse(
-        items=[_score_to_response(s) for s in scores],
+        items=[score_to_response(s) for s in scores],
         total=len(scores),
     )
 
@@ -357,7 +352,7 @@ async def submit_perception_score(
     await db.refresh(score)
 
     # Recalculate gap for this period
-    await _recalculate_gap(kpi_id, data.period, db)
+    await recalculate_gap(kpi_id, data.period, db)
 
     # Reload with relationships
     result = await db.execute(
@@ -369,7 +364,7 @@ async def submit_perception_score(
     )
     score = result.scalar_one()
 
-    return _score_to_response(score)
+    return score_to_response(score)
 
 
 # ===== Score Approval Workflow =====
@@ -438,7 +433,7 @@ async def approve_perception_score(
     await db.refresh(score)
 
     # Recalculate gap now that this score is approved
-    await _recalculate_gap(kpi_id, score.period, db)
+    await recalculate_gap(kpi_id, score.period, db)
 
     # Reload with relationships
     result = await db.execute(
@@ -450,7 +445,7 @@ async def approve_perception_score(
     )
     score = result.scalar_one()
 
-    return _score_to_response(score)
+    return score_to_response(score)
 
 
 @router.post("/{kpi_id}/scores/{score_id}/reject", response_model=PerceptionScoreResponse)
@@ -526,7 +521,7 @@ async def reject_perception_score(
     )
     score = result.scalar_one()
 
-    return _score_to_response(score)
+    return score_to_response(score)
 
 
 @router.put("/{kpi_id}/scores/{score_id}", response_model=PerceptionScoreResponse)
@@ -583,7 +578,7 @@ async def update_perception_score(
     await db.refresh(score)
 
     # Recalculate gap after score modification
-    await _recalculate_gap(kpi_id, score.period, db)
+    await recalculate_gap(kpi_id, score.period, db)
 
     result = await db.execute(
         select(PerceptionScore).where(PerceptionScore.id == score.id).options(
@@ -594,7 +589,7 @@ async def update_perception_score(
     )
     score = result.scalar_one()
 
-    return _score_to_response(score)
+    return score_to_response(score)
 
 
 @router.delete("/{kpi_id}/scores/{score_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -644,7 +639,7 @@ async def delete_perception_score(
     await db.commit()
 
     # Recalculate gap after score deletion
-    await _recalculate_gap(kpi_id, score_period, db)
+    await recalculate_gap(kpi_id, score_period, db)
 
 
 # ===== Perception Gaps =====
@@ -679,7 +674,7 @@ async def list_perception_gaps(
     periods.sort(reverse=True)
 
     return PerceptionGapListResponse(
-        items=[_gap_to_response(g, kpi) for g in gaps],
+        items=[gap_to_response(g, kpi) for g in gaps],
         total=len(gaps),
         periods=periods,
     )
@@ -729,7 +724,7 @@ async def list_relationship_gaps(
     periods.sort(reverse=True)
 
     return PerceptionGapListResponse(
-        items=[_gap_to_response(g, g.kpi) for g in gaps],
+        items=[gap_to_response(g, g.kpi) for g in gaps],
         total=len(gaps),
         periods=periods,
     )
@@ -792,128 +787,4 @@ async def get_gap_summary(
         average_gap=Decimal(str(round(avg_gap, 2))) if avg_gap else None,
         worst_gap_kpi_name=worst_kpi,
         worst_gap_value=worst_gap,
-    )
-
-
-# ===== Helper Functions =====
-
-async def _enrich_kpi_response(kpi: KPI, db: AsyncSession) -> KPIResponse:
-    """Enrich KPI with latest perception data."""
-    response = KPIResponse.model_validate(kpi)
-
-    # Get latest gap
-    gap_result = await db.execute(
-        select(PerceptionGap).where(
-            PerceptionGap.kpi_id == kpi.id
-        ).order_by(PerceptionGap.period.desc()).limit(1)
-    )
-    latest_gap = gap_result.scalar_one_or_none()
-
-    if latest_gap:
-        response.latest_internal_score = latest_gap.internal_score
-        response.latest_external_score = latest_gap.external_score
-        response.latest_gap = latest_gap.gap
-        response.latest_gap_severity = latest_gap.gap_severity
-
-    return response
-
-
-async def _recalculate_gap(kpi_id: UUID, period: str, db: AsyncSession) -> None:
-    """Recalculate perception gap for a KPI and period.
-
-    Only approved scores are included in gap calculations.
-    """
-    # Get only approved scores for this period
-    scores_result = await db.execute(
-        select(PerceptionScore).where(
-            PerceptionScore.kpi_id == kpi_id,
-            PerceptionScore.period == period,
-            PerceptionScore.approval_status == "approved",
-        )
-    )
-    scores = scores_result.scalars().all()
-
-    internal_scores = [s.score for s in scores if s.is_internal]
-    external_scores = [s.score for s in scores if not s.is_internal]
-
-    internal_avg = sum(internal_scores) / len(internal_scores) if internal_scores else None
-    external_avg = sum(external_scores) / len(external_scores) if external_scores else None
-
-    gap = None
-    severity = None
-    requires_action = False
-
-    if internal_avg is not None and external_avg is not None:
-        gap = Decimal(str(round(float(internal_avg) - float(external_avg), 2)))
-        severity = PerceptionGap.calculate_severity(gap)
-        requires_action = severity in [GapSeverity.SIGNIFICANT, GapSeverity.CRITICAL]
-
-    # Find or create gap record
-    gap_result = await db.execute(
-        select(PerceptionGap).where(
-            PerceptionGap.kpi_id == kpi_id,
-            PerceptionGap.period == period,
-        )
-    )
-    gap_record = gap_result.scalar_one_or_none()
-
-    if gap_record:
-        gap_record.internal_score = Decimal(str(round(float(internal_avg), 2))) if internal_avg else None
-        gap_record.external_score = Decimal(str(round(float(external_avg), 2))) if external_avg else None
-        gap_record.gap = gap
-        gap_record.gap_severity = severity
-        gap_record.requires_action = requires_action
-        gap_record.calculated_at = datetime.utcnow()
-    else:
-        gap_record = PerceptionGap(
-            kpi_id=kpi_id,
-            period=period,
-            internal_score=Decimal(str(round(float(internal_avg), 2))) if internal_avg else None,
-            external_score=Decimal(str(round(float(external_avg), 2))) if external_avg else None,
-            gap=gap,
-            gap_severity=severity,
-            requires_action=requires_action,
-        )
-        db.add(gap_record)
-
-    await db.commit()
-
-
-def _score_to_response(score: PerceptionScore) -> PerceptionScoreResponse:
-    """Convert score model to response."""
-    return PerceptionScoreResponse(
-        id=score.id,
-        kpi_id=score.kpi_id,
-        scorer_org_id=score.scorer_org_id,
-        scored_by_user_id=score.scored_by_user_id,
-        score=score.score,
-        period=score.period,
-        comments=score.comments,
-        is_internal=score.is_internal,
-        scored_at=score.scored_at,
-        approval_status=score.approval_status,
-        approved_by=score.approved_by,
-        approved_at=score.approved_at,
-        approval_comments=score.approval_comments,
-        scorer_org_name=score.scorer_org.name if score.scorer_org else None,
-        scored_by_name=score.scored_by.full_name if score.scored_by else None,
-        approver_name=score.approver.full_name if score.approver else None,
-    )
-
-
-def _gap_to_response(gap: PerceptionGap, kpi: KPI = None) -> PerceptionGapResponse:
-    """Convert gap model to response."""
-    return PerceptionGapResponse(
-        id=gap.id,
-        kpi_id=gap.kpi_id,
-        period=gap.period,
-        internal_score=gap.internal_score,
-        external_score=gap.external_score,
-        gap=gap.gap,
-        gap_severity=gap.gap_severity,
-        requires_action=gap.requires_action,
-        notes=gap.notes,
-        calculated_at=gap.calculated_at,
-        kpi_name=kpi.name if kpi else None,
-        kpi_category=kpi.category if kpi else None,
     )
