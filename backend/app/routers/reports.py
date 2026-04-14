@@ -21,6 +21,7 @@ from app.schemas.report import (
     ComplianceReportResponse,
     TrendDataPoint,
     ComplianceTrendResponse,
+    QuickSummaryResponse,
     ExportRequest,
 )
 from app.services.reporting_service import (
@@ -392,7 +393,7 @@ async def export_compliance_report(
         )
 
 
-@router.get("/summary")
+@router.get("/summary", response_model=QuickSummaryResponse)
 async def get_quick_summary(
     current_user: CurrentUser = None,
     tenant_id: CurrentTenantId = None,

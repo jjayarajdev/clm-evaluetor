@@ -153,6 +153,19 @@ class ScheduledReportResponse(BaseModel):
     created_at: datetime
 
 
+class QuickSummaryResponse(BaseModel):
+    """Quick compliance summary for the current month."""
+
+    period: str
+    overall_compliance: float
+    obligation_compliance: float
+    sla_compliance: float
+    obligations_overdue: int
+    slas_breached: int
+    total_penalties: float
+    high_risk_contracts: int
+
+
 class ExportRequest(BaseModel):
     """Request for report export."""
 
