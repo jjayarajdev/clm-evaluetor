@@ -1,7 +1,7 @@
 """Add dashboard_cache table and tenant_id to metric_snapshots
 
-Revision ID: a0b1c2d3e4f5
-Revises: z9a0b1c2d3e4
+Revision ID: dc01_dashboard_cache
+Revises: ses01_aws_ses
 Create Date: 2026-04-14
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'a0b1c2d3e4f5'
-down_revision: Union[str, None] = 'z9a0b1c2d3e4'
+revision: str = 'dc01_dashboard_cache'
+down_revision: Union[str, None] = 'ses01_aws_ses'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
