@@ -237,6 +237,13 @@ class IndexingService:
             contract.status = ContractStatus.COMPLETED
             await self.db.flush()
 
+            # Invalidate dashboard caches for this tenant
+            try:
+                from app.services.metric_snapshot_service import invalidate_dashboard_cache
+                await invalidate_dashboard_cache(self.db, contract.tenant_id)
+            except Exception as e:
+                logger.warning(f"Dashboard cache invalidation failed: {e}")
+
             # Run hierarchy detection to suggest related contracts
             try:
                 from app.services.hierarchy_detection import detect_hierarchy

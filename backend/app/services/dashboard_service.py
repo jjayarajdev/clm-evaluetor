@@ -2,11 +2,18 @@
 
 Business logic for role-specific dashboards, portfolio analytics, and
 contract intelligence aggregation. Extracted from routers/dashboard.py.
+
+Supports optional dashboard cache: heavy endpoints check DashboardCache
+first and store results on cache miss. Cache is invalidated by
+contract/obligation mutations via invalidate_dashboard_cache().
 """
 
+import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Optional
+from uuid import UUID
 
 from sqlalchemy import func, select, Integer, cast, case
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,6 +55,12 @@ from app.schemas.dashboard import (
     InsightItem, InsightsResponse,
     ActivityItem, ActivityResponse,
 )
+from app.services.metric_snapshot_service import (
+    get_cached_dashboard,
+    set_cached_dashboard,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _bu_args(current_user):
@@ -55,6 +68,11 @@ def _bu_args(current_user):
     bu_id = current_user.business_unit_id if current_user else None
     role = current_user.role.value if current_user and current_user.role else None
     return bu_id, role
+
+
+def _cache_key_for_bu(bu_id, role) -> str:
+    """Build cache sub-key from BU filter params."""
+    return f"bu={bu_id or 'all'}|role={role or 'none'}"
 
 
 # ============== Admin Dashboard ==============
@@ -1484,3 +1502,79 @@ async def get_activity(
     activities = [item for _, item in timed_activities[:limit]]
 
     return ActivityResponse(activities=activities)
+
+
+# ============== Cache-Through Wrappers ==============
+
+
+async def get_admin_dashboard_cached(
+    db: AsyncSession, tenant_id, bu_id, role,
+) -> AdminDashboardResponse:
+    """Admin dashboard with cache-through."""
+    cache_key = _cache_key_for_bu(bu_id, role)
+    cached = await get_cached_dashboard(db, tenant_id, "admin", cache_key)
+    if cached:
+        return AdminDashboardResponse(**cached)
+
+    result = await get_admin_dashboard(db, tenant_id, bu_id, role)
+    await set_cached_dashboard(db, tenant_id, "admin", result.model_dump(mode="json"), cache_key)
+    return result
+
+
+async def get_legal_dashboard_cached(
+    db: AsyncSession, tenant_id, bu_id, role, current_user_id,
+) -> LegalDashboardResponse:
+    """Legal dashboard with cache-through."""
+    cache_key = _cache_key_for_bu(bu_id, role)
+    cached = await get_cached_dashboard(db, tenant_id, "legal", cache_key)
+    if cached:
+        return LegalDashboardResponse(**cached)
+
+    result = await get_legal_dashboard(db, tenant_id, bu_id, role, current_user_id)
+    await set_cached_dashboard(db, tenant_id, "legal", result.model_dump(mode="json"), cache_key)
+    return result
+
+
+async def get_procurement_dashboard_cached(
+    db: AsyncSession, tenant_id, bu_id, role,
+) -> ProcurementDashboardResponse:
+    """Procurement dashboard with cache-through."""
+    cache_key = _cache_key_for_bu(bu_id, role)
+    cached = await get_cached_dashboard(db, tenant_id, "procurement", cache_key)
+    if cached:
+        return ProcurementDashboardResponse(**cached)
+
+    result = await get_procurement_dashboard(db, tenant_id, bu_id, role)
+    await set_cached_dashboard(db, tenant_id, "procurement", result.model_dump(mode="json"), cache_key)
+    return result
+
+
+async def get_portfolio_dashboard_cached(
+    db: AsyncSession, tenant_id, bu_id, role,
+) -> PortfolioDashboardResponse:
+    """Portfolio dashboard with cache-through."""
+    cache_key = _cache_key_for_bu(bu_id, role)
+    cached = await get_cached_dashboard(db, tenant_id, "portfolio", cache_key)
+    if cached:
+        return PortfolioDashboardResponse(**cached)
+
+    result = await get_portfolio_dashboard(db, tenant_id, bu_id, role)
+    await set_cached_dashboard(db, tenant_id, "portfolio", result.model_dump(mode="json"), cache_key)
+    return result
+
+
+async def get_obligations_compliance_cached(
+    db: AsyncSession, tenant_id, bu_id, role,
+    contract_id=None, owner_filter=None, category_filter=None,
+) -> ObligationsComplianceResponse:
+    """Obligations compliance with cache-through."""
+    cache_key = f"{_cache_key_for_bu(bu_id, role)}|cid={contract_id}|own={owner_filter}|cat={category_filter}"
+    cached = await get_cached_dashboard(db, tenant_id, "obligations", cache_key)
+    if cached:
+        return ObligationsComplianceResponse(**cached)
+
+    result = await get_obligations_compliance(
+        db, tenant_id, bu_id, role, contract_id, owner_filter, category_filter,
+    )
+    await set_cached_dashboard(db, tenant_id, "obligations", result.model_dump(mode="json"), cache_key)
+    return result

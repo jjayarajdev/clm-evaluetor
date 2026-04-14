@@ -1,23 +1,24 @@
-"""Metric Snapshot model for historical tracking."""
+"""Metric Snapshot and Dashboard Cache models for performance optimization."""
 
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import Column, String, Integer, Numeric, Date, DateTime, Index
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Integer, Numeric, Date, DateTime, Index, Text, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from app.database import Base
 
 
 class MetricSnapshot(Base):
-    """Daily snapshot of key metrics for trend analysis."""
+    """Daily snapshot of key metrics for trend analysis, per tenant."""
 
     __tablename__ = "metric_snapshots"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=True)
 
-    # Snapshot date (one record per day)
+    # Snapshot date (one record per tenant per day)
     snapshot_date = Column(Date, nullable=False, index=True)
 
     # Contract metrics
@@ -49,8 +50,38 @@ class MetricSnapshot(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
-        Index('ix_metric_snapshot_date_unique', 'snapshot_date', unique=True),
+        Index('ix_metric_snapshot_tenant_date', 'tenant_id', 'snapshot_date', unique=True),
     )
 
     def __repr__(self):
-        return f"<MetricSnapshot {self.snapshot_date}>"
+        return f"<MetricSnapshot tenant={self.tenant_id} {self.snapshot_date}>"
+
+
+class DashboardCache(Base):
+    """Pre-computed dashboard responses stored as JSON.
+
+    Cache-through pattern: dashboard endpoints check cache first,
+    compute on miss, store result. Invalidated on data mutations.
+    """
+
+    __tablename__ = "dashboard_cache"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=True)
+
+    # Cache key: dashboard type (admin, legal, procurement, portfolio, etc.)
+    dashboard_type = Column(String(50), nullable=False)
+
+    # Optional sub-key for filtered views (e.g., bu_id, contract_id)
+    cache_key = Column(String(255), nullable=True, default="")
+
+    # Pre-computed response as JSON
+    data = Column(JSONB, nullable=False)
+
+    # Cache validity
+    computed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+
+    __table_args__ = (
+        Index('ix_dashboard_cache_lookup', 'tenant_id', 'dashboard_type', 'cache_key', unique=True),
+    )

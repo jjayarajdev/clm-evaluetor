@@ -161,7 +161,7 @@ from app.models.contract_document import (
     SignatureType,
     SignatureStatus,
 )
-from app.models.metric_snapshot import MetricSnapshot
+from app.models.metric_snapshot import MetricSnapshot, DashboardCache
 # Industry-Aware Compliance Module
 from app.models.industry import (
     Industry,
@@ -381,8 +381,9 @@ __all__ = [
     "DocumentType",
     "SignatureType",
     "SignatureStatus",
-    # Metric Snapshots
+    # Metric Snapshots & Dashboard Cache
     "MetricSnapshot",
+    "DashboardCache",
     # Industry-Aware Compliance
     "Industry",
     "ComplianceDocumentType",

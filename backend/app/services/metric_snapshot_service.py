@@ -1,15 +1,16 @@
-"""Service for capturing and retrieving metric snapshots."""
+"""Service for capturing metric snapshots and managing dashboard cache."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
     MetricSnapshot,
+    DashboardCache,
     Contract,
     ContractStatus,
     Obligation,
@@ -17,31 +18,38 @@ from app.models import (
     RAGStatus,
     ContractSLA,
 )
+from app.core.tenant import apply_tenant_filter
 
 
-async def capture_daily_snapshot(db: AsyncSession) -> MetricSnapshot:
-    """
-    Capture current metrics and store as daily snapshot.
-    Should be called once per day by the scheduler.
+# ============== Metric Snapshots ==============
+
+
+async def capture_daily_snapshot(
+    db: AsyncSession, tenant_id: Optional[UUID] = None,
+) -> MetricSnapshot:
+    """Capture current metrics as daily snapshot for a specific tenant.
+
+    If tenant_id is None, captures global (cross-tenant) metrics.
     """
     today = date.today()
 
-    # Check if snapshot already exists for today
-    existing = await db.execute(
-        select(MetricSnapshot).where(MetricSnapshot.snapshot_date == today)
+    # Check if snapshot already exists for this tenant+date
+    existing_result = await db.execute(
+        select(MetricSnapshot).where(
+            MetricSnapshot.snapshot_date == today,
+            MetricSnapshot.tenant_id == tenant_id,
+        )
     )
-    if existing.scalar_one_or_none():
-        # Update existing snapshot
-        snapshot = existing.scalar_one()
-    else:
-        # Create new snapshot
-        snapshot = MetricSnapshot(snapshot_date=today)
+    snapshot = existing_result.scalar_one_or_none()
+
+    if not snapshot:
+        snapshot = MetricSnapshot(snapshot_date=today, tenant_id=tenant_id)
         db.add(snapshot)
 
-    # Get completed contracts
-    contracts_result = await db.execute(
-        select(Contract).where(Contract.status == ContractStatus.COMPLETED)
-    )
+    # Get completed contracts (tenant-filtered)
+    contracts_query = select(Contract).where(Contract.status == ContractStatus.COMPLETED)
+    contracts_query = apply_tenant_filter(contracts_query, tenant_id, Contract)
+    contracts_result = await db.execute(contracts_query)
     contracts = list(contracts_result.scalars().all())
 
     # Contract metrics
@@ -50,14 +58,16 @@ async def capture_daily_snapshot(db: AsyncSession) -> MetricSnapshot:
         Decimal(str(c.contract_value)) for c in contracts if c.contract_value
     ) or Decimal('0')
 
-    # Count at-risk contracts (those with high risk level or overdue obligations)
     at_risk_count = sum(1 for c in contracts if c.risk_level and c.risk_level.value == 'high')
     snapshot.contracts_at_risk = at_risk_count
 
     # Obligation metrics
-    obligations_result = await db.execute(
-        select(Obligation).join(Contract).where(Contract.status == ContractStatus.COMPLETED)
+    obligations_query = (
+        select(Obligation).join(Contract)
+        .where(Contract.status == ContractStatus.COMPLETED)
     )
+    obligations_query = apply_tenant_filter(obligations_query, tenant_id, Contract)
+    obligations_result = await db.execute(obligations_query)
     obligations = list(obligations_result.scalars().all())
 
     snapshot.obligations_total = len(obligations)
@@ -68,8 +78,7 @@ async def capture_daily_snapshot(db: AsyncSession) -> MetricSnapshot:
         1 for o in obligations if o.status == ObligationStatus.OVERDUE
     )
 
-    # Compliance rate — only obligations that are due or have no deadline
-    # Exclude pending obligations with future deadlines (not yet actionable)
+    # Compliance rate
     waived = sum(1 for o in obligations if o.status == ObligationStatus.WAIVED)
     in_progress = sum(1 for o in obligations if o.status == ObligationStatus.IN_PROGRESS)
     pending_future = sum(1 for o in obligations
@@ -84,15 +93,17 @@ async def capture_daily_snapshot(db: AsyncSession) -> MetricSnapshot:
         snapshot.compliance_rate = Decimal('100.00')
 
     # SLA metrics
-    slas_result = await db.execute(
-        select(ContractSLA).join(Contract).where(Contract.status == ContractStatus.COMPLETED)
+    slas_query = (
+        select(ContractSLA).join(Contract)
+        .where(Contract.status == ContractStatus.COMPLETED)
     )
+    slas_query = apply_tenant_filter(slas_query, tenant_id, Contract)
+    slas_result = await db.execute(slas_query)
     slas = list(slas_result.scalars().all())
 
     snapshot.slas_total = len(slas)
     snapshot.slas_breached = sum(1 for s in slas if s.consecutive_breaches > 0)
 
-    # SLA compliance rate
     compliance_rates = [
         float(s.current_compliance_rate)
         for s in slas
@@ -106,9 +117,7 @@ async def capture_daily_snapshot(db: AsyncSession) -> MetricSnapshot:
         snapshot.sla_compliance_rate = Decimal('100.00')
 
     # Renewal metrics
-    renewals_30 = 0
-    renewals_60 = 0
-    renewals_90 = 0
+    renewals_30 = renewals_60 = renewals_90 = 0
     for c in contracts:
         if c.expiration_date:
             days_until = (c.expiration_date - today).days
@@ -123,11 +132,10 @@ async def capture_daily_snapshot(db: AsyncSession) -> MetricSnapshot:
     snapshot.renewals_due_60_days = renewals_60
     snapshot.renewals_due_90_days = renewals_90
 
-    # Vendor metrics (unique counterparties)
+    # Vendor metrics
     counterparties = set(c.counterparty for c in contracts if c.counterparty)
     snapshot.total_vendors = len(counterparties)
 
-    # Vendors at risk (counterparties with high-risk contracts)
     at_risk_vendors = set(
         c.counterparty for c in contracts
         if c.counterparty and c.risk_level and c.risk_level.value == 'high'
@@ -136,7 +144,6 @@ async def capture_daily_snapshot(db: AsyncSession) -> MetricSnapshot:
 
     await db.commit()
     await db.refresh(snapshot)
-
     return snapshot
 
 
@@ -144,35 +151,24 @@ async def get_metric_history(
     db: AsyncSession,
     days: int = 30,
     end_date: Optional[date] = None,
-    tenant_id: Optional[UUID] = None,  # TODO: Implement per-tenant metrics
+    tenant_id: Optional[UUID] = None,
 ) -> list[MetricSnapshot]:
-    """
-    Get metric snapshots for the specified number of days.
-
-    Args:
-        db: Database session
-        days: Number of days of history to retrieve
-        end_date: End date (defaults to today)
-
-    Returns:
-        List of MetricSnapshot objects ordered by date ascending
-    """
+    """Get metric snapshots for a tenant over the specified period."""
     if end_date is None:
         end_date = date.today()
 
     start_date = end_date - timedelta(days=days - 1)
 
-    result = await db.execute(
+    query = (
         select(MetricSnapshot)
         .where(
-            and_(
-                MetricSnapshot.snapshot_date >= start_date,
-                MetricSnapshot.snapshot_date <= end_date
-            )
+            MetricSnapshot.snapshot_date >= start_date,
+            MetricSnapshot.snapshot_date <= end_date,
+            MetricSnapshot.tenant_id == tenant_id,
         )
         .order_by(MetricSnapshot.snapshot_date.asc())
     )
-
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 
@@ -180,65 +176,148 @@ async def get_trend_data(
     db: AsyncSession,
     metric: str,
     days: int = 7,
-    tenant_id: Optional[UUID] = None,  # TODO: Implement per-tenant metrics
+    tenant_id: Optional[UUID] = None,
 ) -> list[dict]:
-    """
-    Get trend data for a specific metric.
+    """Get trend data for a specific metric."""
+    snapshots = await get_metric_history(db, days=days, tenant_id=tenant_id)
 
-    Args:
-        db: Database session
-        metric: Name of the metric field
-        days: Number of days of history
-
-    Returns:
-        List of {date, value} dicts
-    """
-    snapshots = await get_metric_history(db, days=days)
-
-    # Map metric names to snapshot fields
-    metric_map = {
-        'total_contracts': 'total_contracts',
-        'contracts_at_risk': 'contracts_at_risk',
-        'compliance_rate': 'compliance_rate',
-        'total_contract_value': 'total_contract_value',
-        'obligations_total': 'obligations_total',
-        'obligations_completed': 'obligations_completed',
-        'obligations_overdue': 'obligations_overdue',
-        'sla_compliance_rate': 'sla_compliance_rate',
-        'slas_breached': 'slas_breached',
-        'renewals_due_30_days': 'renewals_due_30_days',
-        'total_vendors': 'total_vendors',
-        'vendors_at_risk': 'vendors_at_risk',
+    metric_fields = {
+        'total_contracts', 'contracts_at_risk', 'compliance_rate',
+        'total_contract_value', 'obligations_total', 'obligations_completed',
+        'obligations_overdue', 'sla_compliance_rate', 'slas_breached',
+        'renewals_due_30_days', 'total_vendors', 'vendors_at_risk',
     }
 
-    field = metric_map.get(metric)
-    if not field:
+    if metric not in metric_fields:
         return []
 
     return [
         {
             'date': s.snapshot_date.isoformat(),
-            'value': float(getattr(s, field, 0) or 0)
+            'value': float(getattr(s, metric, 0) or 0)
         }
         for s in snapshots
     ]
 
 
-async def backfill_snapshots(db: AsyncSession, days: int = 30) -> int:
+# ============== Dashboard Cache ==============
+
+# Default TTL: 5 minutes for dashboards
+DASHBOARD_CACHE_TTL = timedelta(minutes=5)
+
+
+async def get_cached_dashboard(
+    db: AsyncSession,
+    tenant_id: Optional[UUID],
+    dashboard_type: str,
+    cache_key: str = "",
+) -> Optional[dict]:
+    """Get cached dashboard response if still valid."""
+    now = datetime.utcnow()
+
+    result = await db.execute(
+        select(DashboardCache).where(
+            DashboardCache.tenant_id == tenant_id,
+            DashboardCache.dashboard_type == dashboard_type,
+            DashboardCache.cache_key == (cache_key or ""),
+            DashboardCache.expires_at > now,
+        )
+    )
+    cache_entry = result.scalar_one_or_none()
+
+    if cache_entry:
+        return cache_entry.data
+    return None
+
+
+async def set_cached_dashboard(
+    db: AsyncSession,
+    tenant_id: Optional[UUID],
+    dashboard_type: str,
+    data: dict,
+    cache_key: str = "",
+    ttl: Optional[timedelta] = None,
+) -> None:
+    """Store computed dashboard response in cache."""
+    now = datetime.utcnow()
+    expires = now + (ttl or DASHBOARD_CACHE_TTL)
+
+    # Upsert: find existing or create
+    result = await db.execute(
+        select(DashboardCache).where(
+            DashboardCache.tenant_id == tenant_id,
+            DashboardCache.dashboard_type == dashboard_type,
+            DashboardCache.cache_key == (cache_key or ""),
+        )
+    )
+    cache_entry = result.scalar_one_or_none()
+
+    if cache_entry:
+        cache_entry.data = data
+        cache_entry.computed_at = now
+        cache_entry.expires_at = expires
+    else:
+        cache_entry = DashboardCache(
+            tenant_id=tenant_id,
+            dashboard_type=dashboard_type,
+            cache_key=cache_key or "",
+            data=data,
+            computed_at=now,
+            expires_at=expires,
+        )
+        db.add(cache_entry)
+
+    await db.commit()
+
+
+async def invalidate_dashboard_cache(
+    db: AsyncSession,
+    tenant_id: Optional[UUID],
+    dashboard_types: Optional[list[str]] = None,
+) -> int:
+    """Invalidate cached dashboards for a tenant.
+
+    Args:
+        tenant_id: Tenant whose caches to invalidate. None = global.
+        dashboard_types: Specific types to invalidate. None = all.
+
+    Returns:
+        Number of cache entries deleted.
     """
-    Backfill missing snapshots using current real data with slight variation.
-    First captures a real snapshot for today, then creates historical points
-    with small daily variations to simulate realistic trends.
+    query = delete(DashboardCache).where(DashboardCache.tenant_id == tenant_id)
+
+    if dashboard_types:
+        query = query.where(DashboardCache.dashboard_type.in_(dashboard_types))
+
+    result = await db.execute(query)
+    await db.commit()
+    return result.rowcount
+
+
+async def cleanup_expired_cache(db: AsyncSession) -> int:
+    """Remove all expired cache entries."""
+    result = await db.execute(
+        delete(DashboardCache).where(DashboardCache.expires_at <= datetime.utcnow())
+    )
+    await db.commit()
+    return result.rowcount
+
+
+# ============== Demo / Backfill ==============
+
+
+async def backfill_snapshots(db: AsyncSession, days: int = 30) -> int:
+    """Backfill missing snapshots with simulated data based on today's real values.
+
+    Demo/testing only — in production use real historical data.
     """
     import random
 
     today = date.today()
     created = 0
 
-    # Capture real data for today first
     today_snapshot = await capture_daily_snapshot(db)
 
-    # Use today's real values as the base
     base = {
         'total_contracts': today_snapshot.total_contracts,
         'contracts_at_risk': today_snapshot.contracts_at_risk,
@@ -261,15 +340,20 @@ async def backfill_snapshots(db: AsyncSession, days: int = 30) -> int:
         snapshot_date = today - timedelta(days=i)
 
         existing = await db.execute(
-            select(MetricSnapshot).where(MetricSnapshot.snapshot_date == snapshot_date)
+            select(MetricSnapshot).where(
+                MetricSnapshot.snapshot_date == snapshot_date,
+                MetricSnapshot.tenant_id == today_snapshot.tenant_id,
+            )
         )
         if existing.scalar_one_or_none():
             continue
 
-        snapshot = MetricSnapshot(snapshot_date=snapshot_date)
+        snapshot = MetricSnapshot(
+            snapshot_date=snapshot_date,
+            tenant_id=today_snapshot.tenant_id,
+        )
 
-        # Apply small daily drift from the real base values
-        drift = i  # days ago
+        drift = i
         snapshot.total_contracts = max(1, base['total_contracts'] - drift // 7)
         snapshot.contracts_at_risk = max(0, base['contracts_at_risk'] + random.randint(-1, 1))
         snapshot.total_contract_value = Decimal(str(max(0, base['total_contract_value'] * (1 - drift * 0.005 + random.uniform(-0.01, 0.01)))))

@@ -129,6 +129,18 @@ async def update_obligation_status(
     await db.commit()
     await db.refresh(obligation)
 
+    # Invalidate dashboard caches affected by obligation status changes
+    try:
+        from app.services.metric_snapshot_service import invalidate_dashboard_cache
+        contract = await db.get(Contract, obligation.contract_id)
+        if contract:
+            await invalidate_dashboard_cache(
+                db, contract.tenant_id,
+                dashboard_types=["admin", "legal", "obligations", "portfolio"],
+            )
+    except Exception:
+        pass  # Cache invalidation is best-effort
+
     return obligation_to_response(obligation)
 
 

@@ -166,7 +166,7 @@ async def get_admin_dashboard(
 ) -> AdminDashboardResponse:
     """Get admin dashboard data. Admin only."""
     bu_id, role = _bu_args(current_user)
-    return await dashboard_service.get_admin_dashboard(db, tenant_id, bu_id, role)
+    return await dashboard_service.get_admin_dashboard_cached(db, tenant_id, bu_id, role)
 
 
 @router.get("/legal", response_model=LegalDashboardResponse)
@@ -177,7 +177,7 @@ async def get_legal_dashboard(
 ) -> LegalDashboardResponse:
     """Get legal dashboard data. Admin and Legal users only."""
     bu_id, role = _bu_args(current_user)
-    return await dashboard_service.get_legal_dashboard(db, tenant_id, bu_id, role, current_user.id)
+    return await dashboard_service.get_legal_dashboard_cached(db, tenant_id, bu_id, role, current_user.id)
 
 
 @router.get("/procurement", response_model=ProcurementDashboardResponse)
@@ -188,7 +188,7 @@ async def get_procurement_dashboard(
 ) -> ProcurementDashboardResponse:
     """Get procurement dashboard data. Admin and Procurement users only."""
     bu_id, role = _bu_args(current_user)
-    return await dashboard_service.get_procurement_dashboard(db, tenant_id, bu_id, role)
+    return await dashboard_service.get_procurement_dashboard_cached(db, tenant_id, bu_id, role)
 
 
 # ============== Contract Intelligence ==============
@@ -733,7 +733,7 @@ async def get_obligations_compliance_dashboard(
 ) -> ObligationsComplianceResponse:
     """Get Obligations & Compliance dashboard with RAG status tracking."""
     bu_id, role = _bu_args(current_user)
-    return await dashboard_service.get_obligations_compliance(
+    return await dashboard_service.get_obligations_compliance_cached(
         db, tenant_id, bu_id, role, contract_id, owner_filter, category_filter,
     )
 
@@ -749,7 +749,7 @@ async def get_portfolio_dashboard(
 ) -> PortfolioDashboardResponse:
     """Get Portfolio Dashboard with cross-contract analytics."""
     bu_id, role = _bu_args(current_user)
-    return await dashboard_service.get_portfolio_dashboard(db, tenant_id, bu_id, role)
+    return await dashboard_service.get_portfolio_dashboard_cached(db, tenant_id, bu_id, role)
 
 
 # ============== Definitions ==============
