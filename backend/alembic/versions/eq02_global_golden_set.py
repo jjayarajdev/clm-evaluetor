@@ -1,7 +1,7 @@
 """Make golden_set_contracts.tenant_id nullable for global/platform entries.
 
-Revision ID: a1b2c3d4e5f6
-Revises: z9a0b1c2d3e4
+Revision ID: eq02_global_golden_set
+Revises: eq01_extraction_quality
 Create Date: 2026-04-15 00:00:00.000000
 """
 from typing import Sequence, Union
@@ -10,7 +10,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers
-revision: str = "a1b2c3d4e5f6"
+revision: str = "eq02_global_golden_set"
 down_revision: str = "eq01_extraction_quality"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
