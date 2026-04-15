@@ -23,6 +23,7 @@ import {
   LinkIcon,
   ClipboardDocumentListIcon,
   ShieldCheckIcon,
+  BeakerIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSidebar } from '@/contexts/SidebarContext'
@@ -60,6 +61,7 @@ const adminNavigation = [
   { name: 'Business Units', href: '/admin/business-units', icon: BuildingOffice2Icon, roles: ['admin'] },
   { name: 'External Users', href: '/admin/external-users', icon: UserGroupIcon, roles: ['admin'] },
   { name: 'ServiceNow', href: '/admin/integrations/servicenow', icon: CloudArrowUpIcon, roles: ['admin'] },
+  { name: 'Extraction Quality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['admin'] },
   { name: 'Master Data', href: '/admin/master-data', icon: CircleStackIcon, roles: ['admin'] },
   { name: 'Scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
 ]
@@ -68,6 +70,7 @@ const superAdminNavigation = [
   { name: 'Platform Overview', href: '/super-admin', icon: GlobeAltIcon, roles: ['super_admin'] },
   { name: 'Tenants', href: '/super-admin/tenants', icon: BuildingOffice2Icon, roles: ['super_admin'] },
   { name: 'All Users', href: '/super-admin/users', icon: UserGroupIcon, roles: ['super_admin'] },
+  { name: 'Extraction Quality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['super_admin'] },
   { name: 'Custom Fields', href: '/super-admin/custom-fields', icon: AdjustmentsHorizontalIcon, roles: ['super_admin'] },
   { name: 'Integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, roles: ['super_admin'] },
 ]

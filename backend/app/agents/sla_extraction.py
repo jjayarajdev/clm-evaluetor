@@ -219,17 +219,32 @@ async def extract_slas(
     contract_text: str,
     contract_id: str,
     user_id: str,
+    few_shot_context: str = "",
+    tenant_id: str | None = None,
 ) -> SLAExtractionResult | None:
-    """Extract SLAs from contract text using AI.
+    """Extract SLAs from contract text using DSPy (if compiled) or AI.
 
     Args:
         contract_text: The full contract text.
         contract_id: Contract ID for context.
         user_id: User ID for tracing.
+        tenant_id: Tenant UUID string for DSPy compiled program lookup.
 
     Returns:
         SLAExtractionResult or None if extraction fails.
     """
+    # Try DSPy compiled program first
+    if tenant_id:
+        try:
+            from uuid import UUID as _UUID
+            from app.services.dspy_extractor import dspy_extract_slas
+            result = await dspy_extract_slas(contract_text, _UUID(tenant_id))
+            if result and result.slas:
+                logger.info(f"DSPy SLA extraction returned {len(result.slas)} SLAs for {contract_id}")
+                return result
+        except Exception as e:
+            logger.debug(f"DSPy SLA extraction unavailable, falling back: {e}")
+
     logger.info(f"Extracting SLAs from contract {contract_id}")
 
     # Truncate if too long (keep key sections)
@@ -258,7 +273,7 @@ async def extract_slas(
     try:
         response = await orchestrator.invoke_agent(
             agent_name="sla_extraction",
-            prompt=f"Extract all SLAs from this contract:\n\n{contract_text}",
+            prompt=f"Extract all SLAs from this contract:\n{few_shot_context}\n{contract_text}",
             user_id=user_id,
             contract_id=contract_id,
         )

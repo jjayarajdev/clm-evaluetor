@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import type { User, LoginRequest } from '@/types'
 
@@ -21,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     // Check for existing session
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (credentials: LoginRequest) => {
+    queryClient.clear()
     const response = await api.login(credentials)
     setUser(response.user)
 
@@ -68,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await api.logout()
+    queryClient.clear()
     setUser(null)
     navigate('/login')
   }

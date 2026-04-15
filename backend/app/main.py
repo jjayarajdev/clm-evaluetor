@@ -22,6 +22,8 @@ from app.routers import (
     chat,
     # ServiceNow Integration
     snow_integration,
+    # Extraction Quality
+    extraction_quality,
 )
 from app.services.vector_store import get_vector_store
 from app.services.orchestrator import get_orchestrator, initialize_default_agents
@@ -310,3 +312,6 @@ app.include_router(external_portal.router)
 
 # ServiceNow Integration
 app.include_router(snow_integration.router)
+
+# Extraction Quality
+app.include_router(extraction_quality.router)

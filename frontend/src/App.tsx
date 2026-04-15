@@ -18,6 +18,7 @@ import SchedulerPage from './pages/admin/SchedulerPage'
 import BusinessUnitsPage from './pages/admin/BusinessUnitsPage'
 import ExternalUsersPage from './pages/admin/ExternalUsersPage'
 import SnowIntegrationPage from './pages/admin/SnowIntegrationPage'
+import ExtractionQualityPage from './pages/admin/ExtractionQualityPage'
 import ExternalContractPage from './pages/ExternalContractPage'
 import RenewalsPage from './pages/RenewalsPage'
 import VendorsPage from './pages/VendorsPage'
@@ -105,6 +106,7 @@ function App() {
         <Route path="admin/business-units" element={<BusinessUnitsPage />} />
         <Route path="admin/external-users" element={<ExternalUsersPage />} />
         <Route path="admin/integrations/servicenow" element={<SnowIntegrationPage />} />
+        <Route path="admin/extraction-quality" element={<ExtractionQualityPage />} />
         {/* Super Admin Routes */}
         <Route path="super-admin" element={<SuperAdminDashboardPage />} />
         <Route path="super-admin/tenants" element={<TenantManagementPage />} />

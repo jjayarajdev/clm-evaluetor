@@ -245,7 +245,8 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
         full_text = parsed.full_text
         logger.info(f"[DEEP ANALYSIS] Parsed {len(full_text)} chars for {contract_id}")
 
-        # Store extracted text on contract
+        # Store extracted text on contract and fetch tenant_id for few-shot
+        tenant_id = None
         async with async_session_maker() as session:
             result = await session.execute(
                 select(Contract).where(Contract.id == cid_uuid)
@@ -253,14 +254,35 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             contract = result.scalar_one_or_none()
             if contract:
                 contract.extracted_text = full_text
+                tenant_id = contract.tenant_id
                 await session.commit()
 
+        # Build few-shot context from golden set for this tenant
+        clause_few_shot = ""
+        obligation_few_shot = ""
+        sla_few_shot = ""
+        if tenant_id:
+            try:
+                from app.services.few_shot_service import get_few_shot_context
+                async with async_session_maker() as session:
+                    clause_few_shot = await get_few_shot_context(session, tenant_id, "clause")
+                    obligation_few_shot = await get_few_shot_context(session, tenant_id, "obligation")
+                    sla_few_shot = await get_few_shot_context(session, tenant_id, "sla")
+                if any([clause_few_shot, obligation_few_shot, sla_few_shot]):
+                    logger.info(f"[DEEP ANALYSIS] Using golden-set few-shot examples")
+            except Exception as e:
+                logger.debug(f"[DEEP ANALYSIS] Few-shot context skipped: {e}")
+
         # --- AI extraction stage (no DB needed) ---
+        tenant_id_str = str(tenant_id) if tenant_id else None
+
         tracker.update_progress(contract_id, ProcessingStage.CLAUSE_EXTRACTION, "Extracting clauses...")
         clause_result = await extract_clauses(
             contract_text=full_text,
             contract_id=contract_id,
             user_id=user_id,
+            few_shot_context=clause_few_shot,
+            tenant_id=tenant_id_str,
         )
         logger.info(f"[DEEP ANALYSIS] Extracted {len(clause_result.extracted_clauses) if clause_result else 0} clauses")
 
@@ -269,6 +291,8 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             contract_text=full_text,
             contract_id=contract_id,
             user_id=user_id,
+            few_shot_context=obligation_few_shot,
+            tenant_id=tenant_id_str,
         )
         logger.info(f"[DEEP ANALYSIS] Extracted {len(obligation_result.obligations) if obligation_result else 0} obligations")
 
@@ -277,6 +301,8 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             contract_text=full_text,
             contract_id=contract_id,
             user_id=user_id,
+            few_shot_context=sla_few_shot,
+            tenant_id=tenant_id_str,
         )
         logger.info(f"[DEEP ANALYSIS] Extracted {len(sla_result.slas) if sla_result else 0} SLAs")
 
@@ -2130,11 +2156,24 @@ async def analyze_contract(
             import logging
             logging.info(f"Parsed {len(full_text)} chars for deep analysis of {contract_id}")
 
+            # Build few-shot context from golden set
+            c_fs = o_fs = s_fs = ""
+            if contract.tenant_id:
+                try:
+                    from app.services.few_shot_service import get_few_shot_context
+                    async with async_session_maker() as fs_session:
+                        c_fs = await get_few_shot_context(fs_session, contract.tenant_id, "clause")
+                        o_fs = await get_few_shot_context(fs_session, contract.tenant_id, "obligation")
+                        s_fs = await get_few_shot_context(fs_session, contract.tenant_id, "sla")
+                except Exception:
+                    pass
+
             # Run clause extraction (AI call)
             clause_result = await extract_clauses(
                 contract_text=full_text,
                 contract_id=contract_id,
                 user_id=str(current_user.id),
+                few_shot_context=c_fs,
             )
             logging.info(f"Extracted {len(clause_result.extracted_clauses) if clause_result else 0} clauses")
 
@@ -2143,6 +2182,7 @@ async def analyze_contract(
                 contract_text=full_text,
                 contract_id=contract_id,
                 user_id=str(current_user.id),
+                few_shot_context=o_fs,
             )
             logging.info(f"Extracted {len(obligation_result.obligations) if obligation_result else 0} obligations")
 
@@ -2151,6 +2191,7 @@ async def analyze_contract(
                 contract_text=full_text,
                 contract_id=contract_id,
                 user_id=str(current_user.id),
+                few_shot_context=s_fs,
             )
             logging.info(f"Extracted {len(sla_result.slas) if sla_result else 0} SLAs")
 
@@ -3579,7 +3620,9 @@ async def download_contract_file(
 
     # Convert DOCX to PDF if requested
     mime = contract.mime_type or ""
-    is_docx = "wordprocessingml" in mime or "msword" in mime
+    fname = (contract.filename or "").lower()
+    is_docx = ("wordprocessingml" in mime or "msword" in mime
+               or fname.endswith(".docx") or fname.endswith(".doc"))
     if as_pdf and is_docx:
         # Check for cached PDF
         cached_pdf = file_path.with_suffix(".pdf")

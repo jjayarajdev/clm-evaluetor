@@ -248,6 +248,7 @@ async def extract_metadata(
     user_id: str | None = None,
     user_role: str | None = None,
     excluded_parties: list[str] | None = None,
+    few_shot_context: str = "",
 ) -> ExtractedMetadata:
     """Extract metadata from contract text using the AI agent.
 
@@ -299,7 +300,7 @@ If the document mentions "between {excluded_parties[0]} and [OtherCompany]", the
 """
 
     query = f"""Extract metadata from the following contract text:
-{filename_hint}{exclusion_hint}
+{filename_hint}{exclusion_hint}{few_shot_context}
 ---
 {text_sample}
 ---
@@ -1068,6 +1069,8 @@ async def extract_metadata_with_fallback(
     user_id: str | None = None,
     user_role: str | None = None,
     excluded_parties: list[str] | None = None,
+    few_shot_context: str = "",
+    tenant_id: str | None = None,
 ) -> ExtractedMetadata:
     """Extract metadata using AI with regex fallback.
 
@@ -1076,12 +1079,26 @@ async def extract_metadata_with_fallback(
         contract_id: Optional contract ID for context.
         user_id: User ID for RBAC.
         user_role: User role for RBAC.
+        few_shot_context: Optional golden set examples for prompt injection.
+        tenant_id: Tenant UUID string for DSPy compiled program lookup.
 
     Returns:
         ExtractedMetadata with best available data.
     """
+    # Try DSPy compiled program first
+    if tenant_id:
+        try:
+            from uuid import UUID as _UUID
+            from app.services.dspy_extractor import dspy_extract_metadata
+            result = await dspy_extract_metadata(contract_text, _UUID(tenant_id))
+            if result and result.overall_confidence >= 0.6:
+                logger.info(f"DSPy metadata extraction returned result for {contract_id}")
+                return result
+        except Exception as e:
+            logger.debug(f"DSPy metadata extraction unavailable, falling back: {e}")
+
     # Try AI extraction first
-    ai_metadata = await extract_metadata(contract_text, contract_id, user_id, user_role, excluded_parties)
+    ai_metadata = await extract_metadata(contract_text, contract_id, user_id, user_role, excluded_parties, few_shot_context=few_shot_context)
 
     # If AI extraction got good results, use it
     if ai_metadata.overall_confidence >= 0.6:

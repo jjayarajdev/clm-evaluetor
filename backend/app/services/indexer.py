@@ -17,6 +17,7 @@ from app.services.vector_store import ChunkMetadata, VectorStore, get_vector_sto
 from app.agents.metadata_extraction import extract_metadata_with_fallback, update_contract_metadata
 from app.agents.risk_detection import assess_risk, update_contract_risk
 from app.services.custom_field_extraction import extract_custom_fields
+from app.services.few_shot_service import get_few_shot_context
 from app.services.progress_tracker import get_progress_tracker, ProcessingStage
 from app.models.tenant import Tenant
 
@@ -142,6 +143,18 @@ class IndexingService:
                 except Exception:
                     pass
 
+            # Build few-shot context from golden set
+            meta_few_shot = ""
+            if contract.tenant_id:
+                try:
+                    meta_few_shot = await get_few_shot_context(
+                        self.db, contract.tenant_id, "metadata"
+                    )
+                    if meta_few_shot:
+                        logger.info(f"Using golden-set few-shot examples for metadata extraction")
+                except Exception as e:
+                    logger.debug(f"Few-shot context skipped: {e}")
+
             try:
                 metadata = await extract_metadata_with_fallback(
                     contract_text=full_text,
@@ -149,6 +162,8 @@ class IndexingService:
                     user_id=user_id,
                     user_role=user_role,
                     excluded_parties=excluded_parties if excluded_parties else None,
+                    few_shot_context=meta_few_shot,
+                    tenant_id=str(contract.tenant_id) if contract.tenant_id else None,
                 )
                 await update_contract_metadata(self.db, contract, metadata, excluded_parties=excluded_parties if excluded_parties else None)
                 logger.info(f"Metadata extracted for contract {contract.id} (confidence: {metadata.overall_confidence:.2f})")

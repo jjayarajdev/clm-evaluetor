@@ -757,3 +757,150 @@ export async function getNotificationRuleStats(): Promise<unknown> {
   const response = await client.get('/notification-rules/summary/stats')
   return response.data
 }
+
+// ============================================================================
+// Extraction Quality / Golden Set
+// ============================================================================
+
+export async function getExtractionQualityOverview(): Promise<{
+  total_golden: number
+  total_global: number
+  total_tenant: number
+  verified: number
+  pending_review: number
+  avg_overall_score: number | null
+  avg_metadata_score: number | null
+  avg_clause_score: number | null
+  avg_obligation_score: number | null
+  avg_sla_score: number | null
+}> {
+  const response = await client.get('/admin/extraction-quality/overview')
+  return response.data
+}
+
+export async function getGoldenSetContracts(): Promise<Array<{
+  id: string
+  contract_id: string
+  filename: string
+  contract_type: string | null
+  counterparty: string | null
+  status: string | null
+  is_baseline: boolean
+  is_global: boolean
+  notes: string | null
+  added_at: string | null
+  extraction: {
+    metadata_completeness: number
+    clause_count: number
+    obligation_count: number
+    sla_count: number
+  }
+  verification: {
+    pending: number
+    correct: number
+    incorrect: number
+    partial: number
+  }
+  scores: {
+    metadata: number | null
+    clause: number | null
+    obligation: number | null
+    sla: number | null
+    overall: number | null
+  }
+}>> {
+  const response = await client.get('/admin/extraction-quality/golden-set')
+  return response.data
+}
+
+export async function addToGoldenSet(contractId: string, notes?: string, isGlobal?: boolean): Promise<{ id: string; contract_id: string; is_global: boolean; status: string }> {
+  const response = await client.post(`/admin/extraction-quality/golden-set/${contractId}`, { notes, is_global: isGlobal || false })
+  return response.data
+}
+
+export async function removeFromGoldenSet(contractId: string, isGlobal?: boolean): Promise<void> {
+  await client.delete(`/admin/extraction-quality/golden-set/${contractId}`, { params: isGlobal ? { is_global: true } : undefined })
+}
+
+export async function getExtractionDetail(contractId: string): Promise<{
+  contract_id: string
+  filename: string
+  contract_status: string | null
+  is_golden: boolean
+  is_global: boolean
+  golden_set_id: string | null
+  metadata: Array<{
+    field: string
+    value: unknown
+    verification: { status: string; corrected_value: unknown; notes: string | null; verified_at: string | null } | null
+  }>
+  clauses: Array<{
+    id: string
+    clause_type: string | null
+    text: string | null
+    section_number: string | null
+    page_number: number | null
+    risk_level: string | null
+    confidence: number | null
+    verification: { status: string; corrected_value: unknown; notes: string | null; verified_at: string | null } | null
+  }>
+  obligations: Array<{
+    id: string
+    description: string | null
+    obligation_type: string | null
+    obligated_party: string | null
+    deadline_type: string | null
+    deadline: string | null
+    status: string | null
+    is_critical: boolean
+    verification: { status: string; corrected_value: unknown; notes: string | null; verified_at: string | null } | null
+  }>
+  slas: Array<{
+    id: string
+    sla_name: string | null
+    metric_type: string | null
+    target_value: number | null
+    metric_unit: string | null
+    severity: string | null
+    has_penalty: boolean
+    penalty_value: number | null
+    verification: { status: string; corrected_value: unknown; notes: string | null; verified_at: string | null } | null
+  }>
+  summary: {
+    metadata_filled: number
+    metadata_total: number
+    clause_count: number
+    obligation_count: number
+    sla_count: number
+    avg_clause_confidence: number | null
+  }
+}> {
+  const response = await client.get(`/admin/extraction-quality/contracts/${contractId}`)
+  return response.data
+}
+
+export async function verifyExtraction(data: {
+  golden_set_id: string
+  entity_type: string
+  entity_id: string
+  status: 'correct' | 'incorrect' | 'partial'
+  corrected_value?: Record<string, unknown>
+  notes?: string
+}): Promise<{ id: string; status: string; entity_type: string; entity_id: string }> {
+  const response = await client.post('/admin/extraction-quality/verify', data)
+  return response.data
+}
+
+export async function bulkVerifyExtraction(data: {
+  golden_set_id: string
+  verifications: Array<{
+    entity_type: string
+    entity_id: string
+    status: 'correct' | 'incorrect' | 'partial'
+    corrected_value?: Record<string, unknown>
+    notes?: string
+  }>
+}): Promise<{ verified: number; results: Array<{ entity_type: string; entity_id: string; status: string }> }> {
+  const response = await client.post('/admin/extraction-quality/verify/bulk', data)
+  return response.data
+}

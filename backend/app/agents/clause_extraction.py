@@ -154,17 +154,32 @@ async def extract_clauses(
     contract_text: str,
     contract_id: str | None = None,
     user_id: str | None = None,
+    few_shot_context: str = "",
+    tenant_id: str | None = None,
 ) -> ClauseExtractionResult:
-    """Extract clauses from contract text using the AI agent.
+    """Extract clauses from contract text using DSPy (if compiled) or AI agent.
 
     Args:
         contract_text: The contract text to extract clauses from.
         contract_id: Optional contract ID for context.
         user_id: User ID for tracking.
+        tenant_id: Tenant UUID string for DSPy compiled program lookup.
 
     Returns:
         ClauseExtractionResult with all extracted clauses.
     """
+    # Try DSPy compiled program first
+    if tenant_id:
+        try:
+            from uuid import UUID as _UUID
+            from app.services.dspy_extractor import dspy_extract_clauses
+            result = await dspy_extract_clauses(contract_text, _UUID(tenant_id))
+            if result and result.extracted_clauses:
+                logger.info(f"DSPy clause extraction returned {len(result.extracted_clauses)} clauses")
+                return result
+        except Exception as e:
+            logger.debug(f"DSPy clause extraction unavailable, falling back: {e}")
+
     orchestrator = get_orchestrator()
 
     # Process in chunks if document is very long
@@ -180,7 +195,7 @@ async def extract_clauses(
 
     for i, chunk in enumerate(chunks):
         query = f"""Extract all clauses from this contract section (part {i + 1} of {len(chunks)}):
-
+{few_shot_context}
 ---
 {chunk}
 ---

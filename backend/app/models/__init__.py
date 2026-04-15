@@ -193,6 +193,12 @@ from app.models.knowledge_graph import (
     KGRelationship,
     KGRelationshipType,
 )
+# Extraction Quality / Golden Set
+from app.models.extraction_quality import (
+    GoldenSetContract,
+    ExtractionVerification,
+    VerificationStatus,
+)
 
 __all__ = [
     # Base
@@ -408,4 +414,8 @@ __all__ = [
     "KGEntityType",
     "KGRelationship",
     "KGRelationshipType",
+    # Extraction Quality / Golden Set
+    "GoldenSetContract",
+    "ExtractionVerification",
+    "VerificationStatus",
 ]

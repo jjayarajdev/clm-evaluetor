@@ -179,19 +179,32 @@ async def extract_obligations(
     contract_text: str,
     contract_id: str | None = None,
     user_id: str | None = None,
+    few_shot_context: str = "",
+    tenant_id: str | None = None,
 ) -> ObligationExtractionResult:
-    """Extract obligations from contract text using the AI agent.
-
-    Processes full contract by splitting into chunks and aggregating results.
+    """Extract obligations from contract text using DSPy (if compiled) or AI agent.
 
     Args:
         contract_text: The contract text to extract obligations from.
         contract_id: Optional contract ID for context.
         user_id: User ID for tracking.
+        tenant_id: Tenant UUID string for DSPy compiled program lookup.
 
     Returns:
         ObligationExtractionResult with all extracted obligations.
     """
+    # Try DSPy compiled program first
+    if tenant_id:
+        try:
+            from uuid import UUID as _UUID
+            from app.services.dspy_extractor import dspy_extract_obligations
+            result = await dspy_extract_obligations(contract_text, _UUID(tenant_id))
+            if result and result.obligations:
+                logger.info(f"DSPy obligation extraction returned {len(result.obligations)} obligations")
+                return result
+        except Exception as e:
+            logger.debug(f"DSPy obligation extraction unavailable, falling back: {e}")
+
     orchestrator = get_orchestrator()
 
     # Split large contracts into chunks for complete processing
@@ -205,7 +218,7 @@ async def extract_obligations(
         chunk_label = f"[Part {chunk_idx + 1}/{len(chunks)}]" if len(chunks) > 1 else ""
 
         query = f"""Extract all contractual obligations from the following contract {chunk_label}:
-
+{few_shot_context}
 ---
 {chunk_text}
 ---
