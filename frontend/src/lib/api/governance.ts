@@ -170,7 +170,7 @@ export async function getPerceptionGaps(kpiId: string): Promise<import('@/types/
 }
 
 export async function getRelationshipGapSummary(relationshipId: string, period?: string): Promise<import('@/types/governance').GapSummary> {
-  const response = await client.get(`/kpis/relationship/${relationshipId}/gaps`, {
+  const response = await client.get(`/kpis/relationship/${relationshipId}/summary`, {
     params: period ? { period } : undefined
   })
   return response.data

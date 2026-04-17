@@ -101,17 +101,6 @@ class ImprovementPoint(Base):
     def __repr__(self) -> str:
         return f"<ImprovementPoint {self.id}: {self.title[:30]}>"
 
-    @property
-    def progress_percentage(self) -> int:
-        """Calculate progress based on completed actions."""
-        total = self.actions.count()
-        if total == 0:
-            return 0
-        completed = self.actions.filter(
-            ImprovementAction.status == ActionStatus.COMPLETED
-        ).count()
-        return int((completed / total) * 100)
-
 
 class ActionStatus(str, enum.Enum):
     """Status of an improvement action."""

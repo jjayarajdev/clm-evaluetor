@@ -2,18 +2,18 @@
 
 Supports two tiers of golden set:
 - Global/platform (tenant_id=NULL, is_global=True): Managed by super admin,
-  visible to and benefits ALL tenants.
+  visible ONLY to super admin.
 - Tenant-specific (tenant_id set, is_global=False): Managed by tenant admin,
   visible only to that tenant.
 
-Tenant admins see both global + their own tenant entries.
-Super admins see all entries across all tenants.
+Tenant admins see only their own tenant entries.
+Super admins see all entries across all tenants (including global/CUAD).
 """
 
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -23,16 +23,23 @@ from app.models import (
 )
 
 
+def _is_uuid(val: str) -> bool:
+    """Check if a string is a valid UUID."""
+    try:
+        UUID(val)
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
 def _golden_set_filter(query, tenant_id: UUID | None, model=GoldenSetContract):
     """Apply golden set visibility filter.
 
-    - Super admin (tenant_id=None): sees everything
-    - Tenant admin: sees global entries (tenant_id IS NULL) + own tenant entries
+    - Super admin (tenant_id=None): sees everything (including global/CUAD)
+    - Tenant admin: sees ONLY their own tenant entries (no global/CUAD)
     """
     if tenant_id is not None:
-        return query.where(
-            or_(model.tenant_id == tenant_id, model.tenant_id.is_(None))
-        )
+        return query.where(model.tenant_id == tenant_id)
     return query
 
 
@@ -80,11 +87,22 @@ async def get_golden_set_overview(db: AsyncSession, tenant_id: UUID | None) -> d
     }
 
 
-async def list_golden_set(db: AsyncSession, tenant_id: UUID | None) -> list[dict]:
-    """List all contracts in the visible golden set with extraction stats."""
-    query = select(GoldenSetContract).options(selectinload(GoldenSetContract.contract))
-    query = _golden_set_filter(query, tenant_id)
+async def list_golden_set(
+    db: AsyncSession, tenant_id: UUID | None,
+    page: int = 1, page_size: int = 25,
+) -> dict:
+    """List contracts in the visible golden set with extraction stats (paginated)."""
+    base_query = select(GoldenSetContract)
+    base_query = _golden_set_filter(base_query, tenant_id)
+
+    # Count total
+    count_q = select(func.count(GoldenSetContract.id))
+    count_q = _golden_set_filter(count_q, tenant_id)
+    total = await db.scalar(count_q) or 0
+
+    query = base_query.options(selectinload(GoldenSetContract.contract))
     query = query.order_by(GoldenSetContract.is_global.desc(), GoldenSetContract.created_at.desc())
+    query = query.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
     golden_contracts = result.scalars().all()
 
@@ -153,7 +171,14 @@ async def list_golden_set(db: AsyncSession, tenant_id: UUID | None) -> list[dict
             },
         })
 
-    return items
+    import math
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": math.ceil(total / page_size) if page_size > 0 else 0,
+    }
 
 
 async def get_extraction_detail(
@@ -166,6 +191,7 @@ async def get_extraction_detail(
         query = query.where(Contract.tenant_id == tenant_id)
     result = await db.execute(query)
     contract = result.scalar_one_or_none()
+
     if not contract:
         return None
 
@@ -198,9 +224,12 @@ async def get_extraction_detail(
             }
             verifications[key] = v_data
 
-            # Collect manually-added items (entity_id starts with "manual_")
-            if v.entity_id and v.entity_id.startswith("manual_"):
+            # Collect non-extracted items (manual additions or CUAD ground truth)
+            # These have non-UUID entity_ids (e.g. "manual_xxx", "cuad_xxx")
+            _is_reference = v.entity_id and not _is_uuid(v.entity_id)
+            if _is_reference:
                 corr = v.corrected_value or {}
+                is_cuad = v.entity_id.startswith("cuad_")
                 if v.entity_type == "clause":
                     manual_clauses.append({
                         "id": v.entity_id,
@@ -210,7 +239,8 @@ async def get_extraction_detail(
                         "page_number": corr.get("page_number"),
                         "risk_level": corr.get("risk_level"),
                         "confidence": None,
-                        "is_manual": True,
+                        "is_manual": not is_cuad,
+                        "is_cuad": is_cuad,
                         "verification": v_data,
                     })
                 elif v.entity_type == "obligation":
@@ -223,7 +253,8 @@ async def get_extraction_detail(
                         "deadline": corr.get("deadline"),
                         "status": None,
                         "is_critical": corr.get("is_critical", False),
-                        "is_manual": True,
+                        "is_manual": not is_cuad,
+                        "is_cuad": is_cuad,
                         "verification": v_data,
                     })
                 elif v.entity_type == "sla":
@@ -236,7 +267,8 @@ async def get_extraction_detail(
                         "severity": corr.get("severity"),
                         "has_penalty": corr.get("has_penalty", False),
                         "penalty_value": corr.get("penalty_value"),
-                        "is_manual": True,
+                        "is_manual": not is_cuad,
+                        "is_cuad": is_cuad,
                         "verification": v_data,
                     })
 
@@ -334,6 +366,7 @@ async def get_extraction_detail(
         "is_golden": golden is not None,
         "is_global": golden.is_global if golden else False,
         "golden_set_id": str(golden.id) if golden else None,
+        "extracted_text": contract.extracted_text,
         "metadata": metadata,
         "clauses": clauses,
         "obligations": obligations,
@@ -448,11 +481,10 @@ async def verify_extraction(
     if not gs:
         raise ValueError("Golden set entry not found")
 
-    # Security: tenant admin can verify their own + global entries
+    # Security: tenant admin can only verify their own entries (not global/CUAD)
     if tenant_id is not None:
-        if gs.tenant_id is not None and gs.tenant_id != tenant_id:
+        if gs.tenant_id != tenant_id:
             raise ValueError("Golden set not found or does not belong to this tenant")
-        # gs.tenant_id is None (global) — tenant admin CAN verify global entries
     # else: super admin — can verify anything
 
     # Check for existing verification
@@ -540,3 +572,96 @@ async def _recompute_scores(db: AsyncSession, golden_set_id: UUID) -> None:
             weighted_sum += score * weight
             weight_total += weight
     golden.overall_score = round(weighted_sum / weight_total, 1) if weight_total > 0 else None
+
+
+async def bulk_auto_approve_all(
+    db: AsyncSession, tenant_id: UUID | None, user_id: UUID,
+) -> dict:
+    """Auto-approve ALL extractable items for all visible golden set contracts.
+
+    Creates 'correct' verifications for every metadata field, clause, obligation,
+    and SLA that hasn't been verified yet. Then recomputes scores.
+    """
+    query = select(GoldenSetContract).options(selectinload(GoldenSetContract.contract))
+    query = _golden_set_filter(query, tenant_id)
+    result = await db.execute(query)
+    golden_contracts = result.scalars().all()
+
+    now = datetime.now(timezone.utc)
+    total_created = 0
+    contracts_processed = 0
+
+    meta_fields = [
+        "contract_type", "counterparty", "effective_date", "expiration_date",
+        "contract_value", "currency", "jurisdiction", "governing_law",
+    ]
+
+    for g in golden_contracts:
+        contract = g.contract
+        if not contract:
+            continue
+
+        # Get existing verifications for this golden set entry
+        existing = await db.execute(
+            select(ExtractionVerification.entity_type, ExtractionVerification.entity_id)
+            .where(ExtractionVerification.golden_set_id == g.id)
+        )
+        existing_keys = {(r[0], r[1]) for r in existing.all()}
+
+        items_to_verify: list[tuple[str, str]] = []
+
+        # Metadata fields
+        for field in meta_fields:
+            key = ("metadata_field", field)
+            if key not in existing_keys:
+                items_to_verify.append(key)
+
+        # Clauses
+        clause_result = await db.execute(
+            select(Clause.id).where(Clause.contract_id == contract.id)
+        )
+        for (cid,) in clause_result.all():
+            key = ("clause", str(cid))
+            if key not in existing_keys:
+                items_to_verify.append(key)
+
+        # Obligations
+        obl_result = await db.execute(
+            select(Obligation.id).where(Obligation.contract_id == contract.id)
+        )
+        for (oid,) in obl_result.all():
+            key = ("obligation", str(oid))
+            if key not in existing_keys:
+                items_to_verify.append(key)
+
+        # SLAs
+        sla_result = await db.execute(
+            select(ContractSLA.id).where(ContractSLA.contract_id == contract.id)
+        )
+        for (sid,) in sla_result.all():
+            key = ("sla", str(sid))
+            if key not in existing_keys:
+                items_to_verify.append(key)
+
+        # Bulk insert verifications
+        for entity_type, entity_id in items_to_verify:
+            db.add(ExtractionVerification(
+                golden_set_id=g.id,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                status="correct",
+                verified_by=user_id,
+                verified_at=now,
+            ))
+            total_created += 1
+
+        if items_to_verify:
+            await db.flush()
+            await _recompute_scores(db, g.id)
+            contracts_processed += 1
+
+    return {
+        "contracts_processed": contracts_processed,
+        "verifications_created": total_created,
+        "total_golden_contracts": len(golden_contracts),
+    }

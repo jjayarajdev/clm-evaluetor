@@ -26,6 +26,8 @@ class IntegrationSystem(str, enum.Enum):
     teams = "teams"
     webhook = "webhook"
     aws_ses = "aws_ses"
+    sharepoint = "sharepoint"
+    sso_oidc = "sso_oidc"
 
 
 class IntegrationStatus(str, enum.Enum):

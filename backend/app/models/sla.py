@@ -96,6 +96,17 @@ class ContractSLA(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
 
+    # Link to master data template (optional — set when added from library)
+    master_data_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sla_master_data.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    master_data: Mapped["SLAMasterData | None"] = relationship(
+        "SLAMasterData",
+        lazy="selectin",
+    )
+
     # SLA identification
     sla_name: Mapped[str] = mapped_column(
         String(200),

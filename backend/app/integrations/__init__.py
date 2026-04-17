@@ -13,6 +13,7 @@ from app.integrations.salesforce import SalesforceClient
 from app.integrations.email import SendGridClient, SMTPClient, EmailService
 from app.integrations.ses import SESClient
 from app.integrations.teams import TeamsClient
+from app.integrations.sharepoint import SharePointClient
 
 __all__ = [
     "BaseIntegrationClient",
@@ -24,4 +25,5 @@ __all__ = [
     "SESClient",
     "EmailService",
     "TeamsClient",
+    "SharePointClient",
 ]

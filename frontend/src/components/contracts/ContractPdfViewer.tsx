@@ -7,6 +7,7 @@ import {
   ChevronRightIcon,
   MagnifyingGlassMinusIcon,
   MagnifyingGlassPlusIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -327,8 +328,10 @@ export default function ContractPdfViewer({
 
   if (error || !pdfUrl) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-gray-50 text-gray-500">
-        <p className="text-sm">{error || 'Unable to load document'}</p>
+      <div className="flex flex-col items-center justify-center h-full bg-gray-50 text-gray-400 gap-2">
+        <DocumentTextIcon className="h-10 w-10" />
+        <p className="text-sm">Document preview not available</p>
+        <p className="text-xs">The original file may not be accessible from this view</p>
       </div>
     )
   }

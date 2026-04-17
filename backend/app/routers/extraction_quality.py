@@ -14,7 +14,7 @@ Tenant admins see both global and their own tenant entries.
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +26,7 @@ from app.services.extraction_quality_service import (
     add_to_golden_set,
     remove_from_golden_set,
     verify_extraction,
+    bulk_auto_approve_all,
 )
 
 router = APIRouter(prefix="/api/admin/extraction-quality", tags=["extraction-quality"])
@@ -72,14 +73,16 @@ async def golden_set_overview(
 async def list_golden_set_contracts(
     tenant_id: CurrentTenantId,
     current_user: AdminUser,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all contracts in the visible golden set.
+    """List contracts in the visible golden set (paginated).
 
-    Tenant admins see global entries + their own tenant entries.
+    Tenant admins see only their own tenant entries.
     Super admins see all entries across all tenants.
     """
-    return await list_golden_set(db, tenant_id)
+    return await list_golden_set(db, tenant_id, page=page, page_size=page_size)
 
 
 @router.post("/golden-set/{contract_id}")
@@ -193,6 +196,26 @@ async def verify_extraction_item(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/auto-approve-all")
+async def auto_approve_all(
+    tenant_id: CurrentTenantId,
+    current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Auto-approve all pending extractions as 'correct' for all visible golden set contracts.
+
+    Creates verifications for metadata, clauses, obligations, and SLAs
+    that haven't been verified yet, marks them correct, and recomputes scores.
+    """
+    try:
+        result = await bulk_auto_approve_all(db, tenant_id, current_user.id)
+        await db.commit()
+        return result
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/compile")

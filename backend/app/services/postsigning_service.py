@@ -136,6 +136,29 @@ class PostSigningService:
         )
         return widget, obl_compliance, obl_overdue, urgent_obls
 
+    @staticmethod
+    def _format_sla_value(value: float | None, unit_value: str) -> str | None:
+        """Format an SLA value with its unit for display."""
+        if value is None:
+            return None
+        unit_labels = {
+            "percentage": "%",
+            "hours": "hrs",
+            "minutes": "min",
+            "days": "days",
+            "business_days": "b.days",
+            "count": "",
+            "score": "pts",
+        }
+        suffix = unit_labels.get(unit_value, "")
+        # For percentages, show 1 decimal; for time/count, show whole or 1 decimal
+        if unit_value == "percentage":
+            return f"{value:.1f}{suffix}"
+        elif value == int(value):
+            return f"{int(value)} {suffix}".strip()
+        else:
+            return f"{value:.1f} {suffix}".strip()
+
     async def _build_sla_widget(self, slas, contracts, today):
         """Build the SLA widget from SLA data."""
         sla_total = len(slas)
@@ -172,12 +195,17 @@ class PostSigningService:
         total_penalties_mtd = float(penalty_result.scalar() or 0)
 
         # Recent breaches with performance details
-        breached_slas = [s for s in slas if s.consecutive_breaches > 0]
+        # Only include SLAs that have a target value set
+        breached_slas = [
+            s for s in slas
+            if s.consecutive_breaches > 0 and s.target_value
+        ]
         breached_slas.sort(key=lambda s: s.consecutive_breaches, reverse=True)
 
         recent_breaches = []
         for s in breached_slas[:10]:
             contract = next((c for c in contracts if c.id == s.contract_id), None)
+            unit_val = s.metric_unit.value if s.metric_unit else "percentage"
 
             perf_query = (
                 select(SLAPerformance)
@@ -188,6 +216,9 @@ class PostSigningService:
             perf_result = await self.db.execute(perf_query)
             latest_perf = perf_result.scalar_one_or_none()
 
+            target_raw = float(s.target_value) if s.target_value else None
+            actual_raw = float(latest_perf.actual_value) if latest_perf and latest_perf.actual_value else None
+
             recent_breaches.append({
                 "sla_id": str(s.id),
                 "sla_name": s.sla_name,
@@ -196,8 +227,11 @@ class PostSigningService:
                 "breaches": s.consecutive_breaches,
                 "severity": s.severity.value if s.severity else "medium",
                 "metric_type": s.metric_type.value if s.metric_type else "custom",
-                "target_value": float(s.target_value) if s.target_value else None,
-                "actual_value": float(latest_perf.actual_value) if latest_perf and latest_perf.actual_value else None,
+                "metric_unit": unit_val,
+                "target_value": target_raw,
+                "actual_value": actual_raw,
+                "target_display": self._format_sla_value(target_raw, unit_val),
+                "actual_display": self._format_sla_value(actual_raw, unit_val),
                 "deviation": float(latest_perf.deviation_percentage) if latest_perf and latest_perf.deviation_percentage else None,
                 "measured_at": latest_perf.measured_at.isoformat() if latest_perf and latest_perf.measured_at else None,
                 "penalty_amount": float(latest_perf.penalty_amount) if latest_perf and latest_perf.penalty_amount else None,

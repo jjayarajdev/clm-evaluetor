@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
+import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { DocumentTextIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
+import { DocumentTextIcon, ExclamationCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
+import { client } from '@/lib/api/client'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 const loginSchema = z.object({
@@ -14,10 +16,50 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
+interface SSOProvider {
+  tenant_slug: string
+  tenant_name: string
+  provider: string
+  enabled: boolean
+}
+
 export default function LoginPage() {
   const { user, login } = useAuth()
+  const [searchParams] = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [ssoLoading, setSsoLoading] = useState<string | null>(null)
+
+  // Fetch available SSO providers (public endpoint, no auth needed)
+  const { data: ssoProviders } = useQuery<SSOProvider[]>({
+    queryKey: ['sso-providers'],
+    queryFn: async () => {
+      const r = await client.get('/auth/sso/providers')
+      return r.data
+    },
+    retry: false,
+  })
+
+  // Auto-initiate SSO if ?sso=tenant_slug is in URL
+  useEffect(() => {
+    const ssoSlug = searchParams.get('sso')
+    if (ssoSlug && ssoProviders?.some((p) => p.tenant_slug === ssoSlug)) {
+      handleSSOLogin(ssoSlug)
+    }
+  }, [searchParams, ssoProviders])
+
+  const handleSSOLogin = async (tenantSlug: string) => {
+    setSsoLoading(tenantSlug)
+    setError(null)
+    try {
+      const r = await client.get(`/auth/sso/init?tenant_slug=${encodeURIComponent(tenantSlug)}`)
+      window.location.href = r.data.redirect_url
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'SSO initialization failed'
+      setError(msg)
+      setSsoLoading(null)
+    }
+  }
 
   const {
     register,
@@ -123,73 +165,39 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Demo credentials */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-800 font-medium mb-3">Demo Credentials:</p>
-          <div className="text-xs text-blue-700">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-blue-200">
-                  <th className="text-left py-1 font-semibold">Tenant</th>
-                  <th className="text-left py-1 font-semibold">Username</th>
-                  <th className="text-left py-1 font-semibold">Password</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-blue-100">
-                <tr>
-                  <td className="py-1">Acme Corp</td>
-                  <td className="py-1 font-mono">admin</td>
-                  <td className="py-1 font-mono">admin123</td>
-                </tr>
-                <tr>
-                  <td className="py-1">Acme Corp</td>
-                  <td className="py-1 font-mono">legal</td>
-                  <td className="py-1 font-mono">legal123</td>
-                </tr>
-                <tr>
-                  <td className="py-1">TechStart</td>
-                  <td className="py-1 font-mono">techstart_admin</td>
-                  <td className="py-1 font-mono">admin123</td>
-                </tr>
-                <tr>
-                  <td className="py-1">LegalCo</td>
-                  <td className="py-1 font-mono">legalco_admin</td>
-                  <td className="py-1 font-mono">admin123</td>
-                </tr>
-                <tr>
-                  <td className="py-1">DemoSup</td>
-                  <td className="py-1 font-mono">demosup_admin</td>
-                  <td className="py-1 font-mono">admin123</td>
-                </tr>
-                <tr>
-                  <td className="py-1">DemoSup</td>
-                  <td className="py-1 font-mono">StevenLegal</td>
-                  <td className="py-1 font-mono">legal123</td>
-                </tr>
-                <tr>
-                  <td className="py-1">DemoSup</td>
-                  <td className="py-1 font-mono">Aparna</td>
-                  <td className="py-1 font-mono">admin123</td>
-                </tr>
-                <tr>
-                  <td className="py-1">Vialto Partners</td>
-                  <td className="py-1 font-mono">gt_admin</td>
-                  <td className="py-1 font-mono">admin123</td>
-                </tr>
-                <tr>
-                  <td className="py-1">Vialto Partners</td>
-                  <td className="py-1 font-mono">gt_legal</td>
-                  <td className="py-1 font-mono">legal123</td>
-                </tr>
-                <tr>
-                  <td className="py-1 text-blue-600">(Super Admin)</td>
-                  <td className="py-1 font-mono">superadmin</td>
-                  <td className="py-1 font-mono">admin123</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* SSO Login */}
+        {ssoProviders && ssoProviders.length > 0 && (
+          <>
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-gray-50 px-2 text-gray-500">or continue with</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {ssoProviders.map((p) => (
+                <button
+                  key={p.tenant_slug}
+                  type="button"
+                  onClick={() => handleSSOLogin(p.tenant_slug)}
+                  disabled={ssoLoading === p.tenant_slug}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  {ssoLoading === p.tenant_slug ? (
+                    <LoadingSpinner size="sm" />
+                  ) : (
+                    <ShieldCheckIcon className="h-5 w-5 text-violet-500" />
+                  )}
+                  Sign in with {p.tenant_name} SSO
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
       </div>
     </div>
   )

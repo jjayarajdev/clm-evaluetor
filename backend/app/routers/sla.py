@@ -20,6 +20,7 @@ from app.models.sla import (
     BreachSeverity,
 )
 from app.models.contract import Contract
+from app.models.master_data import SLAMasterData
 from app.schemas.sla import (
     SLACreate,
     SLAUpdate,
@@ -34,6 +35,15 @@ from app.schemas.sla import (
 )
 
 router = APIRouter(prefix="/api/sla", tags=["SLA Tracking"])
+
+
+def _determine_source(sla: ContractSLA) -> str:
+    """Determine the provenance of an SLA."""
+    if sla.source_text or sla.source_clause_id:
+        return "ai_extracted"
+    if sla.master_data_id:
+        return "from_library"
+    return "manual"
 
 
 def sla_to_response(sla: ContractSLA) -> SLAResponse:
@@ -60,6 +70,9 @@ def sla_to_response(sla: ContractSLA) -> SLAResponse:
         last_measured_at=sla.last_measured_at,
         consecutive_breaches=sla.consecutive_breaches or 0,
         source_text=sla.source_text,
+        master_data_id=str(sla.master_data_id) if sla.master_data_id else None,
+        source=_determine_source(sla),
+        master_data_name=sla.master_data.name if sla.master_data else None,
         created_at=sla.created_at,
         updated_at=sla.updated_at,
     )
@@ -590,6 +603,126 @@ async def list_all_slas(
         "page_size": page_size,
         "pages": math.ceil(total / page_size) if page_size > 0 else 0,
     }
+
+
+@router.get("/{contract_id}/library-available")
+async def get_available_library_slas(
+    contract_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    category: str | None = None,
+    search: str | None = None,
+):
+    """Get master data SLAs not already linked to this contract."""
+    # Verify contract belongs to tenant
+    contract_query = select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+    if tenant_id is not None:
+        contract_query = contract_query.where(Contract.tenant_id == tenant_id)
+    if not (await db.execute(contract_query)).scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Contract not found")
+
+    # Get master_data_ids already linked to this contract
+    already_linked = select(ContractSLA.master_data_id).where(
+        ContractSLA.contract_id == uuid_mod.UUID(contract_id),
+        ContractSLA.master_data_id.isnot(None),
+    )
+
+    query = select(SLAMasterData).where(
+        SLAMasterData.is_active == True,
+        SLAMasterData.id.notin_(already_linked),
+    )
+
+    if category:
+        query = query.where(SLAMasterData.category == category)
+
+    if search:
+        query = query.where(
+            SLAMasterData.name.ilike(f"%{search}%")
+            | SLAMasterData.description.ilike(f"%{search}%")
+            | SLAMasterData.reference_code.ilike(f"%{search}%")
+        )
+
+    query = query.order_by(SLAMasterData.category, SLAMasterData.name)
+    result = await db.execute(query)
+    items = result.scalars().all()
+
+    return [
+        {
+            "id": str(item.id),
+            "reference_code": item.reference_code,
+            "name": item.name,
+            "description": item.description,
+            "target_value": float(item.target_value) if item.target_value else None,
+            "minimum_value": float(item.minimum_value) if item.minimum_value else None,
+            "typical_performance": float(item.typical_performance) if item.typical_performance else None,
+            "category": item.category,
+            "service_tower": item.service_tower,
+        }
+        for item in items
+    ]
+
+
+@router.post("/{contract_id}/from-library/{master_data_id}", response_model=SLAResponse)
+async def create_sla_from_library(
+    contract_id: str,
+    master_data_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Create a ContractSLA pre-filled from a master data template."""
+    if current_user.role.value not in ["admin", "legal"]:
+        raise HTTPException(status_code=403, detail="Only admin or legal users can add SLAs")
+
+    # Verify contract
+    contract_query = select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+    if tenant_id is not None:
+        contract_query = contract_query.where(Contract.tenant_id == tenant_id)
+    if not (await db.execute(contract_query)).scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Contract not found")
+
+    # Verify master data exists
+    master = await db.get(SLAMasterData, uuid_mod.UUID(master_data_id))
+    if not master or not master.is_active:
+        raise HTTPException(status_code=404, detail="Library SLA not found or inactive")
+
+    # Check not already linked
+    existing = await db.execute(
+        select(ContractSLA).where(
+            ContractSLA.contract_id == uuid_mod.UUID(contract_id),
+            ContractSLA.master_data_id == uuid_mod.UUID(master_data_id),
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="This library SLA is already added to this contract")
+
+    # Map master data fields to ContractSLA
+    target_val = round(Decimal(str(master.target_value)), 2) if master.target_value else Decimal("0")
+    warning = round(Decimal(str(master.minimum_value)), 2) if master.minimum_value else None
+
+    sla = ContractSLA(
+        contract_id=uuid_mod.UUID(contract_id),
+        master_data_id=uuid_mod.UUID(master_data_id),
+        sla_name=master.name,
+        sla_description=master.description,
+        section_reference=master.reference_code,
+        category=master.category,
+        service_tower=master.service_tower,
+        metric_type=SLAMetricType.CUSTOM,
+        metric_unit=SLAUnit.PERCENTAGE,
+        target_value=target_val,
+        target_operator=">=",
+        warning_threshold=warning,
+        severity=SLASeverity.MEDIUM,
+        measurement_period="monthly",
+    )
+
+    db.add(sla)
+    await db.commit()
+    await db.refresh(sla)
+
+    return sla_to_response(sla)
 
 
 @router.put("/{contract_id}/{sla_id}", response_model=SLAResponse)

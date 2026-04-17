@@ -10,6 +10,10 @@ import {
   TrashIcon,
   PlusIcon,
   XMarkIcon,
+  BookOpenIcon,
+  SparklesIcon,
+  BuildingLibraryIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -41,6 +45,9 @@ interface SLAWithPerformance {
   current_compliance_rate: number | null
   consecutive_breaches: number
   source_text: string | null
+  master_data_id: string | null
+  source: 'ai_extracted' | 'from_library' | 'manual'
+  master_data_name: string | null
   compliance_trend: string | null
   recent_performances: {
     id: string
@@ -459,6 +466,8 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showLibraryPicker, setShowLibraryPicker] = useState(false)
+  const [librarySearch, setLibrarySearch] = useState('')
 
   const canEdit = user?.role === 'admin' || user?.role === 'legal'
 
@@ -466,6 +475,21 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
     queryKey: ['contract-slas', contractId],
     queryFn: () => api.getContractSLAs(contractId),
     enabled: !!contractId,
+  })
+
+  const { data: libraryItems, isLoading: libraryLoading } = useQuery({
+    queryKey: ['sla-library-available', contractId],
+    queryFn: () => api.getAvailableLibrarySLAs(contractId),
+    enabled: showLibraryPicker,
+  })
+
+  const addFromLibraryMutation = useMutation({
+    mutationFn: (masterDataId: string) => api.createSLAFromLibrary(contractId, masterDataId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contract-slas', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['sla-library-available', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+    },
   })
 
   const deleteMutation = useMutation({
@@ -573,9 +597,16 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
         </div>
       </div>
 
-      {/* Add SLA button for admins */}
+      {/* Add SLA buttons for admins */}
       {canEdit && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => setShowLibraryPicker(true)}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            <BookOpenIcon className="h-4 w-4 mr-2" />
+            Add from Library
+          </button>
           <button
             onClick={() => setShowAddModal(true)}
             className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700"
@@ -611,6 +642,16 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h4 className="font-medium text-gray-900">{sla.sla_name}</h4>
+                        {sla.source === 'ai_extracted' && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-700">
+                            <SparklesIcon className="h-3 w-3" /> AI Extracted
+                          </span>
+                        )}
+                        {sla.source === 'from_library' && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700">
+                            <BuildingLibraryIcon className="h-3 w-3" /> Library
+                          </span>
+                        )}
                         {!sla.is_active && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
                             Inactive
@@ -765,6 +806,98 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
           onClose={() => setShowAddModal(false)}
           onSave={() => {}}
         />
+      )}
+
+      {/* Library Picker Modal */}
+      {showLibraryPicker && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => { setShowLibraryPicker(false); setLibrarySearch('') }}>
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[75vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Add SLA from Library</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Select from master data templates to add to this contract</p>
+              </div>
+              <button onClick={() => { setShowLibraryPicker(false); setLibrarySearch('') }} className="p-1 rounded hover:bg-gray-100">
+                <XMarkIcon className="h-5 w-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="px-5 py-3 border-b">
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name, code, or description..."
+                  value={librarySearch}
+                  onChange={(e) => setLibrarySearch(e.target.value)}
+                  className="input w-full pl-9"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {libraryLoading ? (
+                <div className="flex items-center justify-center py-12"><LoadingSpinner size="md" /></div>
+              ) : !libraryItems || libraryItems.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <BookOpenIcon className="h-10 w-10 mx-auto mb-2 text-gray-300" />
+                  <p>No available library SLAs</p>
+                  <p className="text-xs mt-1">All library SLAs may already be added, or none have been configured yet.</p>
+                </div>
+              ) : (() => {
+                const filtered = libraryItems.filter((item) =>
+                  !librarySearch || item.name.toLowerCase().includes(librarySearch.toLowerCase())
+                  || item.reference_code?.toLowerCase().includes(librarySearch.toLowerCase())
+                  || item.description?.toLowerCase().includes(librarySearch.toLowerCase())
+                )
+                const grouped = filtered.reduce<Record<string, typeof filtered>>((acc, item) => {
+                  const cat = item.category || 'Uncategorized'
+                  if (!acc[cat]) acc[cat] = []
+                  acc[cat].push(item)
+                  return acc
+                }, {})
+
+                if (filtered.length === 0) {
+                  return <div className="text-center py-8 text-gray-400 text-sm">No matches for &ldquo;{librarySearch}&rdquo;</div>
+                }
+
+                return (
+                  <div className="divide-y">
+                    {Object.entries(grouped).map(([category, items]) => (
+                      <div key={category}>
+                        <div className="px-5 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider sticky top-0">
+                          {category}
+                          {items[0]?.service_tower && <span className="ml-2 font-normal normal-case text-gray-400">/ {items[0].service_tower}</span>}
+                        </div>
+                        {items.map((item) => (
+                          <div key={item.id} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50">
+                            <div className="flex-1 min-w-0 mr-4">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-mono text-gray-400">{item.reference_code}</span>
+                                <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                              </div>
+                              {item.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{item.description}</p>}
+                              <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                                {item.target_value != null && <span>Target: {item.target_value}</span>}
+                                {item.minimum_value != null && <span>Min: {item.minimum_value}</span>}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => addFromLibraryMutation.mutate(item.id)}
+                              disabled={addFromLibraryMutation.isPending}
+                              className="shrink-0 inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-violet-600 rounded-md hover:bg-violet-700 disabled:opacity-50"
+                            >
+                              <PlusIcon className="h-3 w-3 mr-1" /> Add
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

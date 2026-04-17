@@ -26,8 +26,11 @@ interface SLABreachDetail {
   contract_id: string
   contract_filename: string
   metric_type: string
+  metric_unit: string
   target_value: number
   actual_value: number
+  target_display: string
+  actual_display: string
   deviation_percentage: number
   breach_severity: string
   measured_at: string
@@ -124,15 +127,13 @@ function SLABreachDetailModal({
                 <div>
                   <p className="text-xs text-gray-500 uppercase">Target</p>
                   <p className="text-xl font-semibold text-gray-900">
-                    {breach.target_value.toFixed(2)}
-                    {breach.metric_type === 'uptime_percentage' || breach.metric_type === 'availability' ? '%' : ''}
+                    {breach.target_display || `${breach.target_value}`}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase">Actual</p>
                   <p className={cn('text-xl font-semibold', deviationColor)}>
-                    {breach.actual_value.toFixed(2)}
-                    {breach.metric_type === 'uptime_percentage' || breach.metric_type === 'availability' ? '%' : ''}
+                    {breach.actual_display || `${breach.actual_value}`}
                   </p>
                 </div>
               </div>
@@ -140,7 +141,7 @@ function SLABreachDetailModal({
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500">Deviation</span>
                   <span className={cn('text-sm font-medium', deviationColor)}>
-                    {breach.deviation_percentage > 0 ? '+' : ''}{breach.deviation_percentage.toFixed(2)}%
+                    {breach.deviation_percentage > 0 ? '+' : ''}{breach.deviation_percentage.toFixed(1)}%
                   </span>
                 </div>
               </div>
@@ -170,29 +171,31 @@ function SLABreachDetailModal({
               )}
             </div>
 
-            {/* Progress Bar showing deviation */}
-            <div>
-              <div className="flex justify-between text-xs text-gray-500 mb-1">
-                <span>0%</span>
-                <span>Target: {breach.target_value.toFixed(1)}%</span>
-                <span>100%</span>
+            {/* Progress Bar showing deviation — only for percentage metrics */}
+            {breach.metric_unit === 'percentage' && (
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>0%</span>
+                  <span>Target: {breach.target_value.toFixed(1)}%</span>
+                  <span>100%</span>
+                </div>
+                <div className="h-3 bg-gray-200 rounded-full overflow-hidden relative">
+                  {/* Target marker */}
+                  <div
+                    className="absolute h-full w-0.5 bg-gray-600 z-10"
+                    style={{ left: `${Math.min(breach.target_value, 100)}%` }}
+                  />
+                  {/* Actual value */}
+                  <div
+                    className={cn(
+                      'h-full rounded-full transition-all',
+                      breach.actual_value >= breach.target_value ? 'bg-green-500' : 'bg-red-500'
+                    )}
+                    style={{ width: `${Math.min(breach.actual_value, 100)}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-3 bg-gray-200 rounded-full overflow-hidden relative">
-                {/* Target marker */}
-                <div
-                  className="absolute h-full w-0.5 bg-gray-600 z-10"
-                  style={{ left: `${Math.min(breach.target_value, 100)}%` }}
-                />
-                {/* Actual value */}
-                <div
-                  className={cn(
-                    'h-full rounded-full transition-all',
-                    breach.actual_value >= breach.target_value ? 'bg-green-500' : 'bg-red-500'
-                  )}
-                  style={{ width: `${Math.min(breach.actual_value, 100)}%` }}
-                />
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -683,7 +686,7 @@ export default function PostSigningPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Target</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actual</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Breaches</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consec. Fails</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
                   </tr>
                 </thead>
@@ -698,8 +701,11 @@ export default function PostSigningPage() {
                         contract_id: breach.contract_id,
                         contract_filename: breach.contract,
                         metric_type: breach.metric_type || 'custom',
+                        metric_unit: breach.metric_unit || 'percentage',
                         target_value: breach.target_value || 0,
                         actual_value: breach.actual_value || 0,
+                        target_display: breach.target_display || '',
+                        actual_display: breach.actual_display || '',
                         deviation_percentage: breach.deviation || 0,
                         breach_severity: breach.severity,
                         measured_at: breach.measured_at || new Date().toISOString(),
@@ -708,12 +714,12 @@ export default function PostSigningPage() {
                       })}
                     >
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{breach.sla_name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{breach.contract}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">{breach.contract}</td>
                       <td className="px-4 py-3 text-sm text-gray-500">
-                        {breach.target_value ? `${breach.target_value.toFixed(1)}%` : '-'}
+                        {breach.target_display || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-red-600">
-                        {breach.actual_value ? `${breach.actual_value.toFixed(1)}%` : '-'}
+                        {breach.actual_display || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-red-600">{breach.breaches}</td>
                       <td className="px-4 py-3">

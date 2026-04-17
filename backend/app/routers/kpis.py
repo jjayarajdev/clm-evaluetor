@@ -96,8 +96,17 @@ async def create_kpi(
     tenant_id: CurrentTenantId = None,
 ):
     """Create a new KPI."""
-    # Verify relationship exists
-    relationship = await db.get(BusinessRelationship, data.relationship_id)
+    # Verify relationship exists and belongs to tenant
+    rel_query = (
+        select(BusinessRelationship)
+        .where(BusinessRelationship.id == data.relationship_id)
+    )
+    if tenant_id is not None:
+        rel_query = rel_query.join(
+            Organization, BusinessRelationship.org_a_id == Organization.id
+        ).where(Organization.tenant_id == tenant_id)
+    result = await db.execute(rel_query)
+    relationship = result.scalar_one_or_none()
     if not relationship:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -733,12 +742,15 @@ async def list_relationship_gaps(
 @router.get("/relationship/{rel_id}/summary", response_model=GapSummary)
 async def get_gap_summary(
     rel_id: UUID,
-    period: str = Query(...),
+    period: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = None,
     tenant_id: CurrentTenantId = None,
 ):
-    """Get summary of perception gaps for a relationship in a period."""
+    """Get summary of perception gaps for a relationship in a period.
+
+    If period is not provided, returns the summary for the latest available period.
+    """
     # Get KPIs for relationship
     kpi_result = await db.execute(
         select(KPI).where(
@@ -748,8 +760,18 @@ async def get_gap_summary(
     )
     kpis = kpi_result.scalars().all()
 
-    # Get gaps for period
+    # If no period specified, find the latest period with gaps
     kpi_ids = [k.id for k in kpis]
+    if not period:
+        latest_gap_result = await db.execute(
+            select(PerceptionGap.period).where(
+                PerceptionGap.kpi_id.in_(kpi_ids),
+            ).order_by(PerceptionGap.period.desc()).limit(1)
+        )
+        latest_period = latest_gap_result.scalar_one_or_none()
+        period = latest_period or ""
+
+    # Get gaps for period
     gap_result = await db.execute(
         select(PerceptionGap).where(
             PerceptionGap.kpi_id.in_(kpi_ids),

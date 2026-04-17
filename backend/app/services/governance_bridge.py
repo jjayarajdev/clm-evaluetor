@@ -45,22 +45,10 @@ logger = logging.getLogger(__name__)
 
 # ── Metric type → KPI category/measurement mapping ──────────────────────
 
-SLA_TO_KPI_MAP: dict[str, tuple[str, str]] = {
-    SLAMetricType.UPTIME_PERCENTAGE.value: (KPICategory.SERVICE_DELIVERY.value, KPIMeasurementType.PERCENTAGE.value),
-    SLAMetricType.AVAILABILITY.value: (KPICategory.SERVICE_DELIVERY.value, KPIMeasurementType.PERCENTAGE.value),
-    SLAMetricType.RESPONSE_TIME.value: (KPICategory.TIMELINESS.value, KPIMeasurementType.TIME_HOURS.value),
-    SLAMetricType.RESOLUTION_TIME.value: (KPICategory.TIMELINESS.value, KPIMeasurementType.TIME_HOURS.value),
-    SLAMetricType.DELIVERY_TIME.value: (KPICategory.TIMELINESS.value, KPIMeasurementType.TIME_DAYS.value),
-    SLAMetricType.SUCCESS_RATE.value: (KPICategory.COMPLIANCE.value, KPIMeasurementType.PERCENTAGE.value),
-    SLAMetricType.ERROR_RATE.value: (KPICategory.QUALITY.value, KPIMeasurementType.PERCENTAGE.value),
-    SLAMetricType.COMPLIANCE_RATE.value: (KPICategory.COMPLIANCE.value, KPIMeasurementType.PERCENTAGE.value),
-    SLAMetricType.UTILIZATION.value: (KPICategory.SERVICE_DELIVERY.value, KPIMeasurementType.PERCENTAGE.value),
-    SLAMetricType.THROUGHPUT.value: (KPICategory.SERVICE_DELIVERY.value, KPIMeasurementType.NUMBER.value),
-    SLAMetricType.RECOVERY_TIME.value: (KPICategory.SERVICE_DELIVERY.value, KPIMeasurementType.TIME_HOURS.value),
-    SLAMetricType.RECOVERY_POINT.value: (KPICategory.SERVICE_DELIVERY.value, KPIMeasurementType.TIME_HOURS.value),
-    SLAMetricType.QUALITY_SCORE.value: (KPICategory.QUALITY.value, KPIMeasurementType.RATING.value),
-    SLAMetricType.CUSTOM.value: (KPICategory.OTHER.value, KPIMeasurementType.NUMBER.value),
-}
+
+# SLA_TO_KPI_MAP removed — KPI category/measurement are now derived from
+# actual extracted SLA fields (category, service_tower, metric_unit) instead
+# of a hardcoded mapping that fabricated categories.
 
 # ── Contract type → default org type mapping ─────────────────────────────
 
@@ -227,14 +215,11 @@ class GovernanceBridgeService:
                 Organization.tenant_id == tenant_id,
                 or_(
                     func.lower(Organization.name).contains(counterparty.lower()),
-                    func.lower(func.cast(counterparty, String)).op("LIKE")(
-                        "%" + func.lower(Organization.name) + "%"
-                    ) if False else  # SQLAlchemy doesn't support this cleanly
                     Organization.name.ilike(f"%{counterparty[:10]}%"),
                 ),
             )
         )
-        org = result.scalar_one_or_none()
+        org = result.scalars().first()
         if org:
             return org
 
@@ -242,11 +227,14 @@ class GovernanceBridgeService:
         org_type = await self._determine_counterparty_role(contract)
 
         code = self._generate_org_code(counterparty)
-        # Ensure code is unique
+        # Ensure code is unique within tenant
         for attempt in range(5):
             candidate = code if attempt == 0 else f"{code}{attempt}"
             existing = await self.db.execute(
-                select(Organization.id).where(Organization.code == candidate)
+                select(Organization.id).where(
+                    Organization.tenant_id == tenant_id,
+                    Organization.code == candidate,
+                )
             )
             if not existing.scalar_one_or_none():
                 code = candidate
@@ -647,12 +635,45 @@ If you cannot determine a field, use null for that field."""
 
     # ── Automation 3 ─────────────────────────────────────────────────────
 
+    # Map SLA metric_unit (AI-extracted) to KPI measurement_type
+    _UNIT_TO_MEASUREMENT: dict[str, str] = {
+        SLAUnit.PERCENTAGE.value: KPIMeasurementType.PERCENTAGE.value,
+        SLAUnit.HOURS.value: KPIMeasurementType.TIME_HOURS.value,
+        SLAUnit.MINUTES.value: KPIMeasurementType.TIME_HOURS.value,
+        SLAUnit.DAYS.value: KPIMeasurementType.TIME_DAYS.value,
+        SLAUnit.BUSINESS_DAYS.value: KPIMeasurementType.TIME_DAYS.value,
+        SLAUnit.COUNT.value: KPIMeasurementType.NUMBER.value,
+        SLAUnit.SCORE.value: KPIMeasurementType.RATING.value,
+    }
+
+    # Map SLA metric_type (AI-extracted) to KPI category
+    _METRIC_TYPE_TO_CATEGORY: dict[str, str] = {
+        SLAMetricType.UPTIME_PERCENTAGE.value: KPICategory.SERVICE_DELIVERY.value,
+        SLAMetricType.AVAILABILITY.value: KPICategory.SERVICE_DELIVERY.value,
+        SLAMetricType.RESPONSE_TIME.value: KPICategory.TIMELINESS.value,
+        SLAMetricType.RESOLUTION_TIME.value: KPICategory.TIMELINESS.value,
+        SLAMetricType.DELIVERY_TIME.value: KPICategory.TIMELINESS.value,
+        SLAMetricType.SUCCESS_RATE.value: KPICategory.COMPLIANCE.value,
+        SLAMetricType.ERROR_RATE.value: KPICategory.QUALITY.value,
+        SLAMetricType.COMPLIANCE_RATE.value: KPICategory.COMPLIANCE.value,
+        SLAMetricType.UTILIZATION.value: KPICategory.SERVICE_DELIVERY.value,
+        SLAMetricType.THROUGHPUT.value: KPICategory.SERVICE_DELIVERY.value,
+        SLAMetricType.RECOVERY_TIME.value: KPICategory.SERVICE_DELIVERY.value,
+        SLAMetricType.RECOVERY_POINT.value: KPICategory.SERVICE_DELIVERY.value,
+        SLAMetricType.QUALITY_SCORE.value: KPICategory.QUALITY.value,
+        SLAMetricType.CUSTOM.value: KPICategory.OTHER.value,
+    }
+
     async def _create_kpis_from_slas(
         self,
         contract: Contract,
         relationship: BusinessRelationship,
     ) -> list:
-        """Create KPI records from extracted SLAs."""
+        """Create KPI records from AI-extracted SLAs.
+
+        Uses the actual extracted SLA fields (category, metric_unit, description)
+        rather than fabricating values from a static mapping.
+        """
         # Load SLAs for this contract
         result = await self.db.execute(
             select(ContractSLA).where(
@@ -677,14 +698,18 @@ If you cannot determine a field, use null for that field."""
             if sla.sla_name.lower() in existing_names:
                 continue
 
-            # Map metric type to KPI category and measurement type
-            metric_key = sla.metric_type.value if hasattr(sla.metric_type, 'value') else str(sla.metric_type)
-            category, measurement = SLA_TO_KPI_MAP.get(
-                metric_key,
-                (KPICategory.OTHER.value, KPIMeasurementType.NUMBER.value),
+            # Derive measurement type from the SLA's AI-extracted metric_unit
+            unit_val = sla.metric_unit.value if hasattr(sla.metric_unit, 'value') else str(sla.metric_unit or '')
+            measurement = self._UNIT_TO_MEASUREMENT.get(
+                unit_val, KPIMeasurementType.NUMBER.value
             )
 
-            # Generate code from SLA name
+            # Derive category from the SLA's AI-extracted metric_type
+            metric_key = sla.metric_type.value if hasattr(sla.metric_type, 'value') else str(sla.metric_type or '')
+            category = self._METRIC_TYPE_TO_CATEGORY.get(
+                metric_key, KPICategory.OTHER.value
+            )
+
             code = self._generate_kpi_code(sla.sla_name)
 
             kpi = KPI(
@@ -692,7 +717,7 @@ If you cannot determine a field, use null for that field."""
                 relationship_id=relationship.id,
                 name=sla.sla_name,
                 code=code,
-                description=sla.sla_description or f"Auto-generated from contract SLA in {contract.filename}",
+                description=sla.sla_description or sla.source_text or f"From {contract.filename}",
                 category=category,
                 measurement_type=measurement,
                 target_value=sla.target_value,
@@ -700,7 +725,7 @@ If you cannot determine a field, use null for that field."""
                 threshold_amber=sla.warning_threshold,
                 weight=Decimal("1.0"),
                 is_active=True,
-                is_perception_based=False,  # Metric-based from SLA, not perception
+                is_perception_based=False,
             )
             self.db.add(kpi)
             created.append(kpi)
@@ -845,8 +870,8 @@ If you cannot determine a field, use null for that field."""
             components.append(("obligation", obligation_health, 0.3))
 
         if not components:
-            # No data yet — set a neutral default
-            score = 75
+            # No data yet — don't fabricate a score
+            return None
         else:
             # Normalize weights to sum to 1.0
             total_weight = sum(w for _, _, w in components)
@@ -936,7 +961,3 @@ If you cannot determine a field, use null for that field."""
             created.append(link)
 
         return created
-
-
-# Need String for func.cast — import at module level
-from sqlalchemy import String

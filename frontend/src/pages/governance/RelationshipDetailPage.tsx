@@ -59,6 +59,7 @@ export default function RelationshipDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('KPIs')
   const [showAddKPI, setShowAddKPI] = useState(false)
   const [showScore, setShowScore] = useState<string | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [scoreForm, setScoreForm] = useState<Partial<PerceptionScoreCreate>>({ perspective: 'internal', score: 5 })
   const [kpiForm, setKpiForm] = useState<Partial<KPICreate>>({
     category: 'service_delivery',
@@ -255,6 +256,58 @@ export default function RelationshipDetailPage() {
             </div>
           </div>
 
+          {/* Category Tabs */}
+          {kpis.length > 0 && (() => {
+            const categoryCounts: Record<string, number> = {}
+            kpis.forEach((k) => {
+              const cat = k.category || 'other'
+              categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+            })
+            const CATEGORY_LABELS: Record<string, string> = {
+              service_delivery: 'Service Delivery',
+              timeliness: 'Timeliness',
+              quality: 'Quality',
+              compliance: 'Compliance',
+              communication: 'Communication',
+              innovation: 'Innovation',
+              cost_efficiency: 'Cost Efficiency',
+              satisfaction: 'Satisfaction',
+              other: 'Other',
+            }
+            const categories = Object.keys(categoryCounts).sort((a, b) =>
+              (categoryCounts[b] || 0) - (categoryCounts[a] || 0)
+            )
+            return (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedCategory('all')}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                    selectedCategory === 'all'
+                      ? 'bg-violet-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  )}
+                >
+                  All ({kpis.length})
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                      selectedCategory === cat
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    )}
+                  >
+                    {CATEGORY_LABELS[cat] || cat} ({categoryCounts[cat]})
+                  </button>
+                ))}
+              </div>
+            )
+          })()}
+
           {/* KPI Table with Perception Scores */}
           <div className="card">
             <div className="overflow-x-auto">
@@ -271,11 +324,11 @@ export default function RelationshipDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {kpis.map((kpi) => {
+                  {kpis.filter((kpi) => selectedCategory === 'all' || (kpi.category || 'other') === selectedCategory).map((kpi) => {
                     const internalScore = kpi.latest_internal_score != null ? Number(kpi.latest_internal_score) : null
                     const externalScore = kpi.latest_external_score != null ? Number(kpi.latest_external_score) : null
                     const gapValue = kpi.latest_gap != null ? Number(kpi.latest_gap) : null
-                    const gapSeverity = (kpi as any).latest_gap_severity as GapSeverity | null
+                    const gapSeverity = kpi.latest_gap_severity ?? null
                     return (
                       <tr key={kpi.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
@@ -348,7 +401,7 @@ export default function RelationshipDetailPage() {
                 {kpis.filter(k => k.latest_internal_score != null || k.latest_external_score != null).map((kpi) => {
                   const intScore = Number(kpi.latest_internal_score) || 0
                   const extScore = Number(kpi.latest_external_score) || 0
-                  const severity = (kpi as any).latest_gap_severity as GapSeverity | null
+                  const severity = kpi.latest_gap_severity ?? null
                   return (
                   <div key={kpi.id} className="flex items-center gap-3">
                     <span className="text-xs text-gray-600 w-32 truncate">{kpi.name}</span>
@@ -407,15 +460,15 @@ export default function RelationshipDetailPage() {
                   <div key={member.id} className="px-4 py-3 flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {(member as any).user_name || member.user?.full_name || member.user?.username || 'Unknown'}
+                        {member.user_name || member.user?.full_name || member.user?.username || 'Unknown'}
                       </p>
                       <p className="text-xs text-gray-500 capitalize">{member.role.replace(/_/g, ' ')}</p>
-                      {(member as any).responsibilities && Array.isArray((member as any).responsibilities) && (
-                        <p className="text-xs text-gray-400 mt-0.5">{(member as any).responsibilities.join(' · ')}</p>
+                      {member.responsibilities && Array.isArray(member.responsibilities) && (
+                        <p className="text-xs text-gray-400 mt-0.5">{member.responsibilities.join(' · ')}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      {(member.is_primary_contact || (member as any).is_primary) && (
+                      {(member.is_primary || member.is_primary_contact) && (
                         <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded">Primary</span>
                       )}
                       {member.receives_alerts && (
@@ -472,12 +525,19 @@ export default function RelationshipDetailPage() {
                     </div>
                   </div>
                   {/* Progress bar */}
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                      <div className="bg-violet-500 h-1.5 rounded-full" style={{ width: `${imp.progress}%` }} />
-                    </div>
-                    <span className="text-[10px] text-gray-500">{imp.progress}%</span>
-                  </div>
+                  {(() => {
+                    const pct = imp.progress_percentage ?? imp.progress ?? 0
+                    return (
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                          <div className="bg-violet-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-[10px] text-gray-500">
+                          {pct}%{imp.action_count ? ` (${imp.completed_action_count ?? 0}/${imp.action_count} actions)` : ''}
+                        </span>
+                      </div>
+                    )
+                  })()}
                 </div>
               ))}
               {improvements.length === 0 && (
