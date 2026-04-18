@@ -268,16 +268,22 @@ Identify all risk factors and calculate an overall risk score for this section."
     # Deduplicate risk factors by category and description similarity
     unique_factors = _deduplicate_risk_factors(all_risk_factors)
 
-    # Calculate overall score as weighted average with max consideration
-    if chunk_scores:
-        avg_score = sum(chunk_scores) / len(chunk_scores)
-        max_score = max(chunk_scores)
-        # Use weighted combination: 60% max (capture worst risks) + 40% average
-        overall_score = int(0.6 * max_score + 0.4 * avg_score)
-    else:
-        overall_score = sum(f.score for f in unique_factors) // max(len(unique_factors), 1)
+    # Content-weighted scoring: aggregate by category weights, not chunk boundaries.
+    # Each risk factor contributes its score scaled by the category weight,
+    # normalized against the total possible weight so the result is 0-100.
+    total_category_weight = sum(c["weight"] for c in RISK_CATEGORIES.values())  # 105
+    weighted_score = 0.0
+    for factor in unique_factors:
+        cat_weight = RISK_CATEGORIES.get(factor.category, {}).get("weight", 5)
+        # Factor score (0-100) × category weight / total weight
+        weighted_score += (factor.score * cat_weight) / total_category_weight
 
-    overall_score = min(100, overall_score)  # Cap at 100
+    overall_score = min(100, int(weighted_score))
+
+    # Ensure high-severity factors floor the score appropriately
+    high_severity_count = sum(1 for f in unique_factors if f.severity == "HIGH")
+    if high_severity_count >= 3 and overall_score < 51:
+        overall_score = 51  # At least HIGH when 3+ high-severity factors found
 
     risk_level = _calculate_risk_level(overall_score)
 
