@@ -1,0 +1,1518 @@
+{
+  "contract_id": "ing-msa",
+  "source": "ing",
+  "filename": "MSA GEN Final v3.3.docx",
+  "doc_type": "msa",
+  "generated_at": "2026-04-14T06:29:00.741092",
+  "extraction_time_seconds": 198.1,
+  "is_draft": true,
+  "reviewed": false,
+  "metadata": {
+    "error": "ChromaDB service unavailable at localhost:8100. Ensure the ChromaDB container is running and healthy."
+  },
+  "clauses": [
+    {
+      "clause_type": "SERVICE_DESCRIPTION",
+      "text": "The PST Supplier shall provide the Services to the EuroBank Group members in accordance with the Statements of Work, the Work Orders, the Service Levels and the other provisions of this MSA.",
+      "section_number": "1.2.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Statements of Work",
+        "Service Levels"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "The PST Supplier shall provide the Services to the EuroBank Group members in accordance with the Statements of Work, the Work Orders, the Service Levels and the other provisions of this MSA.",
+      "section_number": "1.2.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Service Levels"
+      ]
+    },
+    {
+      "clause_type": "GOVERNANCE",
+      "text": "The PST Supplier acknowledges that it is being contracted under this MSA to provide the Services as part of an integrated team, with the 2IM\u2019s role including responsibility for the operational management of this MSA and the service agreements with the Other PST Suppliers and responsibility for ensuring the effective and consistent management of all of the workplace services service bundles and related projects and programs.",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.85,
+      "key_terms": [
+        "2IM",
+        "operational management"
+      ]
+    },
+    {
+      "clause_type": "TRANSITION",
+      "text": "The PST Supplier shall perform the Transition Plan and the Transformation Plan in accordance with Exhibit 30 (Transition and Transformation).",
+      "section_number": "3",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Transition Plan",
+        "Transformation Plan"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "This MSA will become effective on the Effective Date and, unless terminated earlier under clause 16, shall continue for a period of 7 (seven) years from the Commencement Date (the Term). At the end of the fifth Year, EuroBank may terminate this MSA by providing the PST Supplier with at least 6 months\u2019 written notice to do so.",
+      "section_number": "2.1, 2.2",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "7 years",
+        "6 months\u2019 notice"
+      ]
+    },
+    {
+      "clause_type": "SCOPE",
+      "text": "The Services shall mean the following services, functions and responsibilities for which the PST Supplier is responsible, as they may evolve during the Term and as they may be supplemented, enhanced, modified or replaced in accordance with the terms of the MSA.",
+      "section_number": "4.2.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "services",
+        "functions",
+        "responsibilities"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_DESCRIPTION",
+      "text": "The PST Supplier shall provide and maintain all resources and assets necessary for the proper and efficient performance of the Services except as agreed otherwise in or in accordance with this MSA.",
+      "section_number": "4.4.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "resources",
+        "assets",
+        "performance"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_DESCRIPTION",
+      "text": "The PST Supplier shall provide the Services to the EuroBank Group members notified by EuroBank from time to time. The PST Supplier shall provide the Services to any and all Sites and to any additional EuroBank Sites that EuroBank may request during the Term.",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.85,
+      "key_terms": [
+        "EuroBank Group members",
+        "Sites",
+        "Term"
+      ]
+    },
+    {
+      "clause_type": "SECURITY",
+      "text": "The PST Supplier will maintain and enforce, at the PST Supplier Facilities, safety and physical security procedures that are at least equal to the highest of the following: (a) industry standards for locations similar to the PST Supplier Facilities\u2019 locations; (b) the Policies applicable to the PST Supplier Facilities\u2019 locations; and (c) any higher standard otherwise agreed by the parties.",
+      "section_number": "4.6.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "safety",
+        "physical security",
+        "industry standards"
+      ]
+    },
+    {
+      "clause_type": "WARRANTY",
+      "text": "Each party warrants (garandeert) to the other that: (a) it and each of its Affiliates is validly incorporated and duly registered under Applicable Law, and has power to conduct its business as conducted at the Effective Date; (b) this MSA has been executed by its duly authorised representative(s) and constitutes valid and binding obligations of the party and any relevant Affiliate who is party to it; (c) the obligations in this MSA do not violate the terms of any other agreement, undertaking, ju",
+      "section_number": "7.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "validly incorporated",
+        "binding obligations",
+        "necessary licences"
+      ]
+    },
+    {
+      "clause_type": "WARRANTY",
+      "text": "The PST Supplier warrants (garandeert) and undertakes that: (a) it has verified and shall ensure that none of the Policies or the Applicable Laws applicable at the Effective Date prevent or restrict the PST Supplier or any of its Sub-Contractors from performing the Services in accordance with this MSA; (b) it is sufficiently experienced in projects and undertakings of the scale and complexity of the transactions contemplated by this MSA to meet the requirements of this MSA; (c) the Services will",
+      "section_number": "7.2",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "best industry practice",
+        "ITIL Standards",
+        "Intellectual Property Rights"
+      ]
+    },
+    {
+      "clause_type": "PAYMENT_TERMS",
+      "text": "Subject to clauses 8.3.2, 8.3.3, and 8.3.4, EuroBank shall pay the invoiced Charges within 30 days of receipt of each valid and proper invoice.",
+      "section_number": "8.3.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "30 days",
+        "valid invoice"
+      ]
+    },
+    {
+      "clause_type": "PAYMENT_TERMS",
+      "text": "8.2.1 The PST Supplier shall invoice the Charges and submit invoices to EuroBank and a copy of each to the 2IM for verification in accordance with agreed invoicing or billing requirements as EuroBank may reasonably specify from time to time. Unless and until agreed otherwise, the PST Supplier shall invoice the monthly Charges in accordance with Exhibit 4 (Pricing and Financial Provisions), by means of an electronic file, commencing on the first day of the month following the month in which the E",
+      "section_number": "8.2.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "invoicing",
+        "monthly Charges",
+        "Pass-Through Charges"
+      ]
+    },
+    {
+      "clause_type": "PAYMENT_TERMS",
+      "text": "8.3.1 Subject to clauses 8.3.2, 8.3.3, and 8.3.4, EuroBank shall pay the invoiced Charges within 30 days of receipt of each valid and proper invoice.",
+      "section_number": "8.3.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "30 days",
+        "payment terms"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "10.2.1 EuroBank shall retain all Intellectual Property Rights in EuroBank Materials and EuroBank Data, including any modifications made to them by or on behalf of either party under this MSA.",
+      "section_number": "10.2.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "Intellectual Property Rights",
+        "EuroBank Materials",
+        "EuroBank Data"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "Except as expressly provided, nothing in this MSA or any LSA shall transfer, assign, license or otherwise grant any party any right or interest in any other party\u2019s Intellectual Property Rights.",
+      "section_number": "10",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "transfer",
+        "assign",
+        "license",
+        "Intellectual Property Rights"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "EuroBank shall retain all Intellectual Property Rights in EuroBank Materials and EuroBank Data, including any modifications made to them by or on behalf of either party under this MSA.",
+      "section_number": "10.2.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "EuroBank Materials",
+        "EuroBank Data",
+        "retain"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "The PST Supplier shall retain all Intellectual Property Rights in the PST Supplier Materials, including any modifications or enhancements made to them and derivative works thereof made by or on behalf of a party under this MSA.",
+      "section_number": "10.3.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "PST Supplier Materials",
+        "retain",
+        "modifications"
+      ]
+    },
+    {
+      "clause_type": "DELIVERABLE",
+      "text": "Subject to the Acceptance of the relevant Deliverable (or any part thereof): (a) EuroBank shall own all Intellectual Property Rights in each Deliverable, excluding any PST Supplier Materials or Third Party Materials forming part of the Deliverable; (b) the PST Supplier shall irrevocably assign the Intellectual Property Rights referred to in clause 10.4.1(a) in the Deliverables on creation to EuroBank with full title guarantee, at no cost to EuroBank and without imposing any further conditions; a",
+      "section_number": "10.4.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "Deliverable",
+        "Intellectual Property Rights",
+        "assign"
+      ]
+    },
+    {
+      "clause_type": "INDEMNIFICATION",
+      "text": "The PST Supplier shall indemnify EuroBank and each EuroBank Group member on demand against all loss or damage suffered or incurred by any of them as a result of any actual or alleged infringement of any Intellectual Property Right in connection with the receipt of the Services or the use of any Deliverable in accordance with this MSA (PST Supplier Claim).",
+      "section_number": "10.7.1",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "indemnify",
+        "Intellectual Property Right",
+        "loss or damage"
+      ]
+    },
+    {
+      "clause_type": "CONFIDENTIALITY",
+      "text": "Each party shall: (a) keep secret and confidential, and procure that its officers, employees, representatives, Affiliates, and in the case of the PST Supplier, any Sub-Contractors, (collectively, the Representatives) keep secret and confidential, all Confidential Information of the other party and its Affiliates; (b) use the same degree of care in relation to the Confidential Information of the other party and its Affiliates as it normally uses to avoid unauthorised disclosure of its own confide",
+      "section_number": "12.1.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "Confidential Information",
+        "indemnify",
+        "unauthorised disclosure"
+      ]
+    },
+    {
+      "clause_type": "DATA_PROTECTION",
+      "text": "If, in the course of performing its obligations under this MSA, the PST Supplier processes personal data that is used in the course of EuroBank\u2019s and EuroBank Group members\u2019 business, then it shall do so solely on behalf of EuroBank and the relevant EuroBank Group members and it shall not be entitled to use or otherwise process the personal data for any other purpose.",
+      "section_number": "12.2.2",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "personal data",
+        "process",
+        "solely on behalf"
+      ]
+    },
+    {
+      "clause_type": "CONFIDENTIALITY",
+      "text": "Neither party shall disclose the fact or subject matter of this MSA, unless it first obtains the other party\u2019s written consent.",
+      "section_number": "19.1.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "written consent",
+        "disclosure"
+      ]
+    },
+    {
+      "clause_type": "LIMITATION_OF_LIABILITY",
+      "text": "The PST Supplier\u2019s entire liability for loss or damage under or in connection with this MSA, whether for negligence, breach of contract, misrepresentation or otherwise shall be limited, in the aggregate, to an amount equal to the Base Charges that would have been payable to the PST Supplier...",
+      "section_number": "13.3.1",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "liability cap",
+        "Base Charges",
+        "aggregate"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "Either party may terminate this MSA with immediate effect by notifying the other party if the other party has committed a material breach of this MSA which is irremediable...",
+      "section_number": "16.2.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "material breach",
+        "immediate effect"
+      ]
+    },
+    {
+      "clause_type": "NON_SOLICITATION",
+      "text": "The parties shall not, during the Term and for a period of 12 months thereafter, directly solicit the services of, or employ or offer to employ, any employee or former employee of the other party...",
+      "section_number": "19.2.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "12 months",
+        "solicit",
+        "employ"
+      ]
+    },
+    {
+      "clause_type": "GOVERNING_LAW",
+      "text": "be governed by the law of the Netherlands, unless Applicable Law requires otherwise;",
+      "section_number": "15.d",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "law of the Netherlands"
+      ]
+    },
+    {
+      "clause_type": "CONFIDENTIALITY",
+      "text": "19.1.1 Neither party shall disclose the fact or subject matter of this MSA, unless it first obtains the other party\u2019s written consent.\n\n19.1.2 Clause 19.1.1 does not apply to a public announcement which is required to be made by Applicable Law or the rules of a relevant stock exchange.",
+      "section_number": "19.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "written consent",
+        "public announcement",
+        "Applicable Law"
+      ]
+    },
+    {
+      "clause_type": "NON_SOLICITATION",
+      "text": "19.2.1 Subject to clause 19.2.2, the parties shall not, during the Term and for a period of 12 months thereafter, directly solicit the services of, or employ or offer to employ, any employee or former employee of the other party or its Affiliates who is then currently engaged in, or at the end of the Term was engaged in, performing the other party\u2019s obligations under this MSA, without prior written consent of the other party.",
+      "section_number": "19.2",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "12 months",
+        "written consent",
+        "solicit"
+      ]
+    },
+    {
+      "clause_type": "FORCE_MAJEURE",
+      "text": "19.4.1 If a party is prevented from or delayed in performing any of its obligations under this MSA by a Force Majeure Event then:\n\n(a) the relevant obligations under this MSA shall be suspended for as long as the Force Majeure Event continues, but only to the extent that the party is prevented or delayed from performing them;\n\n(b) as soon as reasonably possible after the start of the Force Majeure Event, the party shall notify the other of the nature of the Force Majeure Event, the time at which",
+      "section_number": "19.4",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "suspended obligations",
+        "notification",
+        "mitigation"
+      ]
+    },
+    {
+      "clause_type": "ASSIGNMENT",
+      "text": "19.5.1 Subject to clause 19.5.2, neither party shall assign, transfer, charge or otherwise deal with any of its rights under this MSA or a LSA, nor grant, declare, create or dispose of any right or interest in them, without the prior written consent of the other party.",
+      "section_number": "19.5",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "assign",
+        "transfer",
+        "written consent"
+      ]
+    },
+    {
+      "clause_type": "NOTICE",
+      "text": "19.10.1 Except where the parties agree otherwise, any notice or other communication to be given by a party under this MSA shall:\n\n(a) be in writing and signed by or on behalf of the party giving it;\n\n(b) be served by sending it by fax to the number set out in clause 19.10.2, or delivering it by hand, or sending it by pre paid recorded delivery, special delivery or registered post, to the address set out in clause 19.10.2, and in each case marked for the attention of the relevant party set out in",
+      "section_number": "19.10",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "written",
+        "signed",
+        "fax",
+        "delivery"
+      ]
+    },
+    {
+      "clause_type": "GOVERNING_LAW",
+      "text": "19.16.4 This MSA and the relationship between the parties shall be governed by, and interpreted in accordance with, the laws of the Netherlands.",
+      "section_number": "19.16",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "laws of the Netherlands"
+      ]
+    },
+    {
+      "clause_type": "DISPUTE_RESOLUTION",
+      "text": "19.16.1 All disputes, controversies or claims between the parties arising out of or in connection with this MSA and/or any further contracts resulting therefrom shall, after exhaustion of the Escalation Procedure described in Exhibit 6 (Governance), be finally settled by an arbitral tribunal; in accordance with the Arbitration Rules of the Netherlands Arbitration Institute (NAI). The arbitral tribunal shall decide in accordance with the rules of law (regelen des rechts), and not as amiable compo",
+      "section_number": "19.16",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "arbitral tribunal",
+        "NAI",
+        "Amsterdam"
+      ]
+    }
+  ],
+  "obligations": [
+    {
+      "description": "Provide the Services to EuroBank Group members in accordance with the Statements of Work, Work Orders, Service Levels, and other provisions of the MSA.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "1.2.1",
+      "source_quote": "The PST Supplier shall provide the Services to the EuroBank Group members in accordance with the Statements of Work, the Work Orders, the Service Levels and the other provisions of this MSA.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with obligations under the Exhibits.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Each party",
+      "beneficiary_party": null,
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "1.2.2",
+      "source_quote": "Each party shall comply with its obligations under the Exhibits.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Perform obligations in accordance with Policies, Applicable Law, and best practice policies.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "1.2.3",
+      "source_quote": "The PST Supplier shall perform its obligations under this MSA in accordance with: (a) the Policies and (from the date of its agreement) the Policies and Procedures Manual; Applicable Law; and The PST Supplier\u2019s own best practice policies and procedures...",
+      "confidence": 0.85
+    },
+    {
+      "description": "Provide information and assistance in implementing and receiving the Services.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "EuroBank",
+      "beneficiary_party": "PST Supplier",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "1.2.5",
+      "source_quote": "EuroBank shall provide such information and assistance in implementing and receiving the Services as the parties may agree from time to time or as otherwise required in accordance with Applicable Law.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Enter into LSAs to implement the MSA in specified countries.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Both parties",
+      "beneficiary_party": null,
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "1.3.1",
+      "source_quote": "The parties shall upon mutual agreement enter into, or procure that their relevant local Affiliates enter into, LSAs to implement this MSA in the countries specified in Exhibit 7 (Sites and Local Entities) and/or in any New Countries from time to time.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Provide Services as an integrated part of the SWS Function in cooperation with the 2IM and Other PST Suppliers.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "1.4.1(a)",
+      "source_quote": "The PST Supplier acknowledges that: (a) it shall provide the Services as an integrated part of the SWS Function in co-operation with the 2IM and the Other PST Suppliers;",
+      "confidence": 0.85
+    },
+    {
+      "description": "Enter into OLAs with the 2IM and each of the Other PST Suppliers.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "1.4.2",
+      "source_quote": "The PST Supplier shall enter into OLAs with the 2IM and each of the Other PST Suppliers from time to time in accordance with the requirements of Exhibit 2.7 (2IM Services and Governance).",
+      "confidence": 0.85
+    },
+    {
+      "description": "Perform obligations under each OLA in accordance with its terms.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Breach of OLA is breach of MSA",
+      "section_number": "1.4.5",
+      "source_quote": "The PST Supplier shall perform its obligations under each OLA in accordance with its terms and, subject to EuroBank\u2019s consent in each instance, not to be unreasonably withheld or delayed, shall amend the OLAs from time to time in writing to account for any changes to the Services and/or the SWS Function...",
+      "confidence": 0.85
+    },
+    {
+      "description": "Notify EuroBank and the 2IM of any breach or suspected breach by the Other PST Suppliers or the 2IM of an OLA.",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "1.4.6(a)",
+      "source_quote": "The PST Supplier shall promptly notify EuroBank and the 2IM of any breach or suspected breach by the Other PST Suppliers or the 2IM of an OLA to which it is a party;",
+      "confidence": 0.85
+    },
+    {
+      "description": "Perform the Transition Plan and the Transformation Plan in accordance with Exhibit 30.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3",
+      "source_quote": "The PST Supplier shall perform the Transition Plan and the Transformation Plan in accordance with Exhibit 30 (Transition and Transformation).",
+      "confidence": 0.85
+    },
+    {
+      "description": "Notify EuroBank and the 2IM in writing if unable to meet any Milestone date.",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3(a)",
+      "source_quote": "If the PST Supplier becomes aware that it will not, or is unlikely to, meet any date for completion of any Milestone under either the Transition Plan or the Transformation Plan, then it shall: (a) immediately notify EuroBank and the 2IM in writing;",
+      "confidence": 0.85
+    },
+    {
+      "description": "Prepare and deliver a remedial plan if unable to meet any Milestone date.",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3(b)",
+      "source_quote": "prepare and deliver a remedial plan to EuroBank and the 2IM detailing the PST Supplier\u2019s proposals for completing the Milestone as soon as reasonably practicable after the required date;",
+      "confidence": 0.85
+    },
+    {
+      "description": "Implement the remedial plan at no cost to EuroBank if delay is attributable to PST Supplier.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3(c)",
+      "source_quote": "at EuroBank\u2019s request and without limiting EuroBank\u2019s other rights, implement the remedial plan on its terms at no cost to EuroBank if the delay is attributable to the PST Supplier or any of its Sub-Contractors...",
+      "confidence": 0.85
+    },
+    {
+      "description": "Commit additional resources at no cost to EuroBank if delay is attributable to PST Supplier.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3(d)",
+      "source_quote": "commit all reasonably available additional resources as may be required, at no cost to EuroBank if the delay is attributable to the PST Supplier or any of its Sub-Contractors...",
+      "confidence": 0.85
+    },
+    {
+      "description": "Supply Services to Departing Member if requested by EuroBank.",
+      "obligation_type": "DELIVERY",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "Departing Member",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.1.2",
+      "source_quote": "then the PST Supplier shall, if requested by EuroBank, continue to supply some or all of the Services to the Departing Member on the terms of this MSA for the remainder of the Term, or a shorter period specified by EuroBank.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Act as a purchasing representative for EuroBank to procure Equipment, software, and services not within the scope of the Services.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.2.2",
+      "source_quote": "If requested by EuroBank, the PST Supplier will act as a purchasing representative for EuroBank to procure Equipment, software and services not within the scope of the Services subject to the agreement through the Change Control Procedure...",
+      "confidence": 0.85
+    },
+    {
+      "description": "Notify the PST Supplier of intent to purchase services in Future PST Countries",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "EuroBank",
+      "beneficiary_party": "PST Supplier",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.3.1",
+      "source_quote": "EuroBank will notify the PST Supplier where it intends to purchase any services of the same type as the Services in one of the countries on the list of 'Future PST Countries'.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide and maintain all resources and assets necessary for the performance of the Services",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.4.1",
+      "source_quote": "The PST Supplier shall provide and maintain all resources and assets necessary for the proper and efficient performance of the Services.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Use EuroBank Facilities solely for the provision of the Services",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.4.2",
+      "source_quote": "The EuroBank Facilities and EuroBank Materials used by the PST Supplier in the provision of the Services shall be used solely by the PST Supplier for the provision of the Services.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Maintain and enforce safety and physical security procedures at PST Supplier Facilities",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.6.1",
+      "source_quote": "The PST Supplier will maintain and enforce, at the PST Supplier Facilities, safety and physical security procedures that are at least equal to the highest of the following: (a) industry standards for locations similar to the PST Supplier Facilities\u2019 locations; (b) the Policies applicable to the PST Supplier Facilities\u2019 locations; and (c) any higher standard otherwise agreed by the parties.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with safety and security policies at EuroBank Facilities",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.6.2",
+      "source_quote": "The PST Supplier will comply with the Policies and any other safety and security policies and procedures in effect at the EuroBank Facilities when working in those EuroBank Facilities.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide Services from EuroBank Sites",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "2IM",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.7.1",
+      "source_quote": "The 2IM will provide the Services from the relevant EuroBank Sites in the manner and for the duration specified in this MSA.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide reasonably furnished office space for 2IM",
+      "obligation_type": "DELIVERY",
+      "obligated_party": "EuroBank",
+      "beneficiary_party": "2IM",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.7.2",
+      "source_quote": "EuroBank shall provide the 2IM with reasonably furnished office space including desktop and network facilities for the duration of this MSA and at no further cost to the 2IM.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Use EuroBank Facilities for the sole purpose of providing the Services",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.7.4",
+      "source_quote": "The PST Supplier will use the EuroBank Facilities for the sole purpose of providing the Services and will use the EuroBank Facilities in an efficient manner.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with all Applicable Laws relating to environmental protection and hazardous materials",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Environmental laws and hazardous materials",
+      "source_quote": "The PST Supplier shall be responsible for compliance with all Applicable Laws relating to environmental protection and hazardous materials.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide reasonable cooperation to EuroBank and third parties retained by EuroBank",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.9.2",
+      "source_quote": "The PST Supplier shall provide reasonable cooperation to EuroBank and to third parties retained by EuroBank to perform information technology or other services.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify EuroBank and 2IM of any alleged failure by EuroBank to perform an obligation",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.10.2",
+      "source_quote": "Before claiming any relief from performance for a failure by EuroBank to perform an obligation under this MSA, the PST Supplier shall to the extent possible first: (a) promptly notify EuroBank and the 2IM of any alleged failure by EuroBank to perform the relevant obligation;",
+      "confidence": 0.9
+    },
+    {
+      "description": "Pay the invoiced Charges within 30 days of receipt of each valid and proper invoice",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "EuroBank",
+      "beneficiary_party": "PST Supplier",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.3.1",
+      "source_quote": "EuroBank shall pay the invoiced Charges within 30 days of receipt of each valid and proper invoice.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Invoice the Charges and submit invoices to EuroBank and a copy to the 2IM for verification",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.2.1",
+      "source_quote": "The PST Supplier shall invoice the Charges and submit invoices to EuroBank and a copy of each to the 2IM for verification in accordance with agreed invoicing or billing requirements as EuroBank may reasonably specify from time to time.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with all Policies and Applicable Laws in the performance of the Services",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "9.1.1",
+      "source_quote": "The PST Supplier shall, and shall procure that each Sub-Contractor shall: (a) comply with all Policies and Applicable Laws in the performance of the Services...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide an audit report within 30 days of the expiry of each Year",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": "annually",
+      "consequences": null,
+      "section_number": "9.9",
+      "source_quote": "The PST Supplier shall, within 30 days of the expiry of each Year, provide EuroBank with an audit report prepared by a reputable auditing firm...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Maintain complete and accurate records relating to the provision of the Services",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "9.8.2",
+      "source_quote": "The PST Supplier shall maintain complete and accurate records relating to the provision of the Services and the performance of its other obligations under this MSA.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Obtain and keep current all necessary licences, approvals, permits, certifications and authorisations",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Licences, approvals and notifications",
+      "source_quote": "The PST Supplier shall, at its own expense, obtain, and keep current in a timely manner, all necessary licences, approvals, permits, certifications and authorisations...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Deliver a copy of any internal audit conducted in relation to compliance of the Services with the Control Rules to EuroBank",
+      "obligation_type": "DELIVERY",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "9.12.1(h)",
+      "source_quote": "promptly delivering to EuroBank a copy of any internal audit conducted by or on behalf of the PST Supplier in relation to compliance of the Services with the Control Rules",
+      "confidence": 0.9
+    },
+    {
+      "description": "Cooperate with EuroBank and EuroBank\u2019s Auditors and provide necessary information, access to records, documentation, data, premises, and personnel",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "9.12.1(i)",
+      "source_quote": "co-operating with EuroBank and EuroBank\u2019s Auditors and providing such information, access to records, documentation, data, premises and personnel as may be necessary for EuroBank\u2019s Auditors to provide any reports required by the Control Rules",
+      "confidence": 0.9
+    },
+    {
+      "description": "Ensure Sub-Contractors comply with provisions of clause 9.12",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "9.12.2",
+      "source_quote": "The PST Supplier shall procure that its Sub-Contractors shall comply with the provisions set forth in this clause 9.12.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide assistance and execute all documents necessary to perfect EuroBank\u2019s title to the Deliverables",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "10.4.1(c)",
+      "source_quote": "the PST Supplier shall provide assistance and execute all documents necessary to perfect EuroBank\u2019s title to the Deliverables under this clause.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify EuroBank in writing prior to incorporating PST Supplier Materials or Third Party Materials into a Deliverable",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "10.4.2",
+      "source_quote": "the PST Supplier shall notify EuroBank of this fact in writing prior to incorporating the materials into the Deliverable",
+      "confidence": 0.9
+    },
+    {
+      "description": "Deliver a copy of the Deliverables including any source code as soon as reasonably practicable following a request by EuroBank",
+      "obligation_type": "DELIVERY",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "10.4.3",
+      "source_quote": "The PST Supplier shall, as soon as reasonably practicable following a request by EuroBank, deliver a copy of the Deliverables referred to in clauses 10.4.1 and 10.4.2. including any source code",
+      "confidence": 0.9
+    },
+    {
+      "description": "Procure the grant to EuroBank of any and all licences necessary to provide the Services",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "10.5.1(a)",
+      "source_quote": "procure the grant to EuroBank of any and all licences necessary to provide the Services to EuroBank",
+      "confidence": 0.9
+    },
+    {
+      "description": "Execute and deliver a Source Code Escrow Agreement within 30 days of an EuroBank request",
+      "obligation_type": "DELIVERY",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Source code escrow",
+      "source_quote": "The PST Supplier shall, within 30 days of an EuroBank request to that effect, execute and deliver a Source Code Escrow Agreement",
+      "confidence": 0.9
+    },
+    {
+      "description": "Indemnify EuroBank against all loss or damage from any infringement of Intellectual Property Rights",
+      "obligation_type": "OTHER",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Indemnification",
+      "section_number": "10.7.1",
+      "source_quote": "The PST Supplier shall indemnify EuroBank and each EuroBank Group member on demand against all loss or damage suffered or incurred by any of them as a result of any actual or alleged infringement of any Intellectual Property Right",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify the PST Supplier promptly after becoming aware of a PST Supplier Claim",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "EuroBank",
+      "beneficiary_party": "PST Supplier",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "10.7.2(a)",
+      "source_quote": "EuroBank shall: (a) notify the PST Supplier promptly after becoming aware of a PST Supplier Claim;",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide EuroBank with written proof that the PST Supplier is unable to credit the withholding tax",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "11.2.2",
+      "source_quote": "The PST Supplier will provide EuroBank with written proof, by external council, that the PST Supplier is unable to credit the withholding tax",
+      "confidence": 0.9
+    },
+    {
+      "description": "Advise on any other relevant tax applicable to the provision of the Services",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "11.3.1",
+      "source_quote": "The PST Supplier will advise on any other relevant tax that may be applicable to the provision of the Services.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Keep secret and confidential all Confidential Information of the other party",
+      "obligation_type": "OTHER",
+      "obligated_party": "Each party",
+      "beneficiary_party": "Other party",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Indemnification for breach",
+      "section_number": "12.1.1(a)",
+      "source_quote": "Each party shall: (a) keep secret and confidential, and procure that its officers, employees, representatives, Affiliates, and in the case of the PST Supplier, any Sub-Contractors, (collectively, the Representatives) keep secret and confidential, all Confidential Information of the other party and its Affiliates;",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify the other party of any suspected or actual unauthorized disclosure of Confidential Information",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Each party",
+      "beneficiary_party": "Other party",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "12.1.1(e)",
+      "source_quote": "promptly notify the other of any suspected or actual unauthorised disclosure of the Confidential Information of the other party and its Affiliates, and take all reasonable steps to prevent, limit or remedy the disclosure;",
+      "confidence": 0.9
+    },
+    {
+      "description": "Segregate all EuroBank Group Confidential Information from that of any other client",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "12.1.4(a)",
+      "source_quote": "in executing the Services, segregate all EuroBank Group Confidential Information from that of any other client to the extent agreed and/or required by Applicable Law",
+      "confidence": 0.9
+    },
+    {
+      "description": "Establish and maintain safeguards against unauthorized access, destruction, loss or alteration of EuroBank Group Confidential Information",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "12.1.4(b)",
+      "source_quote": "establish and maintain agreed safeguards against the unauthorised access, destruction, loss or alteration of EuroBank Group Confidential Information in the possession of the PST Supplier",
+      "confidence": 0.9
+    },
+    {
+      "description": "Process personal data solely on behalf of EuroBank and not for any other purpose",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "12.2.2",
+      "source_quote": "the PST Supplier processes personal data that is used in the course of EuroBank\u2019s and EuroBank Group members\u2019 business, then it shall do so solely on behalf of EuroBank",
+      "confidence": 0.9
+    },
+    {
+      "description": "Act only on the instructions of EuroBank in connection with the processing of personal data",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "12.2.3(a)",
+      "source_quote": "act only on the instructions of EuroBank (or, in the case of a Sub-Contractor, instructions given by the PST Supplier on behalf of EuroBank);",
+      "confidence": 0.9
+    },
+    {
+      "description": "Take appropriate measures to protect personal data against unauthorized access and other unlawful forms of processing",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "12.2.3(b)",
+      "source_quote": "take appropriate technical and organizational measures to protect personal data against accidental or unlawful destruction or accidental loss, alteration, unauthorised disclosure, use or access",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide EuroBank with information or documentation related to PST Supplier's financial situation upon request",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "12.3.1",
+      "source_quote": "the PST Supplier shall promptly provide EuroBank with such information or documentation that EuroBank may reasonably request",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify the other party promptly of any material adverse change in financial condition or other relevant issues",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Each party",
+      "beneficiary_party": "Other party",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "12.3.2",
+      "source_quote": "Each party shall notify the other promptly: (a) of the following matters, in each case where the matter is material to the performance of its obligations under this MSA",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify EuroBank promptly of any complaints received from third parties in relation to the Services",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "12.3.3",
+      "source_quote": "The PST Supplier shall notify EuroBank promptly of any complaints received from third parties in relation to the Services.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide EuroBank with information or documentation as requested",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "12.3.1",
+      "source_quote": "The PST Supplier shall promptly provide EuroBank with such information or documentation that EuroBank may reasonably request.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Supply EuroBank with copies of audited financial statements annually",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "annually",
+      "consequences": null,
+      "section_number": "12.3.1",
+      "source_quote": "The PST Supplier shall, in particular, supply EuroBank with copies of its audited financial statements on an annual basis within one month of their approval.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Supply EuroBank with the first page of the financial return quarterly",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "quarterly",
+      "consequences": null,
+      "section_number": "12.3.1",
+      "source_quote": "On a quarterly basis, the first page of the financial return required to be submitted monthly to the Regulator.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify the other party of material changes affecting performance",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Each party",
+      "beneficiary_party": "Other party",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "12.3.2",
+      "source_quote": "Each party shall notify the other promptly of the following matters, in each case where the matter is material to the performance of its obligations under this MSA.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Maintain specified insurance policies",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": null,
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "14.1.1",
+      "source_quote": "The PST Supplier shall maintain (for the duration specified in clause 14.3 below) the following insurance policies with an insurer of good reputation and financial standing.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide certificates of insurance upon request",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "14.2.1",
+      "source_quote": "The PST Supplier shall provide, where requested by EuroBank, certificates of insurance evidencing the required coverage.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify EuroBank of any change of Control",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "16.5.3",
+      "source_quote": "The PST Supplier shall promptly notify EuroBank in writing of any change of Control.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Return or destroy materials upon termination or expiry",
+      "obligation_type": "OTHER",
+      "obligated_party": "Both parties",
+      "beneficiary_party": "Other party",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "16.10",
+      "source_quote": "On termination or expiry of this MSA, the both parties shall: (a) to the full extent reasonably possible promptly cease using, and return, or procure the return of any materials.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with obligations in Exhibit 20 (Termination Assistance) upon expiry of MSA or LSA",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Both parties",
+      "beneficiary_party": null,
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Exhibit 20",
+      "source_quote": "Upon expiry of this MSA or a LSA, the parties shall comply with their respective obligations in Exhibit 20 (Termination Assistance).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Ensure Guarantor complies with obligations set out in the Parent Company Guarantee",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "18",
+      "source_quote": "The PST Supplier warrants (garandeert) that the Guarantor shall comply with its obligations set out in the guarantee.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Do not disclose the fact or subject matter of the MSA without written consent",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Both parties",
+      "beneficiary_party": "Both parties",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "19.1.1",
+      "source_quote": "Neither party shall disclose the fact or subject matter of this MSA, unless it first obtains the other party\u2019s written consent.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Do not disclose identity of EuroBank Group as a customer or use their trademarks without consent",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "19.1.3",
+      "source_quote": "The PST Supplier shall not disclose the identity of any member of the EuroBank Group as a customer of the PST Supplier, or engage in any promotion that discloses the existence of this MSA or the relationship between the PST Supplier and the EuroBank Group; or use any names or trade marks of the EuroBank Group, without EuroBank\u2019s prior written consent.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Do not solicit or employ employees of the other party during the Term and for 12 months thereafter without consent",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Both parties",
+      "beneficiary_party": "Both parties",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Pay 25% of the net annual salary of the employee",
+      "section_number": "19.2.1",
+      "source_quote": "The parties shall not, during the Term and for a period of 12 months thereafter, directly solicit the services of, or employ or offer to employ, any employee or former employee of the other party or its Affiliates without prior written consent of the other party.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify the other party of a Force Majeure Event and its effects as soon as reasonably possible",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Affected party",
+      "beneficiary_party": "Other party",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Forfeit rights under clause 19.4.1(a)",
+      "section_number": "19.4.1(b)",
+      "source_quote": "As soon as reasonably possible after the start of the Force Majeure Event, the party shall notify the other of the nature of the Force Majeure Event, the time at which the Force Majeure Event started and the likely effects of the Force Majeure Event on its ability to perform its obligations under this MSA.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Use best endeavours to mitigate effects of Force Majeure Event",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Affected party",
+      "beneficiary_party": "Other party",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "19.4.1(d)",
+      "source_quote": "It shall use its best endeavours to mitigate the effects of the Force Majeure Event on the performance of its obligations under this MSA.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify the other party that the Force Majeure Event has ended and resume performance",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Affected party",
+      "beneficiary_party": "Other party",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "19.4.1(e)",
+      "source_quote": "As soon as reasonably possible after the end of the Force Majeure Event, it shall notify the other party that the Force Majeure Event has ended, and shall resume performance of its obligations under this MSA.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Reduce Charges fairly and equitably to reflect extent Services are not provided due to Force Majeure Event",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "EuroBank",
+      "beneficiary_party": "PST Supplier",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "19.4.3",
+      "source_quote": "The Charges shall be reduced fairly and equitably to reflect the extent to which the Services are not provided as a result of a Force Majeure Event.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Do not assign or transfer rights under MSA without prior written consent",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Both parties",
+      "beneficiary_party": "Both parties",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "19.5.1",
+      "source_quote": "Neither party shall assign, transfer, charge or otherwise deal with any of its rights under this MSA or a LSA, nor grant, declare, create or dispose of any right or interest in them, without the prior written consent of the other party.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify the other party before transferring rights and obligations to another group member",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Transferring party",
+      "beneficiary_party": "Other party",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "19.5.2",
+      "source_quote": "Either party may transfer its rights and obligations under this MSA in whole to another member of its group of companies... but shall give notice to the other party before making the transfer.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Do not sub-contract obligations without prior written consent",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "PST Supplier",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "19.5.5",
+      "source_quote": "The PST Supplier shall not sub-contract any of its obligations under this MSA without EuroBank\u2019s prior written consent, which may not be unreasonably withheld.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Perform further acts and deliver documents required by law or necessary to implement MSA",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Both parties",
+      "beneficiary_party": "Both parties",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "19.6.1",
+      "source_quote": "Each party shall perform, or procure the performance of, all further acts and things, and shall deliver, or procure the execution and delivery of further documents which are required by Applicable Law or are necessary or reasonably desirable to implement the terms of this MSA.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Pay costs and expenses incurred in connection with MSA and Transaction Documents",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Both parties",
+      "beneficiary_party": "Both parties",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Costs",
+      "source_quote": "Each party shall pay the costs, charges and other expenses incurred by it and its Affiliates in connection with the negotiation, preparation, signing and performance of this MSA and other Transaction Documents.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Indemnify the other party for loss or damage from Non-Compliant Claims",
+      "obligation_type": "OTHER",
+      "obligated_party": "Claiming Party",
+      "beneficiary_party": "Other party",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "19.9.4",
+      "source_quote": "A Claiming Party shall indemnify the other party and its Affiliates on demand for any loss or damage suffered or incurred by any of them as a result of an Affiliate of the Claiming Party making any claim against the other party or its Affiliates other than in accordance with this clause (Non-Compliant Claim).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify the other party of changes to name, address, or fax number",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Both parties",
+      "beneficiary_party": "Both parties",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "19.10.3",
+      "source_quote": "A party shall notify the other of a change to its name, relevant addressee, address or fax number for the purposes of this clause 19.10.",
+      "confidence": 0.9
+    }
+  ],
+  "slas": [
+    {
+      "sla_name": "Critical Deliverables Penalty",
+      "metric_type": "DELIVERY_TIME",
+      "metric_unit": "DAYS",
+      "target_value": 0.0,
+      "severity": "CRITICAL",
+      "has_penalty": true,
+      "penalty_type": "fixed",
+      "penalty_value": null,
+      "measurement_period": "monthly",
+      "section_reference": "3.1",
+      "source_text": "If any Critical Deliverable (including those under the Transition Plan or Transformation Plan) is not Accepted in accordance with the requirements of this MSA as a result of the PST Supplier\u2019s breach of clause 3.1 or any other provision of this MSA, then EuroBank may, without limiting its other rights, claim the penalties specified in Attachment 3C (Critical Deliverables).",
+      "confidence": 0.9
+    },
+    {
+      "sla_name": "Final Transition Milestone Penalty",
+      "metric_type": "DELIVERY_TIME",
+      "metric_unit": "DAYS",
+      "target_value": 0.0,
+      "severity": "CRITICAL",
+      "has_penalty": true,
+      "penalty_type": "fixed",
+      "penalty_value": null,
+      "measurement_period": "monthly",
+      "section_reference": "3.1",
+      "source_text": "If the Final Transition Milestone has not been Accepted by the Transition Long Stop Date as a result of its breach of its obligations under the MSA, then the PST Supplier shall be in material breach of this MSA and, without limiting EuroBank\u2019s other rights, including the right to performance and damages in excess of the applicable penalty, EuroBank shall be entitled to receive the immediate payment by the PST Supplier of the penalty indicated for such failure in Attachment 3-C (Critical Delivera",
+      "confidence": 0.9
+    }
+  ],
+  "renewal": {
+    "has_auto_renewal": false,
+    "auto_renewal_term_months": null,
+    "notice_period_days": null,
+    "notice_deadline": null,
+    "expiration_date": null,
+    "initial_term_months": null,
+    "termination_for_convenience": false,
+    "confidence": 0.0
+  },
+  "parse": {
+    "char_count": 134212,
+    "page_count": 43
+  }
+}

@@ -1,0 +1,1648 @@
+{
+  "contract_id": "nov-msa-pdf",
+  "source": "novartis",
+  "filename": "MSA, initialled, 31 January 07.pdf",
+  "doc_type": "msa",
+  "generated_at": "2026-04-14T06:24:27.461610",
+  "extraction_time_seconds": 307.5,
+  "is_draft": true,
+  "reviewed": false,
+  "metadata": {
+    "error": "ChromaDB service unavailable at localhost:8100. Ensure the ChromaDB container is running and healthy."
+  },
+  "clauses": [
+    {
+      "clause_type": "SERVICE_DESCRIPTION",
+      "text": "Service Provider agrees that \"Services\" means the services, functions, processes, and responsibilities as detailed below: \u00b0 The services, functions, processes, and responsibilities described in The Agreements, including Exhibits (e.g. the Statement of Work); \u00b0 The services, functions, processes, and responsibilities routinely performed by the Novartis Pharma personnel and contractors who are transitioned to the Service Provider, displaced, or whose functions were displaced as a result of The Agr",
+      "section_number": "3.1",
+      "page_number": 14,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "services",
+        "functions",
+        "processes",
+        "responsibilities"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "Novartis Pharma and Service Provider have agreed on service levels and the mechanism to baseline and measure them as described in Exhibit 3 (Service Levels) and which is considered to be the Service Level Agreement (SLA).",
+      "section_number": "1.6",
+      "page_number": 12,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "service levels",
+        "SLA"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "The Agreements shall remain in force until the seventh (7) anniversary of the Commencement Date (\"Term\") unless terminated earlier or extended as provided herein. The seventh (7) anniversary of the Commencement Date is referred to as Expiration Date herein.",
+      "section_number": "2.2",
+      "page_number": 13,
+      "risk_level": "MEDIUM",
+      "confidence": 0.85,
+      "key_terms": [
+        "seventh anniversary",
+        "Expiration Date"
+      ]
+    },
+    {
+      "clause_type": "AUTO_RENEWAL",
+      "text": "Eighteen (18) months prior to the Expiration Date, the Service Provider will propose new terms to Novartis Pharma for renewing The Agreements, that will be negotiated by the Parties in good faith and should be based on either (i) market conditions or (ii) the conditions of then-existing agreements between the Service Provider and any other Novartis division/business unit, which ever is more favorable. If the Parties are unable to agree upon the terms and conditions for the renewal of The Agreeme",
+      "section_number": "2.3",
+      "page_number": 13,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "renewal",
+        "18 Months Extension",
+        "One Year Extensions"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "3.4 Service Levels\n\n1. The Service Provider will comply with the requirements contained in Exhibit 3 (Service Levels).\n\n2 Service Levels and the mechanisms to baseline and measure them are described in Exhibit 3 (Service Levels).\n\n3. The Service Provider will perform and provide to Novartis Pharma a root cause analysis for any incident that would contribute to the Service Provider's missing a Service Level.\n\n4. All Services without expressly defined Service Levels must be performed at service le",
+      "section_number": "3.4",
+      "page_number": 17,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "Service Levels",
+        "root cause analysis",
+        "audit"
+      ]
+    },
+    {
+      "clause_type": "TRANSITION",
+      "text": "3.5 Transition Plan\n\n1. With regard to the transition of the responsibilities in line with this Agreement the Service Provider will undertake the steps as described in Exhibit 21 (Statement of Work Transition). Exhibit 21 (Statement of Work Transition) contains descriptions of:\n1.1 All of the transition tasks to be performed by the Service Provider.\n\n1.2 Any allocation of responsibilities between the Parties.\n\n1.3. The specific resources to be provided by Novartis Pharma.\n\n1.4 The completion dat",
+      "section_number": "3.5",
+      "page_number": 18,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "Transition Plan",
+        "cure period",
+        "termination"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "7. PROPRIETARY RIGHTS\n\n7.1 Novartis Pharma IP Rights and Know-how\n\n1. Novartis Pharma is the sole and exclusive owner of all IP rights and know-how (\"Materials\") owned by Novartis Pharma as of the Effective Date, all Materials acquired by Novartis Pharma from Third Parties after the Effective Date and all Materials developed by Novartis Pharma after the Effective Date. The Materials may be patents, copyright protected software, programs, programs listings as listed in the exhaustive Exhibit 22 (",
+      "section_number": "7.1",
+      "page_number": 24,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "IP rights",
+        "license",
+        "Novartis Pharma"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "7.2 Service Provider's IP Rights and Know-how\n\n1. Service Provider will be the sole and exclusive owner of all IP rights and know-how (\"Materials\") owned by the Service Provider as of the Effective Date, all Materials acquired by the Service Provider from Third Parties after the Effective Date and all Materials developed by the Service Provider after the Effective Date. The Materials may be patents, copyright protected software, programs, programs listings as listed in the exhaustive Exhibit 23 ",
+      "section_number": "7.2",
+      "page_number": 25,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "IP rights",
+        "license",
+        "Service Provider"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "7.3 Future Intellectual Property Rights and Know-how\n\n7.3.1 Materials Developed under this Agreement\n\n1. In performing the Services under The Agreements, Service Provider, further to the Parties' IP rights and know-how (Clause 7.1 and 7.2 of the MSA), may deliver to Novartis Pharma programs, program listings, documentation, reports and drawings (\"Materials\") developed by Service Provider or its subcontractors under The Agreements. All Materials shall be described in the Exhibits Statements of Wo",
+      "section_number": "7.3",
+      "page_number": 26,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "Type I Materials",
+        "Type II Materials",
+        "Type III Materials",
+        "Type IV Materials"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "7.3.2 General\n\n1. Any ownership or license rights herein granted to either Party are limited by and subject to any patents and copyrights held by, and terms and conditions of any license agreements.\n\n2. Service Provider and Novartis Pharma shall ensure that its employees and agents, freelancers and subcontractors involved in developing Materials under The Agreements have signed an employment agreement or a mandate which stipulates that all copyrights are transferred from its employees, agents, o",
+      "section_number": "7.3.2",
+      "page_number": 28,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "ownership",
+        "license rights",
+        "patents",
+        "copyrights"
+      ]
+    },
+    {
+      "clause_type": "GOVERNANCE",
+      "text": "8.1 Governance Model\n\nThe Service Provider will comply with the requirements contained in Exhibit 6 (Governance Model).",
+      "section_number": "8.1",
+      "page_number": 30,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Governance Model",
+        "Exhibit 6"
+      ]
+    },
+    {
+      "clause_type": "PERSONNEL",
+      "text": "8.2 Service Provider Personnel\n\n1. The Service Provider will comply with the requirements relating to Service Provider personnel contained in Clause 8.2 (and all its subsections) and in Exhibit 5 (Human Resource Provisions).\n\n2. Novartis Pharma may designate up to 15 of the Service Provider's project staff as Key Service Provider Personnel. Key Service Provider Personnel will dedicate the majority of their time to providing the Services to Novartis Pharma. Novartis Pharma reserves the right to i",
+      "section_number": "8.2",
+      "page_number": 30,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Key Service Provider Personnel",
+        "Exhibit 5"
+      ]
+    },
+    {
+      "clause_type": "CHANGE_MANAGEMENT",
+      "text": "8.6 Change Control\n\n1. Novartis Pharma will have the right to approve in advance any change, action or decision of the Service Provider with respect to the provision of Services to Novartis Pharma that may have a material or adverse effect on the Services and/or Service Levels, require Novartis Pharma to change the way it conducts its operations, or increase charges or costs to Novartis Pharma. Novartis Pharma will have the right to set priorities in scheduling work.\n\n2. Novartis Pharma will not",
+      "section_number": "8.6",
+      "page_number": 32,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Change Control",
+        "New Services",
+        "Change Request Authorization"
+      ]
+    },
+    {
+      "clause_type": "CONFIDENTIALITY",
+      "text": "As a condition to its engagement, the Benchmarker will execute a confidentiality agreement reasonably satisfactory to the Parties.",
+      "section_number": "3",
+      "page_number": 35,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "confidentiality agreement",
+        "satisfactory to the Parties"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "ownership of intellectual property rights and other material terms and conditions",
+      "section_number": "4",
+      "page_number": 36,
+      "risk_level": "LOW",
+      "confidence": 0.85,
+      "key_terms": [
+        "ownership",
+        "intellectual property rights"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "In the event that the Parties cannot reach agreement on the Benchmarking Adjustment and a price adjustment will be implemented in accordance with Clause 8.10 (7) (ii) and (iii), then Service Provider will have the right to terminate this Agreement pursuant to Clause 16.6 of the MSA.",
+      "section_number": "8",
+      "page_number": 39,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "terminate",
+        "Clause 16.6"
+      ]
+    },
+    {
+      "clause_type": "PAYMENT_TERMS",
+      "text": "Novartis Pharma will pay undisputed charges within thirty (30) days of receipt of invoice. Novartis Pharma has the right to set off amounts owed by Novartis Pharma under The Agreements against any amount the Service Provider is obligated to pay or credit Novartis Pharma under The Agreements.",
+      "section_number": "8.15",
+      "page_number": 43,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "undisputed charges",
+        "thirty (30) days",
+        "set off"
+      ]
+    },
+    {
+      "clause_type": "CHANGE_MANAGEMENT",
+      "text": "The Benchmarking Adjustment to be made by the Parties shall be conducted in accordance with the applicable Change Control procedure set forth in Clause 8.6 of the MSA.",
+      "section_number": "7",
+      "page_number": 37,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Change Control procedure",
+        "Clause 8.6"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "If the difference of the Service Provider's current charges is lower than the Benchmark or up to five % higher than the Median of all Benchmarks, no adjustment to the current Service Provider charges will be made.",
+      "section_number": "7",
+      "page_number": 38,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Benchmark",
+        "Median",
+        "adjustment"
+      ]
+    },
+    {
+      "clause_type": "FORCE_MAJEURE",
+      "text": "Any significant change in Novartis Pharma's business (e.g., acquisitions, divestitures, general business downturn, etc.) which increases or decreases Novartis Pharma's utilization of any billable Resource Unit, based on Exhibit 4 (Pricing and Financial Provisions) Section 4 \u2014 ARCs and RRcs, by increasing more than 70% or decreasing more than 40%, and such changes persist or are expected to continue for three (3) or more months will be deemed an 'Extraordinary Event'.",
+      "section_number": "8.13",
+      "page_number": 41,
+      "risk_level": "MEDIUM",
+      "confidence": 0.85,
+      "key_terms": [
+        "Extraordinary Event",
+        "70%",
+        "40%"
+      ]
+    },
+    {
+      "clause_type": "PAYMENT_TERMS",
+      "text": "properly invoiced within three months after the end of the month to which such charges correspond. For transition, the time period for invoicing charges will be extended to six months.",
+      "section_number": "8",
+      "page_number": 44,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "invoicing",
+        "three months",
+        "six months"
+      ]
+    },
+    {
+      "clause_type": "CONFIDENTIALITY",
+      "text": "10. SAFEGUARDING OF NOVARTIS PHARMA INFORMATION, CONFIDENTIALITY\n\n1. Novartis Pharma Information will be and remain the property of Novartis Pharma. The Service Provider and its subcontractors, if any, will not utilize Novartis Pharma Information for any purpose other than that of rendering the Services under The Agreements.\n\n2. All operational data developed and maintained by the Service Provider in delivering the Services shall be considered Novartis Pharma Information, except for information ",
+      "section_number": "10",
+      "page_number": 47,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "property",
+        "return",
+        "security policies"
+      ]
+    },
+    {
+      "clause_type": "DATA_PROTECTION",
+      "text": "8. Service Provider guarantees that no personal data will be transferred from countries of the European continent to the USA or any other jurisdiction with Data Protection Rules and Regulations which are not equivalent to the standards within the European Union and that such personal data will neither be processed there. Service Provider also guarantees to grant all necessary support to Novartis Pharma to comply with applicable Data Protection Rules and Regulations.",
+      "section_number": "10",
+      "page_number": 47,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "personal data",
+        "European Union",
+        "Data Protection Rules"
+      ]
+    },
+    {
+      "clause_type": "WARRANTY",
+      "text": "11. REPRESENTATIONS AND WARRANTIES\n\n11.1 Work Standards\n\nThe Service Provider will provide the Services with promptness, diligence and in a workmanlike and professional manner, in accordance with the terms of The Agreements and with the practices and professional standards used in well-managed operations performing services similar to the Services. The Service Provider will use adequate numbers of qualified individuals with suitable training, education, experience and skill to perform the Servic",
+      "section_number": "11.1",
+      "page_number": 48,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "workmanlike",
+        "professional manner",
+        "qualified individuals"
+      ]
+    },
+    {
+      "clause_type": "INDEMNIFICATION",
+      "text": "13. INDEMNITIES\n\n13.1 Indemnities by Service-Provider\n\nThe Service Provider will indemnify, defend and hold harmless Novartis Pharma and its respective Affiliates, officers, directors, employees, agents, successors, and assigns against: (i) any Third Party claim arising out of or related to the Service Provider's performance or failure to perform its obligations on or after the Effective Date under any Third Party Software licenses or contracts assigned to the Service Provider or for which the S",
+      "section_number": "13.1",
+      "page_number": 54,
+      "risk_level": "HIGH",
+      "confidence": 0.95,
+      "key_terms": [
+        "indemnify",
+        "hold harmless",
+        "Third Party claim"
+      ]
+    },
+    {
+      "clause_type": "INDEMNIFICATION",
+      "text": "Novartis Pharma will indemnify, defend and hold harmless the Service Provider and its respective Affiliates, officers, directors, employees, agents, successors, and assigns against: (i) any Third Party claim arising out of or related to Novartis Pharma's failure to perform its obligations before the Effective Date by Novartis Pharma under any Third Party Software licenses or contracts assigned to the Service Provider or for which the Service Provider has assumed financial, administrative or oper",
+      "section_number": "13.2",
+      "page_number": 54,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "Third Party claim",
+        "failure to perform",
+        "breach of representation"
+      ]
+    },
+    {
+      "clause_type": "LIMITATION_OF_LIABILITY",
+      "text": "Each Party's total liability to the other shall be limited, in the aggregate, to an amount equal to (i) the greater of the total charges payable to the Service Provider for the eighteen (18) months; (ii) or, if this event occurred in the first eighteen (18) months after the Commencement Date (clause 2.1), the greater of the total charges payable to the Service Provider pursuant to The Agreement for performance of the Services for the corresponding time prior to the month in which the most recent",
+      "section_number": "14.2.2",
+      "page_number": 57,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "total liability",
+        "eighteen (18) months"
+      ]
+    },
+    {
+      "clause_type": "FORCE_MAJEURE",
+      "text": "No Party shall be liable for any default or delay in the performance of its obligations under The Agreements (i) if and to the extent the default or delay is caused, directly or indirectly, by fire, flood, elements of nature, acts of God, acts of war, terrorism or civil unrest or any other cause beyond the reasonable control of the Party and (ii) provided the non-performing Party is without fault and the default or delay could not have been prevented by reasonable precautions.",
+      "section_number": "14.2.3",
+      "page_number": 57,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "acts of God",
+        "reasonable control"
+      ]
+    },
+    {
+      "clause_type": "DISPUTE_RESOLUTION",
+      "text": "Any dispute, controversy or claim arising out of or in relation to The Agreements, including the validity, invalidity, breach or termination thereof, shall be resolved by arbitration in accordance with the Rules of Arbitration of the International Chamber of Commerce, Paris, in force on the date when the Notice of Arbitration is submitted in accordance with these Rules.",
+      "section_number": "15.3",
+      "page_number": 59,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "arbitration",
+        "International Chamber of Commerce"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "Novartis Pharma may terminate The Agreements, in whole or in part, if the Service Provider (i) breaches in any material respect any of its duties or obligations under The Agreements and fails to cure such breach within thirty (30) days after notice; (ii) materially breaches any duty or obligation under The Agreements which is not capable of being cured within thirty (30) days; or (iii) commits numerous breaches of its duties or obligations under The Agreements which in the aggregate are material",
+      "section_number": "16.1",
+      "page_number": 60,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "material breach",
+        "thirty (30) days"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "As part of Termination/Expiration Assistance, the Service Provider will not reassign the Service Provider's employees or contractors away from performance of functions under The Agreements.",
+      "section_number": "5",
+      "page_number": 64,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Termination/Expiration Assistance"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "The Service Provider will provide Novartis Pharma, at no additional cost, a perpetual, irrevocable, fully paid-up, personal license to use the proprietary Service Provider Materials used by the Service Provider to provide services to Novartis Pharma, solely for the complete utilisation of the Services and not for any standalone commercial purpose.",
+      "section_number": "7",
+      "page_number": 64,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "perpetual",
+        "irrevocable",
+        "fully paid-up",
+        "personal license"
+      ]
+    },
+    {
+      "clause_type": "DISPUTE_RESOLUTION",
+      "text": "If the Service Provider fails or threatens not to provide Novartis Pharma with Termination/Expiration Assistance, Novartis Pharma will be irreparably harmed and may proceed directly to Arbitration in line with Clause 15.3 of the MSA.",
+      "section_number": "9",
+      "page_number": 64,
+      "risk_level": "MEDIUM",
+      "confidence": 0.85,
+      "key_terms": [
+        "Arbitration",
+        "Clause 15.3"
+      ]
+    },
+    {
+      "clause_type": "ASSIGNMENT",
+      "text": "Neither Party may assign The Agreements without the prior written consent of the other, except that Novartis Pharma may assign its rights and obligations under The Agreements without the approval of the Service Provider to (i) an entity which acquires all or substantially all of the assets of Novartis Pharma; or (ii) to any subsidiary or Affiliate or Successor in a merger or acquisition involving Novartis Pharma.",
+      "section_number": "17.1",
+      "page_number": 65,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "assignment",
+        "prior written consent"
+      ]
+    },
+    {
+      "clause_type": "NOTICE",
+      "text": "All notices, requests, demands and other communications which are required or may be given pursuant to The Agreements and shall be deemed duly served on the date delivered to the addressee if sent as follows: If to Novartis Pharma: Novartis Pharma AG Head Shared Services Lichtstrasse 35 CH-4056 Basel Novartis Pharma AG General Counsel Lichtstrasse 35 CH-4056 Basel If to Service Provider: Genpact International SaRL Chief Executive Officer 65 Bv. Grande-Duchesse Charlotte L-1331 Luxembourg Genpact",
+      "section_number": "17.12",
+      "page_number": 68,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "notices",
+        "address"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "Within six (6) months of the Go Live Date, Service Provider will place all source code, and documentation related to the Service Provider Proprietary Software (the 'Escrow Material') in escrow pursuant to the Escrow Agreement (Exhibit 33, Escrow Agreement).",
+      "section_number": "17.5",
+      "page_number": 66,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Escrow",
+        "source code",
+        "Proprietary Software"
+      ]
+    }
+  ],
+  "obligations": [
+    {
+      "description": "Perform any obligations of the Service Provider and/or any affiliated company included in The Agreements",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "1.2.3",
+      "source_quote": "The Service Provider hereby commits to perform any obligations of the Service Provider and/or any affiliated company included in The Agreements as the Service Provider's obligations, according to the terms and conditions of The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Propose new terms for renewing The Agreements",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "The Agreements are terminated at the Expiration Date if no agreement is reached",
+      "section_number": "2.3",
+      "source_quote": "Eighteen (18) months prior to the Expiration Date, the Service Provider will propose new terms to Novartis Pharma for renewing The Agreements...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide all of the Services described in The Agreements in all geographies",
+      "obligation_type": "DELIVERY",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.1",
+      "source_quote": "The Service Provider will provide all of the Services described in the The Agreements in all geographies as set forth in Exhibit 7...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide support reasonably related to the Services required for Novartis Pharma to meet all of its requirements imposed by laws and regulations",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.1",
+      "source_quote": "The Service Provider will provide all support reasonably related to the Services that is required for Novartis Pharma to meet all of its requirements imposed by global, transnational, federal, state or local laws and regulations...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide acquisition support and services for acquired entities",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.1",
+      "source_quote": "As requested by Novartis Pharma with respect to an acquisition, the Service Provider will provide acquisition support (including assessments, transition planning and migration support)...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Continue to provide Services to divested entities for up to twelve (12) months",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.1",
+      "source_quote": "In such cases, the Service Provider will continue to provide the Services to such divested entity for up to twelve (12) months or any longer period as agreed in writing...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Pass on 100% of further discounts on pass through costs to Novartis Pharma",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.2",
+      "source_quote": "If further discounts are available on costs identified as pass through costs at the time of actual procurement of these items those are passed on by 100 percent to Novartis Pharma.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Perform additional services as requested by Novartis Pharma",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.2",
+      "source_quote": "Novartis Pharma may request the Service Provider to perform additional services during the term of The Agreements.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Provide a tiered rate structure for additional services",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.2",
+      "source_quote": "The Service Provider will provide a tiered rate structure to allow Novartis Pharma to realize savings from reduced unit costs of additional resources.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Obtain prior written authorization for New Services",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Novartis Pharma shall not be obligated to pay for any New Service not properly authorized.",
+      "section_number": "3.2",
+      "source_quote": "The provision of New Services by the Service Provider must be authorized in advance and in writing by Novartis Pharma's Contract Executive.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Support all technologies identified in The Agreements",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.3",
+      "source_quote": "The Service Provider will support all of the technologies which are identified in The Agreements and employed by Novartis Pharma as of the Effective Date.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Obtain and maintain all necessary licenses and permits",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": null,
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.3",
+      "source_quote": "The Service Provider shall be responsible for obtaining and keeping current all necessary licenses, approvals, consents, permits and authorizations/assignments required by applicable law.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with Service Levels in Exhibit 3",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.4",
+      "source_quote": "The Service Provider will comply with the requirements contained in Exhibit 3 (Service Levels).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Perform root cause analysis for any incident affecting Service Levels",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.4",
+      "source_quote": "The Service Provider will perform and provide to Novartis Pharma a root cause analysis for any incident that would contribute to the Service Provider's missing a Service Level.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Implement and operate measurement and monitoring tools for Service Levels",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.4",
+      "source_quote": "The Service Provider will implement and operate all measurement and monitoring tools and procedures required to measure and report its performance relative to the applicable Service Levels.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Undertake transition tasks as described in Exhibit 21",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "FIXED",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Novartis Pharma has the right to terminate The Agreements if the Service Provider fails to complete the Transition Plan by the planned completion date.",
+      "section_number": "3.5",
+      "source_quote": "With regard to the transition of the responsibilities in line with this Agreement the Service Provider will undertake the steps as described in Exhibit 21 (Statement of Work Transition).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide revised plan to mitigate transition delay risks",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "If the plan is not agreed, termination charges may apply.",
+      "section_number": "3.5",
+      "source_quote": "The Service Provider must provide a revised plan that mitigates the risks for the delay of the transition within 5 working days from the notice by Novartis Pharma.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Ensure compliance with all regulatory issues",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.7",
+      "source_quote": "The Service Provider ensures compliance with all regulatory issues that may arise with the provision of the Services within the sites Described in Exhibit 7 (Sites).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify Novartis Pharma of changes in law or regulation",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.7",
+      "source_quote": "The Service Provider will promptly notify Novartis Pharma of any changes in law or regulation relating as for the Services provided under The Agreement.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Ensure Services conform to changes in applicable law or regulation",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.7",
+      "source_quote": "The Service Provider will ensure the Services conform to any changes in applicable law or regulation subject to Novartis Pharma's obligation to notify and update the Service Provider of applicable Law in Novartis Pharma's jurisdiction(s).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide Services to Authorized Users",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.8",
+      "source_quote": "The Service Provider shall provide the Services to Novartis Pharma and to any Authorized Users designated by Novartis Pharma.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide Services at all Sites and additional Sites as requested",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3.9",
+      "source_quote": "The Service Provider shall provide the Services to Authorized Users at any and all Sites at which such entities operate as of the Effective Date and any additional Sites as Novartis Pharma requests through-out the Term.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide Services from own service centers and using Affiliates",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.1",
+      "source_quote": "The Service Provider will provide all the Services from its own service centers and using its Affiliates.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Maintain and enforce safety and physical security procedures",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4.1",
+      "source_quote": "The Service Provider will maintain and enforce, at the Facilities where the Services are provided, safety and physical security procedures.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Use Novartis Pharma Facilities for the sole purpose of providing the Services",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Responsible for damages and fines",
+      "section_number": "4.2",
+      "source_quote": "The Service Provider will use the Novartis Pharma Facilities for the sole purpose of providing the Services.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide resources necessary for delivering the Services",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "6.1",
+      "source_quote": "The Service Provider shall be responsible for providing any and all Facilities, assets, and resources necessary for delivering the Services and meeting its obligations under The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with obligations of leases, licenses, and Third Party Contracts",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "6.2",
+      "source_quote": "The Service Provider will comply with all the obligations of such leases, licenses and Third Party Contracts of which it has been informed before Commencement Date or will be informed of during the Term.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Refresh technology under its control as necessary to meet Service Levels",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "6.3",
+      "source_quote": "The Service Provider is responsible for refresh of technology under its control as necessary to meet Service Levels under The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Make third parties aware of restrictions of use with respect to Materials",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Novartis Pharma",
+      "beneficiary_party": "Service Provider",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "7.3",
+      "source_quote": "Novartis Pharma shall make any third party to whom such Materials are licensed, aware of the restrictions of use with respect to any such Materials and that the Service Provider is the owner of such Materials.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Ensure employees and agents transfer copyrights to the other Party",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider and Novartis Pharma",
+      "beneficiary_party": "Each other",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "7.3.2",
+      "source_quote": "Service Provider and Novartis Pharma shall ensure that its employees and agents, freelancers and subcontractors involved in developing Materials under The Agreements have signed an employment agreement or a mandate which stipulates that all copyrights are transferred from its employees, agents, or subcontractor to the other Party.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Execute deeds and documents to perfect assignment of Intellectual Property Rights",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider and Novartis Pharma",
+      "beneficiary_party": "Each other",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "7.3.2",
+      "source_quote": "The Parties shall execute any and all deeds and documents which the other Party may reasonably require to perfect the assignment of the Intellectual Property Rights granted in this Clause 7.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Reproduce copyright legends on Materials",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider and Novartis Pharma",
+      "beneficiary_party": "Each other",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "7.3.2",
+      "source_quote": "The Parties agree to reproduce copyright legends which appear on any portion of the Materials.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Approve introduction of Third Party Materials",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Novartis Pharma",
+      "beneficiary_party": "Service Provider",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "7.4",
+      "source_quote": "Novartis Pharma will have the right to approve the introduction of any Third Party Materials prior to the Service Provider's use of such Materials to provide the Services.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Obtain rights to grant licenses for Third Party Materials",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Cannot introduce such Materials without approval",
+      "section_number": "7.4",
+      "source_quote": "Use all reasonable efforts to obtain the right to grant Novartis Pharma and its Affiliates and designees for the purpose of providing Services to Novartis Pharma, without additional charge during the Term and upon the expiration or any whole or partial termination of The Agreements, a perpetual, irrevocable, fully paid-up, non-exclusive license to use, operate, copy, maintain, modify, enhance and create derivative works of such Materials.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Install and maintain additional Third Party Materials",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "7.4",
+      "source_quote": "The Service Provider will install and maintain additional Third Party Materials that are Applications Software as Novartis Pharma may designate from time to time during the Term at Novartis Pharma's expense.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide data related to use of Third Party Materials",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "7.4",
+      "source_quote": "The Service Provider will provide Novartis Pharma all data related to Novartis Pharma's use of Third Party Materials for which Novartis Pharma owns the licenses, which is required by Novartis Pharma to ensure its compliance with the terms of such licenses.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with Governance Model requirements",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.1",
+      "source_quote": "The Service Provider will comply with the requirements contained in Exhibit 6 (Governance Model).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with requirements relating to Service Provider personnel",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.2",
+      "source_quote": "The Service Provider will comply with the requirements relating to Service Provider personnel contained in Clause 8.2 (and all its subsections) and in Exhibit 5 (Human Resource Provisions).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Remove any personnel from the Novartis Pharma account upon request",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "No cost to Novartis Pharma",
+      "section_number": "8.2",
+      "source_quote": "Novartis Pharma will have the right at any time after mutual discussions with the Service Provider and at no cost to Novartis Pharma, to require the Service Provider to remove any of its personnel from the Novartis Pharma account.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Not hire Novartis Pharma employees without approval",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.2",
+      "source_quote": "The Service Provider will not make offers to hire nor hire any Novartis Pharma employees without the prior written approval of Novartis Pharma.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Fill vacancies from own staff during contract negotiation process",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.2",
+      "source_quote": "At the request of Novartis Pharma, the Service Provider will fill, from its own staff, any vacancies that occur during the contract negotiation process.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Finalize EVOC process for customer satisfaction surveys",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.3",
+      "source_quote": "Within ninety (90) days after the Effective Date, the Service Provider will finalize the EVOC process for conducting customer satisfaction surveys, subject to Novartis Pharma's agreement.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Develop annual and quarterly financial objectives and budgets",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "annually",
+      "consequences": null,
+      "section_number": "8.4",
+      "source_quote": "Within ninety (90) days after the Effective Date and annually thereafter, the Service Provider will develop annual and quarterly financial objectives and budgets and performance goals.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Develop and update Policies and Procedures Manual",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.5",
+      "source_quote": "The Service Provider will, in accordance with Attachment 6-B (Policies and Procedures Manual Content), develop and periodically update a Policies and Procedures Manual that describes how the Parties will work together and how the Services will be delivered.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Approve any change, action or decision with material effect on Services",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Novartis Pharma",
+      "beneficiary_party": "Service Provider",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.6",
+      "source_quote": "Novartis Pharma will have the right to approve in advance any change, action or decision of the Service Provider with respect to the provision of Services to Novartis Pharma that may have a material or adverse effect on the Services and/or Service Levels.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Identify opportunities to implement new technology",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.7",
+      "source_quote": "Together with Novartis Pharma, identify opportunities to implement new technology advantageous to Novartis Pharma's business /processes/operations.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Document Disaster Recovery Plan",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.8",
+      "source_quote": "Within 90 days of the Effective Date or by the Commencement Date whichever occurs first, the Service Provider will document its Disaster Recovery Plan as described in Exhibit 16 (IT Disaster Recovery Plan) for the Services.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with reporting requirements",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.9",
+      "source_quote": "The Service Provider will comply with the requirements related to reporting contained in Exhibit 13 (Reports), and as otherwise specified in The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Engage an independent third-party Benchmarker within 15 days after request",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Novartis Pharma",
+      "beneficiary_party": null,
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "3",
+      "source_quote": "Within fifteen (15) days after Novartis Pharma's request to institute the Benchmarking Process, Novartis Pharma will engage an independent third-party (the 'Benchmarker').",
+      "confidence": 0.9
+    },
+    {
+      "description": "Prepare instructions for the Benchmarker and submit for comments and approval",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Novartis Pharma",
+      "beneficiary_party": "Service Provider",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4",
+      "source_quote": "Throughout the Benchmarking Process, Novartis Pharma will prepare all instructions to the Benchmarker, said instructions to be submitted in advance to Service Provider for Service Provider's comments and approval.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide comments and approval on instructions for the Benchmarker",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4",
+      "source_quote": "Such comments and approval will not be unreasonably withheld and are to be provided to Novartis Pharma within thirty (30) calendar days.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Deliver a draft Benchmarking Report to Novartis Pharma",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Benchmarker",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "5",
+      "source_quote": "The Benchmarker will deliver to Novartis Pharma a draft report which will include the underlying data relied upon by the Benchmarker.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Meet to review and provide comments on the draft Benchmarking Report",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Novartis Pharma and Service Provider",
+      "beneficiary_party": "Benchmarker",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "5",
+      "source_quote": "The Parties will meet and have no less than thirty (30) or more than sixty (60) calendar days to review and provide combined comments to be sent by Novartis Pharma to the Benchmarker.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Pay 50% of the fees and expenses of the Benchmarker if charges are 15% or more above the Benchmark",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Benchmarker",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "7",
+      "source_quote": "Service Provider will pay 50% of the fees and expenses of the Benchmarker, subject to Service Provider paying no more than fifty thousand U.S. Dollar ($50,000) if the current Service Provider charges are 15% or more above the Benchmark.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Cooperate with Novartis Pharma and Third Parties to perform services",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.11",
+      "source_quote": "The Service Provider shall cooperate with Novartis Pharma and with Third Parties retained by Novartis Pharma to perform the Services, New Services or other services provided that such Third Parties execute an appropriate confidentiality agreement with the Service Provider.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Not subcontract material obligations without prior written approval",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.12",
+      "source_quote": "The Service Provider will not subcontract or delegate any of its material obligations under The Agreements without the prior written approval of Novartis Pharma.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Render a single consolidated invoice each month",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "monthly",
+      "consequences": null,
+      "section_number": "8.15",
+      "source_quote": "The Service Provider shall render, each month, by means of an electronic file, a single consolidated invoice for the charges incurred in each month.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Pay undisputed charges within thirty days of receipt of invoice",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Novartis Pharma",
+      "beneficiary_party": "Service Provider",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.15",
+      "source_quote": "Novartis Pharma will pay undisputed charges within thirty (30) days of receipt of invoice.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider shall be financially responsible for any Pass-Through Expense not properly submitted within three months after the end of the month incurred.",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Financial responsibility for the expense",
+      "section_number": "8",
+      "source_quote": "The Service Provider shall be financially responsible for any Pass-Through Expense that is not properly submitted to Novartis Pharma within three months after the end of the month in which such Pass-Through Expense is incurred.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider to provide necessary support and documentation for VAT recovery.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.16",
+      "source_quote": "Genpact will provide the necessary support and documentation to Novartis Pharma in order to recovery any VAT",
+      "confidence": 0.8
+    },
+    {
+      "description": "Parties will cooperate to reduce taxes levied on the Services.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Both Parties",
+      "beneficiary_party": "Both Parties",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8.16",
+      "source_quote": "The Parties will cooperate to reduce the taxes (current and/or future) levied on the Services.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Service Provider will maintain a complete audit trail of transactions and provide access for audits.",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "9.1",
+      "source_quote": "The Service Provider will maintain a complete audit trail of financial and non-financial transactions resulting from The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Genpact will work with Novartis Pharma to ensure compliance with SOX.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Genpact",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "9.1",
+      "source_quote": "Genpact will work with Novartis Pharma to ensure compliance with SOX for the part of their processes that Genpact is servicing.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will comply with Novartis Pharma's record retention policies.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "9.3",
+      "source_quote": "The Service Provider will comply with Novartis Pharma's record retention policies including those specifically related to the Sarbanes \u2014 Oxley Act of 2002.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will not utilize Novartis Pharma Information for any purpose other than rendering the Services.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "10",
+      "source_quote": "The Service Provider and its subcontractors, if any, will not utilize Novartis Pharma Information for any purpose other than that of rendering the Services under The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider shall provide access to Novartis Pharma Data on demand.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "10",
+      "source_quote": "Service Provider shall provide to Novartis Pharma and its Affiliates access to the Novartis Pharma Data in Service Provider's or Service Provider's contractors possession or control on demand.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will comply with all Novartis Pharma security policies.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "10",
+      "source_quote": "The Service Provider will (i) comply with all Novartis Pharma security policies, information protection, and privacy policies, procedures, standards, requirements and specifications which have been communicated and agreed by the parties;",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will establish and maintain safeguards against unauthorized access to Novartis Pharma Information.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "10",
+      "source_quote": "The Service Provider shall establish and maintain safeguards against the unauthorized access, destruction, loss or alteration of Novartis Pharma Information in the possession of the Service Provider and/or its subcontractors.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider guarantees no personal data will be transferred to jurisdictions with non-equivalent Data Protection Rules.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "10",
+      "source_quote": "Service Provider guarantees that no personal data will be transferred from countries of the European continent to the USA or any other jurisdiction with Data Protection Rules and Regulations which are not equivalent to the standards within the European Union.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will provide Services with promptness, diligence, and in a professional manner.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "11.1",
+      "source_quote": "The Service Provider will provide the Services with promptness, diligence and in a workmanlike and professional manner, in accordance with the terms of The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will maintain Equipment and Software in good operating condition.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "11.2",
+      "source_quote": "The Service Provider will maintain Equipment and Software to the extent that the Service Provider has maintenance responsibility for such assets so that they operate in accordance with their specifications.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will use best efforts to perform Services in a cost-efficient manner.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "11.3",
+      "source_quote": "The Service Provider will use its best efforts to use efficiently the resources or services necessary to provide the Services, and to perform the Services in the most cost efficient manner consistent with the required level of quality and performance.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will ensure no harmful code is introduced into systems.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "11.11",
+      "source_quote": "The Service Provider will use commercially reasonable efforts to ensure that no forms of harmful surreptitious code or other contaminants including commands, instructions, devices, techniques, bugs, or web bugs, (collectively \"Viruses\") are introduced into any computer system, database, software, equipment, web site and/or processes used to provide the Services.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider must notify Novartis Pharma of any infringement or misappropriation claim or proceeding and take actions to secure the right to continue using the item, replace or modify the item, or remove the item from the Services.",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Equitable adjustment of charges if item is removed",
+      "section_number": "13.4",
+      "source_quote": "If any item used by the Service Provider to provide the Services becomes, or in the Service Provider's reasonable opinion is likely to become, the subject of an infringement or misappropriation claim or proceeding, then the Service Provider will promptly notify Novartis Pharma of such claim or proceeding and at the Service Provider's expense take the following actions...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider must provide Termination/Expiration Assistance to Novartis Pharma or its designee to allow the Services to continue without interruption or adverse effect and to facilitate the orderly transfer of the Services.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Not specified",
+      "section_number": "16.9",
+      "source_quote": "Commencing (i) six (6) months prior to the expiration of The Agreements; (ii) upon any notice of termination or non-renewal of The Agreements; or (iii) six (6) months prior to any other ceasing of Service under The Agreements and continuing through the effective date of expiration, termination or cessation, the Service Provider will provide to Novartis Pharma or to its designee...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider must obtain any Required Consents from Third Parties and assign leases or contracts to the Successor as part of Termination/Expiration Assistance.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Not specified",
+      "section_number": "16.9",
+      "source_quote": "At Novartis Pharma's request, the Service Provider will obtain any Required Consents from Third Parties and (i) assign to the Successor leases for some or all of the Equipment used primarily to provide the Services as of the date of termination or expiration of The Agreements...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider must provide Novartis Pharma with a perpetual, irrevocable, fully paid-up, personal license to use the proprietary Service Provider Materials.",
+      "obligation_type": "OTHER",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Not specified",
+      "section_number": "16.9",
+      "source_quote": "The Service Provider will provide Novartis Pharma, at no additional cost, a perpetual, irrevocable, fully paid-up, personal license to use the proprietary Service Provider Materials used by the Service Provider to provide services to Novartis Pharma...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider's performance shall be in accordance with Exhibit 18.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4",
+      "source_quote": "The quality of the Services provided by the Service Provider, and the Service Provider's performance shall be in accordance with Exhibit 18.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will not reassign employees or contractors away from performance of functions under The Agreements.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "5",
+      "source_quote": "As part of Termination/Expiration Assistance, the Service Provider will not reassign the Service Provider's employees or contractors away from performance of functions under The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide Novartis Pharma a perpetual, irrevocable, fully paid-up, personal license to use proprietary Service Provider Materials.",
+      "obligation_type": "OTHER",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "7",
+      "source_quote": "The Service Provider will provide Novartis Pharma, at no additional cost, a perpetual, irrevocable, fully paid-up, personal license to use the proprietary Service Provider Materials used by the Service Provider to provide services to Novartis Pharma, solely for the complete utilisation of the Services and not for any standalone commercial purpose.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide Termination/Expiration Assistance for 12 months following termination or expiration of The Agreements.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "8",
+      "source_quote": "As part of the Termination/Expiration Assistance, for a period of twelve (12) months following the date of the termination or expiration of The Agreements, or a ceasing of Services under The Agreements, the Service Provider will provide, at Novartis Pharma's request, any or all of the Services being performed by the Service Provider prior to such effective date, including Termination/Expiration Assistance.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide additional information related to the Services upon request by Novartis Pharma.",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "16.10",
+      "source_quote": "Upon request by Novartis Pharma Service Provider will provide Novartis Pharma with additional information related to the Services that Novartis Pharma reasonably requests during the Term.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Obtain and pay for necessary consents and governmental approvals required in the provision of the Services.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "17.2",
+      "source_quote": "The Service Provider will be responsible for obtaining, and paying all costs associated with obtaining, any and all necessary consents and governmental approvals required in the provision of the Services and/or or in the exercise of Novartis Pharma's rights at termination.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Keep Novartis Pharma's property and Services free of liens or lien claims.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Novartis Pharma may pay the lien, deduct from payments, or require a release of lien.",
+      "section_number": "17.4",
+      "source_quote": "The Service Provider agrees to keep Novartis Pharma, all of the real and personal property of Novartis Pharma, and the Services, free and clear of all liens or lien claims.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Place all source code and documentation related to Service Provider Proprietary Software in escrow within six months of Go Live Date.",
+      "obligation_type": "OTHER",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "17.5",
+      "source_quote": "Within six (6) months of the Go Live Date, Service Provider will place all source code, and documentation related to the Service Provider Proprietary Software (the \"Escrow Material\") in escrow pursuant to the Escrow Agreement (Exhibit 33, Escrow Agreement).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with all applicable labor and environmental laws and not use child labor or prison labor.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "Novartis Pharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "17.6",
+      "source_quote": "Service Provider and its subcontractors will comply with all applicable laws regarding minimum wage, living conditions, overtime, working conditions, and the applicable labor and environmental laws. Service Provider and Service Provider Representatives further agree not to use any child labor, prison inmates, convicted felons or criminals, nor shall it contract with any prison system to perform any Services required under this Agreement.",
+      "confidence": 0.9
+    }
+  ],
+  "slas": [
+    {
+      "sla_name": "Service Levels Compliance",
+      "metric_type": "CUSTOM",
+      "metric_unit": "SCORE",
+      "target_value": 0.0,
+      "severity": "HIGH",
+      "has_penalty": false,
+      "penalty_type": null,
+      "penalty_value": null,
+      "measurement_period": "monthly",
+      "section_reference": "3.4",
+      "source_text": "The Service Provider will comply with the requirements contained in Exhibit 3 (Service Levels).",
+      "confidence": 0.8
+    },
+    {
+      "sla_name": "Root Cause Analysis for Service Level Miss",
+      "metric_type": "CUSTOM",
+      "metric_unit": "SCORE",
+      "target_value": 0.0,
+      "severity": "MEDIUM",
+      "has_penalty": false,
+      "penalty_type": null,
+      "penalty_value": null,
+      "measurement_period": "as needed",
+      "section_reference": "3.4",
+      "source_text": "The Service Provider will perform and provide to Novartis Pharma a root cause analysis for any incident that would contribute to the Service Provider's missing a Service Level.",
+      "confidence": 0.8
+    },
+    {
+      "sla_name": "Disaster Recovery Plan Execution",
+      "metric_type": "RECOVERY_TIME",
+      "metric_unit": "HOURS",
+      "target_value": 0.0,
+      "severity": "CRITICAL",
+      "has_penalty": true,
+      "penalty_type": "credit",
+      "penalty_value": null,
+      "measurement_period": "as needed",
+      "section_reference": "8.8",
+      "source_text": "The Service Provider will execute the Business Continuity and Disaster Recovery plans as specified in The Agreements upon the occurrence of a disaster and cooperate with Novartis Pharma in the execution of their Business Continuity and Disaster Recovery. If the Services are not reinstated within the periods set forth in the respective plans for such reinstatement, Novartis Pharma may terminate The Agreements without further financial liability.",
+      "confidence": 0.9
+    }
+  ],
+  "renewal": {
+    "has_auto_renewal": false,
+    "auto_renewal_term_months": null,
+    "notice_period_days": null,
+    "notice_deadline": null,
+    "expiration_date": null,
+    "initial_term_months": null,
+    "termination_for_convenience": true,
+    "confidence": 0.7
+  },
+  "parse": {
+    "char_count": 147016,
+    "page_count": 70
+  }
+}

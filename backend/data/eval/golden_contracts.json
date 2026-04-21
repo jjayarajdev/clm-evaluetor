@@ -1,0 +1,418 @@
+{
+  "version": "1.0",
+  "description": "Golden contract dataset for extraction eval harness",
+  "sources": {
+    "novartis": {
+      "base_path": "../../../test-data/novartis_anonymized",
+      "deal_type": "IT Outsourcing / Managed Services",
+      "parties": ["GlobalPharma Ltd.", "ServicePro International"],
+      "anonymized_from": ["Novartis Pharma Ltd.", "Genpact International"],
+      "jurisdiction": "Switzerland"
+    },
+    "ing": {
+      "base_path": "../sample_contracts/ing_anonymized",
+      "deal_type": "IT Outsourcing / Managed Services",
+      "parties": ["TelCo", "ServicePro"],
+      "anonymized_from": ["ING"],
+      "jurisdiction": "Netherlands / Belgium"
+    }
+  },
+  "contracts": [
+    {
+      "id": "nov-msa-docx",
+      "source": "novartis",
+      "filename": "MSA, clean LAW FIRM.docx",
+      "doc_type": "msa",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Main MSA, complex outsourcing agreement with 30+ exhibits"
+    },
+    {
+      "id": "nov-msa-pdf",
+      "source": "novartis",
+      "filename": "MSA, initialled, 31 January 07.pdf",
+      "doc_type": "msa",
+      "format": "pdf",
+      "complexity": "high",
+      "notes": "Initialled PDF version of MSA — tests PDF extraction vs DOCX"
+    },
+    {
+      "id": "nov-lsa",
+      "source": "novartis",
+      "filename": "LSA FINAL (clean) 29 January 07.docx",
+      "doc_type": "sow",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Local Services Agreement — country-specific terms"
+    },
+    {
+      "id": "nov-ex01-definitions",
+      "source": "novartis",
+      "filename": "EXHIBIT 1 Definitions FINAL (clean) 29 January 07.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Definitions exhibit — tests term extraction"
+    },
+    {
+      "id": "nov-ex03-sla",
+      "source": "novartis",
+      "filename": "Exhibit 3 - Service Levels, FINAL (clean) 29 January 07.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Service levels exhibit — primary SLA source, tables"
+    },
+    {
+      "id": "nov-ex04-pricing",
+      "source": "novartis",
+      "filename": "Exhibit 4 Pricing and Financial Provisions FINAL (clean) 29 January 07.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Pricing exhibit — payment obligations, financial terms"
+    },
+    {
+      "id": "nov-ex05-hr",
+      "source": "novartis",
+      "filename": "Exhibit 5 HUMAN RESOURCE PROVISIONS, FINAL (clean) 29 January 07.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "HR provisions — employment obligations, transfer terms"
+    },
+    {
+      "id": "nov-ex06-governance",
+      "source": "novartis",
+      "filename": "Exhibit 6 -Governance Model, FINAL (clean) 29 January 07.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Governance model — committee structure, reporting obligations"
+    },
+    {
+      "id": "nov-ex08-techarch",
+      "source": "novartis",
+      "filename": "Exhibit 8 Technical Architecture FINAL (clean) 29 January 07.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Technical architecture — IT service descriptions"
+    },
+    {
+      "id": "nov-ex15-bcp",
+      "source": "novartis",
+      "filename": "Exhibit 15 Business Continuity Plan FINAL  (clean) 29 January 07.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "BCP — disaster recovery obligations, SLA for recovery"
+    },
+    {
+      "id": "nov-ex17-security",
+      "source": "novartis",
+      "filename": "Exhibit 17 Safety Security Procedures, FINAL (clean) 29 January 07.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Security procedures — compliance obligations"
+    },
+    {
+      "id": "nov-ex18-termination",
+      "source": "novartis",
+      "filename": "Exhibit 18 Termination Assistance FINAL (clean) 30 January 07.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Termination assistance — exit obligations, transition SLAs"
+    },
+    {
+      "id": "nov-ex20-changecontrol",
+      "source": "novartis",
+      "filename": "Exhibit 20 Change Control Procedures FINAL (clean) 29 January 07.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Change control — procedural obligations"
+    },
+    {
+      "id": "nov-ex21-transition",
+      "source": "novartis",
+      "filename": "Exhibit 21 SOW Transition FINAL (clean) 29 January 07.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Transition plan — milestone obligations, delivery deadlines"
+    },
+    {
+      "id": "nov-ex28-insurance",
+      "source": "novartis",
+      "filename": "Exhibit 28 Insurance FINAL (clean) 29 January 07.pdf",
+      "doc_type": "exhibit",
+      "format": "pdf",
+      "complexity": "low",
+      "notes": "Insurance requirements — compliance obligations"
+    },
+    {
+      "id": "nov-ex33-escrow",
+      "source": "novartis",
+      "filename": "Exhibit 33 Escrow Agreement FINAL (clean).pdf",
+      "doc_type": "exhibit",
+      "format": "pdf",
+      "complexity": "medium",
+      "notes": "Escrow agreement — IP/code deposit obligations"
+    },
+    {
+      "id": "nov-att03a-slmatrix",
+      "source": "novartis",
+      "filename": "Attachment 3-B FINAL (clean) 29 January 07.docx",
+      "doc_type": "attachment",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Service level detail — critical SL measurements"
+    },
+    {
+      "id": "nov-att17a-datasecurity",
+      "source": "novartis",
+      "filename": "Attachment 17-A Data Security, FINAL (clean) 29 January 07.docx",
+      "doc_type": "attachment",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Data security — compliance and reporting obligations"
+    },
+    {
+      "id": "ing-msa",
+      "source": "ing",
+      "filename": "MSA GEN Final v3.3.docx",
+      "doc_type": "msa",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Main MSA — comprehensive outsourcing agreement"
+    },
+    {
+      "id": "ing-mata",
+      "source": "ing",
+      "filename": "MATA Final v1.9.docx",
+      "doc_type": "msa",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Master Agreement for Technical Architecture"
+    },
+    {
+      "id": "ing-eta",
+      "source": "ing",
+      "filename": "ETA Final v1.3.docx",
+      "doc_type": "sow",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Enterprise Transition Agreement"
+    },
+    {
+      "id": "ing-lata",
+      "source": "ing",
+      "filename": "LATA Final v1.3.docx",
+      "doc_type": "sow",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Local Area Transition Agreement"
+    },
+    {
+      "id": "ing-lsa-be-telco",
+      "source": "ing",
+      "filename": "LSA Belgium Final v1.3 TelCo.docx",
+      "doc_type": "sow",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Belgium LSA — country-specific terms for TelCo"
+    },
+    {
+      "id": "ing-ex01-definitions",
+      "source": "ing",
+      "filename": "Exhibit 1 (Definitions) Final v3.0.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Definitions exhibit"
+    },
+    {
+      "id": "ing-ex03-sla",
+      "source": "ing",
+      "filename": "Exhibit 3 (Service Levels) Final v1.8.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Service levels — primary SLA source"
+    },
+    {
+      "id": "ing-ex04-pricing",
+      "source": "ing",
+      "filename": "Exhibit 4 (Pricing) Final v3.1b.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Pricing exhibit — financial obligations"
+    },
+    {
+      "id": "ing-ex05-hr",
+      "source": "ing",
+      "filename": "Exhibit 5 (Human Resource Provisions) Final v1.7.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "HR provisions — employment transfer obligations"
+    },
+    {
+      "id": "ing-ex06-governance",
+      "source": "ing",
+      "filename": "Exhibit 6 (Governance) Final v1.7.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Governance model — oversight obligations"
+    },
+    {
+      "id": "ing-ex08-techarch",
+      "source": "ing",
+      "filename": "Exhibit 8 (Tech Arch & Standards) Final v1.2.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Technology architecture and standards"
+    },
+    {
+      "id": "ing-ex12-3rdparty",
+      "source": "ing",
+      "filename": "Exhibit 12 (3rd Party Contracts) Final v2.9.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Third party contracts — subcontracting obligations"
+    },
+    {
+      "id": "ing-ex15-bcp",
+      "source": "ing",
+      "filename": "Exhibit 15 (BCP & DRP) Final v1.4.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Business continuity and disaster recovery"
+    },
+    {
+      "id": "ing-ex20-termination",
+      "source": "ing",
+      "filename": "Exhibit 20 (Termination Assistance) Final v1.5.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Termination assistance plan"
+    },
+    {
+      "id": "ing-ex22-changecontrol",
+      "source": "ing",
+      "filename": "Exhibit 22 (Change Control) Final v1.4.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Change control procedures"
+    },
+    {
+      "id": "ing-ex30-transition",
+      "source": "ing",
+      "filename": "Exhibit 30 (T & T) Final v2.5.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Transition and transformation — milestone obligations"
+    },
+    {
+      "id": "ing-ex34-benchmarking",
+      "source": "ing",
+      "filename": "Exhibit 34 (Benchmarking) Final v1.91.docx",
+      "doc_type": "exhibit",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Benchmarking procedures — periodic review obligations"
+    },
+    {
+      "id": "ing-att03b-criticalsl",
+      "source": "ing",
+      "filename": "Attachment 3-B (Critical Service Levels  Key Measurements) Final v1.8.docx",
+      "doc_type": "attachment",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Critical SL definitions — key SLA source"
+    },
+    {
+      "id": "ing-att03f-painshare",
+      "source": "ing",
+      "filename": "Attachment 3-F (Pain Share Mechanism) Final v1.2.docx",
+      "doc_type": "attachment",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Pain/gain share mechanism — penalty/earnback structure"
+    },
+    {
+      "id": "ing-att17a-datasecurity",
+      "source": "ing",
+      "filename": "Attachment 17-A (Data Security) Final v1.3.docx",
+      "doc_type": "attachment",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Data security policy — compliance obligations"
+    },
+    {
+      "id": "ing-att30a-transition",
+      "source": "ing",
+      "filename": "Attachment 30-A (Transition Plan) Final v1.2.docx",
+      "doc_type": "attachment",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Transition plan — delivery milestones"
+    },
+    {
+      "id": "ing-sow20",
+      "source": "ing",
+      "filename": "Exhibit 2.0 (Statement of Work) Final v1.7.docx",
+      "doc_type": "sow",
+      "format": "docx",
+      "complexity": "high",
+      "notes": "Master SOW — service scope, obligations"
+    },
+    {
+      "id": "ing-sow21-euc",
+      "source": "ing",
+      "filename": "Exhibit 2.1 (End User Computing) Final v1.6.docx",
+      "doc_type": "sow",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "End User Computing SOW — desktop SLAs"
+    },
+    {
+      "id": "ing-sow22-servicedesk",
+      "source": "ing",
+      "filename": "Exhibit 2.2 (Service Desk) Final v1.4.docx",
+      "doc_type": "sow",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Service Desk SOW — response/resolution SLAs"
+    },
+    {
+      "id": "ing-sow23-network",
+      "source": "ing",
+      "filename": "Exhibit 2.3 (Network Services) Final v1.5.docx",
+      "doc_type": "sow",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Network Services SOW — uptime/availability SLAs"
+    },
+    {
+      "id": "ing-sow26-server",
+      "source": "ing",
+      "filename": "Exhibit 2.6 (Server Management) Final v1.5.docx",
+      "doc_type": "sow",
+      "format": "docx",
+      "complexity": "medium",
+      "notes": "Server Management SOW — infrastructure SLAs"
+    }
+  ]
+}

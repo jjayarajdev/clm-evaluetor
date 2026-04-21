@@ -6,6 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, Numeric, String, Text, Boolean, Integer
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -194,6 +195,13 @@ class ContractSLA(Base, UUIDMixin, TimestampMixin):
 
     # Source text
     source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Pre-computed highlight rectangles for PDF viewer
+    highlight_rects: Mapped[list | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        default=None,
+    )
 
     # Relationships
     performances: Mapped[list["SLAPerformance"]] = relationship(
