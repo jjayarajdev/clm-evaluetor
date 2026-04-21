@@ -138,3 +138,9 @@ playwright-report/
 claude-sdlc/
 research/
 tasks/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
