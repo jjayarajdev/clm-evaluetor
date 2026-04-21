@@ -120,7 +120,58 @@ interface ValidateResponse {
   token_expires_at: string
 }
 
-type TabId = 'document' | 'clauses' | 'obligations' | 'sla' | 'comments'
+interface GovernanceKPI {
+  id: string
+  name: string
+  description?: string
+  category?: string
+  measurement_type?: string
+  target_value?: number
+  weight?: number
+  is_perception_based?: boolean
+  recent_scores?: Array<{ id: string; score: number; period: string; is_internal: boolean; scored_at?: string }>
+  latest_gap?: {
+    period: string
+    internal_score?: number
+    external_score?: number
+    gap?: number
+    gap_severity?: string
+    requires_action?: boolean
+  }
+}
+
+interface GovernanceImprovement {
+  id: string
+  title: string
+  description?: string
+  source?: string
+  priority?: string
+  status?: string
+  kpi_name?: string
+  due_date?: string
+  target_outcome?: string
+  actual_outcome?: string
+  impact_score?: number
+  created_at?: string
+}
+
+interface GovernanceData {
+  has_governance: boolean
+  relationship?: {
+    id: string
+    name?: string
+    relationship_type?: string
+    status?: string
+    org_a_name?: string
+    org_b_name?: string
+    health_score?: number
+    governance_tier?: string
+  }
+  kpis: GovernanceKPI[]
+  improvements: GovernanceImprovement[]
+}
+
+type TabId = 'document' | 'clauses' | 'obligations' | 'sla' | 'comments' | 'governance'
 
 // ── Main Component ─────────────────────────────────────────────────
 
@@ -173,6 +224,20 @@ export default function ExternalContractPage() {
     queryFn: async () => {
       const response = await axios.get<{ items: Comment[]; total: number }>(
         `${apiBase}/contracts/${effectiveContractId}/comments`,
+        { params: { token: accessToken } }
+      )
+      return response.data
+    },
+    enabled: !!effectiveContractId && !!validation,
+  })
+
+  // ── Load governance data ───────────────────────────────────────
+
+  const { data: governanceData } = useQuery({
+    queryKey: ['external-governance', accessToken, effectiveContractId],
+    queryFn: async () => {
+      const response = await axios.get<GovernanceData>(
+        `${apiBase}/contracts/${effectiveContractId}/governance`,
         { params: { token: accessToken } }
       )
       return response.data
@@ -414,6 +479,9 @@ export default function ExternalContractPage() {
                 <TabButton active={activeTab === 'clauses'} onClick={() => setActiveTab('clauses')} icon={<DocumentTextIcon className="w-4 h-4" />} label="Key Clauses" count={contract.clauses?.length} />
                 <TabButton active={activeTab === 'obligations'} onClick={() => setActiveTab('obligations')} icon={<BellAlertIcon className="w-4 h-4" />} label="Obligations" count={contract.obligations?.length} />
                 <TabButton active={activeTab === 'sla'} onClick={() => setActiveTab('sla')} icon={<ChartBarIcon className="w-4 h-4" />} label="SLAs" count={contract.slas?.length} />
+                {governanceData?.has_governance && (
+                  <TabButton active={activeTab === 'governance'} onClick={() => setActiveTab('governance')} icon={<ShieldCheckIcon className="w-4 h-4" />} label="Governance" count={governanceData.kpis.length} />
+                )}
                 <TabButton active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} icon={<ChatBubbleLeftIcon className="w-4 h-4" />} label="All Comments" count={commentsData?.total} />
               </div>
 
@@ -441,6 +509,9 @@ export default function ExternalContractPage() {
                     itemComment={itemComment} setItemComment={setItemComment}
                     onSubmitItemComment={handleSubmitItemComment} isPending={addCommentMutation.isPending}
                     getCommentsFor={getCommentsFor} />
+                )}
+                {activeTab === 'governance' && governanceData?.has_governance && (
+                  <GovernanceSection data={governanceData} />
                 )}
                 {activeTab === 'comments' && (
                   <AllCommentsSection comments={allComments} newComment={newComment} setNewComment={setNewComment}
@@ -865,6 +936,222 @@ function AllCommentsSection({ comments, newComment, setNewComment, onSubmit, isP
             </div>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+// ── Governance Section ──────────────────────────────────────────────
+
+const CATEGORY_LABELS: Record<string, string> = {
+  service_delivery: 'Service Delivery',
+  quality: 'Quality',
+  timeliness: 'Timeliness',
+  communication: 'Communication',
+  innovation: 'Innovation',
+  cost_efficiency: 'Cost Efficiency',
+  compliance: 'Compliance',
+  satisfaction: 'Satisfaction',
+  other: 'Other',
+}
+
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: 'bg-red-100 text-red-700',
+  significant: 'bg-orange-100 text-orange-700',
+  moderate: 'bg-amber-100 text-amber-700',
+  minor: 'bg-green-100 text-green-700',
+  aligned: 'bg-emerald-100 text-emerald-700',
+}
+
+const PRIORITY_COLORS: Record<string, string> = {
+  critical: 'bg-red-100 text-red-700',
+  high: 'bg-orange-100 text-orange-700',
+  medium: 'bg-amber-100 text-amber-700',
+  low: 'bg-gray-100 text-gray-600',
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  open: 'bg-blue-100 text-blue-700',
+  in_progress: 'bg-violet-100 text-violet-700',
+  blocked: 'bg-red-100 text-red-700',
+  completed: 'bg-green-100 text-green-700',
+  cancelled: 'bg-gray-100 text-gray-500',
+}
+
+function GovernanceSection({ data }: { data: GovernanceData }) {
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [showSection, setShowSection] = useState<'kpis' | 'improvements'>('kpis')
+
+  const rel = data.relationship
+  const kpis = data.kpis
+  const improvements = data.improvements
+
+  // Build category list
+  const categories = [...new Set(kpis.map(k => k.category || 'other'))].sort()
+  const filteredKpis = selectedCategory === 'all'
+    ? kpis
+    : kpis.filter(k => (k.category || 'other') === selectedCategory)
+
+  return (
+    <div>
+      {/* Relationship header */}
+      {rel && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-violet-50 to-indigo-50 rounded-lg border border-violet-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Business Relationship</p>
+              <p className="font-semibold text-gray-900">
+                {rel.org_a_name} <span className="text-violet-500 mx-1">&harr;</span> {rel.org_b_name}
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              {rel.governance_tier && (
+                <span className="text-xs bg-white/80 text-violet-700 px-2 py-1 rounded capitalize border border-violet-200">{rel.governance_tier}</span>
+              )}
+              {rel.health_score != null && (
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Health</p>
+                  <p className={cn("text-lg font-bold",
+                    rel.health_score >= 80 ? "text-green-600" : rel.health_score >= 60 ? "text-amber-600" : "text-red-600"
+                  )}>{rel.health_score.toFixed(0)}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Section toggle */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setShowSection('kpis')}
+          className={cn("px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+            showSection === 'kpis' ? "bg-violet-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          )}
+        >
+          KPIs ({kpis.length})
+        </button>
+        <button
+          onClick={() => setShowSection('improvements')}
+          className={cn("px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+            showSection === 'improvements' ? "bg-violet-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          )}
+        >
+          Improvements ({improvements.length})
+        </button>
+      </div>
+
+      {showSection === 'kpis' && (
+        <>
+          {/* Category filter */}
+          {categories.length > 1 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className={cn("px-3 py-1 text-xs rounded-full transition-colors",
+                  selectedCategory === 'all' ? "bg-violet-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                All ({kpis.length})
+              </button>
+              {categories.map((cat) => (
+                <button key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={cn("px-3 py-1 text-xs rounded-full transition-colors",
+                    selectedCategory === cat ? "bg-violet-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  )}
+                >
+                  {CATEGORY_LABELS[cat] || cat} ({kpis.filter(k => (k.category || 'other') === cat).length})
+                </button>
+              ))}
+            </div>
+          )}
+
+          {filteredKpis.length === 0 ? (
+            <EmptyState text="No KPIs found for this relationship." />
+          ) : (
+            <div className="space-y-3">
+              {filteredKpis.map((kpi) => {
+                const gap = kpi.latest_gap
+                const intScore = gap?.internal_score
+                const extScore = gap?.external_score
+                return (
+                  <div key={kpi.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{kpi.name}</p>
+                        {kpi.description && <p className="text-sm text-gray-600 mt-1">{kpi.description}</p>}
+                        <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                          {kpi.category && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{CATEGORY_LABELS[kpi.category] || kpi.category}</span>}
+                          {kpi.target_value != null && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">Target: {kpi.target_value}</span>}
+                          {kpi.is_perception_based && <span className="bg-violet-50 text-violet-700 px-2 py-0.5 rounded">Perception-based</span>}
+                        </div>
+                      </div>
+                      {gap && (
+                        <div className="text-right shrink-0 space-y-1">
+                          <div className="flex items-center gap-3 text-sm">
+                            {intScore != null && (
+                              <div>
+                                <p className="text-[10px] text-gray-400 uppercase">Internal</p>
+                                <p className="font-semibold text-gray-700">{intScore.toFixed(1)}</p>
+                              </div>
+                            )}
+                            {extScore != null && (
+                              <div>
+                                <p className="text-[10px] text-gray-400 uppercase">External</p>
+                                <p className="font-semibold text-gray-700">{extScore.toFixed(1)}</p>
+                              </div>
+                            )}
+                          </div>
+                          {gap.gap_severity && (
+                            <span className={cn("text-xs px-2 py-0.5 rounded capitalize inline-block",
+                              SEVERITY_COLORS[gap.gap_severity] || 'bg-gray-100 text-gray-600'
+                            )}>{gap.gap_severity}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {showSection === 'improvements' && (
+        <>
+          {improvements.length === 0 ? (
+            <EmptyState text="No improvement plans found for this relationship." />
+          ) : (
+            <div className="space-y-3">
+              {improvements.map((imp) => (
+                <div key={imp.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{imp.title}</p>
+                      {imp.description && <p className="text-sm text-gray-600 mt-1">{imp.description}</p>}
+                      <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                        {imp.priority && <span className={cn("px-2 py-0.5 rounded capitalize", PRIORITY_COLORS[imp.priority] || 'bg-gray-100 text-gray-600')}>{imp.priority}</span>}
+                        {imp.status && <span className={cn("px-2 py-0.5 rounded capitalize", STATUS_COLORS[imp.status] || 'bg-gray-100 text-gray-600')}>{imp.status.replace(/_/g, ' ')}</span>}
+                        {imp.source && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{imp.source.replace(/_/g, ' ')}</span>}
+                        {imp.kpi_name && <span className="bg-violet-50 text-violet-700 px-2 py-0.5 rounded">KPI: {imp.kpi_name}</span>}
+                      </div>
+                      {imp.target_outcome && <p className="text-xs text-gray-500 mt-2">Target: {imp.target_outcome}</p>}
+                      {imp.actual_outcome && <p className="text-xs text-green-600 mt-1">Outcome: {imp.actual_outcome}</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      {imp.due_date && <p className="text-sm text-gray-700">{formatDate(imp.due_date)}</p>}
+                      {imp.impact_score != null && (
+                        <p className="text-xs text-gray-500 mt-1">Impact: {imp.impact_score}/10</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -42,8 +42,11 @@ export interface SLABreachItem {
   breaches: number
   severity: string
   metric_type?: string
+  metric_unit?: string
   target_value?: number
   actual_value?: number
+  target_display?: string
+  actual_display?: string
   deviation?: number
   measured_at?: string
   penalty_amount?: number | null

@@ -123,7 +123,7 @@ export default function KPIApprovalsPage() {
         <select value={relId} onChange={e => setRelId(e.target.value)}
           className="input text-sm min-w-[240px]">
           <option value="">Select relationship...</option>
-          {rels.map(r => <option key={r.id} value={r.id}>{r.name || 'Unnamed'}</option>)}
+          {rels.map(r => <option key={r.id} value={r.id}>{r.org_a?.name && r.org_b?.name ? `${r.org_a.name} ↔ ${r.org_b.name}` : r.name || 'Unnamed'}</option>)}
         </select>
 
         {/* Period tabs */}

@@ -5,6 +5,7 @@ from datetime import datetime, date
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -130,8 +131,17 @@ async def create_improvement(
     tenant_id: CurrentTenantId = None,
 ):
     """Create a new improvement point."""
-    # Verify relationship exists
-    relationship = await db.get(BusinessRelationship, data.relationship_id)
+    # Verify relationship exists and belongs to tenant
+    rel_query = (
+        select(BusinessRelationship)
+        .where(BusinessRelationship.id == data.relationship_id)
+    )
+    if tenant_id is not None:
+        rel_query = rel_query.join(
+            Organization, BusinessRelationship.org_a_id == Organization.id
+        ).where(Organization.tenant_id == tenant_id)
+    rel_result = await db.execute(rel_query)
+    relationship = rel_result.scalar_one_or_none()
     if not relationship:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -337,6 +347,16 @@ async def update_action(
     tenant_id: CurrentTenantId = None,
 ):
     """Update an action."""
+    # Verify tenant access through action -> improvement -> relationship -> org
+    imp_query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id)
+    imp_query = apply_tenant_filter_improvement(imp_query, tenant_id)
+    imp_result = await db.execute(imp_query)
+    if not imp_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Improvement point not found",
+        )
+
     result = await db.execute(
         select(ImprovementAction).where(
             ImprovementAction.id == action_id,
@@ -379,6 +399,16 @@ async def delete_action(
     tenant_id: CurrentTenantId = None,
 ):
     """Delete an action."""
+    # Verify tenant access through action -> improvement -> relationship -> org
+    imp_query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id)
+    imp_query = apply_tenant_filter_improvement(imp_query, tenant_id)
+    imp_result = await db.execute(imp_query)
+    if not imp_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Improvement point not found",
+        )
+
     result = await db.execute(
         select(ImprovementAction).where(
             ImprovementAction.id == action_id,
@@ -407,6 +437,22 @@ async def get_improvement_summary(
     tenant_id: CurrentTenantId = None,
 ):
     """Get summary of improvements for a relationship."""
+    # Verify tenant access through relationship -> org
+    rel_query = (
+        select(BusinessRelationship)
+        .where(BusinessRelationship.id == rel_id)
+    )
+    if tenant_id is not None:
+        rel_query = rel_query.join(
+            Organization, BusinessRelationship.org_a_id == Organization.id
+        ).where(Organization.tenant_id == tenant_id)
+    rel_result = await db.execute(rel_query)
+    if not rel_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Relationship not found",
+        )
+
     result = await db.execute(
         select(ImprovementPoint).where(ImprovementPoint.relationship_id == rel_id)
     )
@@ -430,18 +476,59 @@ async def get_improvement_summary(
 
 # ===== Auto-generate from gaps =====
 
+class GenerateFromGapsRequest(BaseModel):
+    relationship_id: UUID
+    period: Optional[str] = None
+    min_severity: Optional[str] = "significant"
+
+
 @router.post("/generate-from-gaps", response_model=List[ImprovementResponse])
 async def generate_from_gaps(
-    relationship_id: UUID,
-    period: str = Query(...),
-    min_severity: GapSeverity = Query(GapSeverity.SIGNIFICANT),
+    body: GenerateFromGapsRequest,
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = None,
     tenant_id: CurrentTenantId = None,
 ):
     """Auto-generate improvement points from perception gaps."""
-    # Get gaps that meet severity threshold
+    relationship_id = body.relationship_id
+
+    # Verify tenant access through relationship -> org
+    rel_query = (
+        select(BusinessRelationship)
+        .where(BusinessRelationship.id == relationship_id)
+    )
+    if tenant_id is not None:
+        rel_query = rel_query.join(
+            Organization, BusinessRelationship.org_a_id == Organization.id
+        ).where(Organization.tenant_id == tenant_id)
+    rel_result = await db.execute(rel_query)
+    if not rel_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Relationship not found",
+        )
+
+    # Get KPI IDs for relationship
     kpi_query = select(KPI.id).where(KPI.relationship_id == relationship_id)
+
+    # Auto-detect period if not provided
+    period = body.period
+    if not period:
+        kpi_ids_result = await db.execute(kpi_query)
+        kpi_ids = [r[0] for r in kpi_ids_result.all()]
+        if kpi_ids:
+            latest_result = await db.execute(
+                select(PerceptionGap.period).where(
+                    PerceptionGap.kpi_id.in_(kpi_ids),
+                ).order_by(PerceptionGap.period.desc()).limit(1)
+            )
+            period = latest_result.scalar_one_or_none() or ""
+
+    # Parse min_severity
+    try:
+        min_sev = GapSeverity(body.min_severity) if body.min_severity else GapSeverity.SIGNIFICANT
+    except ValueError:
+        min_sev = GapSeverity.SIGNIFICANT
 
     severity_order = {
         GapSeverity.MINOR: 0,
@@ -449,7 +536,7 @@ async def generate_from_gaps(
         GapSeverity.SIGNIFICANT: 2,
         GapSeverity.CRITICAL: 3,
     }
-    min_severity_val = severity_order[min_severity]
+    min_severity_val = severity_order[min_sev]
     valid_severities = [s for s, v in severity_order.items() if v >= min_severity_val]
 
     result = await db.execute(
@@ -528,7 +615,9 @@ async def _to_response(
     completed_action_count = completed_action_result.scalar() or 0
 
     progress = 0
-    if action_count > 0:
+    if improvement.status == ImprovementStatus.COMPLETED:
+        progress = 100
+    elif action_count > 0:
         progress = int((completed_action_count / action_count) * 100)
 
     response = ImprovementResponse(

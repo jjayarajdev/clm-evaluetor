@@ -141,6 +141,31 @@ export async function downloadContractFile(contractId: string, asPdf = false): P
   return response.data
 }
 
+export interface HighlightRect {
+  page: number
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+export interface ContractHighlights {
+  contract_id: string
+  highlights: Record<string, {
+    clause_type: string
+    section_number: string | null
+    page_number: number | null
+    rects: HighlightRect[]
+  }>
+  page_dimensions: Record<string, { width: number; height: number }>
+  total_clauses: number
+}
+
+export async function getContractHighlights(contractId: string): Promise<ContractHighlights> {
+  const response = await client.get(`/contracts/${contractId}/highlights`)
+  return response.data
+}
+
 // ============================================================================
 // Amendment/Version endpoints
 // ============================================================================

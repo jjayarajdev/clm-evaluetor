@@ -1,0 +1,228 @@
+{
+  "contract_id": "nov-ex04-pricing",
+  "source": "novartis",
+  "filename": "Exhibit 4 Pricing and Financial Provisions FINAL (clean) 29 January 07.docx",
+  "doc_type": "exhibit",
+  "generated_at": "2026-04-14T06:25:42.592627",
+  "extraction_time_seconds": 26.9,
+  "is_draft": true,
+  "reviewed": false,
+  "metadata": {
+    "contract_type": {
+      "value": "Service Agreement",
+      "confidence": 0.75
+    },
+    "counterparty": {
+      "value": "GlobalPharma AG",
+      "confidence": 0.75
+    },
+    "effective_date": {
+      "value": "January 1, 2008",
+      "confidence": 0.75
+    },
+    "expiration_date": {
+      "value": "End of the contract period (Term)",
+      "confidence": 0.75
+    },
+    "contract_value": {
+      "value": "Not explicitly stated",
+      "confidence": 0.75
+    },
+    "currency": {
+      "value": "USD, EUR",
+      "confidence": 0.75
+    },
+    "jurisdiction": {
+      "value": "Not explicitly stated",
+      "confidence": 0.75
+    },
+    "parties": [],
+    "overall_confidence": 0.75
+  },
+  "clauses": [
+    {
+      "clause_type": "PRICING",
+      "text": "The Service Provider must provide pricing in U. S. Dollars for its services performed out of its delivery centres in India. Services provided from the service provider\u2019s centres in Europe have to be priced in Euros. Prices in Attachment 4A (Service Provider Pricing Form) are quoted in U.S. Dollars. To convert Euro to U.S. Dollars, an Exchange Rate of 1.3 U.S. Dollars = 1 Euro was used in Attachment 4-A. The procedure for adjustments to the Exchange Rates are described in section 6.0 Foreign Exch",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "U.S. Dollars",
+        "Euros",
+        "Exchange Rate"
+      ]
+    },
+    {
+      "clause_type": "TRANSITION",
+      "text": "The Transition Plan and assumptions are fully described in Exhibit 21 \u2013 Transition Plan and any deviation will go through the change control process to assess cost impact. Provided that the current Transition assumptions as described in Exhibit 21 do not change and barring delays caused by GlobalPharma, the Transition charges excluding T&L, are fixed as quoted in Attachment 4-A Pricing Forms. The T&L charges will be billed at actual with a cap of 7% above the quote T&L charges as described in At",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.85,
+      "key_terms": [
+        "Transition Plan",
+        "change control process",
+        "T&L charges"
+      ]
+    },
+    {
+      "clause_type": "CHANGE_MANAGEMENT",
+      "text": "Any changes are subject to the Change Control process. The bands for ARC / RRC per Delivery Center will be as follows... Service Provider is responsible for submitting the Change Control Notice (CNN, Attachment 20-A) and notifying GlobalPharma of a potential addition or reduction using the ARC/RRCs.",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Change Control process",
+        "ARC/RRC"
+      ]
+    },
+    {
+      "clause_type": "PAYMENT_TERMS",
+      "text": "Invoicing and Payment GlobalPharma does not have any specific chargeback requirements nor specific invoice formats. GlobalPharma will require that a separate invoice be issued for services to each Country for which there is an LSA.",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Invoicing",
+        "Payment",
+        "LSA"
+      ]
+    },
+    {
+      "clause_type": "PRICING",
+      "text": "The impact of foreign exchange rate movements are shared equally between the parties. This is applicable for the movement of the USD/INR and RON/EUR rates from January 1, 2008 onwards until the end of the contract period (Term).",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "foreign exchange rate",
+        "USD/INR",
+        "RON/EUR"
+      ]
+    },
+    {
+      "clause_type": "CONFIDENTIALITY",
+      "text": "This document contains confidential and proprietary information of GlobalPharma AG. It is furnished for the performance of The Agreements only. Except with the express prior written permission of GlobalPharma AG, this document and the information contained herein may not be published, disclosed, or used for any other purpose.",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "confidential",
+        "proprietary information"
+      ]
+    }
+  ],
+  "obligations": [
+    {
+      "description": "Service Provider must provide pricing in U.S. Dollars for services performed out of its delivery centres in India and in Euros for services from centres in Europe.",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Pricing and financial Provisions",
+      "source_quote": "The Service Provider must provide pricing in U. S. Dollars for its services performed out of its delivery centres in India. Services provided from the service provider\u2019s centres in Europe have to be priced in Euros.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider is required to provide separate Base Charges and definitions of billable utilization for each component.",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Base Charges \u2013 Phase 1",
+      "source_quote": "The Service Provider is required to provide separate Base Charges and definitions of billable utilization for each of the following components:",
+      "confidence": 0.8
+    },
+    {
+      "description": "Service Provider will provide Additional Resource Charges (ARCs) for additional resources and Reduced Resource Credits (RRCs) for reduced utilization.",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Additional and Reduced Resource Charges (ARCs and RRCs)",
+      "source_quote": "The Service Provider will provide the Additional Resource Charges (ARCs) for any additional resources utilized and authorized by GlobalPharma above the Resource Zurichines, and any dead-band, for the applicable month.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Service Provider is responsible for submitting the Change Control Notice and notifying GlobalPharma of potential addition or reduction using ARC/RRCs.",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Additional and Reduced Resource Charges (ARCs and RRCs)",
+      "source_quote": "Service Provider is responsible for submitting the Change Control Notice (CNN, Attachment 20-A) and notifying GlobalPharma of a potential addition or reduction using the ARC/RRCs.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Parties shall measure month-end exchange rates and calculate the Average Exchange Rate for 2008.",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Both Parties",
+      "beneficiary_party": "Both Parties",
+      "deadline_type": "FIXED",
+      "deadline_date": "2008-01-31",
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Foreign Exchange",
+      "source_quote": "Commencing on January 31, 2008, the Parties shall measure the month-end exchange rates announced by the central bank of Romania and India with regards to the RON/EUR and INR/USD rates for the whole year ending with the exchange rate announced on December 31, 2008.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Adjustments for Deviation Amounts shall be calculated and paid within 30 days after the end of each calendar year.",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Both Parties",
+      "beneficiary_party": "Both Parties",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": "annually",
+      "consequences": null,
+      "section_number": "Foreign Exchange",
+      "source_quote": "The adjustments for the Deviation Amounts shall be calculated in the 30 days period after the end of all the calendar years 2008-2013 respectively and the amount to be paid shall be paid out by the relevant Party within 30 days thereafter.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will review and approve invoices for Pass-Through Expenses before sending to GlobalPharma.",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Pass-Through Expenses",
+      "source_quote": "In this situation, the Service Provider is responsible for reviewing and approving the invoice. The invoice is then sent to GlobalPharma for payment.",
+      "confidence": 0.85
+    }
+  ],
+  "slas": [],
+  "renewal": {
+    "has_auto_renewal": false,
+    "auto_renewal_term_months": null,
+    "notice_period_days": null,
+    "notice_deadline": null,
+    "expiration_date": null,
+    "initial_term_months": null,
+    "termination_for_convenience": false,
+    "confidence": 0.0
+  },
+  "parse": {
+    "char_count": 18974,
+    "page_count": 6
+  }
+}

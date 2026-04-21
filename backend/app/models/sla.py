@@ -6,6 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, Numeric, String, Text, Boolean, Integer
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -96,6 +97,17 @@ class ContractSLA(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
 
+    # Link to master data template (optional — set when added from library)
+    master_data_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sla_master_data.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    master_data: Mapped["SLAMasterData | None"] = relationship(
+        "SLAMasterData",
+        lazy="selectin",
+    )
+
     # SLA identification
     sla_name: Mapped[str] = mapped_column(
         String(200),
@@ -183,6 +195,13 @@ class ContractSLA(Base, UUIDMixin, TimestampMixin):
 
     # Source text
     source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Pre-computed highlight rectangles for PDF viewer
+    highlight_rects: Mapped[list | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        default=None,
+    )
 
     # Relationships
     performances: Mapped[list["SLAPerformance"]] = relationship(

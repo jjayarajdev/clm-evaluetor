@@ -306,6 +306,7 @@ async def seed():
             },
         ]
 
+        improvement_ids = {}  # title -> id
         for imp in improvements:
             gap_id = None
             kpi_id = None
@@ -313,13 +314,15 @@ async def seed():
                 gap_id = gap_ids.get(imp["gap_key"])
                 kpi_id = kpis.get(imp["gap_key"][0])
 
+            imp_id = uuid.uuid4()
+            improvement_ids[imp["title"]] = imp_id
             await db.execute(
                 text("""
                     INSERT INTO improvement_points (id, relationship_id, kpi_id, gap_id, title, description, source, priority, status, owner_id, due_date, target_outcome, impact_score, created_at, updated_at)
                     VALUES (:id, :rel_id, :kpi_id, :gap_id, :title, :desc, :source, :priority, :status, :owner, :due, :target, :impact, :created, :updated)
                 """),
                 {
-                    "id": str(uuid.uuid4()),
+                    "id": str(imp_id),
                     "rel_id": str(RELATIONSHIP_ID),
                     "kpi_id": str(kpi_id) if kpi_id else None,
                     "gap_id": str(gap_id) if gap_id else None,
@@ -337,6 +340,74 @@ async def seed():
                 },
             )
             print(f"  Added: [{imp['priority']}] {imp['title'][:50]}...")
+
+        # =========================================================
+        # 4b. IMPROVEMENT ACTIONS — concrete tasks for each improvement
+        # =========================================================
+        print("\n--- Seeding Improvement Actions ---")
+
+        actions_data = {
+            "Improve Incident Resolution SLA Compliance": [
+                ("Set up dedicated P1 escalation queue in PagerDuty", "completed", ADMIN_ID, date(2024, 8, 15)),
+                ("Hire 2 additional SREs for on-call rotation", "completed", ADMIN_ID, date(2024, 10, 1)),
+                ("Implement automated P1 alerting with 5-min SLA countdown", "in_progress", LEGAL_ID, date(2025, 6, 30)),
+                ("Conduct monthly incident response drills", "todo", ADMIN_ID, date(2025, 9, 30)),
+            ],
+            "Enhance Unstructured Data Processing Accuracy": [
+                ("Audit failed classifications from Q4 2024 — Q1 2025", "completed", LEGAL_ID, date(2025, 3, 31)),
+                ("Expand training dataset with 500 financial document samples", "in_progress", ADMIN_ID, date(2025, 6, 30)),
+                ("Deploy retrained model to staging and run regression tests", "todo", ADMIN_ID, date(2025, 7, 31)),
+                ("Customer UAT sign-off on improved accuracy", "todo", LEGAL_ID, date(2025, 8, 31)),
+            ],
+            "Reduce API Response Time Variability": [
+                ("Profile peak-hour query patterns and identify bottlenecks", "completed", ADMIN_ID, date(2025, 4, 30)),
+                ("Implement query result caching for repeated analytics calls", "todo", ADMIN_ID, date(2025, 8, 31)),
+                ("Add CDN for static asset delivery", "todo", LEGAL_ID, date(2025, 10, 31)),
+            ],
+            "Establish Proactive Communication Cadence": [
+                ("Set up monthly automated status report generation", "completed", ADMIN_ID, date(2024, 8, 31)),
+                ("Schedule bi-weekly 30-min check-in calls", "completed", ADMIN_ID, date(2024, 9, 15)),
+                ("Share Q4 2024 platform roadmap with customer", "completed", LEGAL_ID, date(2024, 12, 15)),
+            ],
+            "Conduct Annual Security Audit Review": [
+                ("Schedule penetration test with third-party auditor", "todo", ADMIN_ID, date(2025, 5, 15)),
+                ("Compile SOC 2 Type II evidence package", "todo", LEGAL_ID, date(2025, 6, 15)),
+            ],
+            "Contract Risk: IP Ownership Clarity": [
+                ("Legal review of AI model derivative ownership clauses", "in_progress", LEGAL_ID, date(2025, 8, 31)),
+                ("Draft amendment for training data rights clarification", "todo", LEGAL_ID, date(2025, 10, 31)),
+                ("Negotiate revised IP terms with KR8 AI legal team", "todo", ADMIN_ID, date(2025, 12, 31)),
+            ],
+        }
+
+        for imp_title, actions in actions_data.items():
+            imp_id = improvement_ids.get(imp_title)
+            if not imp_id:
+                continue
+            for seq, (desc, status, assignee, due) in enumerate(actions, 1):
+                completed_at = datetime(due.year, due.month, min(due.day, 28)) if status == "completed" else None
+                started_at = datetime(due.year, due.month, 1) if status in ("completed", "in_progress") else None
+                await db.execute(
+                    text("""
+                        INSERT INTO improvement_actions (id, improvement_id, description, status, sequence, owner_id, due_date, started_at, completed_at, created_at, updated_at)
+                        VALUES (:id, :imp_id, :desc, :status, :seq, :owner, :due, :started, :completed, :created, :updated)
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {
+                        "id": str(uuid.uuid4()),
+                        "imp_id": str(imp_id),
+                        "desc": desc,
+                        "status": status,
+                        "seq": seq,
+                        "owner": str(assignee),
+                        "due": due,
+                        "started": started_at,
+                        "completed": completed_at,
+                        "created": datetime.utcnow(),
+                        "updated": datetime.utcnow(),
+                    },
+                )
+            print(f"  Actions for '{imp_title[:40]}': {len(actions)} tasks")
 
         # =========================================================
         # 5. RELATIONSHIP STATUS HISTORY

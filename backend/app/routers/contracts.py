@@ -37,6 +37,22 @@ from app.services.progress_tracker import get_progress_tracker, ProcessingStage
 router = APIRouter(prefix="/api/contracts", tags=["Contracts"])
 
 
+def _make_contract_service(db: AsyncSession, current_user, tenant_id):
+    """Create a ContractService with proper BU hierarchy for BU_HEAD users."""
+    from app.services.contracts import ContractService
+
+    bu_child_ids = None
+    if current_user.business_unit_id and current_user.is_bu_head and current_user.business_unit:
+        bu_child_ids = list(current_user.business_unit.get_all_child_ids())
+
+    return ContractService(
+        db,
+        tenant_id=tenant_id,
+        business_unit_id=current_user.business_unit_id,
+        user_role=current_user.role.value if current_user.role else None,
+        bu_child_ids=bu_child_ids,
+    )
+
 
 def contract_to_summary(contract) -> ContractSummary:
     """Convert Contract model to ContractSummary schema."""
@@ -342,6 +358,70 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
 
             if sla_result and sla_result.slas:
                 await store_extracted_slas(db=session, contract_id=cid_uuid, result=sla_result)
+
+            # Extract highlight coordinates for stored clauses, obligations, and SLAs
+            try:
+                from app.services.highlight_extractor import extract_highlight_rects
+                from app.models.obligation import Obligation
+                from app.models.sla import ContractSLA
+
+                # Clauses
+                stored_clauses_q = await session.execute(
+                    select(Clause).where(Clause.contract_id == cid_uuid)
+                )
+                stored_clauses = stored_clauses_q.scalars().all()
+
+                if stored_clauses:
+                    clause_data = [
+                        {"id": str(c.id), "text": c.text, "page_number": c.page_number}
+                        for c in stored_clauses
+                    ]
+                    rects_map = extract_highlight_rects(file_path, clause_data)
+                    for clause_obj in stored_clauses:
+                        cid_str = str(clause_obj.id)
+                        if cid_str in rects_map:
+                            clause_obj.highlight_rects = rects_map[cid_str]
+                    logger.info(f"[DEEP ANALYSIS] Highlight rects: {len(rects_map)}/{len(stored_clauses)} clauses")
+
+                # Obligations
+                stored_obls_q = await session.execute(
+                    select(Obligation).where(Obligation.contract_id == cid_uuid)
+                )
+                stored_obls = stored_obls_q.scalars().all()
+
+                if stored_obls:
+                    obl_data = [
+                        {"id": str(o.id), "text": o.source_text or o.description, "page_number": None}
+                        for o in stored_obls
+                        if o.source_text or o.description
+                    ]
+                    obl_rects = extract_highlight_rects(file_path, obl_data)
+                    for obl_obj in stored_obls:
+                        oid_str = str(obl_obj.id)
+                        if oid_str in obl_rects:
+                            obl_obj.highlight_rects = obl_rects[oid_str]
+                    logger.info(f"[DEEP ANALYSIS] Highlight rects: {len(obl_rects)}/{len(stored_obls)} obligations")
+
+                # SLAs
+                stored_slas_q = await session.execute(
+                    select(ContractSLA).where(ContractSLA.contract_id == cid_uuid)
+                )
+                stored_slas = stored_slas_q.scalars().all()
+
+                if stored_slas:
+                    sla_data = [
+                        {"id": str(s.id), "text": s.source_text or s.sla_description or s.sla_name, "page_number": None}
+                        for s in stored_slas
+                        if s.source_text or s.sla_description
+                    ]
+                    sla_rects = extract_highlight_rects(file_path, sla_data)
+                    for sla_obj in stored_slas:
+                        sid_str = str(sla_obj.id)
+                        if sid_str in sla_rects:
+                            sla_obj.highlight_rects = sla_rects[sid_str]
+                    logger.info(f"[DEEP ANALYSIS] Highlight rects: {len(sla_rects)}/{len(stored_slas)} SLAs")
+            except Exception as e:
+                logger.warning(f"[DEEP ANALYSIS] Highlight extraction failed (non-fatal): {e}")
 
             await session.commit()
             logger.info(f"[DEEP ANALYSIS] Clause/obligation/SLA extraction stored for {contract_id}")
@@ -1353,12 +1433,7 @@ async def list_contracts(
         except ValueError:
             pass
 
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     contracts, total = await service.list_contracts(
         page=page,
         page_size=page_size,
@@ -1407,12 +1482,7 @@ async def search_contracts(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     results = await service.search_contracts(
         query_text=query,
         user_id=str(current_user.id),
@@ -1804,12 +1874,7 @@ async def get_contract(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id)
 
     if not contract:
@@ -1856,12 +1921,7 @@ async def delete_contract(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     deleted = await service.delete_contract(contract_id)
 
     if not deleted:
@@ -1923,12 +1983,7 @@ async def batch_delete_contracts(
     """
     from app.services.contracts import ContractService
 
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     deleted: list[str] = []
     failed: list[dict] = []
 
@@ -3050,12 +3105,7 @@ async def share_contract(
     import uuid as uuid_mod
 
     # Verify contract exists and user has access
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id)
     if not contract:
         raise HTTPException(
@@ -3231,12 +3281,7 @@ async def list_contract_shares(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3279,12 +3324,7 @@ async def revoke_contract_share(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3331,12 +3371,7 @@ async def list_contract_comments(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3409,12 +3444,7 @@ async def add_contract_comment(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3486,12 +3516,7 @@ async def resolve_contract_comment(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3529,12 +3554,7 @@ async def delete_contract_comment(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3592,12 +3612,7 @@ async def download_contract_file(
     from pathlib import Path
     from app.services.contracts import ContractService
 
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3673,6 +3688,89 @@ async def download_contract_file(
     )
 
 
+@router.get("/{contract_id}/highlights")
+async def get_contract_highlights(
+    contract_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get pre-computed highlight rectangles for clauses, obligations, and SLAs."""
+    import uuid as uuid_mod
+    from app.models.clause import Clause
+    from app.models.obligation import Obligation
+    from app.models.sla import ContractSLA
+
+    cid = uuid_mod.UUID(contract_id)
+
+    # Verify contract access
+    service = _make_contract_service(db, current_user, tenant_id)
+    contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found")
+
+    highlights = {}
+
+    # Clauses with highlight rects
+    result = await db.execute(
+        select(Clause).where(
+            Clause.contract_id == cid,
+            Clause.highlight_rects.isnot(None),
+        )
+    )
+    for c in result.scalars().all():
+        highlights[str(c.id)] = {
+            "type": "clause",
+            "clause_type": c.clause_type.value if c.clause_type else "other",
+            "section_number": c.section_number,
+            "page_number": c.page_number,
+            "rects": c.highlight_rects,
+        }
+
+    # Obligations with highlight rects
+    obl_result = await db.execute(
+        select(Obligation).where(
+            Obligation.contract_id == cid,
+            Obligation.highlight_rects.isnot(None),
+        )
+    )
+    for o in obl_result.scalars().all():
+        highlights[str(o.id)] = {
+            "type": "obligation",
+            "obligation_type": o.obligation_type.value if o.obligation_type else "other",
+            "section_reference": o.section_reference,
+            "rects": o.highlight_rects,
+        }
+
+    # SLAs with highlight rects
+    sla_result = await db.execute(
+        select(ContractSLA).where(
+            ContractSLA.contract_id == cid,
+            ContractSLA.highlight_rects.isnot(None),
+        )
+    )
+    for s in sla_result.scalars().all():
+        highlights[str(s.id)] = {
+            "type": "sla",
+            "sla_name": s.sla_name,
+            "section_reference": s.section_reference,
+            "rects": s.highlight_rects,
+        }
+
+    # Get page dimensions
+    page_dimensions = {}
+    if contract.file_path:
+        from app.services.highlight_extractor import extract_page_dimensions
+        page_dimensions = extract_page_dimensions(contract.file_path)
+
+    return {
+        "contract_id": contract_id,
+        "highlights": highlights,
+        "page_dimensions": page_dimensions,
+        "total_clauses": len(highlights),
+    }
+
+
 @router.patch("/{contract_id}/clauses/{clause_id}")
 async def update_clause(
     contract_id: str,
@@ -3688,12 +3786,7 @@ async def update_clause(
     from app.models.clause import Clause, ClauseType
 
     # Verify contract exists and belongs to tenant
-    service = ContractService(
-        db,
-        tenant_id=tenant_id,
-        business_unit_id=current_user.business_unit_id,
-        user_role=current_user.role.value if current_user.role else None,
-    )
+    service = _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(

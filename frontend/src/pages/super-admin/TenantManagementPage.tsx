@@ -8,6 +8,9 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   BuildingOffice2Icon,
+  TrashIcon,
+  ExclamationTriangleIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -101,6 +104,21 @@ export default function TenantManagementPage() {
     mutationFn: (id: string) => api.deactivateTenant(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
+    },
+  })
+
+  const [purgingTenant, setPurgingTenant] = useState<Tenant | null>(null)
+  const [purgeConfirmText, setPurgeConfirmText] = useState('')
+  const [purgeResult, setPurgeResult] = useState<{ tenant: string; deleted: Record<string, number> } | null>(null)
+
+  const purgeMutation = useMutation({
+    mutationFn: (id: string) => api.purgeTenant(id),
+    onSuccess: (data) => {
+      setPurgeResult(data)
+      setPurgingTenant(null)
+      setPurgeConfirmText('')
+      queryClient.invalidateQueries({ queryKey: ['tenants'] })
+      queryClient.invalidateQueries({ queryKey: ['tenant-stats-all'] })
     },
   })
 
@@ -298,6 +316,13 @@ export default function TenantManagementPage() {
                       >
                         <PencilSquareIcon className="h-5 w-5" />
                       </button>
+                      <button
+                        onClick={() => { setPurgingTenant(tenant); setPurgeConfirmText(''); setPurgeResult(null) }}
+                        className="p-1 text-gray-400 hover:text-red-600"
+                        title="Permanently delete tenant"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -420,6 +445,140 @@ export default function TenantManagementPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Purge Confirmation Modal */}
+      {purgingTenant && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/50" onClick={() => setPurgingTenant(null)} />
+            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                    <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Delete Tenant Permanently</h2>
+                    <p className="text-sm text-gray-500">This action cannot be undone</p>
+                  </div>
+                </div>
+
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-red-800">
+                    This will permanently delete <strong>{purgingTenant.name}</strong> and all its data:
+                  </p>
+                  <ul className="mt-2 text-sm text-red-700 space-y-1 list-disc list-inside">
+                    <li>All contracts, clauses, obligations, SLAs</li>
+                    <li>All users and business units</li>
+                    <li>All organizations and relationships</li>
+                    <li>All vector embeddings (ChromaDB)</li>
+                    <li>All notifications, integrations, settings</li>
+                  </ul>
+                </div>
+
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">
+                    {tenantStatsMap?.[purgingTenant.id] && (
+                      <span className="font-medium">
+                        {tenantStatsMap[purgingTenant.id].contract_count} contracts, {tenantStatsMap[purgingTenant.id].user_count} users will be deleted.
+                      </span>
+                    )}
+                  </p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Type <span className="font-mono text-red-600">{purgingTenant.slug}</span> to confirm:
+                  </label>
+                  <input
+                    type="text"
+                    value={purgeConfirmText}
+                    onChange={(e) => setPurgeConfirmText(e.target.value)}
+                    className="input font-mono"
+                    placeholder={purgingTenant.slug}
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPurgingTenant(null)}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => purgeMutation.mutate(purgingTenant.id)}
+                    disabled={purgeConfirmText !== purgingTenant.slug || purgeMutation.isPending}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {purgeMutation.isPending ? (
+                      <div className="flex items-center gap-2">
+                        <LoadingSpinner size="sm" className="border-white border-t-transparent" />
+                        <span>Deleting...</span>
+                      </div>
+                    ) : (
+                      'Delete Permanently'
+                    )}
+                  </button>
+                </div>
+
+                {purgeMutation.isError && (
+                  <div className="mt-3 p-3 bg-red-50 rounded-lg text-sm text-red-700">
+                    {(purgeMutation.error as Error)?.message || 'Failed to delete tenant'}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Purge Result Modal */}
+      {purgeResult && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/50" onClick={() => setPurgeResult(null)} />
+            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircleIcon className="h-6 w-6 text-green-600" />
+                    </div>
+                    <h2 className="text-lg font-semibold text-gray-900">Tenant Deleted</h2>
+                  </div>
+                  <button onClick={() => setPurgeResult(null)} className="p-1 hover:bg-gray-100 rounded">
+                    <XMarkIcon className="h-5 w-5 text-gray-500" />
+                  </button>
+                </div>
+
+                <p className="text-sm text-gray-600 mb-3">
+                  <strong>{purgeResult.tenant}</strong> has been permanently deleted.
+                </p>
+
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-gray-500 uppercase mb-2">Deletion Summary</p>
+                  <div className="space-y-1 text-sm">
+                    {Object.entries(purgeResult.deleted)
+                      .filter(([, count]) => count > 0)
+                      .map(([table, count]) => (
+                        <div key={table} className="flex justify-between">
+                          <span className="text-gray-600">{table.replace(/_/g, ' ')}</span>
+                          <span className="font-mono text-gray-900">{count}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end mt-4">
+                  <button onClick={() => setPurgeResult(null)} className="btn-primary">
+                    Done
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

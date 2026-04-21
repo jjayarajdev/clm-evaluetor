@@ -1,0 +1,378 @@
+{
+  "contract_id": "nov-ex03-sla",
+  "source": "novartis",
+  "filename": "Exhibit 3 - Service Levels, FINAL (clean) 29 January 07.docx",
+  "doc_type": "exhibit",
+  "generated_at": "2026-04-14T06:25:15.739656",
+  "extraction_time_seconds": 48.3,
+  "is_draft": true,
+  "reviewed": false,
+  "metadata": {
+    "error": "ChromaDB service unavailable at localhost:8100. Ensure the ChromaDB container is running and healthy."
+  },
+  "clauses": [
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "As of the Commencement Date (or as otherwise specified in this Exhibit and the Attachments to this Exhibit), the Service Provider will perform the Services to which Service Levels apply so that the Service-Level Performance will, in each month of the Term, meet, or exceed, the Service Levels.",
+      "section_number": "General",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "Commencement Date",
+        "Service-Level Performance",
+        "Term"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "Service Provider proposes a methodology wherein there is a 6 month grace period during which Service Level Credits shall not apply for breach of Expected Service Levels to allow for a smooth transition of the process.",
+      "section_number": "Service Credits",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "6 month grace period",
+        "Service Level Credits"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "The Expected Service Level target shall be reset to be the best four average monthly performances for that metric in the six month period. The second lowest measurement during this six month period shall be set as the Minimum Service Level.",
+      "section_number": "Establishment of Service Levels",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Expected Service Level",
+        "Minimum Service Level"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "Service-Level Credits shall apply with effect from the Commencement Date or as otherwise specified in Attachment 3-A (Service Levels Matrix) under the column \u201cEff + mos**\u201d.",
+      "section_number": "Key Measurement",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Service-Level Credits",
+        "Commencement Date"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "In the event of a Service-Level Default, the Service Provider shall provide GlobalPharma credits as defined below...",
+      "section_number": "Service-level credits",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "Service-Level Default",
+        "Service-Level Credit"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "If any events or periods that are measured as part of a Service Level are not successfully achieved in accordance with the relevant performance standard specified in the Service Level and the Service Provider demonstrates that such failure is directly caused by any of the following, then such events or periods shall be disregarded...",
+      "section_number": "Exceptions",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Exceptions",
+        "Service Level"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "The Service Provider shall have Earnback opportunities with respect to Service-Level Credits as follows...",
+      "section_number": "Earnback",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Earnback",
+        "Service-Level Credits"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "The Parties agree that the Service Levels will be subject to continuous improvement and accordingly the Service Levels shall be modified with effect from the end of each contract year...",
+      "section_number": "Continuous Improvement",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Continuous Improvement",
+        "Service Levels"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "GlobalPharma may, by sending written notice to the Service Provider at least 90 calendar days prior to the effective date of the change: Add (based on Section 8.3 \u2013 Performance Standards for Additional Service Levels) or delete Service Levels...",
+      "section_number": "Additions, Deletions, Changes and Modifications",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Additions",
+        "Deletions",
+        "Service Levels"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "After six or more actual service-level attainments have been measured (or should have been measured in accordance with the established measurement criteria as defined within this Exhibit), GlobalPharma may at any time in writing require that the Expected Service Level and Minimum Service Level commitments are established in accordance with sub-section 1.1 above; ... Certain calculations specified in this Exhibit assume that perfect performance of each Service Level is 100 percent. If 0 (zero) pe",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "Expected Service Level",
+        "Minimum Service Level",
+        "100 percent"
+      ]
+    },
+    {
+      "clause_type": "DELIVERABLE",
+      "text": "Certain of the Service Provider\u2019s obligations under the Agreement are one-time or periodic obligations to deliver Critical Deliverables. Attachment 3-A (Service Levels Matrix) to this Exhibit sets forth the Deliverable Credits that shall be payable by the Service Provider to GlobalPharma in the event the Service Provider fails to deliver any of the Critical Deliverables within the time period relative to the Effective Date, specified in Attachment 3-A (Service Levels Matrix) to this Exhibit.",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Critical Deliverables",
+        "Deliverable Credits"
+      ]
+    },
+    {
+      "clause_type": "CONFIDENTIALITY",
+      "text": "This document contains confidential and proprietary information of GlobalPharma. It is furnished for the performance of The Agreements only. Except with the express prior written permission of GlobalPharma, this document and the information contained herein may not be published, disclosed, or used for any other purpose.",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "confidential",
+        "proprietary",
+        "GlobalPharma"
+      ]
+    }
+  ],
+  "obligations": [
+    {
+      "description": "Perform Services to meet or exceed Service Levels each month",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "monthly",
+      "consequences": "Service-Level Credits may apply",
+      "section_number": "General",
+      "source_quote": "the Service Provider will perform the Services to which Service Levels apply so that the Service-Level Performance will, in each month of the Term, meet, or exceed, the Service Levels.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Complete Attachment 3-B for all Critical Service Levels and Key measures",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Potential delay in service commencement",
+      "section_number": "General",
+      "source_quote": "The Service Provider will complete Attachment 3-B for all Critical Service Levels and Key measures agreed in Attachment 3-A in the time period before Commencement date and obtain sign off by GlobalPharma.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Provide first Service Level report 1 month after each process Go-Live date",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Potential service-level disputes",
+      "section_number": "General",
+      "source_quote": "The Service Provider will provide the first Service Level report 1 month after each process Go-Live date, in accordance with this Service Level Attachment.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide a single point of contact for resolution of Service-Level Defaults",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Potential unresolved service issues",
+      "section_number": "General",
+      "source_quote": "The Service Provider shall provide a single point of contact for the prompt resolution of all Service-Level Defaults.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Measure Service-Level Performance monthly",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "monthly",
+      "consequences": "Service-Level Credits may apply",
+      "section_number": "Key Measurement",
+      "source_quote": "Service-Level Performance will be measured on a monthly basis unless otherwise specified in Attachment 3-A.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide monthly performance reports",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "monthly",
+      "consequences": "Potential service-level disputes",
+      "section_number": "Reporting",
+      "source_quote": "The Service Provider shall provide to GlobalPharma, as part of the Service Provider\u2019s monthly performance reports, a set of soft-copy reports to verify the Service Provider's performance.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide a written plan for improving performance within 30 days of failure",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Potential service-level disputes",
+      "section_number": "Service-level credits",
+      "source_quote": "if the Service Provider fails to meet the applicable Minimum Service Level, the Service Provider shall provide GlobalPharma with a written plan for improving the Service Provider\u2019s performance to satisfy the Key Measurement within thirty (30) calendar days of the failure.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Pay Service-Level Credits on a contract year basis",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "annually",
+      "consequences": "Potential financial penalties",
+      "section_number": "Service-level credits",
+      "source_quote": "The total amount of Service-Level Credits that the Service Provider shall be obliged to pay to GlobalPharma, with respect to Service-Level Defaults occurring each month (subject to Earnback), shall be reflected on the memo invoice that contains charges for the month during which the Service-Level Default(s) giving rise to such credit(s) occurred.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Provide and implement a proposal with costs and timing via the Change Control Procedure",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": null,
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": null,
+      "source_quote": "The Service Provider shall provide and implementation a proposal with costs and timing issued via the Change Control Procedure;",
+      "confidence": 0.8
+    },
+    {
+      "description": "Establish Expected Service Level and Minimum Service Level commitments",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "GlobalPharma",
+      "beneficiary_party": null,
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": null,
+      "source_quote": "GlobalPharma may at any time in writing require that the Expected Service Level and Minimum Service Level commitments are established in accordance with sub-section 1.1 above;",
+      "confidence": 0.8
+    },
+    {
+      "description": "Construct missing measurements using specified method",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": null,
+      "source_quote": "If the Service Provider fails to provide one or more of the measurements during the Six-Month Measurement Period to be provided in accordance with the established measurement criteria as defined within this Exhibit, then the missing measurements shall be constructed as follows:",
+      "confidence": 0.9
+    },
+    {
+      "description": "Pay Deliverable Credits for failure to deliver Critical Deliverables",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Deliverable Credits payable",
+      "section_number": null,
+      "source_quote": "Attachment 3-A (Service Levels Matrix) to this Exhibit sets forth the Deliverable Credits that shall be payable by the Service Provider to GlobalPharma in the event the Service Provider fails to deliver any of the Critical Deliverables within the time period relative to the Effective Date, specified in Attachment 3-A (Service Levels Matrix) to this Exhibit.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Show Deliverable Credits in each monthly invoice as an actual credit",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "monthly",
+      "consequences": null,
+      "section_number": null,
+      "source_quote": "Unlike Service-Level Credits, Deliverable Credits shall be shown in each monthly invoice as an actual credit to the charges and will not be subject to Earnback.",
+      "confidence": 0.9
+    }
+  ],
+  "slas": [
+    {
+      "sla_name": "Expected Service Level",
+      "metric_type": "CUSTOM",
+      "metric_unit": "PERCENTAGE",
+      "target_value": 0.0,
+      "severity": "MEDIUM",
+      "has_penalty": true,
+      "penalty_type": "credit",
+      "penalty_value": null,
+      "measurement_period": "monthly",
+      "section_reference": "Service-level credits",
+      "source_text": "Fails to meet the applicable Expected Service Level (but does not fail to meet the applicable Minimum Service Level) for a month and such failure is the fourth (or more) such failure to meet such Expected Service Level for a month within a rolling 12-month period (an \u201cExpected Service-Level Default\u201d);",
+      "confidence": 0.9
+    },
+    {
+      "sla_name": "Minimum Service Level",
+      "metric_type": "CUSTOM",
+      "metric_unit": "PERCENTAGE",
+      "target_value": 0.0,
+      "severity": "HIGH",
+      "has_penalty": true,
+      "penalty_type": "credit",
+      "penalty_value": null,
+      "measurement_period": "monthly",
+      "section_reference": "Service-level credits",
+      "source_text": "Fails to meet the applicable Minimum Service Level in respect of any month (a \u201cMinimum Service-Level Default\u201d).",
+      "confidence": 0.9
+    }
+  ],
+  "renewal": {
+    "has_auto_renewal": false,
+    "auto_renewal_term_months": null,
+    "notice_period_days": null,
+    "notice_deadline": null,
+    "expiration_date": null,
+    "initial_term_months": null,
+    "termination_for_convenience": false,
+    "confidence": 0.5
+  },
+  "parse": {
+    "char_count": 31350,
+    "page_count": 10
+  }
+}

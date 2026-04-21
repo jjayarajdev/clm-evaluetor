@@ -22,6 +22,10 @@ from app.routers import (
     chat,
     # ServiceNow Integration
     snow_integration,
+    # SharePoint Integration
+    sharepoint_integration,
+    # SSO (OIDC)
+    sso,
     # Extraction Quality
     extraction_quality,
 )
@@ -312,6 +316,12 @@ app.include_router(external_portal.router)
 
 # ServiceNow Integration
 app.include_router(snow_integration.router)
+
+# SharePoint Integration
+app.include_router(sharepoint_integration.router)
+
+# SSO (OIDC)
+app.include_router(sso.router)
 
 # Extraction Quality
 app.include_router(extraction_quality.router)

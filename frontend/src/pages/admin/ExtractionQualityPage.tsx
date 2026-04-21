@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   CheckCircleIcon,
@@ -647,6 +647,136 @@ function AddMissingSLA({ onAdd }: { onAdd: (correctedValue: Record<string, unkno
   )
 }
 
+// ─── Text Viewer for CUAD .txt contracts ────────────────────────────
+function ContractTextViewer({ text, highlightText }: { text: string; highlightText: string | null }) {
+  const containerRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    if (!containerRef.current || !highlightText) return
+
+    // Clear previous highlights
+    containerRef.current.querySelectorAll('mark.clause-hl').forEach((el) => {
+      const parent = el.parentNode
+      if (parent) {
+        parent.replaceChild(document.createTextNode(el.textContent || ''), el)
+        parent.normalize()
+      }
+    })
+
+    const normalized = highlightText.toLowerCase().replace(/\s+/g, ' ').trim()
+    if (normalized.length < 10) return
+
+    // Try progressively shorter prefixes
+    const prefixes = [normalized.length, 300, 150, 80, 40].map((n) =>
+      normalized.substring(0, Math.min(n, normalized.length))
+    )
+
+    const walker = document.createTreeWalker(containerRef.current, NodeFilter.SHOW_TEXT)
+    let fullText = ''
+    const nodes: { node: Text; start: number; end: number }[] = []
+    let node: Text | null
+    while ((node = walker.nextNode() as Text | null)) {
+      const start = fullText.length
+      fullText += node.textContent || ''
+      nodes.push({ node, start, end: fullText.length })
+    }
+
+    const normalizedFull = fullText.toLowerCase().replace(/\s+/g, ' ')
+
+    let matchStart = -1
+    let matchLen = 0
+    for (const prefix of prefixes) {
+      if (prefix.length < 10) continue
+      const idx = normalizedFull.indexOf(prefix)
+      if (idx !== -1) {
+        // Try full match first
+        const fullIdx = normalizedFull.indexOf(normalized)
+        if (fullIdx !== -1) {
+          matchStart = fullIdx
+          matchLen = normalized.length
+        } else {
+          matchStart = idx
+          matchLen = prefix.length
+        }
+        break
+      }
+    }
+
+    if (matchStart === -1) return
+
+    // Map normalized offsets back to raw text offsets
+    let rawPos = 0
+    let normPos = 0
+    let rawStart = 0
+    let rawEnd = fullText.length
+    let lastWasSpace = false
+    let foundStart = false
+
+    for (rawPos = 0; rawPos < fullText.length && normPos <= matchStart + matchLen; rawPos++) {
+      const ch = fullText[rawPos]
+      if (/\s/.test(ch)) {
+        if (!lastWasSpace) {
+          if (normPos === matchStart && !foundStart) { rawStart = rawPos; foundStart = true }
+          normPos++
+          lastWasSpace = true
+        }
+      } else {
+        if (normPos === matchStart && !foundStart) { rawStart = rawPos; foundStart = true }
+        normPos++
+        lastWasSpace = false
+      }
+      if (normPos === matchStart + matchLen) { rawEnd = rawPos + 1; break }
+    }
+
+    // Find text nodes that overlap the match range and wrap them with <mark>
+    let firstMark: HTMLElement | null = null
+    for (const { node: tNode, start: nStart, end: nEnd } of nodes) {
+      if (nEnd <= rawStart || nStart >= rawEnd) continue
+      const text = tNode.textContent || ''
+      const hlStart = Math.max(0, rawStart - nStart)
+      const hlEnd = Math.min(text.length, rawEnd - nStart)
+      if (hlStart >= hlEnd) continue
+
+      const before = text.substring(0, hlStart)
+      const match = text.substring(hlStart, hlEnd)
+      const after = text.substring(hlEnd)
+
+      const parent = tNode.parentNode
+      if (!parent) continue
+
+      const frag = document.createDocumentFragment()
+      if (before) frag.appendChild(document.createTextNode(before))
+      const mark = document.createElement('mark')
+      mark.className = 'clause-hl'
+      mark.style.backgroundColor = 'rgba(250, 204, 21, 0.4)'
+      mark.style.borderRadius = '2px'
+      mark.style.padding = '1px 0'
+      mark.textContent = match
+      frag.appendChild(mark)
+      if (after) frag.appendChild(document.createTextNode(after))
+
+      parent.replaceChild(frag, tNode)
+      if (!firstMark) firstMark = mark
+    }
+
+    if (firstMark) {
+      firstMark.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [text, highlightText])
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-shrink-0 flex items-center px-3 py-2 bg-white border-b border-gray-200">
+        <DocumentTextIcon className="h-4 w-4 text-gray-400 mr-2" />
+        <span className="text-xs text-gray-600 font-medium">Extracted Text</span>
+      </div>
+      <div ref={containerRef} className="flex-1 overflow-y-auto p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-mono bg-white">
+        {text}
+      </div>
+    </div>
+  )
+}
+
 // ======================== MAIN PAGE ========================
 
 export default function ExtractionQualityPage() {
@@ -661,6 +791,8 @@ export default function ExtractionQualityPage() {
   const [showDocViewer, setShowDocViewer] = useState(true)
   const [highlightText, setHighlightText] = useState<string | null>(null)
   const [highlightPage, setHighlightPage] = useState<number | null>(null)
+  const [gsPage, setGsPage] = useState(1)
+  const gsPageSize = 25
 
   // Queries
   const { data: overview, isLoading: overviewLoading } = useQuery({
@@ -668,10 +800,13 @@ export default function ExtractionQualityPage() {
     queryFn: () => api.getExtractionQualityOverview(),
   })
 
-  const { data: goldenSet, isLoading: goldenSetLoading } = useQuery({
-    queryKey: ['golden-set-contracts'],
-    queryFn: () => api.getGoldenSetContracts(),
+  const { data: goldenSetResponse, isLoading: goldenSetLoading } = useQuery({
+    queryKey: ['golden-set-contracts', gsPage],
+    queryFn: () => api.getGoldenSetContracts(gsPage, gsPageSize),
   })
+  const goldenSet = goldenSetResponse?.items
+  const gsTotalPages = goldenSetResponse?.pages ?? 0
+  const gsTotal = goldenSetResponse?.total ?? 0
 
   const { data: detail, isLoading: detailLoading } = useQuery({
     queryKey: ['extraction-detail', selectedContractId],
@@ -707,6 +842,14 @@ export default function ExtractionQualityPage() {
     },
   })
 
+  const autoApproveMutation = useMutation({
+    mutationFn: () => api.autoApproveAll(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['golden-set-contracts'] })
+      queryClient.invalidateQueries({ queryKey: ['extraction-quality-overview'] })
+    },
+  })
+
   const verifyMutation = useMutation({
     mutationFn: (data: {
       golden_set_id: string
@@ -724,6 +867,7 @@ export default function ExtractionQualityPage() {
   })
 
   const openDetail = (contractId: string) => {
+    setShowDocViewer(true)
     setSelectedContractId(contractId)
     setView('detail')
     setActiveTab('metadata')
@@ -834,13 +978,20 @@ export default function ExtractionQualityPage() {
         <div className="flex flex-1 overflow-hidden">
           {/* Left: Document Viewer */}
           {showDocViewer && (
-            <div className="w-1/2 flex-shrink-0 border-r bg-gray-50 h-full">
-              <ContractPdfViewer
-                contractId={selectedContractId}
-                mimeType={detailMimeType}
-                highlightText={highlightText}
-                highlightPage={highlightPage}
-              />
+            <div className="w-1/2 flex-shrink-0 border-r bg-gray-50 h-full overflow-hidden flex flex-col">
+              {detail.extracted_text && /\.txt$/i.test(detail.filename || '') ? (
+                <ContractTextViewer
+                  text={detail.extracted_text}
+                  highlightText={highlightText}
+                />
+              ) : (
+                <ContractPdfViewer
+                  contractId={selectedContractId}
+                  mimeType={detailMimeType}
+                  highlightText={highlightText}
+                  highlightPage={highlightPage}
+                />
+              )}
             </div>
           )}
 
@@ -1020,12 +1171,28 @@ export default function ExtractionQualityPage() {
             <p className="text-sm text-gray-500">Manage your golden set and review AI extraction accuracy</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowAddDialog(true)}
-          className="btn-primary flex items-center gap-1.5"
-        >
-          <PlusIcon className="h-4 w-4" /> Add to Golden Set
-        </button>
+        <div className="flex items-center gap-2">
+          {overview && overview.pending_review > 0 && (
+            <button
+              onClick={() => {
+                if (confirm(`Auto-approve all ${overview.pending_review} pending extractions as correct?`)) {
+                  autoApproveMutation.mutate()
+                }
+              }}
+              disabled={autoApproveMutation.isPending}
+              className="btn-secondary flex items-center gap-1.5"
+            >
+              <CheckCircleIcon className="h-4 w-4" />
+              {autoApproveMutation.isPending ? 'Approving...' : 'Auto-Approve All'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowAddDialog(true)}
+            className="btn-primary flex items-center gap-1.5"
+          >
+            <PlusIcon className="h-4 w-4" /> Add to Golden Set
+          </button>
+        </div>
       </div>
 
       {/* Score Cards */}
@@ -1123,6 +1290,54 @@ export default function ExtractionQualityPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+        {/* Pagination */}
+        {gsTotalPages > 1 && (
+          <div className="px-4 py-3 border-t flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              Showing {(gsPage - 1) * gsPageSize + 1}–{Math.min(gsPage * gsPageSize, gsTotal)} of {gsTotal}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setGsPage((p) => Math.max(1, p - 1))}
+                disabled={gsPage <= 1}
+                className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-30"
+              >
+                Prev
+              </button>
+              {Array.from({ length: Math.min(7, gsTotalPages) }, (_, i) => {
+                let p: number
+                if (gsTotalPages <= 7) {
+                  p = i + 1
+                } else if (gsPage <= 4) {
+                  p = i + 1
+                } else if (gsPage >= gsTotalPages - 3) {
+                  p = gsTotalPages - 6 + i
+                } else {
+                  p = gsPage - 3 + i
+                }
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setGsPage(p)}
+                    className={cn(
+                      'px-2 py-1 text-xs rounded border',
+                      p === gsPage ? 'bg-violet-600 text-white border-violet-600' : 'hover:bg-gray-50'
+                    )}
+                  >
+                    {p}
+                  </button>
+                )
+              })}
+              <button
+                onClick={() => setGsPage((p) => Math.min(gsTotalPages, p + 1))}
+                disabled={gsPage >= gsTotalPages}
+                className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-30"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

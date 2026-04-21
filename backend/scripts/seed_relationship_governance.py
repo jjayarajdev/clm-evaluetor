@@ -5,6 +5,7 @@ Run with: python -m scripts.seed_relationship_governance
 """
 
 import asyncio
+import random
 import sys
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -431,8 +432,8 @@ async def seed_governance_for_tenant(session, admin_user, tenant_id, tenant_name
             status="active",
             name=config["name"],
             description=f"Business relationship with {config['org_b'].name}",
-            health_score=75.0 + (hash(config["name"]) % 20),  # Random 75-95
-            last_health_calculation=datetime.utcnow(),
+            health_score=None,  # Calculated from real data, not fabricated
+            last_health_calculation=None,
             governance_tier=config["tier"],
             start_date=today - timedelta(days=365),
             review_frequency_days=config["review_days"],
@@ -478,21 +479,31 @@ async def seed_governance_for_tenant(session, admin_user, tenant_id, tenant_name
 
     await session.flush()
 
-    # Create Perception Scores
+    # Create Perception Scores using a reproducible random generator
     print("\nCreating sample perception scores...")
     periods = ["2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4"]
+    rng = random.Random(42)  # Fixed seed for reproducibility
+
+    # Track scores per KPI per period for gap calculation
+    # Structure: {kpi_code: {period: {"internal": [scores], "external": [scores]}}}
+    scores_by_kpi_period = {}
 
     for period in periods:
         for kpi_code, kpi in kpis.items():
             if kpi.measurement_type in [KPIMeasurementType.RATING, KPIMeasurementType.PERCENTAGE]:
+                # Generate scores in 5.0-9.0 range, no systematic bias
+                internal_value = round(rng.uniform(5.0, 9.0), 1)
+                external_value = round(rng.uniform(5.0, 9.0), 1)
+
                 # Internal score
                 internal_score = PerceptionScore(
                     id=uuid4(),
                     kpi_id=kpi.id,
                     scorer_org_id=internal_org.id,
-                    score=3.5 + (hash(f"{kpi_code}{period}i") % 15) / 10,
+                    score=internal_value,
                     period=period,
                     is_internal=True,
+                    approval_status="approved",
                 )
                 session.add(internal_score)
 
@@ -501,32 +512,46 @@ async def seed_governance_for_tenant(session, admin_user, tenant_id, tenant_name
                     id=uuid4(),
                     kpi_id=kpi.id,
                     scorer_org_id=orgs["ACME"].id,
-                    score=3.0 + (hash(f"{kpi_code}{period}e") % 20) / 10,
+                    score=external_value,
                     period=period,
                     is_internal=False,
+                    approval_status="approved",
                 )
                 session.add(external_score)
+
+                # Track for gap calculation
+                if kpi_code not in scores_by_kpi_period:
+                    scores_by_kpi_period[kpi_code] = {}
+                if period not in scores_by_kpi_period[kpi_code]:
+                    scores_by_kpi_period[kpi_code][period] = {"internal": [], "external": []}
+                scores_by_kpi_period[kpi_code][period]["internal"].append(internal_value)
+                scores_by_kpi_period[kpi_code][period]["external"].append(external_value)
 
     print(f"  Created perception scores for {len(periods)} periods")
 
     await session.flush()
 
-    # Create Perception Gaps
+    # Create Perception Gaps derived from actual seeded scores
     print("\nCreating perception gaps...")
+    latest_period = "2024-Q4"
     for kpi_code, kpi in kpis.items():
         if kpi.measurement_type == KPIMeasurementType.RATING:
-            # Calculate gap for most recent period
-            internal_value = 4.0 + (hash(f"{kpi_code}gap_i") % 10) / 10
-            external_value = 3.0 + (hash(f"{kpi_code}gap_e") % 15) / 10
-            gap_value = internal_value - external_value
+            period_data = scores_by_kpi_period.get(kpi_code, {}).get(latest_period)
+            if not period_data:
+                continue
+
+            # Calculate averages from actual seeded scores
+            avg_internal = sum(period_data["internal"]) / len(period_data["internal"])
+            avg_external = sum(period_data["external"]) / len(period_data["external"])
+            gap_value = round(avg_internal - avg_external, 2)
             severity = PerceptionGap.calculate_severity(gap_value)
 
             perception_gap = PerceptionGap(
                 id=uuid4(),
                 kpi_id=kpi.id,
-                period="2024-Q4",
-                internal_score=internal_value,
-                external_score=external_value,
+                period=latest_period,
+                internal_score=round(avg_internal, 2),
+                external_score=round(avg_external, 2),
                 gap=gap_value,
                 gap_severity=severity,
                 requires_action=severity in ("significant", "critical"),

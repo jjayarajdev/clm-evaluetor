@@ -167,6 +167,30 @@ export async function createSLA(contractId: string, data: {
   return response.data
 }
 
+// ============ SLA LIBRARY ============
+
+export interface SLALibraryItem {
+  id: string
+  reference_code: string
+  name: string
+  description: string | null
+  target_value: number | null
+  minimum_value: number | null
+  typical_performance: number | null
+  category: string | null
+  service_tower: string | null
+}
+
+export async function getAvailableLibrarySLAs(contractId: string, params?: { category?: string; search?: string }): Promise<SLALibraryItem[]> {
+  const response = await client.get(`/sla/${contractId}/library-available`, { params })
+  return response.data
+}
+
+export async function createSLAFromLibrary(contractId: string, masterDataId: string): Promise<SLADetail> {
+  const response = await client.post<SLADetail>(`/sla/${contractId}/from-library/${masterDataId}`)
+  return response.data
+}
+
 // ============ MILESTONE ENDPOINTS ============
 
 export async function getMilestoneHealth(): Promise<MilestoneHealth> {

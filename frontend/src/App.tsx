@@ -18,8 +18,11 @@ import SchedulerPage from './pages/admin/SchedulerPage'
 import BusinessUnitsPage from './pages/admin/BusinessUnitsPage'
 import ExternalUsersPage from './pages/admin/ExternalUsersPage'
 import SnowIntegrationPage from './pages/admin/SnowIntegrationPage'
+import SharePointIntegrationPage from './pages/admin/SharePointIntegrationPage'
 import ExtractionQualityPage from './pages/admin/ExtractionQualityPage'
+import SSOConfigPage from './pages/admin/SSOConfigPage'
 import ExternalContractPage from './pages/ExternalContractPage'
+import ExternalGovernancePage from './pages/ExternalGovernancePage'
 import RenewalsPage from './pages/RenewalsPage'
 import VendorsPage from './pages/VendorsPage'
 import ReportsPage from './pages/ReportsPage'
@@ -59,9 +62,11 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/login/sso-callback" element={<LoginPage />} />
       {/* External portal - no auth required */}
       <Route path="/external/contracts/:token" element={<ExternalContractPage />} />
       <Route path="/external/contracts" element={<ExternalContractPage />} />
+      <Route path="/external/governance" element={<ExternalGovernancePage />} />
 
       <Route
         path="/"
@@ -106,6 +111,8 @@ function App() {
         <Route path="admin/business-units" element={<BusinessUnitsPage />} />
         <Route path="admin/external-users" element={<ExternalUsersPage />} />
         <Route path="admin/integrations/servicenow" element={<SnowIntegrationPage />} />
+        <Route path="admin/integrations/sharepoint" element={<SharePointIntegrationPage />} />
+        <Route path="admin/sso" element={<SSOConfigPage />} />
         <Route path="admin/extraction-quality" element={<ExtractionQualityPage />} />
         {/* Super Admin Routes */}
         <Route path="super-admin" element={<SuperAdminDashboardPage />} />

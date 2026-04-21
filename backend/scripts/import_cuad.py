@@ -251,26 +251,25 @@ async def ensure_cuad_tenant(db) -> tuple:
     from app.models.tenant import Tenant
     from app.models.user import User
 
-    # Find existing
+    # Find super admin by username (reliable across environments)
+    result = await db.execute(
+        select(User).where(User.username == "superadmin")
+    )
+    superadmin = result.scalar_one_or_none()
+    if not superadmin:
+        # Fallback: any admin user
+        result = await db.execute(
+            select(User).where(User.role == "admin").limit(1)
+        )
+        superadmin = result.scalar_one_or_none()
+    if not superadmin:
+        raise RuntimeError("No admin user found — run seed_data first")
+
+    # Find or create CUAD tenant
     result = await db.execute(
         select(Tenant).where(Tenant.name == CUAD_TENANT_NAME)
     )
     tenant = result.scalar_one_or_none()
-
-    if tenant:
-        # Find admin user for this tenant
-        result = await db.execute(
-            select(User).where(User.tenant_id == tenant.id).limit(1)
-        )
-        user = result.scalar_one_or_none()
-        if user:
-            return tenant.id, user.id
-
-    # Find super admin as fallback uploader
-    result = await db.execute(
-        select(User).where(User.tenant_id.is_(None)).limit(1)
-    )
-    superadmin = result.scalar_one_or_none()
 
     if not tenant:
         tenant = Tenant(
@@ -283,8 +282,31 @@ async def ensure_cuad_tenant(db) -> tuple:
         await db.flush()
         logger.info(f"Created tenant: {CUAD_TENANT_NAME} ({tenant.id})")
 
-    user_id = superadmin.id if superadmin else uuid4()
-    return tenant.id, user_id
+    # Create a system user under the CUAD tenant for the uploaded_by FK
+    result = await db.execute(
+        select(User).where(
+            User.tenant_id == tenant.id,
+            User.username == "cuad_system",
+        )
+    )
+    cuad_user = result.scalar_one_or_none()
+    if not cuad_user:
+        from app.core.security import hash_password
+        cuad_user = User(
+            id=uuid4(),
+            tenant_id=tenant.id,
+            username="cuad_system",
+            email="cuad@benchmark.local",
+            password_hash=hash_password("cuad_system_nologin"),
+            full_name="CUAD Import System",
+            role="admin",
+            is_active=True,
+        )
+        db.add(cuad_user)
+        await db.flush()
+        logger.info(f"Created CUAD system user: {cuad_user.id}")
+
+    return tenant.id, cuad_user.id
 
 
 async def import_contract(
@@ -382,8 +404,14 @@ async def create_golden_set_entry(
         db.add(ev)
         count += 1
 
-    # Add metadata verifications
+    # Add metadata verifications (deduplicate by field name)
+    seen_fields: set[str] = set()
     for meta in parsed["metadata"]:
+        field = meta["field"]
+        if field in seen_fields:
+            continue
+        seen_fields.add(field)
+
         # Use first span value
         value = meta["spans"][0]["text"] if meta["spans"] else ""
         if not value:
@@ -393,7 +421,7 @@ async def create_golden_set_entry(
             id=uuid4(),
             golden_set_id=gs.id,
             entity_type="metadata_field",
-            entity_id=meta["field"],
+            entity_id=field,
             status="correct",
             corrected_value={
                 "value": value,

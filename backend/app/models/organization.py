@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, String, Text, Boolean, ForeignKey
+from sqlalchemy import Column, DateTime, String, Text, Boolean, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, ENUM as PG_ENUM
 from sqlalchemy.orm import relationship as sa_relationship
 
@@ -46,6 +46,9 @@ class Organization(Base):
     """
 
     __tablename__ = "organizations"
+    __table_args__ = (
+        UniqueConstraint('tenant_id', 'code', name='uq_org_tenant_code'),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
@@ -54,7 +57,7 @@ class Organization(Base):
 
     # Basic info
     name = Column(String(255), nullable=False)
-    code = Column(String(50), nullable=False, unique=True)  # Short identifier
+    code = Column(String(50), nullable=False)  # Short identifier, unique per tenant
     org_type = Column(
         PG_ENUM('customer', 'vendor', 'partner', 'internal', name='organizationtype', create_type=False),
         nullable=False,
@@ -153,15 +156,3 @@ class Organization(Base):
 
     def __repr__(self) -> str:
         return f"<Organization {self.code}: {self.name}>"
-
-    @property
-    def all_relationships(self):
-        """Get all business relationships involving this organization."""
-        from sqlalchemy import or_
-        from app.models.relationship import BusinessRelationship
-        return BusinessRelationship.query.filter(
-            or_(
-                BusinessRelationship.org_a_id == self.id,
-                BusinessRelationship.org_b_id == self.id
-            )
-        )

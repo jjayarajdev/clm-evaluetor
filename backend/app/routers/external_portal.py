@@ -1,11 +1,13 @@
 """API endpoints for External Portal access (no authentication required)."""
 
+from decimal import Decimal
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -16,8 +18,12 @@ from app.models.contract_share import ContractShare
 from app.models.contract_comment import ContractComment
 from app.models.external_user import ExternalUser
 from app.models.external_access import ExternalAccessToken, TokenType
+from app.models.kpi import KPI, PerceptionScore, PerceptionGap
+from app.models.improvement import ImprovementPoint
+from app.models.relationship import BusinessRelationship
 from app.models.obligation import Obligation
 from app.models.sla import ContractSLA
+from app.services.kpi_service import recalculate_gap
 from app.schemas.contract_comment import (
     ContractCommentCreate,
     ContractCommentResponse,
@@ -114,6 +120,94 @@ async def validate_token(
     external_user.record_access()
 
     return access_token, external_user, contract_share
+
+
+async def validate_governance_token(
+    token: str,
+    db: AsyncSession,
+) -> tuple[ExternalAccessToken, ExternalUser]:
+    """Validate an external access token for governance/perception scoring.
+
+    Accepts PERCEPTION_SCORING or MULTI_PURPOSE token types and requires
+    the token to have a relationship_id linked.
+
+    Returns:
+        Tuple of (token, external_user).
+
+    Raises:
+        HTTPException: If token is invalid, expired, or wrong type.
+    """
+    # Get token — accept perception scoring or multi-purpose types
+    token_query = select(ExternalAccessToken).where(
+        ExternalAccessToken.token == token,
+        ExternalAccessToken.token_type.in_([
+            TokenType.PERCEPTION_SCORING,
+            TokenType.MULTI_PURPOSE,
+        ]),
+    )
+    access_token = (await db.execute(token_query)).scalar_one_or_none()
+
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or unsupported access token",
+        )
+
+    if not access_token.is_valid:
+        if access_token.is_revoked:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Access token has been revoked",
+            )
+        if datetime.utcnow() > access_token.expires_at:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Access token has expired",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token is no longer valid",
+        )
+
+    # Require relationship_id on the token
+    if not access_token.relationship_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token is not linked to a business relationship",
+        )
+
+    # Get external user
+    if not access_token.external_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token not linked to external user",
+        )
+
+    ext_user_query = select(ExternalUser).where(
+        ExternalUser.id == access_token.external_user_id,
+        ExternalUser.is_active == True,
+    )
+    external_user = (await db.execute(ext_user_query)).scalar_one_or_none()
+
+    if not external_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="External user not found or inactive",
+        )
+
+    # Record token use
+    access_token.record_use()
+    external_user.record_access()
+
+    return access_token, external_user
+
+
+class ExternalScoreSubmission(BaseModel):
+    """Request body for external perception score submission."""
+    kpi_id: UUID = Field(..., description="KPI to score")
+    score: float = Field(..., ge=1, le=10, description="Score from 1-10")
+    period: str = Field(..., description="Scoring period, e.g. '2026-Q2'")
+    comments: Optional[str] = Field(None, description="Optional comments")
 
 
 @router.get("/validate")
@@ -316,6 +410,181 @@ async def get_shared_contract(
         "can_download": share.can_download,
         "can_comment": share.can_comment,
         "shared_message": share.message,
+    }
+
+
+@router.get("/contracts/{contract_id}/governance")
+async def get_contract_governance(
+    contract_id: str,
+    token: str = Query(..., description="Access token"),
+    db: AsyncSession = Depends(get_db),
+):
+    """View governance data (KPIs, improvements) linked to a shared contract.
+
+    Uses the contract's business_relationship_id to find the relationship,
+    then returns KPIs with latest scores/gaps and improvement points.
+    Works with CONTRACT_ACCESS tokens.
+    """
+    access_token, external_user, _ = await validate_token(token, db)
+
+    # Verify access to this specific contract
+    share_query = select(ContractShare).where(
+        ContractShare.contract_id == UUID(contract_id),
+        ContractShare.external_user_id == external_user.id,
+        ContractShare.is_revoked == False,
+    )
+    share = (await db.execute(share_query)).scalar_one_or_none()
+
+    if not share or not share.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No access to this contract",
+        )
+
+    share.record_access()
+    await db.commit()
+
+    # Get the contract and its relationship link
+    contract_result = await db.execute(
+        select(Contract).where(Contract.id == UUID(contract_id))
+    )
+    contract = contract_result.scalar_one_or_none()
+
+    if not contract or not contract.business_relationship_id:
+        return {
+            "has_governance": False,
+            "relationship": None,
+            "kpis": [],
+            "improvements": [],
+        }
+
+    relationship_id = contract.business_relationship_id
+
+    # Load the business relationship with orgs
+    rel_result = await db.execute(
+        select(BusinessRelationship).where(
+            BusinessRelationship.id == relationship_id,
+        ).options(
+            selectinload(BusinessRelationship.org_a),
+            selectinload(BusinessRelationship.org_b),
+        )
+    )
+    relationship = rel_result.scalar_one_or_none()
+
+    if not relationship:
+        return {
+            "has_governance": False,
+            "relationship": None,
+            "kpis": [],
+            "improvements": [],
+        }
+
+    # Load KPIs
+    kpis_result = await db.execute(
+        select(KPI).where(
+            KPI.relationship_id == relationship_id,
+            KPI.is_active == True,
+        ).order_by(KPI.category, KPI.name)
+    )
+    kpis = kpis_result.scalars().all()
+
+    kpi_items = []
+    for kpi in kpis:
+        # Latest approved scores
+        scores_result = await db.execute(
+            select(PerceptionScore).where(
+                PerceptionScore.kpi_id == kpi.id,
+                PerceptionScore.approval_status == "approved",
+            ).order_by(PerceptionScore.scored_at.desc()).limit(4)
+        )
+        recent_scores = scores_result.scalars().all()
+
+        # Latest gap
+        gap_result = await db.execute(
+            select(PerceptionGap).where(
+                PerceptionGap.kpi_id == kpi.id,
+            ).order_by(PerceptionGap.period.desc()).limit(1)
+        )
+        latest_gap = gap_result.scalar_one_or_none()
+
+        kpi_items.append({
+            "id": str(kpi.id),
+            "name": kpi.name,
+            "description": kpi.description,
+            "category": kpi.category,
+            "measurement_type": kpi.measurement_type,
+            "target_value": float(kpi.target_value) if kpi.target_value else None,
+            "weight": float(kpi.weight) if kpi.weight else None,
+            "is_perception_based": kpi.is_perception_based,
+            "recent_scores": [
+                {
+                    "id": str(s.id),
+                    "score": float(s.score),
+                    "period": s.period,
+                    "is_internal": s.is_internal,
+                    "scored_at": s.scored_at.isoformat() if s.scored_at else None,
+                }
+                for s in recent_scores
+            ],
+            "latest_gap": {
+                "period": latest_gap.period,
+                "internal_score": float(latest_gap.internal_score) if latest_gap.internal_score else None,
+                "external_score": float(latest_gap.external_score) if latest_gap.external_score else None,
+                "gap": float(latest_gap.gap) if latest_gap.gap else None,
+                "gap_severity": latest_gap.gap_severity,
+                "requires_action": latest_gap.requires_action,
+            } if latest_gap else None,
+        })
+
+    # Load improvements
+    improvements_result = await db.execute(
+        select(ImprovementPoint).where(
+            ImprovementPoint.relationship_id == relationship_id,
+        ).order_by(ImprovementPoint.priority.desc(), ImprovementPoint.created_at.desc())
+    )
+    improvements = improvements_result.scalars().all()
+
+    improvement_items = []
+    for imp in improvements:
+        kpi_name = None
+        if imp.kpi_id:
+            kpi_result = await db.execute(
+                select(KPI.name).where(KPI.id == imp.kpi_id)
+            )
+            kpi_name = kpi_result.scalar_one_or_none()
+
+        improvement_items.append({
+            "id": str(imp.id),
+            "title": imp.title,
+            "description": imp.description,
+            "source": imp.source,
+            "priority": imp.priority,
+            "status": imp.status,
+            "kpi_name": kpi_name,
+            "due_date": imp.due_date.isoformat() if imp.due_date else None,
+            "target_outcome": imp.target_outcome,
+            "actual_outcome": imp.actual_outcome,
+            "impact_score": imp.impact_score,
+            "created_at": imp.created_at.isoformat() if imp.created_at else None,
+        })
+
+    org_a_name = relationship.org_a.name if relationship.org_a else None
+    org_b_name = relationship.org_b.name if relationship.org_b else None
+
+    return {
+        "has_governance": True,
+        "relationship": {
+            "id": str(relationship.id),
+            "name": relationship.name,
+            "relationship_type": relationship.relationship_type,
+            "status": relationship.status,
+            "org_a_name": org_a_name,
+            "org_b_name": org_b_name,
+            "health_score": relationship.health_score,
+            "governance_tier": relationship.governance_tier,
+        },
+        "kpis": kpi_items,
+        "improvements": improvement_items,
     }
 
 
@@ -600,3 +869,271 @@ async def add_external_comment(
         updated_at=comment.updated_at,
         reply_count=0,
     )
+
+
+# ---------------------------------------------------------------------------
+# External Governance Endpoints (perception scoring, KPI view, improvements)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/governance")
+async def get_external_governance(
+    token: str = Query(..., description="Access token"),
+    db: AsyncSession = Depends(get_db),
+):
+    """View governance dashboard for a business relationship.
+
+    Returns relationship info, KPIs with latest scores, and gap summary.
+    Requires a PERCEPTION_SCORING or MULTI_PURPOSE token.
+    """
+    access_token, external_user = await validate_governance_token(token, db)
+    await db.commit()
+
+    relationship_id = access_token.relationship_id
+
+    # Load the business relationship
+    rel_result = await db.execute(
+        select(BusinessRelationship).where(
+            BusinessRelationship.id == relationship_id,
+        ).options(
+            selectinload(BusinessRelationship.org_a),
+            selectinload(BusinessRelationship.org_b),
+        )
+    )
+    relationship = rel_result.scalar_one_or_none()
+
+    if not relationship:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Business relationship not found",
+        )
+
+    # Load KPIs for this relationship (lazy="dynamic" — use separate query)
+    kpis_result = await db.execute(
+        select(KPI).where(
+            KPI.relationship_id == relationship_id,
+            KPI.is_active == True,
+        ).order_by(KPI.category, KPI.name)
+    )
+    kpis = kpis_result.scalars().all()
+
+    # Build KPI data with latest scores and gaps
+    kpi_items = []
+    for kpi in kpis:
+        # Get latest approved scores for this KPI
+        latest_score_result = await db.execute(
+            select(PerceptionScore).where(
+                PerceptionScore.kpi_id == kpi.id,
+                PerceptionScore.approval_status == "approved",
+            ).order_by(PerceptionScore.scored_at.desc()).limit(5)
+        )
+        recent_scores = latest_score_result.scalars().all()
+
+        # Get latest gap for this KPI
+        gap_result = await db.execute(
+            select(PerceptionGap).where(
+                PerceptionGap.kpi_id == kpi.id,
+            ).order_by(PerceptionGap.period.desc()).limit(1)
+        )
+        latest_gap = gap_result.scalar_one_or_none()
+
+        kpi_items.append({
+            "id": str(kpi.id),
+            "name": kpi.name,
+            "code": kpi.code,
+            "description": kpi.description,
+            "category": kpi.category,
+            "measurement_type": kpi.measurement_type,
+            "target_value": float(kpi.target_value) if kpi.target_value else None,
+            "weight": float(kpi.weight) if kpi.weight else None,
+            "is_perception_based": kpi.is_perception_based,
+            "recent_scores": [
+                {
+                    "id": str(s.id),
+                    "score": float(s.score),
+                    "period": s.period,
+                    "is_internal": s.is_internal,
+                    "scored_at": s.scored_at.isoformat() if s.scored_at else None,
+                }
+                for s in recent_scores
+            ],
+            "latest_gap": {
+                "period": latest_gap.period,
+                "internal_score": float(latest_gap.internal_score) if latest_gap.internal_score else None,
+                "external_score": float(latest_gap.external_score) if latest_gap.external_score else None,
+                "gap": float(latest_gap.gap) if latest_gap.gap else None,
+                "gap_severity": latest_gap.gap_severity,
+                "requires_action": latest_gap.requires_action,
+            } if latest_gap else None,
+        })
+
+    # Build gap summary across all KPIs
+    all_gaps_result = await db.execute(
+        select(PerceptionGap).join(KPI, PerceptionGap.kpi_id == KPI.id).where(
+            KPI.relationship_id == relationship_id,
+            KPI.is_active == True,
+        ).order_by(PerceptionGap.period.desc())
+    )
+    all_gaps = all_gaps_result.scalars().all()
+
+    # Count gaps by severity (use the most recent period per KPI)
+    seen_kpis = set()
+    severity_counts = {"minor": 0, "moderate": 0, "significant": 0, "critical": 0}
+    action_required_count = 0
+    for gap in all_gaps:
+        if gap.kpi_id in seen_kpis:
+            continue
+        seen_kpis.add(gap.kpi_id)
+        if gap.gap_severity:
+            severity_counts[gap.gap_severity] = severity_counts.get(gap.gap_severity, 0) + 1
+        if gap.requires_action:
+            action_required_count += 1
+
+    # Get org names for display
+    org_a_name = relationship.org_a.name if relationship.org_a else None
+    org_b_name = relationship.org_b.name if relationship.org_b else None
+
+    return {
+        "relationship": {
+            "id": str(relationship.id),
+            "name": relationship.name,
+            "relationship_type": relationship.relationship_type,
+            "status": relationship.status,
+            "org_a_name": org_a_name,
+            "org_b_name": org_b_name,
+            "health_score": relationship.health_score,
+            "governance_tier": relationship.governance_tier,
+            "next_review_date": relationship.next_review_date.isoformat() if relationship.next_review_date else None,
+        },
+        "kpis": kpi_items,
+        "gap_summary": {
+            "total_kpis": len(kpis),
+            "severity_counts": severity_counts,
+            "action_required": action_required_count,
+        },
+    }
+
+
+@router.post("/governance/score", status_code=status.HTTP_201_CREATED)
+async def submit_external_score(
+    score_data: ExternalScoreSubmission,
+    token: str = Query(..., description="Access token"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit an external perception score for a KPI.
+
+    Creates a PerceptionScore with is_internal=False, auto-approved.
+    Recalculates the perception gap for the scored KPI/period.
+    """
+    access_token, external_user = await validate_governance_token(token, db)
+
+    relationship_id = access_token.relationship_id
+
+    # Verify the KPI belongs to the token's relationship
+    kpi_result = await db.execute(
+        select(KPI).where(
+            KPI.id == score_data.kpi_id,
+            KPI.relationship_id == relationship_id,
+            KPI.is_active == True,
+        )
+    )
+    kpi = kpi_result.scalar_one_or_none()
+
+    if not kpi:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="KPI not found or not linked to this relationship",
+        )
+
+    # External user must have an organization_id for scorer_org_id
+    if not external_user.organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="External user is not linked to an organization",
+        )
+
+    # Create the perception score
+    perception_score = PerceptionScore(
+        kpi_id=score_data.kpi_id,
+        scorer_org_id=external_user.organization_id,
+        scored_by_user_id=None,  # External user — no internal user ID
+        score=Decimal(str(score_data.score)),
+        period=score_data.period,
+        comments=score_data.comments,
+        is_internal=False,
+        approval_status="approved",  # Auto-approve external submissions
+        approved_at=datetime.utcnow(),
+    )
+    db.add(perception_score)
+    await db.commit()
+    await db.refresh(perception_score)
+
+    # Recalculate gap for this KPI/period
+    await recalculate_gap(kpi_id=score_data.kpi_id, period=score_data.period, db=db)
+
+    return {
+        "id": str(perception_score.id),
+        "kpi_id": str(perception_score.kpi_id),
+        "kpi_name": kpi.name,
+        "score": float(perception_score.score),
+        "period": perception_score.period,
+        "comments": perception_score.comments,
+        "is_internal": perception_score.is_internal,
+        "approval_status": perception_score.approval_status,
+        "scored_at": perception_score.scored_at.isoformat() if perception_score.scored_at else None,
+    }
+
+
+@router.get("/governance/improvements")
+async def get_external_improvements(
+    token: str = Query(..., description="Access token"),
+    db: AsyncSession = Depends(get_db),
+):
+    """View improvement points for a business relationship.
+
+    Returns non-sensitive improvement points filtered to the token's
+    relationship. Internal audit details and owner information are excluded.
+    """
+    access_token, external_user = await validate_governance_token(token, db)
+    await db.commit()
+
+    relationship_id = access_token.relationship_id
+
+    # Load improvement points for this relationship (lazy="dynamic" — separate query)
+    improvements_result = await db.execute(
+        select(ImprovementPoint).where(
+            ImprovementPoint.relationship_id == relationship_id,
+        ).order_by(ImprovementPoint.priority.desc(), ImprovementPoint.created_at.desc())
+    )
+    improvements = improvements_result.scalars().all()
+
+    items = []
+    for imp in improvements:
+        # Get KPI name if linked
+        kpi_name = None
+        if imp.kpi_id:
+            kpi_result = await db.execute(
+                select(KPI.name).where(KPI.id == imp.kpi_id)
+            )
+            kpi_name = kpi_result.scalar_one_or_none()
+
+        items.append({
+            "id": str(imp.id),
+            "title": imp.title,
+            "description": imp.description,
+            "source": imp.source,
+            "priority": imp.priority,
+            "status": imp.status,
+            "kpi_name": kpi_name,
+            "due_date": imp.due_date.isoformat() if imp.due_date else None,
+            "target_outcome": imp.target_outcome,
+            "actual_outcome": imp.actual_outcome,
+            "impact_score": imp.impact_score,
+            "created_at": imp.created_at.isoformat() if imp.created_at else None,
+            "updated_at": imp.updated_at.isoformat() if imp.updated_at else None,
+        })
+
+    return {
+        "improvements": items,
+        "total": len(items),
+    }

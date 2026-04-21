@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import {
   HomeIcon,
   DocumentTextIcon,
@@ -16,6 +16,7 @@ import {
   ClockIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
   GlobeAltIcon,
   AdjustmentsHorizontalIcon,
   UserGroupIcon,
@@ -24,6 +25,7 @@ import {
   ClipboardDocumentListIcon,
   ShieldCheckIcon,
   BeakerIcon,
+  FolderIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSidebar } from '@/contexts/SidebarContext'
@@ -34,7 +36,22 @@ interface SidebarProps {
   onClose: () => void
 }
 
-const navigation = [
+interface NavItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  roles: string[]
+}
+
+interface NavGroup {
+  label: string
+  items: NavItem[]
+  collapsible?: boolean
+}
+
+// ── Navigation Structure ──────────────────────────────────────────
+
+const mainNav: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
   { name: 'Contracts', href: '/contracts', icon: DocumentTextIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
   { name: 'Compliance', href: '/compliance', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
@@ -45,28 +62,49 @@ const navigation = [
   { name: 'Ask AI', href: '/query', icon: ChatBubbleLeftRightIcon, roles: ['admin', 'legal', 'procurement'] },
 ]
 
-const bottomNavigation = [
-  { name: 'Users', href: '/users', icon: UsersIcon, roles: ['admin'] },
-  { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
+const governanceNav: NavGroup = {
+  label: 'Governance',
+  collapsible: true,
+  items: [
+    { name: 'Organizations', href: '/organizations', icon: BuildingLibraryIcon, roles: ['admin', 'legal', 'procurement'] },
+    { name: 'Relationships', href: '/relationships', icon: LinkIcon, roles: ['admin', 'legal', 'procurement'] },
+    { name: 'KPI Approvals', href: '/kpi-approvals', icon: ShieldCheckIcon, roles: ['admin'] },
+    { name: 'Surveys', href: '/surveys', icon: ClipboardDocumentListIcon, roles: ['admin', 'legal'] },
+  ],
+}
+
+const adminGroups: NavGroup[] = [
+  {
+    label: 'Users & Access',
+    collapsible: true,
+    items: [
+      { name: 'Users', href: '/users', icon: UsersIcon, roles: ['admin'] },
+      { name: 'Business Units', href: '/admin/business-units', icon: BuildingOffice2Icon, roles: ['admin'] },
+      { name: 'External Users', href: '/admin/external-users', icon: UserGroupIcon, roles: ['admin'] },
+    ],
+  },
+  {
+    label: 'Integrations',
+    collapsible: true,
+    items: [
+      { name: 'ServiceNow', href: '/admin/integrations/servicenow', icon: CloudArrowUpIcon, roles: ['admin'] },
+      { name: 'SharePoint', href: '/admin/integrations/sharepoint', icon: FolderIcon, roles: ['admin'] },
+      { name: 'SSO (OIDC)', href: '/admin/sso', icon: ShieldCheckIcon, roles: ['admin'] },
+    ],
+  },
+  {
+    label: 'System',
+    collapsible: true,
+    items: [
+      { name: 'Extraction Quality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['admin'] },
+      { name: 'Master Data', href: '/admin/master-data', icon: CircleStackIcon, roles: ['admin'] },
+      { name: 'Scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
+      { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
+    ],
+  },
 ]
 
-const governanceNavigation = [
-  { name: 'Organizations', href: '/organizations', icon: BuildingLibraryIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'Relationships', href: '/relationships', icon: LinkIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'KPI Approvals', href: '/kpi-approvals', icon: ShieldCheckIcon, roles: ['admin'] },
-  { name: 'Surveys', href: '/surveys', icon: ClipboardDocumentListIcon, roles: ['admin', 'legal'] },
-]
-
-const adminNavigation = [
-  { name: 'Business Units', href: '/admin/business-units', icon: BuildingOffice2Icon, roles: ['admin'] },
-  { name: 'External Users', href: '/admin/external-users', icon: UserGroupIcon, roles: ['admin'] },
-  { name: 'ServiceNow', href: '/admin/integrations/servicenow', icon: CloudArrowUpIcon, roles: ['admin'] },
-  { name: 'Extraction Quality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['admin'] },
-  { name: 'Master Data', href: '/admin/master-data', icon: CircleStackIcon, roles: ['admin'] },
-  { name: 'Scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
-]
-
-const superAdminNavigation = [
+const superAdminNav: NavItem[] = [
   { name: 'Platform Overview', href: '/super-admin', icon: GlobeAltIcon, roles: ['super_admin'] },
   { name: 'Tenants', href: '/super-admin/tenants', icon: BuildingOffice2Icon, roles: ['super_admin'] },
   { name: 'All Users', href: '/super-admin/users', icon: UserGroupIcon, roles: ['super_admin'] },
@@ -75,14 +113,18 @@ const superAdminNavigation = [
   { name: 'Integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, roles: ['super_admin'] },
 ]
 
-function NavItem({
+// ── Nav Item Component ────────────────────────────────────────────
+
+function NavItemLink({
   item,
   onClose,
-  collapsed
+  collapsed,
+  indent = false,
 }: {
-  item: typeof navigation[0]
+  item: NavItem
   onClose: () => void
   collapsed: boolean
+  indent?: boolean
 }) {
   const [showTooltip, setShowTooltip] = useState(false)
 
@@ -100,7 +142,9 @@ function NavItem({
             'flex items-center gap-3 rounded-lg transition-all duration-150',
             collapsed
               ? 'justify-center w-10 h-10'
-              : 'px-3 py-2.5',
+              : indent
+                ? 'pl-7 pr-3 py-2'
+                : 'px-3 py-2.5',
             isActive
               ? 'bg-violet-100 text-violet-700'
               : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
@@ -111,24 +155,21 @@ function NavItem({
           <>
             <item.icon
               className={cn(
-                'h-5 w-5 shrink-0',
+                indent ? 'h-4 w-4' : 'h-5 w-5',
+                'shrink-0',
                 isActive ? 'text-violet-600' : ''
               )}
               aria-hidden="true"
             />
             {!collapsed && (
-              <span className="text-sm font-medium truncate">{item.name}</span>
+              <span className={cn('font-medium truncate', indent ? 'text-xs' : 'text-sm')}>{item.name}</span>
             )}
           </>
         )}
       </NavLink>
 
-      {/* Tooltip - only shown when collapsed */}
       {collapsed && showTooltip && (
-        <div
-          className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50"
-          role="tooltip"
-        >
+        <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50" role="tooltip">
           <div className="bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap shadow-lg">
             {item.name}
           </div>
@@ -138,29 +179,80 @@ function NavItem({
   )
 }
 
+// ── Collapsible Group Component ───────────────────────────────────
+
+function CollapsibleGroup({
+  group,
+  userRole,
+  onClose,
+  collapsed,
+}: {
+  group: NavGroup
+  userRole: string
+  onClose: () => void
+  collapsed: boolean
+}) {
+  const location = useLocation()
+  const items = group.items.filter((item) => item.roles.includes(userRole))
+  const hasActiveChild = items.some((item) => location.pathname.startsWith(item.href))
+  const [isOpen, setIsOpen] = useState(hasActiveChild)
+
+  if (items.length === 0) return null
+
+  // When sidebar is collapsed, show only the first item's icon as a representative
+  if (collapsed) {
+    return (
+      <>
+        {items.map((item) => (
+          <NavItemLink key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
+        ))}
+      </>
+    )
+  }
+
+  return (
+    <div>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider transition-colors',
+          hasActiveChild
+            ? 'text-violet-600'
+            : 'text-gray-400 hover:text-gray-600'
+        )}
+      >
+        {group.label}
+        <ChevronDownIcon
+          className={cn(
+            'h-3 w-3 transition-transform duration-200',
+            isOpen ? '' : '-rotate-90'
+          )}
+        />
+      </button>
+      {isOpen && (
+        <div className="mt-0.5 space-y-0.5">
+          {items.map((item) => (
+            <NavItemLink key={item.name} item={item} onClose={onClose} collapsed={collapsed} indent />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main Sidebar ──────────────────────────────────────────────────
+
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuth()
   const { collapsed, toggleCollapsed } = useSidebar()
 
-  const filteredNavigation = navigation.filter(
-    (item) => user && item.roles.includes(user.role)
-  )
+  const role = user?.role || ''
 
-  const filteredBottomNavigation = bottomNavigation.filter(
-    (item) => user && item.roles.includes(user.role)
-  )
-
-  const filteredGovernanceNavigation = governanceNavigation.filter(
-    (item) => user && item.roles.includes(user.role)
-  )
-
-  const filteredAdminNavigation = adminNavigation.filter(
-    (item) => user && item.roles.includes(user.role)
-  )
-
-  const filteredSuperAdminNavigation = superAdminNavigation.filter(
-    (item) => user && item.roles.includes(user.role)
-  )
+  const filteredMain = mainNav.filter((item) => item.roles.includes(role))
+  const filteredGov = governanceNav.items.filter((item) => item.roles.includes(role))
+  const filteredSuperAdmin = superAdminNav.filter((item) => item.roles.includes(role))
+  const hasAdmin = role === 'admin'
+  const hasSuperAdmin = role === 'super_admin'
 
   const sidebarWidth = collapsed ? 'w-[60px]' : 'w-[220px]'
 
@@ -181,8 +273,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             </span>
           )}
         </div>
-
-        {/* Toggle button */}
         <button
           onClick={toggleCollapsed}
           className={cn(
@@ -204,89 +294,61 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       <nav
         className={cn(
           'flex-1 flex flex-col py-4 overflow-y-auto',
-          collapsed ? 'items-center space-y-1' : 'px-3 space-y-1'
+          collapsed ? 'items-center space-y-1' : 'px-3 space-y-0.5'
         )}
         aria-label="Main navigation"
       >
-        {filteredNavigation.map((item) => (
-          <NavItem key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
+        {/* Core nav */}
+        {filteredMain.map((item) => (
+          <NavItemLink key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
         ))}
 
-        {/* Divider for governance section */}
-        {filteredGovernanceNavigation.length > 0 && (
+        {/* Governance group */}
+        {filteredGov.length > 0 && (
           <>
-            <div className={cn(
-              'border-t border-gray-200 my-3',
-              collapsed ? 'w-6' : 'w-full'
-            )} />
+            <div className={cn('border-t border-gray-200 !my-3', collapsed ? 'w-6' : 'w-full')} />
+            <CollapsibleGroup group={governanceNav} userRole={role} onClose={onClose} collapsed={collapsed} />
+          </>
+        )}
 
+        {/* Admin groups */}
+        {hasAdmin && (
+          <>
+            <div className={cn('border-t border-gray-200 !my-3', collapsed ? 'w-6' : 'w-full')} />
             {!collapsed && (
-              <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                Governance
-              </p>
+              <p className="px-3 mb-1 text-[10px] font-bold text-gray-300 uppercase tracking-wider">Admin</p>
             )}
-
-            {filteredGovernanceNavigation.map((item) => (
-              <NavItem key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
+            {adminGroups.map((group) => (
+              <CollapsibleGroup key={group.label} group={group} userRole={role} onClose={onClose} collapsed={collapsed} />
             ))}
           </>
         )}
 
-        {/* Divider for admin section */}
-        {filteredAdminNavigation.length > 0 && (
+        {/* Super Admin */}
+        {hasSuperAdmin && filteredSuperAdmin.length > 0 && (
           <>
-            <div className={cn(
-              'border-t border-gray-200 my-3',
-              collapsed ? 'w-6' : 'w-full'
-            )} />
-
-            {!collapsed && (
-              <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                Admin
-              </p>
-            )}
-
-            {filteredAdminNavigation.map((item) => (
-              <NavItem key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
-            ))}
-          </>
-        )}
-
-        {/* Divider for super admin section */}
-        {filteredSuperAdminNavigation.length > 0 && (
-          <>
-            <div className={cn(
-              'border-t border-gray-200 my-3',
-              collapsed ? 'w-6' : 'w-full'
-            )} />
-
+            <div className={cn('border-t border-gray-200 !my-3', collapsed ? 'w-6' : 'w-full')} />
             {!collapsed && (
               <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                 Super Admin
               </p>
             )}
-
-            {filteredSuperAdminNavigation.map((item) => (
-              <NavItem key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
+            {filteredSuperAdmin.map((item) => (
+              <NavItemLink key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
             ))}
           </>
         )}
       </nav>
 
-      {/* Bottom Navigation */}
+      {/* User Avatar (bottom) */}
       <div className={cn(
         'border-t border-gray-200 py-4',
-        collapsed ? 'flex flex-col items-center space-y-1' : 'px-3 space-y-1'
+        collapsed ? 'flex flex-col items-center' : 'px-3'
       )}>
-        {filteredBottomNavigation.map((item) => (
-          <NavItem key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
-        ))}
-
-        {/* User Avatar */}
         {user && (
           <div className={cn(
-            'mt-3 relative group',
-            collapsed ? 'flex justify-center' : 'px-0'
+            'relative group',
+            collapsed ? 'flex justify-center' : ''
           )}>
             <div className={cn(
               'flex items-center gap-3 rounded-lg transition-all cursor-pointer',
@@ -309,7 +371,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               )}
             </div>
 
-            {/* User tooltip - only when collapsed */}
             {collapsed && (
               <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                 <div className="bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap shadow-lg">

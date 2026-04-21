@@ -154,7 +154,7 @@ export default function SurveysPage() {
                 <div className="flex items-center gap-3">
                   <ClipboardDocumentListIcon className="h-5 w-5 text-violet-500" />
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{instance.title || 'Untitled Survey'}</p>
+                    <p className="text-sm font-semibold text-gray-900">{instance.template_name || instance.title || instance.period || 'Untitled Survey'}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={cn(
                         'px-2 py-0.5 rounded text-xs font-medium',
@@ -213,7 +213,7 @@ export default function SurveysPage() {
                         {tmpl.survey_type}
                       </span>
                       <span className="text-xs text-gray-400">
-                        {tmpl.questions?.length || 0} questions
+                        {tmpl.question_count ?? tmpl.questions?.length ?? 0} questions
                       </span>
                     </div>
                   </div>
@@ -331,11 +331,12 @@ export default function SurveysPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Period *</label>
                 <input
                   type="text"
-                  value={instanceForm.title || ''}
-                  onChange={(e) => setInstanceForm({ ...instanceForm, title: e.target.value })}
+                  value={instanceForm.period || ''}
+                  onChange={(e) => setInstanceForm({ ...instanceForm, period: e.target.value })}
+                  placeholder="e.g., 2026-Q2"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
                 />
               </div>
@@ -353,10 +354,10 @@ export default function SurveysPage() {
               <button onClick={() => setShowCreateInstance(false)} className="btn-secondary">Cancel</button>
               <button
                 onClick={() => {
-                  if (!instanceForm.template_id || !instanceForm.relationship_id) return
+                  if (!instanceForm.template_id || !instanceForm.relationship_id || !instanceForm.period) return
                   createInstanceMutation.mutate(instanceForm as SurveyInstanceCreate)
                 }}
-                disabled={!instanceForm.template_id || !instanceForm.relationship_id || createInstanceMutation.isPending}
+                disabled={!instanceForm.template_id || !instanceForm.relationship_id || !instanceForm.period || createInstanceMutation.isPending}
                 className="btn-primary"
               >
                 {createInstanceMutation.isPending ? 'Creating...' : 'Create'}

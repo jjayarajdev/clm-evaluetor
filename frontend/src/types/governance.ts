@@ -138,11 +138,13 @@ export interface RelationshipTeamMember {
   relationship_id: string
   user_id: string
   user?: { id: string; username: string; full_name?: string; email: string; role: string }
+  user_name?: string
   role: TeamRole
-  responsibilities: string | null
-  is_primary_contact: boolean
-  receives_alerts: boolean
-  assigned_at: string
+  responsibilities: string | string[] | null
+  is_primary: boolean
+  is_primary_contact?: boolean
+  receives_alerts?: boolean
+  assigned_at?: string
 }
 
 export interface TeamMemberCreate {
@@ -179,7 +181,8 @@ export interface KPI {
   updated_at: string
   latest_internal_score?: number | null
   latest_external_score?: number | null
-  latest_gap?: PerceptionGap | null
+  latest_gap?: number | null
+  latest_gap_severity?: GapSeverity | null
 }
 
 export interface KPICreate {
@@ -285,6 +288,13 @@ export interface ImprovementPoint {
   actual_outcome: string | null
   impact_score: number | null
   progress: number
+  progress_percentage?: number
+  action_count?: number
+  completed_action_count?: number
+  owner_name?: string | null
+  kpi_name?: string | null
+  relationship_name?: string | null
+  due_date?: string | null
   created_at: string
   updated_at: string
   actions?: ImprovementAction[]
@@ -385,9 +395,11 @@ export interface SurveyInstance {
   id: string
   template_id: string
   relationship_id: string
-  title: string
+  title?: string
   status: SurveyInstanceStatus
   period: string | null
+  template_name?: string | null
+  relationship_name?: string | null
   scheduled_send_date: string | null
   due_date: string | null
   target_respondents: number
@@ -404,8 +416,7 @@ export interface SurveyInstance {
 export interface SurveyInstanceCreate {
   template_id: string
   relationship_id: string
-  title: string
-  period?: string
+  period: string
   due_date?: string
   target_respondents?: number
   notes?: string

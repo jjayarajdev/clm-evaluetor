@@ -274,6 +274,13 @@ class Obligation(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
 
+    # Pre-computed highlight rectangles for PDF viewer
+    highlight_rects: Mapped[list | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        default=None,
+    )
+
     # Tenant-defined custom fields
     custom_fields: Mapped[dict] = mapped_column(
         JSONB,

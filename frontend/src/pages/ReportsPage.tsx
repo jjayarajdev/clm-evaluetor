@@ -18,7 +18,7 @@ function TrendChart({ data }: { data: { period_label: string; overall_compliance
   const range = max - min || 1
 
   return (
-    <div className="h-48 flex items-end gap-2">
+    <div className="flex gap-2">
       {data.map((point, idx) => {
         const height = ((point.overall_compliance_rate - min) / range) * 100
         const color = point.overall_compliance_rate >= 80 ? 'bg-green-500' :
@@ -29,10 +29,12 @@ function TrendChart({ data }: { data: { period_label: string; overall_compliance
             <div className="text-xs text-gray-600 font-medium">
               {point.overall_compliance_rate.toFixed(1)}%
             </div>
-            <div
-              className={cn('w-full rounded-t', color)}
-              style={{ height: `${Math.max(height, 5)}%` }}
-            />
+            <div className="w-full h-40 flex items-end">
+              <div
+                className={cn('w-full rounded-t transition-all', color)}
+                style={{ height: `${Math.max(height, 4)}%` }}
+              />
+            </div>
             <div className="text-xs text-gray-500 truncate w-full text-center">
               {point.period_label}
             </div>

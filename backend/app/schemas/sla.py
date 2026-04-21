@@ -85,6 +85,9 @@ class SLAResponse(BaseModel):
     last_measured_at: datetime | None
     consecutive_breaches: int
     source_text: str | None
+    master_data_id: str | None = None
+    source: str = "manual"  # "ai_extracted", "from_library", "manual"
+    master_data_name: str | None = None
     created_at: datetime
     updated_at: datetime
 

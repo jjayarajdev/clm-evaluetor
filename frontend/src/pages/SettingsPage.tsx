@@ -500,7 +500,9 @@ function SecuritySettings() {
 function IntegrationSettings() {
   const integrations = [
     { name: 'OpenAI', description: 'AI-powered contract analysis', connected: true, configurable: false },
-    { name: 'ServiceNow', description: 'SLA sync and incident management', connected: false, configurable: true, configPath: '/admin/servicenow' },
+    { name: 'ServiceNow', description: 'SLA sync and incident management', connected: false, configurable: true, configPath: '/admin/integrations/servicenow' },
+    { name: 'SharePoint', description: 'Import contracts from document libraries', connected: false, configurable: true, configPath: '/admin/integrations/sharepoint' },
+    { name: 'SSO (OIDC)', description: 'Single Sign-On with Azure AD, Okta, Google', connected: false, configurable: true, configPath: '/admin/sso' },
     { name: 'Microsoft Teams', description: 'Send notifications to Teams channels', connected: false, configurable: false },
     { name: 'Slack', description: 'Send notifications to Slack', connected: false, configurable: false },
   ]

@@ -421,6 +421,11 @@ export async function activateTenant(id: string): Promise<void> {
   await client.patch(`/tenants/${id}`, { is_active: true })
 }
 
+export async function purgeTenant(id: string): Promise<{ tenant: string; deleted: Record<string, number> }> {
+  const response = await client.delete(`/tenants/${id}/purge`, { params: { confirm: true }, timeout: 300000 })
+  return response.data
+}
+
 export async function getTenantStats(id: string): Promise<TenantStats> {
   const response = await client.get<TenantStats>(`/tenants/${id}/stats`)
   return response.data
@@ -778,7 +783,7 @@ export async function getExtractionQualityOverview(): Promise<{
   return response.data
 }
 
-export async function getGoldenSetContracts(): Promise<Array<{
+export interface GoldenSetItem {
   id: string
   contract_id: string
   filename: string
@@ -808,8 +813,21 @@ export async function getGoldenSetContracts(): Promise<Array<{
     sla: number | null
     overall: number | null
   }
-}>> {
-  const response = await client.get('/admin/extraction-quality/golden-set')
+}
+
+export async function getGoldenSetContracts(page = 1, pageSize = 25): Promise<{
+  items: GoldenSetItem[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
+}> {
+  const response = await client.get('/admin/extraction-quality/golden-set', { params: { page, page_size: pageSize } })
+  return response.data
+}
+
+export async function autoApproveAll(): Promise<{ contracts_processed: number; verifications_created: number; total_golden_contracts: number }> {
+  const response = await client.post('/admin/extraction-quality/auto-approve-all')
   return response.data
 }
 
@@ -829,6 +847,7 @@ export async function getExtractionDetail(contractId: string): Promise<{
   is_golden: boolean
   is_global: boolean
   golden_set_id: string | null
+  extracted_text: string | null
   metadata: Array<{
     field: string
     value: unknown

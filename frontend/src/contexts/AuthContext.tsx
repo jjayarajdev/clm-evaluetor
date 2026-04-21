@@ -25,13 +25,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    // Check for existing session
     const checkAuth = async () => {
+      // Check for SSO callback token in URL
+      const params = new URLSearchParams(window.location.search)
+      const ssoToken = params.get('token')
+      if (ssoToken && window.location.pathname === '/login/sso-callback') {
+        api.setToken(ssoToken)
+        // Clean up URL
+        window.history.replaceState({}, '', '/login/sso-callback')
+      }
+
       const token = api.getToken()
       if (token) {
         try {
           const currentUser = await api.getCurrentUser()
           setUser(currentUser)
+          // If we just got an SSO token, redirect based on role
+          if (ssoToken) {
+            const dest = currentUser.role === 'super_admin' ? '/super-admin' : '/dashboard'
+            navigate(dest)
+          }
         } catch {
           api.clearToken()
         }
