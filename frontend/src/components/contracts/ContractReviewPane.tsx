@@ -15,6 +15,7 @@ import ContractPdfViewer from './ContractPdfViewer'
 import { cn, formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Contract, ClauseDetail, ObligationItem, ContractCommentItem } from '@/types'
+import type { HighlightRect } from '@/lib/api/contracts'
 
 interface ContractReviewPaneProps {
   contractId: string
@@ -234,6 +235,7 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
   const canEdit = user?.role === 'admin' || user?.role === 'legal' || user?.role === 'super_admin'
   const [highlightPage, setHighlightPage] = useState<number | null>(null)
   const [highlightText, setHighlightText] = useState<string | null>(null)
+  const [activeRects, setActiveRects] = useState<HighlightRect[] | null>(null)
   const [splitPercent, setSplitPercent] = useState(45)
   const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
@@ -248,6 +250,12 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
   const { data: slas, isLoading: slaLoading } = useQuery({
     queryKey: ['contract-slas', contractId],
     queryFn: () => api.getContractSLAs(contractId),
+  })
+
+  // Fetch pre-computed highlight coordinates
+  const { data: highlights } = useQuery({
+    queryKey: ['contract-highlights', contractId],
+    queryFn: () => api.getContractHighlights(contractId),
   })
 
   // Fetch comments
@@ -472,8 +480,16 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
                   comments={getCommentsFor(`clause:${clause.id}`)}
                   onAddComment={(content) => addCommentMut.mutate({ content, section_reference: `clause:${clause.id}`, clause_id: clause.id })}
                   onViewSource={() => {
-                    setHighlightPage(clause.page_number || null)
-                    setHighlightText(clause.text)
+                    const clauseHL = highlights?.highlights?.[clause.id]
+                    if (clauseHL?.rects?.length) {
+                      setActiveRects(clauseHL.rects)
+                      setHighlightPage(clauseHL.rects[0].page)
+                      setHighlightText(null)
+                    } else {
+                      setActiveRects(null)
+                      setHighlightPage(clause.page_number || null)
+                      setHighlightText(clause.text)
+                    }
                   }}
                   onUpdate={(data) => updateClauseMut.mutate({ clauseId: clause.id, data })}
                 />
@@ -498,9 +514,16 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
                   comments={getCommentsFor(`obligation:${obl.id}`)}
                   onAddComment={(content) => addCommentMut.mutate({ content, section_reference: `obligation:${obl.id}` })}
                   onViewSource={() => {
-                    const text = obl.source_text || obl.description
-                    setHighlightText(text)
-                    setHighlightPage(null)
+                    const oblHL = highlights?.highlights?.[obl.id]
+                    if (oblHL?.rects?.length) {
+                      setActiveRects(oblHL.rects)
+                      setHighlightPage(oblHL.rects[0].page)
+                      setHighlightText(null)
+                    } else {
+                      setActiveRects(null)
+                      setHighlightText(obl.source_text || obl.description)
+                      setHighlightPage(null)
+                    }
                   }}
                   onUpdate={(data) => updateObligationMut.mutate({ obligationId: obl.id, data })}
                 />
@@ -524,8 +547,16 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
                   comments={getCommentsFor(`sla:${sla.id}`)}
                   onAddComment={(content) => addCommentMut.mutate({ content, section_reference: `sla:${sla.id}` })}
                   onViewSource={() => {
-                    setHighlightText(sla.source_text)
-                    setHighlightPage(null)
+                    const slaHL = highlights?.highlights?.[sla.id]
+                    if (slaHL?.rects?.length) {
+                      setActiveRects(slaHL.rects)
+                      setHighlightPage(slaHL.rects[0].page)
+                      setHighlightText(null)
+                    } else {
+                      setActiveRects(null)
+                      setHighlightText(sla.source_text)
+                      setHighlightPage(null)
+                    }
                   }}
                 />
               ))}
@@ -547,7 +578,18 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
           mimeType={contract.mime_type}
           highlightPage={highlightPage}
           highlightText={highlightText}
-          onPageChange={() => { setHighlightText(null); setHighlightPage(null) }}
+          activeRects={activeRects}
+          allHighlights={highlights?.highlights}
+          pageDimensions={highlights?.page_dimensions}
+          onHighlightClick={(clauseId) => {
+            const clauseHL = highlights?.highlights?.[clauseId]
+            if (clauseHL?.rects?.length) {
+              setActiveRects(clauseHL.rects)
+              setHighlightPage(clauseHL.rects[0].page)
+              setHighlightText(null)
+            }
+          }}
+          onPageChange={() => { setHighlightText(null); setHighlightPage(null); setActiveRects(null) }}
         />
       </div>
     </div>

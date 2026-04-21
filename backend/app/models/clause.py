@@ -108,6 +108,14 @@ class Clause(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
 
+    # Pre-computed highlight coordinates from PyMuPDF (PDF points, 72 DPI)
+    # Format: [{"page": 3, "x0": 72.0, "y0": 120.5, "x1": 540.0, "y1": 135.2}, ...]
+    highlight_rects: Mapped[list | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        default=None,
+    )
+
     # Risk assessment
     risk_level: Mapped[RiskLevel | None] = mapped_column(
         Enum(RiskLevel, name='risklevel', create_type=False, values_callable=lambda x: [e.value for e in x]),
