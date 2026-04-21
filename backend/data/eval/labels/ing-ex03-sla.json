@@ -1,0 +1,445 @@
+{
+  "contract_id": "ing-ex03-sla",
+  "source": "ing",
+  "filename": "Exhibit 3 (Service Levels) Final v1.8.docx",
+  "doc_type": "exhibit",
+  "generated_at": "2026-04-14T06:29:54.770382",
+  "extraction_time_seconds": 54.0,
+  "is_draft": true,
+  "reviewed": false,
+  "metadata": {
+    "contract_type": {
+      "value": "Service Level Agreement",
+      "confidence": 0.75
+    },
+    "counterparty": null,
+    "effective_date": {
+      "value": "15th December 2006",
+      "confidence": 0.75
+    },
+    "expiration_date": {
+      "value": "Not specified",
+      "confidence": 0.75
+    },
+    "contract_value": {
+      "value": "Not specified",
+      "confidence": 0.75
+    },
+    "currency": {
+      "value": "EUR",
+      "confidence": 0.75
+    },
+    "jurisdiction": {
+      "value": "Central European Time",
+      "confidence": 0.75
+    },
+    "parties": [],
+    "overall_confidence": 0.75
+  },
+  "clauses": [
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "As of the Commencement Date (or as otherwise specified in this Exhibit and the Attachments to this Exhibit), the PST Member will perform the Services described in this Exhibit. New Performance Categories, Critical Service Levels and Key Measurements may be added or substituted by EuroBank as specified in this Exhibit during the Term in order to achieve a fair, accurate and consistent measurement of the PST Member\u2019s performance of the Services.",
+      "section_number": "GENERAL",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Commencement Date",
+        "Performance Categories",
+        "Critical Service Levels",
+        "Key Measurements"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "Attachment 3-A: Service Levels Matrix. This Attachment sets forth the quantitative measurements associated with Critical Service Levels, Key Measurements, and Critical Deliverables. The PST Member shall perform the Services at or above the levels of performance indicated in this Attachment subject to agreement with EuroBank.",
+      "section_number": "ATTACHMENTS",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "Service Levels Matrix",
+        "Critical Service Levels",
+        "Key Measurements",
+        "Critical Deliverables"
+      ]
+    },
+    {
+      "clause_type": "NOTICE",
+      "text": "EuroBank will send written notice under the terms of the MSA to the PST Member within an agreed time period prior to the date that additions or deletions to Performance Categories, or additions or deletions to Service Levels (which include the movement of Critical Service Levels to Key Measurements and Key Measurements to Critical Service Levels), or modifications to Service Credit Allocation Percentages for any Critical Service Levels are to be effective, provided that EuroBank may send only on",
+      "section_number": "NOTICE REQUIREMENTS FOR ADDITIONS, DELETIONS AND MODIFICATIONS",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "written notice",
+        "MSA",
+        "additions",
+        "deletions",
+        "Service Levels"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "In the event of a Service Level Default, the PST Member shall provide EuroBank Service Credits as defined below: 1) Attachment 3-A to this Exhibit sets forth the information required to calculate the Service Credit in the event of a Service Level Default. 2) For each Service Level Default, the PST Member shall pay to EuroBank, subject to Section 5 below, a Service Credit that will be computed in accordance with the following formula: Service Credit = A x B x C",
+      "section_number": "SERVICE CREDITS",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "Service Level Default",
+        "Service Credits",
+        "formula"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "The PST Member shall have Earnback opportunities with respect to Service Credits as follows: a) Within fifteen (15) days after each Contract Year, the PST Member shall provide a report to EuroBank that will include, with respect to each Critical Service Level for which there was a Service Level Default during the preceding Contract Year, the following: Statistics on the PST Member\u2019s average monthly performance during the preceding Contract Year. The Yearly Performance Average. The total amount o",
+      "section_number": "EARNBACK",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Earnback",
+        "Service Credits",
+        "Contract Year",
+        "Yearly Performance Average"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "EuroBank may add or delete Performance Categories by sending written notice as described in Section 4. Such change notice shall include changes necessary to accommodate the addition of new Performance Categories made pursuant to Section 1.",
+      "section_number": "ADDITIONS AND DELETIONS OF PERFORMANCE CATEGORIES",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "add",
+        "delete",
+        "Performance Categories",
+        "written notice"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "Following the Commencement Date EuroBank may add Service Levels in accordance with this Section and by providing written notice in accordance with Section 4. Expected Service Levels and Minimum Service Level commitments associated with added Service Levels will be computed as follows: a) Where at least nine (9) consecutive months of the PST Member-provided service measurements exist for a particular Service that is being provided by the PST Member, the Parties agree that the Expected Service Lev",
+      "section_number": "Introduction",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Commencement Date",
+        "Service Levels",
+        "Expected Service Level",
+        "Minimum Service Level"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "When adding or deleting a Critical Service Level, EuroBank shall modify the Service Credit Allocation Percentages for the Critical Service Levels within the Performance Category such that the total Service Credit Allocation Percentages for all Critical Service Levels within the Performance Category equals one hundred percent (100%).",
+      "section_number": "Impact of Additions and Deletions of Critical Service Levels on Service Credit Allocation Percentages",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Critical Service Level",
+        "Service Credit Allocation Percentages"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "Certain of the PST Member\u2019s obligations under the Agreement are one-time obligations to deliver Critical Deliverables. Attachment 3-C (Critical Deliverables) to this Exhibit sets forth the Deliverable Credits that shall be payable by the PST Member to EuroBank in the event the PST Member fails to deliver any of the Critical Deliverables within the time period relative to the Commencement Date, specified in Attachment 3-A (Service Levels Matrix) to this Exhibit.",
+      "section_number": "CRITICAL DELIVERABLES \u2013 AFTER COMMENCEMENT DATE",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Critical Deliverables",
+        "Deliverable Credits",
+        "Commencement Date"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "The achievement of the Service Levels by the PST Member may require the coordinated, collaborative effort of the PST Member with other Third Party Vendor. The PST Member will provide a single point of contact for the prompt resolution of all Service Level Defaults and all failures to provide high quality Services to EuroBank, regardless of whether the reason for such Service Level Defaults, or failure to provide high quality Services to EuroBank, was caused by the PST Member.",
+      "section_number": "COOPERATION",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Service Levels",
+        "Third Party Vendor",
+        "single point of contact"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "The Parties agree to the concept of continuous improvement and that the Critical Service Levels and Key Measurements should be modified during this Agreement to reflect this concept. A given service level improvement may require the PST Suppliers to make further additional investments to achieve this level of service.",
+      "section_number": "CONTINUOUS IMPROVEMENT \u2013 SERVICE LEVELS",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "continuous improvement",
+        "Critical Service Levels",
+        "Key Measurements"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "If the PST Member fails to satisfy any Key Measurement, the PST Member shall provide EuroBank with a written plan for improving the PST Member\u2019s performance to satisfy the Key Measurement within thirty (30) days of the failure to meet the Expected Service Level or the Minimum Service Level for the Key Measurement, which plan shall be subject to EuroBank\u2019s approval, not to be unreasonably withheld.",
+      "section_number": "IMPROVEMENT PLAN FOR KEY MEASUREMENTS",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Key Measurement",
+        "improvement plan",
+        "EuroBank\u2019s approval"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "As of the Commencement Date, a set of measuring tools and methodologies will have been agreed. If there are any Critical Service Levels for which the measuring tools and methodologies have not been agreed upon by EuroBank and the PST Member, and the PST Member fails to propose a measuring tool for such Critical Service Level that is acceptable to EuroBank and PST Member prior to the date upon which the PST Member shall be responsible for Service Level performance and Service Credits due for Serv",
+      "section_number": "MEASURING TOOLS",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "measuring tools",
+        "Critical Service Levels",
+        "Minimum Service Level Default"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "If a single incident results in the failure of the PST Member to meet more than one Minimum Service Level, EuroBank shall have the right to select any one of such multiple Minimum Service Level Defaults for which it will be entitled to receive a Service Credit. EuroBank shall not be entitled to a Service Credit for each of such Minimum Service Level Defaults.",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "single incident",
+        "Minimum Service Level",
+        "Service Credit"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "The PST Member shall not be responsible for a failure attributable to it to meet any Service Level solely to the extent that such failure is directly attributable to any of the following: EuroBank\u2019s (or an EuroBank Third Party Vendor\u2019s) acts, errors, omissions, or breaches of this Agreement. Infringements of Third Party proprietary rights by EuroBank or an EuroBank Third Party Vendor. Wilful misconduct or violations of law by EuroBank or an EuroBank Third Party Vendor. Service or resource reduct",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "exceptions",
+        "Service Level",
+        "Change Control procedures"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "For purposes of calculating Actual Uptime and Availability, the Scheduled Uptime and Downtime shall not include any period of Downtime that is the result of scheduled time required to perform system maintenance (for example, preventive maintenance, system upgrades, etc.), provided that such time has been mutually agreed between the PST Member and EuroBank and is scheduled so as to minimize the impact to EuroBank\u2019s business. The PST Member shall maintain Availability during such periods to the ex",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "Actual Uptime",
+        "Availability",
+        "Scheduled Uptime",
+        "Downtime"
+      ]
+    }
+  ],
+  "obligations": [
+    {
+      "description": "Perform the Services described in the Exhibit",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Member",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "GENERAL",
+      "source_quote": "As of the Commencement Date (or as otherwise specified in this Exhibit and the Attachments to this Exhibit), the PST Member will perform the Services described in this Exhibit.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide monthly performance reports including hard- and soft-copy reports",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Member",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "monthly",
+      "consequences": null,
+      "section_number": "REPORTING",
+      "source_quote": "The PST Member shall provide to EuroBank, as part of the PST Member\u2019s monthly performance reports, a set of hard- and soft-copy reports to verify the PST Member's and PST Supplier\u2019s performance and compliance with the Critical Service Levels, Key Measurements and Critical Deliverables.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide detailed supporting information for each report in machine-readable form",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Member",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "REPORTING",
+      "source_quote": "The PST Member shall provide detailed supporting information for each report to EuroBank in machine-readable form suitable for use on a personal computer.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify EuroBank in writing if EuroBank becomes entitled to a Service Credit",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "PST Member",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "monthly",
+      "consequences": null,
+      "section_number": "SERVICE CREDITS",
+      "source_quote": "The PST Member shall notify EuroBank in writing if EuroBank becomes entitled to a Service Credit, which notice shall be included in the standard monthly reporting for Critical Service Levels and Key Measurements as described in Section 3.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide a report on Earnback opportunities within 15 days after each Contract Year",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Member",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "EARNBACK",
+      "source_quote": "Within fifteen (15) days after each Contract Year, the PST Member shall provide a report to EuroBank that will include, with respect to each Critical Service Level for which there was a Service Level Default during the preceding Contract Year.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide a written plan for improving performance if a Key Measurement is not satisfied",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Member",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "IMPROVEMENT PLAN FOR KEY MEASUREMENTS",
+      "source_quote": "If the PST Member fails to satisfy any Key Measurement, the PST Member shall provide EuroBank with a written plan for improving the PST Member\u2019s performance to satisfy the Key Measurement within thirty (30) days of the failure to meet the Expected Service Level or the Minimum Service Level for the Key Measurement.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide a single point of contact for resolution of Service Level Defaults",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Member",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "COOPERATION",
+      "source_quote": "The PST Member will provide a single point of contact for the prompt resolution of all Service Level Defaults and all failures to provide high quality Services to EuroBank.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide EuroBank with a written plan for improving performance to satisfy Key Measurement",
+      "obligation_type": "REPORTING",
+      "obligated_party": "PST Member",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Plan subject to EuroBank\u2019s approval",
+      "section_number": "IMPROVEMENT PLAN FOR KEY MEASUREMENTS",
+      "source_quote": "If the PST Member fails to satisfy any Key Measurement, the PST Member shall provide EuroBank with a written plan for improving the PST Member\u2019s performance to satisfy the Key Measurement within thirty (30) days of the failure to meet the Expected Service Level or the Minimum Service Level for the Key Measurement, which plan shall be subject to EuroBank\u2019s approval, not to be unreasonably withheld.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Implement approved improvement plan",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Member",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "IMPROVEMENT PLAN FOR KEY MEASUREMENTS",
+      "source_quote": "The PST Member shall promptly implement such plan once it has been approved by EuroBank.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Propose a measuring tool for Critical Service Level acceptable to EuroBank",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "PST Member",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Deemed a Minimum Service Level Default",
+      "section_number": "MEASURING TOOLS",
+      "source_quote": "If there are any Critical Service Levels for which the measuring tools and methodologies have not been agreed upon by EuroBank and the PST Member, and the PST Member fails to propose a measuring tool for such Critical Service Level that is acceptable to EuroBank and PST Member prior to the date upon which the PST Member shall be responsible for Service Level performance and Service Credits due for Service Level Default, such failure shall be deemed a Minimum Service Level Default for the Critica",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide written notice to EuroBank if PST Member desires to use a different measuring tool for a Critical Service Level",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "PST Member",
+      "beneficiary_party": "EuroBank",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Continue to use the initially agreed measuring tool if no agreement on adjustment",
+      "section_number": "MEASURING TOOLS",
+      "source_quote": "If, after the Commencement Date or the implementation of tools for new Critical Service Levels, the PST Member desires to use a different measuring tool for a Critical Service Level, the PST Member shall provide written notice to EuroBank, in which event the PST Member and EuroBank will jointly and reasonably adjust the measurements as necessary to account for any increased or decreased sensitivity in the new measuring tools; provided that, if the PST Member and EuroBank cannot agree on the requ",
+      "confidence": 0.9
+    }
+  ],
+  "slas": [
+    {
+      "sla_name": "Service Level Default - Service Credits",
+      "metric_type": "CUSTOM",
+      "metric_unit": "PERCENTAGE",
+      "target_value": 15.0,
+      "severity": "HIGH",
+      "has_penalty": true,
+      "penalty_type": "credit",
+      "penalty_value": null,
+      "measurement_period": "monthly",
+      "section_reference": "Service Credits",
+      "source_text": "For each Service Level Default, the PST Member shall pay to EuroBank, subject to Section 5 below, a Service Credit that will be computed in accordance with the following formula: Service Credit = A x B x C",
+      "confidence": 0.9
+    },
+    {
+      "sla_name": "Earnback Opportunities",
+      "metric_type": "CUSTOM",
+      "metric_unit": "PERCENTAGE",
+      "target_value": 0.0,
+      "severity": "MEDIUM",
+      "has_penalty": false,
+      "penalty_type": null,
+      "penalty_value": null,
+      "measurement_period": "annual",
+      "section_reference": "Earnback",
+      "source_text": "If, during the preceding Contract Year, the PST Member achieved a Yearly Performance Average in a Critical Service Level, that was greater than, or equal to, the Expected Service Level in effect for such Critical Service Level during the preceding year, the PST Member shall be relieved from paying any Service Credits assessed during the preceding Contract Year for such Critical Service Level.",
+      "confidence": 0.85
+    }
+  ],
+  "renewal": {
+    "has_auto_renewal": false,
+    "auto_renewal_term_months": null,
+    "notice_period_days": null,
+    "notice_deadline": null,
+    "expiration_date": null,
+    "initial_term_months": null,
+    "termination_for_convenience": false,
+    "confidence": 0.0
+  },
+  "parse": {
+    "char_count": 29460,
+    "page_count": 9
+  }
+}

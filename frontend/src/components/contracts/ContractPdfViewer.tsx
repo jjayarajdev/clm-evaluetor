@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import type { HighlightRect } from '@/lib/api/contracts'
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
@@ -20,6 +21,11 @@ interface ContractPdfViewerProps {
   mimeType?: string | null
   highlightPage?: number | null
   highlightText?: string | null
+  // Rect-based highlighting (pixel-perfect)
+  activeRects?: HighlightRect[] | null
+  allHighlights?: Record<string, { clause_type: string; rects: HighlightRect[] }> | null
+  pageDimensions?: Record<string, { width: number; height: number }> | null
+  onHighlightClick?: (clauseId: string) => void
   onPageChange?: (page: number) => void
   onPageFound?: (page: number) => void
 }
@@ -28,25 +34,20 @@ function normalize(text: string): string {
   return text.toLowerCase().replace(/\s+/g, ' ').trim()
 }
 
-// ─── Text highlight logic ───────────────────────────────────────────
+// ─── Text highlight logic (fallback when no rects available) ────────
 
 function applyHighlight(container: HTMLElement, highlightText: string | null): boolean {
-  // Try both possible selectors for the text layer
   const layer =
     container.querySelector('.react-pdf__Page__textContent') ||
     container.querySelector('.textLayer')
   if (!layer) return false
 
-  // In pdfjs v5, text spans may have role="presentation" — query all spans
   const spans = Array.from(layer.querySelectorAll('span')) as HTMLElement[]
-
-  // Clear previous highlight overlays
   container.querySelectorAll('.clause-highlight-overlay').forEach((el) => el.remove())
 
   if (!highlightText) return true
   if (spans.length === 0) return false
 
-  // Build concatenated text with offset tracking
   let origText = ''
   const offsets: { el: HTMLElement; start: number; end: number }[] = []
   for (const el of spans) {
@@ -59,7 +60,6 @@ function applyHighlight(container: HTMLElement, highlightText: string | null): b
 
   if (origText.length === 0) return false
 
-  // Build normalized text with position map
   const normChars: string[] = []
   const normToOrig: number[] = []
   let lastWasSpace = false
@@ -80,7 +80,6 @@ function applyHighlight(container: HTMLElement, highlightText: string | null): b
   const normalizedPage = normChars.join('')
   const normalizedTarget = normalize(highlightText)
 
-  // Progressive prefix matching
   const prefixLengths = [
     normalizedTarget.length,
     Math.min(300, normalizedTarget.length),
@@ -111,14 +110,10 @@ function applyHighlight(container: HTMLElement, highlightText: string | null): b
 
   if (matchNormStart === -1) return true
 
-  // Map back to original positions
   const origStart = normToOrig[matchNormStart] ?? 0
   const endIdx = Math.min(matchNormStart + matchNormLen - 1, normToOrig.length - 1)
   const origEnd = (normToOrig[endIdx] ?? origText.length) + 1
 
-  // Create highlight overlays on top of matching spans
-  // pdfjs text spans are transparent (color: transparent) with position: absolute,
-  // so we create visible overlay divs positioned to match each span's bounding box.
   let firstOverlay: HTMLElement | null = null
   const layerEl = layer as HTMLElement
 
@@ -152,6 +147,25 @@ function applyHighlight(container: HTMLElement, highlightText: string | null): b
   return true
 }
 
+// ─── Clause type colors for rect highlights ─────────────────────────
+
+const CLAUSE_COLORS: Record<string, string> = {
+  indemnification: 'rgba(239, 68, 68, 0.18)',
+  limitation_of_liability: 'rgba(239, 68, 68, 0.18)',
+  termination: 'rgba(249, 115, 22, 0.18)',
+  confidentiality: 'rgba(59, 130, 246, 0.18)',
+  intellectual_property: 'rgba(168, 85, 247, 0.18)',
+  payment_terms: 'rgba(34, 197, 94, 0.18)',
+  warranty: 'rgba(234, 179, 8, 0.18)',
+  force_majeure: 'rgba(239, 68, 68, 0.18)',
+  sla: 'rgba(6, 182, 212, 0.18)',
+  service_level: 'rgba(6, 182, 212, 0.18)',
+  governance: 'rgba(99, 102, 241, 0.18)',
+}
+
+const ACTIVE_COLOR = 'rgba(250, 204, 21, 0.5)'
+const DEFAULT_COLOR = 'rgba(250, 204, 21, 0.12)'
+
 // ─── Main Component ─────────────────────────────────────────────────
 
 export default function ContractPdfViewer({
@@ -159,6 +173,10 @@ export default function ContractPdfViewer({
   mimeType,
   highlightPage,
   highlightText,
+  activeRects,
+  allHighlights,
+  pageDimensions,
+  onHighlightClick,
   onPageChange,
   onPageFound,
 }: ContractPdfViewerProps) {
@@ -168,14 +186,17 @@ export default function ContractPdfViewer({
   const [numPages, setNumPages] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const [scale, setScale] = useState(1.0)
-  const [textLayerRendered, setTextLayerRendered] = useState(0) // counter to trigger highlight
+  const [renderedSize, setRenderedSize] = useState<{ width: number; height: number } | null>(null)
+  const [textLayerRendered, setTextLayerRendered] = useState(0)
   const pageContainerRef = useRef<HTMLDivElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfDocRef = useRef<any>(null)
   const highlightTextRef = useRef<string | null>(null)
   highlightTextRef.current = highlightText || null
 
-  // Load file — request PDF conversion for DOCX files
+  const useRectHighlights = !!(activeRects || allHighlights)
+
+  // Load file
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -186,8 +207,7 @@ export default function ContractPdfViewer({
     api.downloadContractFile(contractId, !!isDocx)
       .then((blob) => {
         if (cancelled) return
-        const url = URL.createObjectURL(blob)
-        setPdfUrl(url)
+        setPdfUrl(URL.createObjectURL(blob))
         setLoading(false)
       })
       .catch(() => {
@@ -196,16 +216,11 @@ export default function ContractPdfViewer({
         setLoading(false)
       })
 
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [contractId, mimeType])
 
-  // Cleanup blob URL on unmount
   useEffect(() => {
-    return () => {
-      if (pdfUrl) URL.revokeObjectURL(pdfUrl)
-    }
+    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl) }
   }, [pdfUrl])
 
   // Jump to highlighted page
@@ -215,9 +230,9 @@ export default function ContractPdfViewer({
     }
   }, [highlightPage, numPages])
 
-  // Search all pages for text when no page is specified
+  // Search all pages for text when no page specified (fallback mode)
   useEffect(() => {
-    if (!highlightText || highlightPage || !pdfDocRef.current) return
+    if (!highlightText || highlightPage || !pdfDocRef.current || useRectHighlights) return
 
     const pdf = pdfDocRef.current
     const target = normalize(highlightText)
@@ -242,63 +257,50 @@ export default function ContractPdfViewer({
             }
             return
           }
-        } catch {
-          // skip
-        }
+        } catch { /* skip */ }
       }
     }
 
     searchPages()
     return () => { cancelled = true }
-  }, [highlightText, highlightPage, numPages])
+  }, [highlightText, highlightPage, numPages, useRectHighlights])
 
-  // Apply text highlighting — triggered by text layer render or highlight change
+  // Text-layer fallback highlighting
   const doHighlight = useCallback(() => {
+    if (useRectHighlights) return
     const container = pageContainerRef.current
     if (!container || !highlightTextRef.current) return
 
-    // Retry up to 5 times with increasing delays for text layer population
     let attempt = 0
-    const maxAttempts = 5
-
     const tryHighlight = () => {
       attempt++
       const success = applyHighlight(container, highlightTextRef.current)
-      if (!success && attempt < maxAttempts) {
-        setTimeout(tryHighlight, attempt * 200)
-      }
+      if (!success && attempt < 5) setTimeout(tryHighlight, attempt * 200)
     }
-
     tryHighlight()
-  }, [])
+  }, [useRectHighlights])
 
-  // When text layer finishes rendering, apply highlighting
   const onRenderTextLayerSuccess = useCallback(() => {
     setTextLayerRendered((n) => n + 1)
   }, [])
 
-  // React to text layer render completion
   useEffect(() => {
-    if (textLayerRendered > 0) {
-      // Small delay to ensure DOM is fully updated
+    if (textLayerRendered > 0 && !useRectHighlights) {
       const timer = setTimeout(doHighlight, 100)
       return () => clearTimeout(timer)
     }
-  }, [textLayerRendered, doHighlight])
+  }, [textLayerRendered, doHighlight, useRectHighlights])
 
-  // React to highlight text changes (when text layer is already rendered)
   useEffect(() => {
+    if (useRectHighlights) return
     if (!highlightText) {
-      // Clear highlights
       const container = pageContainerRef.current
       if (container) applyHighlight(container, null)
       return
     }
-
-    // Delay to allow page transition to complete
     const timer = setTimeout(doHighlight, 300)
     return () => clearTimeout(timer)
-  }, [highlightText, currentPage, doHighlight])
+  }, [highlightText, currentPage, doHighlight, useRectHighlights])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onDocumentLoadSuccess = useCallback((pdf: any) => {
@@ -315,6 +317,74 @@ export default function ContractPdfViewer({
   const zoom = (delta: number) => {
     setScale((s) => Math.max(0.5, Math.min(3.0, s + delta)))
   }
+
+  // Compute rect overlays for the current page
+  const currentPageOverlays = useCallback(() => {
+    const pageKey = String(currentPage)
+    const pageDim = pageDimensions?.[pageKey]
+    if (!pageDim || !renderedSize) return []
+
+    const scaleX = renderedSize.width / pageDim.width
+    const scaleY = renderedSize.height / pageDim.height
+
+    const overlays: {
+      clauseId: string
+      x: number; y: number; w: number; h: number
+      isActive: boolean
+      color: string
+    }[] = []
+
+    // Active rects (selected clause)
+    if (activeRects) {
+      for (const r of activeRects) {
+        if (r.page === currentPage) {
+          overlays.push({
+            clauseId: '__active__',
+            x: r.x0 * scaleX,
+            y: r.y0 * scaleY,
+            w: (r.x1 - r.x0) * scaleX,
+            h: (r.y1 - r.y0) * scaleY,
+            isActive: true,
+            color: ACTIVE_COLOR,
+          })
+        }
+      }
+    }
+
+    // All highlights (passive)
+    if (allHighlights && !activeRects) {
+      for (const [clauseId, data] of Object.entries(allHighlights)) {
+        const color = CLAUSE_COLORS[data.clause_type] || DEFAULT_COLOR
+        for (const r of data.rects) {
+          if (r.page === currentPage) {
+            overlays.push({
+              clauseId,
+              x: r.x0 * scaleX,
+              y: r.y0 * scaleY,
+              w: (r.x1 - r.x0) * scaleX,
+              h: (r.y1 - r.y0) * scaleY,
+              isActive: false,
+              color,
+            })
+          }
+        }
+      }
+    }
+
+    return overlays
+  }, [currentPage, pageDimensions, renderedSize, activeRects, allHighlights])
+
+  const overlays = currentPageOverlays()
+
+  // Scroll to first active overlay
+  useEffect(() => {
+    if (!activeRects || activeRects.length === 0) return
+    const timer = setTimeout(() => {
+      const el = pageContainerRef.current?.querySelector('[data-active-highlight="true"]')
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [activeRects, currentPage])
 
   // ── Render ──
 
@@ -377,21 +447,53 @@ export default function ContractPdfViewer({
 
       {/* PDF Display */}
       <div className="flex-1 overflow-auto flex justify-center p-4" ref={pageContainerRef}>
-        <Document
-          file={pdfUrl}
-          onLoadSuccess={onDocumentLoadSuccess}
-          loading={<LoadingSpinner size="lg" />}
-          error={<p className="text-sm text-red-500">Failed to render PDF</p>}
-        >
-          <Page
-            pageNumber={currentPage}
-            scale={scale}
-            renderTextLayer={true}
-            renderAnnotationLayer={false}
-            onRenderTextLayerSuccess={onRenderTextLayerSuccess}
-            className={highlightText ? 'shadow-lg ring-2 ring-yellow-400 ring-offset-2' : 'shadow-lg'}
-          />
-        </Document>
+        <div style={{ position: 'relative' }}>
+          <Document
+            file={pdfUrl}
+            onLoadSuccess={onDocumentLoadSuccess}
+            loading={<LoadingSpinner size="lg" />}
+            error={<p className="text-sm text-red-500">Failed to render PDF</p>}
+          >
+            <Page
+              pageNumber={currentPage}
+              scale={scale}
+              renderTextLayer={true}
+              renderAnnotationLayer={false}
+              onRenderTextLayerSuccess={onRenderTextLayerSuccess}
+              onRenderSuccess={(page) => {
+                setRenderedSize({ width: page.width, height: page.height })
+              }}
+              className={
+                activeRects ? 'shadow-lg ring-2 ring-yellow-400 ring-offset-2' :
+                highlightText ? 'shadow-lg ring-2 ring-yellow-400 ring-offset-2' :
+                'shadow-lg'
+              }
+            />
+          </Document>
+
+          {/* Rect-based highlight overlays */}
+          {overlays.map((ov, i) => (
+            <div
+              key={`${ov.clauseId}-${i}`}
+              data-active-highlight={ov.isActive ? 'true' : undefined}
+              onClick={() => ov.clauseId !== '__active__' && onHighlightClick?.(ov.clauseId)}
+              style={{
+                position: 'absolute',
+                left: `${ov.x}px`,
+                top: `${ov.y}px`,
+                width: `${ov.w}px`,
+                height: `${ov.h}px`,
+                backgroundColor: ov.color,
+                cursor: ov.isActive ? 'default' : 'pointer',
+                pointerEvents: 'auto',
+                mixBlendMode: 'multiply',
+                borderRadius: '2px',
+                transition: 'background-color 0.2s',
+                zIndex: ov.isActive ? 5 : 4,
+              }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   )

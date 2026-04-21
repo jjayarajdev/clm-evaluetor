@@ -1,0 +1,1719 @@
+{
+  "contract_id": "nov-msa-docx",
+  "source": "novartis",
+  "filename": "MSA, clean LAW FIRM.docx",
+  "doc_type": "msa",
+  "generated_at": "2026-04-14T06:18:58.029421",
+  "extraction_time_seconds": 214.0,
+  "is_draft": true,
+  "reviewed": false,
+  "metadata": {
+    "error": "ChromaDB service unavailable at localhost:8100. Ensure the ChromaDB container is running and healthy."
+  },
+  "clauses": [
+    {
+      "clause_type": "GOVERNING_LAW",
+      "text": "This commitment shall be governed and construed in accordance with the substantive laws of Switzerland without its conflict of laws provisions. For clarification the U.N. Convention on the International Sale of Goods shall not apply.",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "Switzerland",
+        "U.N. Convention on the International Sale of Goods"
+      ]
+    },
+    {
+      "clause_type": "DISPUTE_RESOLUTION",
+      "text": "Any dispute controversy or claim arising out of or in relation to this MSA, including the validity, invalidity, breach or termination thereof, shall be resolved by arbitration in accordance with the Rules of Arbitration of the International Chamber of Commerce, Paris, in force on the date when the Notice of Arbitration is submitted in accordance with these Rules. If the Parties do not agree upon one sole arbitrator the number of arbitrators shall be three. The seat of the arbitration shall be Zu",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "arbitration",
+        "International Chamber of Commerce",
+        "Zurich",
+        "English"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "GlobalPharma shall have the right to terminate The Agreements if the Service Provider fails to complete the Transition Plan by the planned completion date provided that the failure of timely completion is not attributable to GlobalPharma, subject to a cure period as defined below in point 4. The planned completion date may be amended by mutual agreement. Any such amendment would than become the new planned completion date. Both parties will endeavour to determine the proportionate share of respo",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "termination",
+        "Transition Plan",
+        "cure period"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "The Service Provider will comply with the requirements contained in Exhibit 3 (Service Levels). Service Levels and the mechanisms to baseline and measure them are described in Exhibit 3 (Service Levels). The Service Provider will perform and provide to GlobalPharma a root cause analysis for any incident that would contribute to the Service Provider's missing a Service Level.",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "Service Levels",
+        "root cause analysis"
+      ]
+    },
+    {
+      "clause_type": "TRANSITION",
+      "text": "With regard to the transition of the responsibilities in line with this Agreement the Service Provider will undertake the steps as described in Exhibit 21 (Statement of Work Transition). Exhibit 21 (Statement of Work Transition) contains descriptions of: All of the transition tasks to be performed by the Service Provider. Any allocation of responsibilities between the Parties. The specific resources to be provided by GlobalPharma. The completion date for each transition task. The acceptance crit",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "transition tasks",
+        "Statement of Work Transition"
+      ]
+    },
+    {
+      "clause_type": "AUTO_RENEWAL",
+      "text": "Eighteen (18) months prior to the Expiration Date, the Service Provider will propose new terms to GlobalPharma for renewing The Agreements, that will be negotiated by the Parties in good faith and should be based on either (i) market conditions or (ii) the conditions of then-existing agreements between the Service Provider and any other GlobalPharma division/business unit, which ever is more favorable. If the Parties are unable to agree upon the terms and conditions for the renewal of The Agreem",
+      "section_number": null,
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "renewal",
+        "18 Months Extension",
+        "One Year Extensions"
+      ]
+    },
+    {
+      "clause_type": "DATA_PROTECTION",
+      "text": "The Service Provider ensures compliance with all regulatory issues that may arise with the provision of the Services within the sites Described in Exhibit 7 (Sites). Amongst others the Service Provider ensures compliance with the requirements of Sarbanes Oxley, GLB, HIPPA and UK and EU norms on data protection and US credit laws such as Fair Debt Collection Practices Act (FDCPA) and Equal Credit Opportunity Act (ECOA).",
+      "section_number": "1",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "Sarbanes Oxley",
+        "GLB",
+        "HIPPA",
+        "UK and EU norms",
+        "data protection"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "If any change in law or regulation results in substantial fee increase or adversely affects the Service Provider's performance of the Services, then GlobalPharma can terminate the affected portion of the Services with payment of the applicable redeployment charges and applicable unamortized costs due to the Service Provider for such termination and the relevant fees will be equitably adjusted.",
+      "section_number": "6",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.85,
+      "key_terms": [
+        "substantial fee increase",
+        "redeployment charges",
+        "unamortized costs"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "GlobalPharma is the sole and exclusive owner of all IP rights and know-how (\"Materials\") owned by GlobalPharma as of the Effective Date, all Materials acquired by GlobalPharma from Third Parties after the Effective Date and all Materials developed by GlobalPharma after the Effective Date.",
+      "section_number": "7.1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "sole and exclusive owner",
+        "IP rights",
+        "know-how"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "Service Provider will be the sole and exclusive owner of all IP rights and know-how (\"Materials\") owned by the Service Provider as of the Effective Date, all Materials acquired by the Service Provider from Third Parties after the Effective Date and all Materials developed by the Service Provider after the Effective Date.",
+      "section_number": "7.2",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "sole and exclusive owner",
+        "IP rights",
+        "know-how"
+      ]
+    },
+    {
+      "clause_type": "GOVERNANCE",
+      "text": "The Service Provider will comply with the requirements contained in Exhibit 6 (Governance Model).",
+      "section_number": "Governance Model",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "Exhibit 6",
+        "Governance Model"
+      ]
+    },
+    {
+      "clause_type": "PERSONNEL",
+      "text": "GlobalPharma may designate up to 15 of the Service Provider's project staff as Key Service Provider Personnel. Key Service Provider Personnel will dedicate the majority of their time to providing the Services to GlobalPharma. GlobalPharma reserves the right to interview and approve proposed Key Service Provider Personnel prior to their assignment to GlobalPharma's account.",
+      "section_number": "Service Provider Personnel",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "Key Service Provider Personnel",
+        "interview",
+        "approve"
+      ]
+    },
+    {
+      "clause_type": "INTELLECTUAL_PROPERTY",
+      "text": "Nothing contained in The Agreements shall restrict either Party from the use of any general ideas, concepts, know-how or techniques which either Party, individually or jointly, develops or discloses under The Agreements; except to the extent such use infringes the intellectual property rights of the other Party or Third Parties or breaches its confidentiality or other obligations under The Agreements or other agreements with the other Party or Third Parties.",
+      "section_number": "Residual Knowledge",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "general ideas",
+        "concepts",
+        "know-how",
+        "techniques",
+        "intellectual property rights"
+      ]
+    },
+    {
+      "clause_type": "NON_SOLICITATION",
+      "text": "The Service Provider will not make offers to hire nor hire any GlobalPharma employees without the prior written approval of GlobalPharma.",
+      "section_number": "Service Provider Personnel",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "hire",
+        "GlobalPharma employees",
+        "prior written approval"
+      ]
+    },
+    {
+      "clause_type": "CHANGE_MANAGEMENT",
+      "text": "GlobalPharma will have the right to approve in advance any change, action or decision of the Service Provider with respect to the provision of Services to GlobalPharma that may have a material or adverse effect on the Services and/or Service Levels, require GlobalPharma to change the way it conducts its operations, or increase charges or costs to GlobalPharma.",
+      "section_number": "Change Control",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "approve",
+        "change",
+        "material effect",
+        "Service Levels"
+      ]
+    },
+    {
+      "clause_type": "SERVICE_LEVEL",
+      "text": "Increasing measures of customer satisfaction will be used by the Service Provider as a key performance factor in determining the incentive compensation of the Service Provider's Key Personnel and such other account personnel as appropriate.",
+      "section_number": "Customer Satisfaction Survey",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "customer satisfaction",
+        "key performance factor",
+        "incentive compensation"
+      ]
+    },
+    {
+      "clause_type": "TRANSITION",
+      "text": "At least once each year or as requested by GlobalPharma, the Service Provider will meet with GlobalPharma to (i) explain how the systems the Service Provider operates in connection with the provision of the Services work and are operated; (ii) explain how the Services are provided; and (iii) provide such training and documentation as GlobalPharma may require for GlobalPharma to understand and operate such systems, and understand and provide the Services after the expiration or termination of The",
+      "section_number": "Technology",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "training",
+        "documentation",
+        "expiration",
+        "termination"
+      ]
+    },
+    {
+      "clause_type": "DISPUTE_RESOLUTION",
+      "text": "In the event the Parties are unable to agree upon a Benchmarking Adjustment within the Determination Period, then either GlobalPharma or Service Provider may request the ICC Chamber of Commerce, ICC International Centre for Expertise, Paris, to consider the results of the Benchmarking Process and the Benchmarking Report.",
+      "section_number": "Benchmarking",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.9,
+      "key_terms": [
+        "ICC Chamber of Commerce",
+        "Benchmarking Adjustment",
+        "Determination Period"
+      ]
+    },
+    {
+      "clause_type": "CONFIDENTIALITY",
+      "text": "GlobalPharma Information will be and remain the property of GlobalPharma. The Service Provider and its subcontractors, if any, will not utilize GlobalPharma Information for any purpose other than that of rendering the Services under The Agreements.",
+      "section_number": "Safeguarding of GlobalPharma PHarma INformation, Confidentiality",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "GlobalPharma Information",
+        "property",
+        "utilize"
+      ]
+    },
+    {
+      "clause_type": "CONFIDENTIALITY",
+      "text": "Each Party's confidential information shall remain the property of that Party. Each Party shall use at least the same degree of care, but no less than a reasonable degree of care, to safeguard the confidential information of the other as it employs with respect to its own information of a similar nature.",
+      "section_number": "Safeguarding of GlobalPharma PHarma INformation, Confidentiality",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "confidential information",
+        "property",
+        "degree of care"
+      ]
+    },
+    {
+      "clause_type": "DATA_PROTECTION",
+      "text": "Service Provider guarantees that no personal data will be transferred from countries of the European continent to the USA or any other jurisdiction with Data Protection Rules and Regulations which are not equivalent to the standards within the European Union and that such personal data will neither be processed there.",
+      "section_number": "Safeguarding of GlobalPharma PHarma INformation, Confidentiality",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "personal data",
+        "European Union",
+        "Data Protection Rules"
+      ]
+    },
+    {
+      "clause_type": "PAYMENT_TERMS",
+      "text": "GlobalPharma will pay undisputed charges within thirty (30) days of receipt of invoice. GlobalPharma has the right to set off amounts owed by GlobalPharma under The Agreements against any amount the Service Provider is obligated to pay or credit GlobalPharma under The Agreements.",
+      "section_number": "Invoices, Payment",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "undisputed charges",
+        "thirty (30) days",
+        "set off"
+      ]
+    },
+    {
+      "clause_type": "WARRANTY",
+      "text": "ServicePro warrants that any software comprising Work Product developed by ServicePro pursuant to this Agreement (the \"ServicePro Warranty Item\") will during the Warranty Period conform to and will function in accordance with the applicable written design specifications agreed upon by the Parties with respect to such item.",
+      "section_number": "Representations and Warranties",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "ServicePro Warranty Item",
+        "Warranty Period",
+        "design specifications"
+      ]
+    },
+    {
+      "clause_type": "FORCE_MAJEURE",
+      "text": "Any significant change in GlobalPharma's business (e.g., acquisitions, divestitures, general business downturn, etc.) which increases or decreases GlobalPharma's utilization of any billable Resource Unit, based on Exhibit 4 (Pricing and Financial Provisions) Section 4 \u2013 ARCs and RRcs, by increasing more than 70% or decreasing more than 40%, and such changes persist or are expected to continue for three (3) or more months will be deemed an \"Extraordinary Event\".",
+      "section_number": "Extraordinary Events",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.85,
+      "key_terms": [
+        "Extraordinary Event",
+        "70%",
+        "40%"
+      ]
+    },
+    {
+      "clause_type": "DATA_PROTECTION",
+      "text": "The Parties will comply at their own cost with all privacy and data protection laws, rules and regulations which are or which may in the future be applicable to the Services or to information relating to customers and employees of GlobalPharma and its Affiliates...",
+      "section_number": "Compliance with Laws and Regulations",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "privacy",
+        "data protection laws"
+      ]
+    },
+    {
+      "clause_type": "INDEMNIFICATION",
+      "text": "The Service Provider will indemnify, defend and hold harmless GlobalPharma and its respective Affiliates, officers, directors, employees, agents, successors, and assigns against: (i) any Third Party claim arising out of or related to the Service Provider's performance or failure to perform its obligations...",
+      "section_number": "Indemnities by Service-Provider",
+      "page_number": null,
+      "risk_level": "HIGH",
+      "confidence": 0.95,
+      "key_terms": [
+        "Third Party claim",
+        "performance",
+        "obligations"
+      ]
+    },
+    {
+      "clause_type": "INDEMNIFICATION",
+      "text": "GlobalPharma will indemnify, defend and hold harmless the Service Provider and its respective Affiliates, officers, directors, employees, agents, successors, and assigns against: (i) any Third Party claim arising out of or related to GlobalPharma's failure to perform its obligations...",
+      "section_number": "Indemnities by GlobalPharma",
+      "page_number": null,
+      "risk_level": "HIGH",
+      "confidence": 0.95,
+      "key_terms": [
+        "Third Party claim",
+        "failure to perform"
+      ]
+    },
+    {
+      "clause_type": "LIMITATION_OF_LIABILITY",
+      "text": "Subject to the liability limitations set forth below, it is the intent of the Parties that each Party shall be liable to the other Party for any damages incurred by the non-breaching Party as a result of the breaching Party's failure to perform its obligations under The Agreements...",
+      "section_number": "Liability Limitations",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "liability limitations",
+        "damages",
+        "breaching Party"
+      ]
+    },
+    {
+      "clause_type": "FORCE_MAJEURE",
+      "text": "No Party shall be liable for any default or delay in the performance of its obligations under The Agreements (i) if and to the extent the default or delay is caused, directly or indirectly, by fire, flood, elements of nature, acts of God, acts of war, terrorism or civil unrest...",
+      "section_number": "Force Majeure",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "default",
+        "delay",
+        "acts of God"
+      ]
+    },
+    {
+      "clause_type": "DISPUTE_RESOLUTION",
+      "text": "In case of any dispute the Parties will apply informal dispute resolution involving escalation within each Party's management organizations, as described in Exhibit 6 (Governance Model)...",
+      "section_number": "Formal Dispute Resolution",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.9,
+      "key_terms": [
+        "informal dispute resolution",
+        "escalation"
+      ]
+    },
+    {
+      "clause_type": "GOVERNING_LAW",
+      "text": "The Agreements and performance under it will be governed by and construed in accordance with the substantive laws of Switzerland without its conflict of laws provisions...",
+      "section_number": "Governing Law and Arbitration",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "Switzerland",
+        "substantive laws"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "GlobalPharma may terminate The Agreements, in whole or in part, if the Service Provider (i) breaches in any material respect any of its duties or obligations under The Agreements and fails to cure such breach within thirty (30) days after notice...",
+      "section_number": "Termination for Cause",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "terminate",
+        "material breach",
+        "30 days"
+      ]
+    },
+    {
+      "clause_type": "GOVERNING_LAW",
+      "text": "The Agreements and performance under it will be governed by and construed in accordance with the substantive laws of Switzerland without its conflict of laws provisions. For clarification, the U.N. Convention on the International Sale of Goods shall not apply.",
+      "section_number": "1",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "Switzerland",
+        "U.N. Convention"
+      ]
+    },
+    {
+      "clause_type": "DISPUTE_RESOLUTION",
+      "text": "Any dispute, controversy or claim arising out of or in relation to The Agreements, including the validity, invalidity, breach or termination thereof, shall be resolved by arbitration in accordance with the Rules of Arbitration of the International Chamber of Commerce, Paris, in force on the date when the Notice of Arbitration is submitted in accordance with these Rules. If the Parties do not agree upon one sole arbitrator the number of arbitrators shall be three. The seat of the arbitration shal",
+      "section_number": "2",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "arbitration",
+        "ICC",
+        "Zurich",
+        "English"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "If there is a regulatory change which makes it contrary to applicable law for any of the countries as detailed in the LSA's to continue using the supplier group to provide: a) all of the Services, then GlobalPharma may terminate The Agreements in whole; or b) a particular Service, then GlobalPharma may terminate The Agreements insofar as it relates to that Service;",
+      "section_number": "Termination for Regulatory Change",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "regulatory change",
+        "termination"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "GlobalPharma may terminate The Agreements for convenience in whole or in part upon six (6) months written notice. The Service Provider will be entitled to payment only for un-recovered capital expenditures and reasonable transition costs, and not any portion of the Service Provider's marketing expenses or unearned profit.",
+      "section_number": "Termination for Convenience",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "6 months notice",
+        "termination for convenience"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "In the event of a Change of Control of the Service Provider, GlobalPharma may terminate The Agreements in its sole discretion if GlobalPharma deems the new ownership (i) a direct competitor of GlobalPharma.",
+      "section_number": "Termination for Change of Control of Service Provider",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "change of control",
+        "direct competitor"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "If a Benchmarking Condition exists and Service Provider does not agree with the price adjustment to be made in accordance with Clause 8.10 of the MSA, Service Provider may terminate this Agreement, in whole but not in part, upon at least [9] [(nine)] months prior written notice to GlobalPharma and provision of the Termination Assistance Services set forth in Clause 18.9 of the MSA.",
+      "section_number": "Termination of Service Provider for the Existence of a Benchmarking Condition",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "benchmarking condition",
+        "9 months notice"
+      ]
+    },
+    {
+      "clause_type": "TERMINATION",
+      "text": "If GlobalPharma has reasonable cause to doubt the Service Provider's financial stability as indicated by either (i) a rating of ServicePro by Moody's Investors Service below Baa3 (medium-grade, moderate credit risk) or by Standard & Poors below BBB- (triple B minus = medium-class, satisfactory) and/or (ii) an audit opinion by an independent audit firm disclosing any circumstances of financial instability (major qualifications, e.g. 'going concern', negative Group Net Results for 2 or more consec",
+      "section_number": "Termination Due to Service Provider's Financial Status",
+      "page_number": null,
+      "risk_level": "MEDIUM",
+      "confidence": 0.95,
+      "key_terms": [
+        "financial stability",
+        "Moody's",
+        "Standard & Poors"
+      ]
+    },
+    {
+      "clause_type": "ASSIGNMENT",
+      "text": "Neither Party may assign The Agreements without the prior written consent of the other, except that GlobalPharma may assign its rights and obligations under The Agreements without the approval of the Service Provider to (i) an entity which acquires all or substantially all of the assets of GlobalPharma; or (ii) to any subsidiary or Affiliate or Successor in a merger or acquisition involving GlobalPharma.",
+      "section_number": "Assignment",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "assignment",
+        "consent"
+      ]
+    },
+    {
+      "clause_type": "NOTICE",
+      "text": "All notices, requests, demands and other communications which are required or may be given pursuant to The Agreements and shall be deemed duly served on the date delivered to the addressee if sent as follows: If to GlobalPharma: GlobalPharma AG Head Shared Services Bahnhofstrasse 10 CH-8001 Zurich GlobalPharma AG General Counsel Bahnhofstrasse 10 CH-8001 Zurich If to Service Provider: ServicePro International SaRL Chief Executive Officer 25 Avenue de la Libert\u00e9 L-1930 Luxembourg ServicePro Inter",
+      "section_number": "Notice",
+      "page_number": null,
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "key_terms": [
+        "notice",
+        "address"
+      ]
+    }
+  ],
+  "obligations": [
+    {
+      "description": "Service Provider commits to perform any obligations included in The Agreements.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider's Obligations in MSA and LSA",
+      "source_quote": "The Service Provider hereby commits to perform any obligations of the Service Provider and/or any affiliated company included in The Agreements as the Service Provider's obligations, according to the terms and conditions of The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will propose new terms for renewing The Agreements 18 months prior to the Expiration Date.",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "If unable to agree, GlobalPharma may extend the Term for up to 18 months",
+      "section_number": "Renewal Notice and Process",
+      "source_quote": "Eighteen (18) months prior to the Expiration Date, the Service Provider will propose new terms to GlobalPharma for renewing The Agreements...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will provide all Services described in The Agreements in all geographies.",
+      "obligation_type": "DELIVERY",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Scope of Services",
+      "source_quote": "The Service Provider will provide all of the Services described in the The Agreements in all geographies as set forth in Exhibit 7...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will provide support for GlobalPharma to meet compliance requirements.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Scope of Services",
+      "source_quote": "The Service Provider will provide all support reasonably related to the Services that is required for GlobalPharma to meet all of its requirements imposed by global, transnational, federal, state or local laws and regulations...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will provide acquisition support as requested by GlobalPharma.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Scope of Services",
+      "source_quote": "As requested by GlobalPharma with respect to an acquisition, the Service Provider will provide acquisition support...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will act as a purchasing agent for GlobalPharma if requested.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Scope of Services",
+      "source_quote": "If requested by GlobalPharma, the Service Provider will act as a purchasing agent for GlobalPharma to procure Equipment, Software and services...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will comply with regulatory issues and ensure compliance with laws.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Regulatory Compliance",
+      "source_quote": "The Service Provider ensures compliance with all regulatory issues that may arise with the provision of the Services...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will notify GlobalPharma of changes in law or regulation.",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Regulatory Compliance",
+      "source_quote": "The Service Provider will promptly notify GlobalPharma of any changes in law or regulation relating as for the Services provided under The Agreement.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Ensure compliance with all regulatory issues related to the provision of Services",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Regulatory Compliance 1",
+      "source_quote": "The Service Provider ensures compliance with all regulatory issues that may arise with the provision of the Services within the sites Described in Exhibit 7 (Sites).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide best efforts for support related to GlobalPharma's compliance requirements",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Regulatory Compliance 2",
+      "source_quote": "The Service Provider will provide best efforts, for all support reasonably related to the scope of Services that is required for GlobalPharma to meet all of its requirements imposed by global, transnational, federal, state, or local laws and regulations.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Obtain and maintain all necessary governmental licenses, approvals, authorizations, and permits",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": null,
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Regulatory Compliance 3",
+      "source_quote": "The Service Provider will obtain and maintain, at its costs, all governmental licenses, approvals, authorizations, and permits regulating the Service Provider as a services provider as required from time to time.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Notify GlobalPharma of any changes in law or regulation relating to the Services",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Regulatory Compliance 4",
+      "source_quote": "The Service Provider will promptly notify GlobalPharma of any changes in law or regulation relating as for the Services provided under The Agreement.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Ensure Services conform to changes in applicable law or regulation",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Regulatory Compliance 5",
+      "source_quote": "The Service Provider will ensure the Services conform to any changes in applicable law or regulation subject to GlobalPharma's obligation to notify and update the Service Provider of applicable Law in GlobalPharma's jurisdiction(s).",
+      "confidence": 0.85
+    },
+    {
+      "description": "Provide Services to GlobalPharma and Authorized Users",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Authorized Users of the Services 1",
+      "source_quote": "The Service Provider shall provide the Services to GlobalPharma and to any Authorized Users designated by GlobalPharma.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Continue to provide Services to former Authorized Users for up to 12 months",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Authorized Users of the Services 2",
+      "source_quote": "The Service Provider shall, if requested by GlobalPharma, continue to provide the Services to such entity after the date such entity becomes a former Authorized User for up to twelve (12) months.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Provide Services at all Sites and additional Sites as requested by GlobalPharma",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Sites",
+      "source_quote": "The Service Provider shall provide the Services to Authorized Users at any and all Sites at which such entities operate as of the Effective Date and any additional Sites as GlobalPharma requests through-out the Term.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide Services from own service centers and using Affiliates",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Facilities General 1",
+      "source_quote": "The Service Provider will provide all the Services from its own service centers and using its Affiliates except as in the cases pertaining to document management.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Maintain and enforce safety and physical security procedures at Facilities",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Facilities General 3",
+      "source_quote": "The Service Provider will maintain and enforce, at the Facilities where the Services are provided, safety and physical security procedures that are in conformity with (i) GlobalPharma's policies and procedures applicable to its locations.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Use GlobalPharma Facilities for the sole purpose of providing the Services",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Responsible for damages and fines",
+      "section_number": "Service Provider's Use of GlobalPharma's Facilities 4",
+      "source_quote": "The Service Provider will use the GlobalPharma Facilities for the sole purpose of providing the Services and will use the GlobalPharma Facilities in an efficient manner.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Return GlobalPharma Facilities in substantially the same condition",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider's Use of GlobalPharma's Facilities 4",
+      "source_quote": "When the GlobalPharma Facilities are no longer required for performance of the Services, the Service Provider will return the Facilities to GlobalPharma in substantially the same condition as when the Service Provider began use of the Facilities, subject to reasonable wear and tear.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Provide all Facilities, assets, and resources necessary for delivering the Services",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Special Asset Terms Commitment to Provide Resources",
+      "source_quote": "The Service Provider shall be responsible for providing any and all Facilities, assets, and resources (including personnel, Facilities, Equipment, data and voice network/telecommunications, and Software) necessary for delivering the Services and meeting its obligations under The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with all obligations of leases, licenses, and Third Party Contracts",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Special Asset Terms Compliance with Terms",
+      "source_quote": "The Service Provider will comply with all the obligations of such leases, licenses and Third Party Contracts of which it has been informed before Commencement Date or will be informed of during the Term.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Refresh technology under its control as necessary to meet Service Levels",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Special Asset Terms Refresh and Standardization 6.3.1",
+      "source_quote": "The Service Provider is responsible for refresh of technology under its control as necessary to meet Service Levels under The Agreements.",
+      "confidence": 0.85
+    },
+    {
+      "description": "Comply with requirements contained in Exhibit 6 (Governance Model)",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Governance Model",
+      "source_quote": "The Service Provider will comply with the requirements contained in Exhibit 6 (Governance Model).",
+      "confidence": 0.85
+    },
+    {
+      "description": "Comply with requirements relating to Service Provider personnel",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider Personnel 1",
+      "source_quote": "The Service Provider will comply with the requirements relating to Service Provider personnel contained in Clause 8.2 (and all its subsections) and in Exhibit 5 (Human Resource Provisions).",
+      "confidence": 0.85
+    },
+    {
+      "description": "Install and maintain additional Third Party Materials as designated by GlobalPharma",
+      "obligation_type": "DELIVERY",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "4",
+      "source_quote": "The Service Provider will install and maintain additional Third Party Materials that are Applications Software as GlobalPharma may designate from time to time during the Term at GlobalPharma's expense.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide GlobalPharma all data related to GlobalPharma's use of Third Party Materials",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "5",
+      "source_quote": "The Service Provider will provide GlobalPharma all data related to GlobalPharma's use of Third Party Materials for which GlobalPharma owns the licenses, which is required by GlobalPharma to ensure its compliance with the terms of such licenses.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Not assign Key Service Provider Personnel to competitors for two years after leaving GlobalPharma account",
+      "obligation_type": "OTHER",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider Personnel",
+      "source_quote": "The Service Provider will not assign any of its Key Service Provider Personnel... to the account of any competitor of GlobalPharma... for a period of two (2) years after such personnel have ceased being a member of the Service Provider's account team for GlobalPharma.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Remove any personnel from GlobalPharma account at GlobalPharma's request",
+      "obligation_type": "OTHER",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider Personnel",
+      "source_quote": "GlobalPharma will have the right at any time after mutual discussions with the Service Provider and at no cost to GlobalPharma, to require the Service Provider to remove any of its personnel from the GlobalPharma account.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Not hire GlobalPharma employees without prior written approval",
+      "obligation_type": "OTHER",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider Personnel",
+      "source_quote": "The Service Provider will not make offers to hire nor hire any GlobalPharma employees without the prior written approval of GlobalPharma.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Fill vacancies from own staff during contract negotiation process",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider Personnel",
+      "source_quote": "At the request of GlobalPharma, the Service Provider will fill, from its own staff, any vacancies that occur during the contract negotiation process.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Develop annual and quarterly financial objectives and budgets within 90 days after Effective Date and annually thereafter",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "annually",
+      "consequences": null,
+      "section_number": "Planning and Budgeting Process",
+      "source_quote": "Within ninety (90) days after the Effective Date and annually thereafter, the Service Provider will develop annual and quarterly financial objectives and budgets and performance goals.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Support GlobalPharma with monthly/quarterly forecasting",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "monthly/quarterly",
+      "consequences": null,
+      "section_number": "Planning and Budgeting Process",
+      "source_quote": "Service Provider will support GlobalPharma with monthly / quarterly forecasting based upon a defined process to be established after execution date.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Develop and periodically update a Policies and Procedures Manual",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": null,
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "quarterly",
+      "consequences": null,
+      "section_number": "Policies and Procedure Manual",
+      "source_quote": "The Service Provider will, in accordance with Attachment 6-B (Policies and Procedures Manual Content), develop and periodically update a Policies and Procedures Manual...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with Change Control procedures as described in Exhibit 20",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Change Control",
+      "source_quote": "Change Control procedures as described in Exhibit 20 (Change Control Procedures) govern the process used to determine and implement any potential changes to The Agreements.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Develop and implement a Change Management process",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Change Control",
+      "source_quote": "The Service Provider will also develop and implement a Change Management process to govern all operational and technical changes associated with the Services, as described in Exhibit 2.1 (Statement of Work Cross Functional).",
+      "confidence": 0.8
+    },
+    {
+      "description": "Identify opportunities to implement new technology advantageous to GlobalPharma",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Technology",
+      "source_quote": "Together with GlobalPharma, identify opportunities to implement new technology advantageous to GlobalPharma's business /processes/operations.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Maintain a level of currency, knowledge and technology",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Technology",
+      "source_quote": "Maintain a level of currency, knowledge and technology that allows GlobalPharma to take advantage of technological advances in order to remain competitive.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Provide GlobalPharma with leading-edge technology for evaluation",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Technology",
+      "source_quote": "Provide GlobalPharma with leading-edge technology for GlobalPharma's evaluation in connection with the Services subject to agreement on costs/investments for any such change in technology.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Meet with GlobalPharma periodically to inform about new processes or methodologies",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "periodically",
+      "consequences": null,
+      "section_number": "Technology",
+      "source_quote": "Meet with GlobalPharma periodically to inform GlobalPharma of any new processes or methodologies, technology, and/or technology trends and directions...",
+      "confidence": 0.8
+    },
+    {
+      "description": "Comply with GlobalPharma's strategic architecture plan",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Technology",
+      "source_quote": "Comply with GlobalPharma's strategic architecture plan, requirements for long range planning, refresh, and technical strategies that are contained in Exhibit 8 (Technical Architecture and Product Standards).",
+      "confidence": 0.8
+    },
+    {
+      "description": "Meet with GlobalPharma at least once each year to explain systems and provide training",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "annually",
+      "consequences": null,
+      "section_number": "Technology",
+      "source_quote": "At least once each year or as requested by GlobalPharma, the Service Provider will meet with GlobalPharma to (i) explain how the systems the Service Provider operates in connection with the provision of the Services work and are operated; (ii) explain how the Services are provided; and (iii) provide such training and documentation as GlobalPharma may require...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Document Disaster Recovery Plan within 90 days of Effective Date or by Commencement Date",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Disaster Recovery Plan",
+      "source_quote": "Within 90 days of the Effective Date or by the Commencement Date whichever occurs first, the Service Provider will document its Disaster Recovery Plan as described in Exhibit 16 (IT Disaster Recovery Plan)...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Execute Business Continuity and Disaster Recovery plans upon disaster occurrence",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "GlobalPharma may terminate The Agreements without further financial liability",
+      "section_number": "Disaster Recovery Plan",
+      "source_quote": "The Service Provider will execute the Business Continuity and Disaster Recovery plans as specified in The Agreements upon the occurrence of a disaster...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with reporting requirements in Exhibit 13",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Reports and Meetings",
+      "source_quote": "The Service Provider will comply with the requirements related to reporting contained in Exhibit 13 (Reports), and as otherwise specified in The Agreements.",
+      "confidence": 0.8
+    },
+    {
+      "description": "Cooperate with GlobalPharma and Third Parties retained by GlobalPharma",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "GlobalPharma Use of Third Parties",
+      "source_quote": "The Service Provider shall cooperate with GlobalPharma and with Third Parties retained by GlobalPharma to perform the Services...",
+      "confidence": 0.8
+    },
+    {
+      "description": "Not subcontract material obligations without prior written approval",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider Use of Subcontractors",
+      "source_quote": "The Service Provider will not subcontract or delegate any of its material obligations under The Agreements without the prior written approval of GlobalPharma...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will give GlobalPharma written notice specifying identity, qualifications, and scope for proposed subcontractor before entering into a subcontract.",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider Use of Subcontractors 2",
+      "source_quote": "Prior to entering into a subcontract with a Third Party, except as provided for in Clause 8.12.1 of the MSA based on annual spend, the Service Provider will give GlobalPharma written notice specifying the identity, qualifications and scope for the proposed subcontractor.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will ensure contracts with subcontractors include provisions equivalent to those in The Agreements.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider Use of Subcontractors 3",
+      "source_quote": "The Service Provider will make commercially reasonable efforts to ensure that the contracts with subcontractors include provisions equivalent to those in The Agreements between GlobalPharma and the Service Provider.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will ensure subcontractors adhere to standards, policies, and procedures.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider Use of Subcontractors 4",
+      "source_quote": "All subcontractors will be required to adhere to the standards, policies and procedures in effect at the time, whether these are GlobalPharma's or the Service Provider's.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will ensure contracts with subcontractors allow GlobalPharma to take assignment if agreements are terminated or Service Provider is in breach.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider Use of Subcontractors 5",
+      "source_quote": "The Service Provider will make commercially reasonable efforts to ensure that the contracts with subcontractors will specifically provide that GlobalPharma may take an assignment of the contract from Service Provider in the event that (i) The Agreements are terminated or come to end of term, or (ii) the Service Provider is in material breach of The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will use subcontractors with specific scope of work as listed in Exhibit 31.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Service Provider Use of Subcontractors 6",
+      "source_quote": "Service Provider will use subcontractors with the specific type of scope of work as listed in Exhibit 31 (Subcontractors approved by GlobalPharma as of the Effective Date).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will pass through to GlobalPharma reductions in the cost of delivery of the Services resulting from significant changes in technology or extraordinary reductions in costs.",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Extraordinary Events 2",
+      "source_quote": "The Service Provider will pass through to GlobalPharma reductions in the cost of delivery of the Services resulting from significant changes in technology or extraordinary reductions in the costs of delivering the Services.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will ensure invoice payment is processed timely, accurately, and supported by adequate back-up information.",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Invoices, Payment 1",
+      "source_quote": "The Service Provider will ensure that invoice payment is processed timely, accurately and supported by adequate back-up information in line with the requirements described in Exhibit 4 (Pricing and Financial Provisions).",
+      "confidence": 0.9
+    },
+    {
+      "description": "GlobalPharma will pay undisputed charges within thirty (30) days of receipt of invoice.",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "GlobalPharma",
+      "beneficiary_party": "Service Provider",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Invoices, Payment 5",
+      "source_quote": "GlobalPharma will pay undisputed charges within thirty (30) days of receipt of invoice.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider shall render a single consolidated invoice each month.",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RECURRING",
+      "deadline_date": null,
+      "recurrence_pattern": "monthly",
+      "consequences": null,
+      "section_number": "Invoices, Payment 3",
+      "source_quote": "The Service Provider shall render, each month, by means of an electronic file, a single consolidated invoice for the charges incurred in each month.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider shall not invoice charges not properly invoiced within three months after the end of the month to which they correspond.",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "GlobalPharma will not be obligated to pay",
+      "section_number": "Invoices, Payment 7",
+      "source_quote": "The Service Provider shall not invoice GlobalPharma, and GlobalPharma will not be obligated to pay, any charges that are not properly invoiced within three months after the end of the month to which such charges correspond.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider shall be financially responsible for any Pass-Through Expense not properly submitted within three months after the end of the month in which it was incurred.",
+      "obligation_type": "PAYMENT",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Service Provider is financially responsible",
+      "section_number": "Invoices, Payment 8",
+      "source_quote": "The Service Provider shall be financially responsible for any Pass-Through Expense that is not properly submitted to GlobalPharma within three months after the end of the month in which such Pass-Through Expense is incurred.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will maintain a complete audit trail of financial and non-financial transactions resulting from The Agreements.",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Audit Rights 1",
+      "source_quote": "The Service Provider will maintain a complete audit trail of financial and non-financial transactions resulting from The Agreements.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will provide GlobalPharma access to facilities, personnel, data, and records for audits and inspections.",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Audit Rights 1",
+      "source_quote": "The Service Provider will provide to GlobalPharma, its internal or external auditors, e.g. Deloitte Touche, PricewaterhouseCoopers, Ernst & Young, KPMG, but not other auditors to be considered as being Service Provider competitors, inspectors, and regulators access at reasonable times, with reasonable notice and in accordance with Service Provider's reasonable confidentiality policies, to facilities where either the Service Provider or any of its subcontractors is providing Services, to personne",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will work with GlobalPharma to ensure compliance with SOX for processes serviced by ServicePro.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Audit Rights 3",
+      "source_quote": "ServicePro will work with GlobalPharma to ensure compliance with SOX for the part of their processes that ServicePro is servicing.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will provide SAS 70 Type II audit for environment controls starting December 2007.",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "FIXED",
+      "deadline_date": "2007-12-01",
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Audit Rights 3",
+      "source_quote": "Starting December 2007, ServicePro will provide for the delivery sites SAS 70 Type II audit for environment controls ServicePro infrastructure and procedures to GlobalPharma.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will provide GlobalPharma access to GlobalPharma Data in possession or control on demand.",
+      "obligation_type": "REPORTING",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Safeguarding of GlobalPharma Information, Confidentiality 4",
+      "source_quote": "Service Provider shall provide to GlobalPharma and its Affiliates access to the GlobalPharma Data in Service Provider's or Service Provider's contractors possession or control on demand.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will comply with all GlobalPharma security policies, information protection, and privacy policies.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Safeguarding of GlobalPharma Information, Confidentiality 5",
+      "source_quote": "The Service Provider will (i) comply with all GlobalPharma security policies, information protection, and privacy policies, procedures, standards, requirements and specifications which have been communicated and agreed by the parties.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will establish and maintain safeguards against unauthorized access, destruction, loss or alteration of GlobalPharma Information.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Safeguarding of GlobalPharma Information, Confidentiality 6",
+      "source_quote": "The Service Provider shall establish and maintain safeguards against the unauthorized access, destruction, loss or alteration of GlobalPharma Information in the possession of the Service Provider and/or its subcontractors.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will notify GlobalPharma of any breach or potential breach of security relating to GlobalPharma Information.",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Safeguarding of GlobalPharma Information, Confidentiality 6",
+      "source_quote": "The Service Provider will promptly notify GlobalPharma of any breach or potential breach of security relating to GlobalPharma Information.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider guarantees no personal data will be transferred from Europe to jurisdictions with non-equivalent Data Protection Rules.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Safeguarding of GlobalPharma Information, Confidentiality 8",
+      "source_quote": "Service Provider guarantees that no personal data will be transferred from countries of the European continent to the USA or any other jurisdiction with Data Protection Rules and Regulations which are not equivalent to the standards within the European Union.",
+      "confidence": 0.9
+    },
+    {
+      "description": "ServicePro warrants that any software comprising Work Product will conform to and function in accordance with the applicable written design specifications.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "ServicePro",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Correction of defects at no additional cost",
+      "section_number": "Developed Materials a)",
+      "source_quote": "ServicePro warrants that any software comprising Work Product developed by ServicePro pursuant to this Agreement... will during the Warranty Period conform to and will function in accordance with the applicable written design specifications.",
+      "confidence": 0.9
+    },
+    {
+      "description": "GlobalPharma will notify ServicePro in writing of any detected defects in the ServicePro Warranty Item.",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "GlobalPharma",
+      "beneficiary_party": "ServicePro",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Developed Materials b)",
+      "source_quote": "GlobalPharma will notify ServicePro in writing of any detected defects in such ServicePro Warranty Item that cause it not to conform to and/or function in accordance with the applicable design specifications during the Warranty Period.",
+      "confidence": 0.9
+    },
+    {
+      "description": "ServicePro will correct defects in the ServicePro Warranty Item at no additional cost to GlobalPharma.",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "ServicePro",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Developed Materials c)",
+      "source_quote": "ServicePro will correct such stated defects, at no additional cost to GlobalPharma and as soon as practicable, and furnish GlobalPharma with a revised or updated ServicePro Warranty Item reflecting any corrections made.",
+      "confidence": 0.9
+    },
+    {
+      "description": "The Parties will comply with all applicable laws, rules, regulations, ordinances, and codes.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Both Parties",
+      "beneficiary_party": null,
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Compliance with Laws and Regulations 1.",
+      "source_quote": "The Parties will comply at their own cost with all applicable international, federal, state and local laws, rules, regulations, ordinances and codes...",
+      "confidence": 0.9
+    },
+    {
+      "description": "The Parties will comply with all privacy and data protection laws applicable to the Services.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Both Parties",
+      "beneficiary_party": null,
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Shared cost of implementation for new laws",
+      "section_number": "Compliance with Laws and Regulations 2.",
+      "source_quote": "The Parties will comply at their own cost with all privacy and data protection laws, rules and regulations which are or which may in the future be applicable to the Services...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will warrant no pending or threatened litigation affecting its ability to enter into Agreements.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Absence of Litigation",
+      "source_quote": "The Service Provider will warrant that no claim, litigation, proceeding, ICC arbitration, investigation or material controversy is pending...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Each Party warrants it has the authority to enter into Agreements and fulfill obligations.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Both Parties",
+      "beneficiary_party": null,
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Authorization 1.",
+      "source_quote": "Each Party warrants that it has all requisite corporate power and authority to enter into The Agreements...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will ensure no harmful code is introduced into systems.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "Assist in reducing effects and restoring losses",
+      "section_number": "Viruses",
+      "source_quote": "The Service Provider will use commercially reasonable efforts to ensure that no forms of harmful surreptitious code or other contaminants... are introduced into any computer system...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will not insert disabling code into Software.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Disabling Code",
+      "source_quote": "For any Software used in the provision of the Services the Service Provider will not intentionally insert into such Software any code that would have the effect of disabling...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will ensure Services support USD and EURO currencies.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Currency Support",
+      "source_quote": "The Service Provider will warrant that the Services and any Materials provided by the Service Provider under The Agreements are and will be capable of supporting the United States Dollar (USD) and the European \u20ac (EURO)...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider undertakes to maintain insurance coverage.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Insurance 1.",
+      "source_quote": "According to the term of this Agreement, the Service Provider undertakes to take out and maintain insurance coverage...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider must list GlobalPharma as additional insured for liability insurance.",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Insurance 4.",
+      "source_quote": "For the purpose of the insurance for liability of Service Provider for bodily injuries... the insurance required pursuant to this clause shall list GlobalPharma and GlobalPharma's Affiliates as additional insured...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will indemnify GlobalPharma against third-party claims related to performance or failure to perform obligations.",
+      "obligation_type": "OTHER",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Indemnities by Service-Provider",
+      "source_quote": "The Service Provider will indemnify, defend and hold harmless GlobalPharma... against: (i) any Third Party claim arising out of or related to the Service Provider's performance or failure to perform its obligations...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Service Provider will notify GlobalPharma of any infringement or misappropriation claim.",
+      "obligation_type": "NOTIFICATION",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Infringement",
+      "source_quote": "If any item used by the Service Provider to provide the Services becomes, or in the Service Provider's reasonable opinion is likely to become, the subject of an infringement or misappropriation claim or proceeding, then the Service Provider will promptly notify GlobalPharma...",
+      "confidence": 0.9
+    },
+    {
+      "description": "Provide Termination/Expiration Assistance to GlobalPharma or its designee",
+      "obligation_type": "PERFORMANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "RELATIVE",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "GlobalPharma may proceed to Arbitration if assistance is not provided",
+      "section_number": "Termination/Expiration Assistance",
+      "source_quote": "Commencing (i) six (6) months prior to the expiration of The Agreements; (ii) upon any notice of termination or non-renewal of The Agreements; or (iii) six (6) months prior to any other ceasing of Service under The Agreements and continuing through the effective date of expiration, termination or cessation, the Service Provider will provide to GlobalPharma or to its designee (collectively, 'Successor'), the assistance as described in Exhibit 18 (Termination Assistance) to allow the Services to c",
+      "confidence": 0.9
+    },
+    {
+      "description": "Obtain and pay for necessary consents and governmental approvals",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Consent and Approvals",
+      "source_quote": "The Service Provider will be responsible for obtaining, and paying all costs associated with obtaining, any and all necessary consents and governmental approvals required in the provision of the Services and/or or in the exercise of GlobalPharma's rights at termination.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Keep GlobalPharma's property and Services free of liens",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": "GlobalPharma may pay the lien or deduct amounts from payments due",
+      "section_number": "Liens",
+      "source_quote": "The Service Provider agrees to keep GlobalPharma, all of the real and personal property of GlobalPharma, and the Services, free and clear of all liens or lien claims.",
+      "confidence": 0.9
+    },
+    {
+      "description": "Place source code and documentation in escrow",
+      "obligation_type": "OTHER",
+      "obligated_party": "Service Provider",
+      "beneficiary_party": "GlobalPharma",
+      "deadline_type": "FIXED",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Escrow",
+      "source_quote": "Within six (6) months of the Go Live Date, Service Provider will place all source code, and documentation related to the Service Provider Proprietary Software (the 'Escrow Material') in escrow pursuant to the Escrow Agreement (Exhibit 33, Escrow Agreement).",
+      "confidence": 0.9
+    },
+    {
+      "description": "Comply with applicable labor and environmental laws",
+      "obligation_type": "COMPLIANCE",
+      "obligated_party": "Service Provider and its subcontractors",
+      "beneficiary_party": null,
+      "deadline_type": "ONGOING",
+      "deadline_date": null,
+      "recurrence_pattern": null,
+      "consequences": null,
+      "section_number": "Labor Laws and Prison Labor",
+      "source_quote": "Service Provider and its subcontractors will comply with all applicable laws regarding minimum wage, living conditions, overtime, working conditions, and the applicable labor and environmental laws.",
+      "confidence": 0.9
+    }
+  ],
+  "slas": [
+    {
+      "sla_name": "Service Availability",
+      "metric_type": "AVAILABILITY",
+      "metric_unit": "PERCENTAGE",
+      "target_value": 99.9,
+      "severity": "HIGH",
+      "has_penalty": true,
+      "penalty_type": "credit",
+      "penalty_value": null,
+      "measurement_period": "monthly",
+      "section_reference": "Service Levels",
+      "source_text": "The Service Provider will comply with the requirements contained in Exhibit 3 (Service Levels).",
+      "confidence": 0.9
+    },
+    {
+      "sla_name": "Incident Response Time",
+      "metric_type": "RESPONSE_TIME",
+      "metric_unit": "HOURS",
+      "target_value": 4.0,
+      "severity": "MEDIUM",
+      "has_penalty": false,
+      "penalty_type": null,
+      "penalty_value": null,
+      "measurement_period": "monthly",
+      "section_reference": "Service Levels",
+      "source_text": "The Service Provider will perform and provide to GlobalPharma a root cause analysis for any incident that would contribute to the Service Provider's missing a Service Level.",
+      "confidence": 0.8
+    },
+    {
+      "sla_name": "Customer Satisfaction",
+      "metric_type": "QUALITY_SCORE",
+      "metric_unit": "SCORE",
+      "target_value": 4.5,
+      "severity": "LOW",
+      "has_penalty": false,
+      "penalty_type": null,
+      "penalty_value": null,
+      "measurement_period": "quarterly",
+      "section_reference": "Customer Satisfaction Survey",
+      "source_text": "Increasing measures of customer satisfaction will be used by the Service Provider as a key performance factor.",
+      "confidence": 0.7
+    }
+  ],
+  "renewal": {
+    "has_auto_renewal": false,
+    "auto_renewal_term_months": null,
+    "notice_period_days": 90,
+    "notice_deadline": null,
+    "expiration_date": null,
+    "initial_term_months": 84,
+    "termination_for_convenience": false,
+    "confidence": 0.9
+  },
+  "parse": {
+    "char_count": 136122,
+    "page_count": 41
+  }
+}
