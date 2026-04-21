@@ -129,7 +129,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
           <UserPlusIcon className="w-5 h-5" />
           Share with External User
@@ -157,8 +157,8 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
             {sharesData.items.map((share) => (
               <div key={share.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
                 <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-full bg-violet-100 flex items-center justify-center">
-                    <span className="text-sm font-semibold text-violet-700">
+                  <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-primary-700">
                       {(share.external_user.full_name || share.external_user.email).charAt(0).toUpperCase()}
                     </span>
                   </div>
@@ -262,7 +262,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                 <select
                   value={selectedUserId}
                   onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   required
                 >
                   <option value="">Select an external user...</option>
@@ -291,7 +291,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                       type="checkbox"
                       checked={canComment}
                       onChange={(e) => setCanComment(e.target.checked)}
-                      className="rounded text-violet-600 focus:ring-violet-500"
+                      className="rounded text-primary-600 focus:ring-primary-500"
                     />
                     <span className="text-sm text-gray-700">Can comment</span>
                   </label>
@@ -300,7 +300,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                       type="checkbox"
                       checked={canDownload}
                       onChange={(e) => setCanDownload(e.target.checked)}
-                      className="rounded text-violet-600 focus:ring-violet-500"
+                      className="rounded text-primary-600 focus:ring-primary-500"
                     />
                     <span className="text-sm text-gray-700">Can download</span>
                   </label>
@@ -316,7 +316,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                   type="number"
                   value={expiresInDays}
                   onChange={(e) => setExpiresInDays(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Leave empty for no expiration"
                   min={1}
                   max={365}
@@ -331,7 +331,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Add a message for the recipient..."
                   rows={2}
                 />
@@ -349,7 +349,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                 <button
                   type="submit"
                   disabled={!selectedUserId || shareMutation.isPending}
-                  className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
                 >
                   {shareMutation.isPending ? 'Sharing...' : 'Share Contract'}
                 </button>
@@ -416,7 +416,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                 </button>
                 <button
                   onClick={() => setShowLinkModal(false)}
-                  className="flex-1 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                 >
                   Done
                 </button>

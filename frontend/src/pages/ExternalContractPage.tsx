@@ -359,14 +359,14 @@ export default function ExternalContractPage() {
             {validation.contracts.map((c) => (
               <button key={c.id}
                 onClick={() => { setSelectedContractId(c.id); setActiveTab('document'); }}
-                className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-violet-300 hover:shadow-md transition-all text-left group"
+                className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-primary-300 hover:shadow-md transition-all text-left group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-violet-100 rounded-lg shrink-0 group-hover:bg-violet-200 transition-colors">
-                    <DocumentTextIcon className="w-7 h-7 text-violet-600" />
+                  <div className="p-3 bg-primary-100 rounded-lg shrink-0 group-hover:bg-primary-200 transition-colors">
+                    <DocumentTextIcon className="w-7 h-7 text-primary-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate group-hover:text-violet-700 transition-colors">{c.filename}</p>
+                    <p className="font-semibold text-gray-900 truncate group-hover:text-primary-700 transition-colors">{c.filename}</p>
                     {c.counterparty && <p className="text-sm text-gray-500 mt-0.5">{c.counterparty}</p>}
                     <div className="flex items-center gap-2 mt-2">
                       {c.contract_type && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{c.contract_type.replace(/_/g, ' ')}</span>}
@@ -376,7 +376,7 @@ export default function ExternalContractPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     {c.can_download && <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded flex items-center gap-1"><ArrowDownTrayIcon className="w-3 h-3" /> Download</span>}
                     {c.can_comment && <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded flex items-center gap-1"><ChatBubbleLeftIcon className="w-3 h-3" /> Comment</span>}
-                    <ChevronLeftIcon className="w-5 h-5 text-gray-300 rotate-180 group-hover:text-violet-400 transition-colors" />
+                    <ChevronLeftIcon className="w-5 h-5 text-gray-300 rotate-180 group-hover:text-primary-400 transition-colors" />
                   </div>
                 </div>
               </button>
@@ -409,7 +409,7 @@ export default function ExternalContractPage() {
       <main className="max-w-5xl mx-auto px-4 py-8">
         {showBackButton && (
           <button onClick={() => { setSelectedContractId(null); setActiveTab('document'); }}
-            className="flex items-center gap-1 text-sm text-violet-600 hover:text-violet-800 mb-4">
+            className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-800 mb-4">
             <ChevronLeftIcon className="w-4 h-4" /> All contracts
           </button>
         )}
@@ -423,7 +423,7 @@ export default function ExternalContractPage() {
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4">
-                    <div className="p-3 bg-violet-100 rounded-lg"><DocumentTextIcon className="w-8 h-8 text-violet-600" /></div>
+                    <div className="p-3 bg-primary-100 rounded-lg"><DocumentTextIcon className="w-8 h-8 text-primary-600" /></div>
                     <div>
                       <h2 className="text-xl font-semibold text-gray-900">{contract.filename}</h2>
                       {contract.counterparty && <p className="text-gray-600 mt-1">Counterparty: {contract.counterparty}</p>}
@@ -441,7 +441,7 @@ export default function ExternalContractPage() {
                     </div>
                   </div>
                   {contract.can_download && (
-                    <button onClick={handleDownload} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors shrink-0">
+                    <button onClick={handleDownload} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shrink-0">
                       <ArrowDownTrayIcon className="w-5 h-5" /> Download
                     </button>
                   )}
@@ -458,8 +458,8 @@ export default function ExternalContractPage() {
               </div>
               {contract.shared_message && (
                 <div className="px-6 pb-6">
-                  <div className="bg-violet-50 border-l-4 border-violet-400 p-4 rounded-r-lg">
-                    <p className="text-sm text-violet-800 italic">"{contract.shared_message}"</p>
+                  <div className="bg-primary-50 border-l-4 border-primary-400 p-4 rounded-r-lg">
+                    <p className="text-sm text-primary-800 italic">"{contract.shared_message}"</p>
                   </div>
                 </div>
               )}
@@ -563,7 +563,7 @@ function InlineCommentWidget({
             }}
             className={cn(
               "text-xs flex items-center gap-1 px-2 py-1 rounded transition-colors",
-              isOpen ? "bg-violet-100 text-violet-700" : "text-gray-400 hover:text-violet-600 hover:bg-violet-50"
+              isOpen ? "bg-primary-100 text-primary-700" : "text-gray-400 hover:text-primary-600 hover:bg-primary-50"
             )}
           >
             <ChatBubbleLeftIcon className="w-3.5 h-3.5" />
@@ -573,7 +573,7 @@ function InlineCommentWidget({
         {count > 0 && !isOpen && (
           <button
             onClick={() => { setCommentingOn(sectionRef); setItemComment(''); }}
-            className="text-xs text-gray-400 hover:text-violet-600 flex items-center gap-1"
+            className="text-xs text-gray-400 hover:text-primary-600 flex items-center gap-1"
           >
             <ChatBubbleLeftIcon className="w-3 h-3" />
             {count} {count === 1 ? 'comment' : 'comments'}
@@ -583,13 +583,13 @@ function InlineCommentWidget({
 
       {/* Expanded: show existing comments + form */}
       {isOpen && (
-        <div className="mt-2 ml-0 border-l-2 border-violet-200 pl-3 space-y-2">
+        <div className="mt-2 ml-0 border-l-2 border-primary-200 pl-3 space-y-2">
           {/* Existing comments */}
           {comments.map((c) => (
             <div key={c.id} className="flex items-start gap-2">
               <div className={cn(
                 "h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium shrink-0",
-                c.is_internal_author ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"
+                c.is_internal_author ? "bg-blue-100 text-blue-700" : "bg-primary-100 text-primary-700"
               )}>
                 {c.author_name?.charAt(0).toUpperCase() || '?'}
               </div>
@@ -597,7 +597,7 @@ function InlineCommentWidget({
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs font-medium text-gray-800">{c.author_name}</span>
                   <span className={cn("text-[10px] px-1 py-0.5 rounded",
-                    c.is_internal_author ? "bg-blue-50 text-blue-600" : "bg-violet-50 text-violet-600"
+                    c.is_internal_author ? "bg-blue-50 text-blue-600" : "bg-primary-50 text-primary-600"
                   )}>{c.is_internal_author ? 'Internal' : 'You'}</span>
                   <span className="text-[10px] text-gray-400">{formatDate(c.created_at)}</span>
                 </div>
@@ -614,13 +614,13 @@ function InlineCommentWidget({
                 onChange={(e) => setItemComment(e.target.value)}
                 placeholder="Add your comment..."
                 rows={2}
-                className="flex-1 text-xs px-3 py-2 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500"
+                className="flex-1 text-xs px-3 py-2 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
                 autoFocus
               />
               <button
                 onClick={() => onSubmitItemComment(sectionRef, clauseId)}
                 disabled={!itemComment.trim() || isPending}
-                className="px-3 py-2 bg-violet-600 text-white text-xs rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors shrink-0"
+                className="px-3 py-2 bg-primary-600 text-white text-xs rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors shrink-0"
               >
                 <PaperAirplaneIcon className="w-3.5 h-3.5" />
               </button>
@@ -641,7 +641,7 @@ function PortalHeader({ user, expiresAt }: { user?: ValidateResponse['external_u
       <div className="max-w-5xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
               <span className="text-white font-bold text-lg">E</span>
             </div>
             <div>
@@ -680,10 +680,10 @@ function TabButton({ active, onClick, icon, label, count }: {
   return (
     <button onClick={onClick}
       className={cn("flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-        active ? "border-violet-600 text-violet-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+        active ? "border-primary-600 text-primary-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
       )}>
       {icon}{label}
-      {count != null && count > 0 && <span className={cn("text-xs px-1.5 py-0.5 rounded-full", active ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-600")}>{count}</span>}
+      {count != null && count > 0 && <span className={cn("text-xs px-1.5 py-0.5 rounded-full", active ? "bg-primary-100 text-primary-700" : "bg-gray-100 text-gray-600")}>{count}</span>}
     </button>
   )
 }
@@ -733,7 +733,7 @@ function DocumentPreview({ contractId, accessToken, filename }: { contractId: st
     <div>
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-gray-500">{filename}</p>
-        <button onClick={() => setFullscreen(true)} className="text-xs text-violet-600 hover:text-violet-800 flex items-center gap-1"><EyeIcon className="w-3.5 h-3.5" /> Fullscreen</button>
+        <button onClick={() => setFullscreen(true)} className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1"><EyeIcon className="w-3.5 h-3.5" /> Fullscreen</button>
       </div>
       <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-100">
         <iframe src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1`} className="w-full border-0" style={{ height: '700px' }} title="Contract Document" />
@@ -768,7 +768,7 @@ function ClausesSection({ clauses, ...cp }: { clauses: Clause[] } & CommentableP
           <div key={clause.id} className="border border-gray-200 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
               {clause.section_number && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{clause.section_number}</span>}
-              {clause.clause_type && <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded capitalize">{clause.clause_type.replace(/_/g, ' ')}</span>}
+              {clause.clause_type && <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded capitalize">{clause.clause_type.replace(/_/g, ' ')}</span>}
               {clause.risk_level && <span className={cn("text-xs px-2 py-0.5 rounded capitalize",
                 clause.risk_level === 'high' ? 'bg-red-100 text-red-700' : clause.risk_level === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
               )}>{clause.risk_level}</span>}
@@ -891,14 +891,14 @@ function AllCommentsSection({ comments, newComment, setNewComment, onSubmit, isP
     <div>
       {canComment ? (
         <form onSubmit={onSubmit} className="mb-6">
-          <div className="border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-violet-500 focus-within:border-violet-500">
+          <div className="border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
             <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)}
               placeholder="Add a general comment about this contract..." rows={3}
               className="w-full px-4 py-3 border-0 resize-none focus:ring-0 text-sm" />
             <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200">
               <p className="text-xs text-gray-400">Comments are visible to both parties</p>
               <button type="submit" disabled={!newComment.trim() || isPending}
-                className="px-4 py-1.5 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center gap-2">
+                className="px-4 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center gap-2">
                 <PaperAirplaneIcon className="w-4 h-4" />{isPending ? 'Sending...' : 'Send'}
               </button>
             </div>
@@ -916,13 +916,13 @@ function AllCommentsSection({ comments, newComment, setNewComment, onSubmit, isP
           {comments.map((comment) => (
             <div key={comment.id} className="flex items-start gap-3">
               <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium shrink-0",
-                comment.is_internal_author ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"
+                comment.is_internal_author ? "bg-blue-100 text-blue-700" : "bg-primary-100 text-primary-700"
               )}>{comment.author_name?.charAt(0).toUpperCase() || '?'}</div>
               <div className="flex-1 bg-gray-50 rounded-lg px-4 py-3">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-gray-900 text-sm">{comment.author_name}</span>
                   <span className={cn("text-xs px-1.5 py-0.5 rounded",
-                    comment.is_internal_author ? "bg-blue-100 text-blue-600" : "bg-violet-100 text-violet-600"
+                    comment.is_internal_author ? "bg-blue-100 text-blue-600" : "bg-primary-100 text-primary-600"
                   )}>{comment.is_internal_author ? 'Internal' : 'External'}</span>
                   <span className="text-xs text-gray-400">{formatDate(comment.created_at)}</span>
                   {comment.section_reference && (
@@ -972,7 +972,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-blue-100 text-blue-700',
-  in_progress: 'bg-violet-100 text-violet-700',
+  in_progress: 'bg-primary-100 text-primary-700',
   blocked: 'bg-red-100 text-red-700',
   completed: 'bg-green-100 text-green-700',
   cancelled: 'bg-gray-100 text-gray-500',
@@ -996,17 +996,17 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
     <div>
       {/* Relationship header */}
       {rel && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-violet-50 to-indigo-50 rounded-lg border border-violet-200">
+        <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-indigo-50 rounded-lg border border-primary-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Business Relationship</p>
               <p className="font-semibold text-gray-900">
-                {rel.org_a_name} <span className="text-violet-500 mx-1">&harr;</span> {rel.org_b_name}
+                {rel.org_a_name} <span className="text-primary-500 mx-1">&harr;</span> {rel.org_b_name}
               </p>
             </div>
             <div className="flex items-center gap-4">
               {rel.governance_tier && (
-                <span className="text-xs bg-white/80 text-violet-700 px-2 py-1 rounded capitalize border border-violet-200">{rel.governance_tier}</span>
+                <span className="text-xs bg-white/80 text-primary-700 px-2 py-1 rounded capitalize border border-primary-200">{rel.governance_tier}</span>
               )}
               {rel.health_score != null && (
                 <div className="text-right">
@@ -1026,7 +1026,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
         <button
           onClick={() => setShowSection('kpis')}
           className={cn("px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-            showSection === 'kpis' ? "bg-violet-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            showSection === 'kpis' ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           )}
         >
           KPIs ({kpis.length})
@@ -1034,7 +1034,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
         <button
           onClick={() => setShowSection('improvements')}
           className={cn("px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-            showSection === 'improvements' ? "bg-violet-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            showSection === 'improvements' ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           )}
         >
           Improvements ({improvements.length})
@@ -1049,7 +1049,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={cn("px-3 py-1 text-xs rounded-full transition-colors",
-                  selectedCategory === 'all' ? "bg-violet-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  selectedCategory === 'all' ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 )}
               >
                 All ({kpis.length})
@@ -1058,7 +1058,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
                 <button key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={cn("px-3 py-1 text-xs rounded-full transition-colors",
-                    selectedCategory === cat ? "bg-violet-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    selectedCategory === cat ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   )}
                 >
                   {CATEGORY_LABELS[cat] || cat} ({kpis.filter(k => (k.category || 'other') === cat).length})
@@ -1084,7 +1084,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
                         <div className="flex flex-wrap gap-2 mt-2 text-xs">
                           {kpi.category && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{CATEGORY_LABELS[kpi.category] || kpi.category}</span>}
                           {kpi.target_value != null && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">Target: {kpi.target_value}</span>}
-                          {kpi.is_perception_based && <span className="bg-violet-50 text-violet-700 px-2 py-0.5 rounded">Perception-based</span>}
+                          {kpi.is_perception_based && <span className="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">Perception-based</span>}
                         </div>
                       </div>
                       {gap && (
@@ -1135,7 +1135,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
                         {imp.priority && <span className={cn("px-2 py-0.5 rounded capitalize", PRIORITY_COLORS[imp.priority] || 'bg-gray-100 text-gray-600')}>{imp.priority}</span>}
                         {imp.status && <span className={cn("px-2 py-0.5 rounded capitalize", STATUS_COLORS[imp.status] || 'bg-gray-100 text-gray-600')}>{imp.status.replace(/_/g, ' ')}</span>}
                         {imp.source && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{imp.source.replace(/_/g, ' ')}</span>}
-                        {imp.kpi_name && <span className="bg-violet-50 text-violet-700 px-2 py-0.5 rounded">KPI: {imp.kpi_name}</span>}
+                        {imp.kpi_name && <span className="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">KPI: {imp.kpi_name}</span>}
                       </div>
                       {imp.target_outcome && <p className="text-xs text-gray-500 mt-2">Target: {imp.target_outcome}</p>}
                       {imp.actual_outcome && <p className="text-xs text-green-600 mt-1">Outcome: {imp.actual_outcome}</p>}

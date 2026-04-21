@@ -99,7 +99,7 @@ function MetadataEditRow({
 
   if (editing) {
     return (
-      <div className="px-4 py-3 bg-violet-50/50">
+      <div className="px-4 py-3 bg-primary-50/50">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm font-medium text-gray-700 capitalize">{item.field.replace(/_/g, ' ')}</p>
           <button onClick={() => setEditing(false)} className="p-1 text-gray-400 hover:text-gray-600">
@@ -155,7 +155,7 @@ function MetadataEditRow({
           {displayValue !== null ? displayValue : <span className="italic text-gray-400">Not extracted</span>}
         </p>
         {corrected && (
-          <p className="text-xs text-violet-600 mt-0.5">Corrected from: {item.value !== null ? String(item.value) : '(empty)'}</p>
+          <p className="text-xs text-primary-600 mt-0.5">Corrected from: {item.value !== null ? String(item.value) : '(empty)'}</p>
         )}
         {item.verification?.notes && (
           <p className="text-xs text-gray-400 mt-0.5 italic">{item.verification.notes}</p>
@@ -167,7 +167,7 @@ function MetadataEditRow({
           <button onClick={() => onVerify('metadata_field', item.field, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" title="Correct">
             <CheckCircleIcon className="h-5 w-5" />
           </button>
-          <button onClick={startEdit} className="p-1 rounded hover:bg-violet-50 text-gray-400 hover:text-violet-600" title="Edit & correct">
+          <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title="Edit & correct">
             <PencilSquareIcon className="h-5 w-5" />
           </button>
         </div>
@@ -218,9 +218,9 @@ function ClauseEditRow({
 
   if (editing) {
     return (
-      <div className="px-4 py-3 bg-violet-50/50">
+      <div className="px-4 py-3 bg-primary-50/50">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-violet-600">Edit Clause</span>
+          <span className="text-xs font-medium text-primary-600">Edit Clause</span>
           <button onClick={() => setEditing(false)} className="p-1 text-gray-400 hover:text-gray-600">
             <XMarkIcon className="h-4 w-4" />
           </button>
@@ -260,7 +260,7 @@ function ClauseEditRow({
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-violet-600 bg-violet-50 rounded px-1.5 py-0.5">{displayType || 'unknown'}</span>
+          <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{displayType || 'unknown'}</span>
           {clause.risk_level && (
             <span className={cn('text-xs rounded px-1.5 py-0.5', clause.risk_level === 'high' ? 'bg-red-50 text-red-600' : clause.risk_level === 'medium' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600')}>
               {clause.risk_level} risk
@@ -272,7 +272,7 @@ function ClauseEditRow({
           {clause.verification && <VerificationBadge status={clause.verification.status} />}
           <div className="flex gap-1">
             <button onClick={() => onVerify('clause', clause.id, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" title="Correct"><CheckCircleIcon className="h-4 w-4" /></button>
-            <button onClick={startEdit} className="p-1 rounded hover:bg-violet-50 text-gray-400 hover:text-violet-600" title="Edit"><PencilSquareIcon className="h-4 w-4" /></button>
+            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title="Edit"><PencilSquareIcon className="h-4 w-4" /></button>
               {onLocate && clause.text && (
                 <button onClick={() => onLocate(clause.text!, clause.page_number)} className="p-1 rounded hover:bg-yellow-50 text-gray-400 hover:text-yellow-600" title="Locate in document"><EyeIcon className="h-4 w-4" /></button>
               )}
@@ -280,7 +280,7 @@ function ClauseEditRow({
         </div>
       </div>
       <p className="text-sm text-gray-600 line-clamp-3">{displayText}</p>
-      {corrected && <p className="text-xs text-violet-600 mt-1">Corrected</p>}
+      {corrected && <p className="text-xs text-primary-600 mt-1">Corrected</p>}
       {clause.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{clause.verification.notes}</p>}
       {clause.section_number && <p className="text-xs text-gray-400 mt-1">Section {clause.section_number}{clause.page_number ? `, Page ${clause.page_number}` : ''}</p>}
     </div>
@@ -322,7 +322,7 @@ function ObligationEditRow({
 
   if (editing) {
     return (
-      <div className="px-4 py-3 bg-violet-50/50">
+      <div className="px-4 py-3 bg-primary-50/50">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-blue-600">Edit Obligation</span>
           <button onClick={() => setEditing(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
@@ -367,12 +367,12 @@ function ObligationEditRow({
           {obl.verification && <VerificationBadge status={obl.verification.status} />}
           <div className="flex gap-1">
             <button onClick={() => onVerify('obligation', obl.id, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600"><CheckCircleIcon className="h-4 w-4" /></button>
-            <button onClick={startEdit} className="p-1 rounded hover:bg-violet-50 text-gray-400 hover:text-violet-600" title="Edit"><PencilSquareIcon className="h-4 w-4" /></button>
+            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title="Edit"><PencilSquareIcon className="h-4 w-4" /></button>
           </div>
         </div>
       </div>
       <p className="text-sm text-gray-600 line-clamp-2">{displayDesc}</p>
-      {corrected && <p className="text-xs text-violet-600 mt-1">Corrected</p>}
+      {corrected && <p className="text-xs text-primary-600 mt-1">Corrected</p>}
       {obl.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{obl.verification.notes}</p>}
       {obl.deadline && <p className="text-xs text-gray-400 mt-1">Deadline: {obl.deadline} ({obl.deadline_type})</p>}
     </div>
@@ -415,7 +415,7 @@ function SLAEditRow({
 
   if (editing) {
     return (
-      <div className="px-4 py-3 bg-violet-50/50">
+      <div className="px-4 py-3 bg-primary-50/50">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-teal-600">Edit SLA</span>
           <button onClick={() => setEditing(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
@@ -464,7 +464,7 @@ function SLAEditRow({
           {sla.verification && <VerificationBadge status={sla.verification.status} />}
           <div className="flex gap-1">
             <button onClick={() => onVerify('sla', sla.id, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600"><CheckCircleIcon className="h-4 w-4" /></button>
-            <button onClick={startEdit} className="p-1 rounded hover:bg-violet-50 text-gray-400 hover:text-violet-600" title="Edit"><PencilSquareIcon className="h-4 w-4" /></button>
+            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title="Edit"><PencilSquareIcon className="h-4 w-4" /></button>
           </div>
         </div>
       </div>
@@ -473,7 +473,7 @@ function SLAEditRow({
         Target: {displayTarget !== null ? displayTarget : '--'} {sla.metric_unit || ''}
         {sla.has_penalty && sla.penalty_value && <span className="ml-2 text-red-500">Penalty: {sla.penalty_value}</span>}
       </p>
-      {corrected && <p className="text-xs text-violet-600 mt-1">Corrected</p>}
+      {corrected && <p className="text-xs text-primary-600 mt-1">Corrected</p>}
       {sla.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{sla.verification.notes}</p>}
     </div>
   )
@@ -495,16 +495,16 @@ function AddMissingClause({ onAdd }: { onAdd: (correctedValue: Record<string, un
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="w-full px-4 py-3 text-sm text-violet-600 hover:bg-violet-50 flex items-center gap-1.5 transition-colors">
+      <button onClick={() => setOpen(true)} className="w-full px-4 py-3 text-sm text-primary-600 hover:bg-primary-50 flex items-center gap-1.5 transition-colors">
         <PlusIcon className="h-4 w-4" /> Add missing clause
       </button>
     )
   }
 
   return (
-    <div className="px-4 py-3 bg-violet-50/50">
+    <div className="px-4 py-3 bg-primary-50/50">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-violet-600">Add Missing Clause</span>
+        <span className="text-xs font-medium text-primary-600">Add Missing Clause</span>
         <button onClick={() => setOpen(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
       </div>
       <div className="space-y-2">
@@ -951,7 +951,7 @@ export default function ExtractionQualityPage() {
             <button onClick={backToOverview} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 shrink-0">
               <ArrowLeftIcon className="h-4 w-4" /> Back
             </button>
-            <DocumentTextIcon className="h-5 w-5 text-violet-600 shrink-0" />
+            <DocumentTextIcon className="h-5 w-5 text-primary-600 shrink-0" />
             <h1 className="text-base font-semibold text-gray-900 truncate">{detail.filename}</h1>
             {detail.is_golden && detail.is_global && (
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 shrink-0">
@@ -966,7 +966,7 @@ export default function ExtractionQualityPage() {
             onClick={() => setShowDocViewer(!showDocViewer)}
             className={cn(
               'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors shrink-0',
-              showDocViewer ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+              showDocViewer ? 'bg-primary-50 text-primary-700 border-primary-200' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
             )}
           >
             <EyeIcon className="h-4 w-4" />
@@ -1028,7 +1028,7 @@ export default function ExtractionQualityPage() {
                 className={cn(
                   'py-3 text-sm font-medium border-b-2 transition-colors',
                   activeTab === tab.key
-                    ? 'border-violet-600 text-violet-600'
+                    ? 'border-primary-600 text-primary-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 )}
               >
@@ -1057,7 +1057,7 @@ export default function ExtractionQualityPage() {
               <div key={clause.id} className="px-4 py-3 bg-amber-50/30">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-violet-600 bg-violet-50 rounded px-1.5 py-0.5">{clause.clause_type || 'unknown'}</span>
+                    <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{clause.clause_type || 'unknown'}</span>
                     {clause.risk_level && (
                       <span className={cn('text-xs rounded px-1.5 py-0.5', clause.risk_level === 'high' ? 'bg-red-50 text-red-600' : clause.risk_level === 'medium' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600')}>
                         {clause.risk_level} risk
@@ -1076,7 +1076,7 @@ export default function ExtractionQualityPage() {
           ))}
           {activeTab === 'clauses' && !detail.is_golden && detail.clauses.map((clause: any) => (
             <div key={clause.id} className="px-4 py-3">
-              <span className="text-xs font-medium text-violet-600 bg-violet-50 rounded px-1.5 py-0.5">{clause.clause_type || 'unknown'}</span>
+              <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{clause.clause_type || 'unknown'}</span>
               <p className="text-sm text-gray-600 mt-1 line-clamp-3">{clause.text}</p>
             </div>
           ))}
@@ -1165,7 +1165,7 @@ export default function ExtractionQualityPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <AdjustmentsHorizontalIcon className="h-7 w-7 text-violet-600" />
+          <AdjustmentsHorizontalIcon className="h-7 w-7 text-primary-600" />
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Extraction Quality</h1>
             <p className="text-sm text-gray-500">Manage your golden set and review AI extraction accuracy</p>
@@ -1323,7 +1323,7 @@ export default function ExtractionQualityPage() {
                     onClick={() => setGsPage(p)}
                     className={cn(
                       'px-2 py-1 text-xs rounded border',
-                      p === gsPage ? 'bg-violet-600 text-white border-violet-600' : 'hover:bg-gray-50'
+                      p === gsPage ? 'bg-primary-600 text-white border-primary-600' : 'hover:bg-gray-50'
                     )}
                   >
                     {p}
@@ -1386,7 +1386,7 @@ export default function ExtractionQualityPage() {
                     key={contract.id}
                     onClick={() => addMutation.mutate({ contractId: contract.id, isGlobal: addAsGlobal })}
                     disabled={addMutation.isPending}
-                    className="w-full text-left px-5 py-3 hover:bg-violet-50 transition-colors disabled:opacity-50"
+                    className="w-full text-left px-5 py-3 hover:bg-primary-50 transition-colors disabled:opacity-50"
                   >
                     <p className="text-sm font-medium text-gray-900 truncate">{contract.filename}</p>
                     <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">

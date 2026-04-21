@@ -173,7 +173,7 @@ export default function SnowIntegrationPage() {
       <div className="card overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CloudArrowUpIcon className="h-5 w-5 text-violet-600" />
+            <CloudArrowUpIcon className="h-5 w-5 text-primary-600" />
             <h3 className="text-sm font-medium text-gray-900">Connection Configuration</h3>
           </div>
           {config && !isEditing && (
@@ -294,7 +294,7 @@ export default function SnowIntegrationPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Production ServiceNow"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   required
                 />
               </div>
@@ -308,7 +308,7 @@ export default function SnowIntegrationPage() {
                   value={formData.base_url}
                   onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
                   placeholder="https://dev12345.service-now.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -328,7 +328,7 @@ export default function SnowIntegrationPage() {
                       value="basic"
                       checked={formData.auth_type === 'basic'}
                       onChange={() => setFormData({ ...formData, auth_type: 'basic' })}
-                      className="text-violet-600 focus:ring-violet-500"
+                      className="text-primary-600 focus:ring-primary-500"
                     />
                     <span className="text-sm text-gray-700">Basic Auth</span>
                   </label>
@@ -339,7 +339,7 @@ export default function SnowIntegrationPage() {
                       value="oauth2"
                       checked={formData.auth_type === 'oauth2'}
                       onChange={() => setFormData({ ...formData, auth_type: 'oauth2' })}
-                      className="text-violet-600 focus:ring-violet-500"
+                      className="text-primary-600 focus:ring-primary-500"
                     />
                     <span className="text-sm text-gray-700">OAuth 2.0</span>
                   </label>
@@ -358,7 +358,7 @@ export default function SnowIntegrationPage() {
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                       placeholder="ServiceNow username"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                       required
                     />
                   </div>
@@ -372,7 +372,7 @@ export default function SnowIntegrationPage() {
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         placeholder="ServiceNow password"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-violet-500"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-primary-500"
                         required
                       />
                       <button
@@ -403,7 +403,7 @@ export default function SnowIntegrationPage() {
                       value={formData.client_id}
                       onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
                       placeholder="OAuth2 Client ID"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                       required
                     />
                   </div>
@@ -417,7 +417,7 @@ export default function SnowIntegrationPage() {
                         value={formData.client_secret}
                         onChange={(e) => setFormData({ ...formData, client_secret: e.target.value })}
                         placeholder="OAuth2 Client Secret"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-violet-500"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-primary-500"
                         required
                       />
                       <button
@@ -442,7 +442,7 @@ export default function SnowIntegrationPage() {
                       value={formData.token_url}
                       onChange={(e) => setFormData({ ...formData, token_url: e.target.value })}
                       placeholder="https://dev12345.service-now.com/oauth_token.do"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                       required
                     />
                   </div>
@@ -614,7 +614,7 @@ export default function SnowIntegrationPage() {
                             value={mapping.mapping_status}
                             onChange={(e) => updateMappingMutation.mutate({ id: mapping.id, status: e.target.value })}
                             disabled={updateMappingMutation.isPending}
-                            className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-violet-500"
+                            className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-primary-500"
                           >
                             <option value="pending">Pending</option>
                             <option value="mapped">Mapped</option>

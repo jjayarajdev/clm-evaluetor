@@ -34,14 +34,14 @@ const STATUS_COLORS: Record<RelationshipStatus, string> = {
 const TIER_COLORS: Record<GovernanceTier, string> = {
   operational: 'text-gray-600',
   tactical: 'text-blue-600',
-  strategic: 'text-violet-600',
+  strategic: 'text-primary-600',
   executive: 'text-amber-600',
 }
 
 const TYPE_ICONS: Record<string, string> = {
   customer: 'text-blue-500',
   supplier: 'text-emerald-500',
-  partner: 'text-violet-500',
+  partner: 'text-primary-500',
   joint_venture: 'text-amber-500',
   reseller: 'text-cyan-500',
   distributor: 'text-orange-500',
@@ -313,7 +313,7 @@ export default function RelationshipsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
-            <LinkIcon className="h-4 w-4 text-violet-500" />
+            <LinkIcon className="h-4 w-4 text-primary-500" />
             <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total</span>
           </div>
           <p className="text-2xl font-bold text-gray-900">{totalRelationships}</p>
@@ -347,7 +347,7 @@ export default function RelationshipsPage() {
           onClick={() => setFilterType('')}
           className={cn(
             'px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
-            !filterType ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            !filterType ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           )}
         >
           All ({totalRelationships})
@@ -358,7 +358,7 @@ export default function RelationshipsPage() {
             onClick={() => setFilterType(filterType === type ? '' : type)}
             className={cn(
               'px-3 py-1.5 rounded-full text-xs font-medium transition-colors capitalize',
-              filterType === type ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              filterType === type ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
             {type.replace('_', ' ')} ({count})
@@ -376,7 +376,7 @@ export default function RelationshipsPage() {
               key={rel.id}
               className={cn(
                 'bg-white rounded-xl border transition-all hover:shadow-lg group cursor-pointer',
-                rel.health_score < 70 ? 'border-red-200' : 'border-gray-200 hover:border-violet-300'
+                rel.health_score < 70 ? 'border-red-200' : 'border-gray-200 hover:border-primary-300'
               )}
             >
               {/* Card top — clickable to detail page */}
@@ -399,7 +399,7 @@ export default function RelationshipsPage() {
                 </div>
 
                 {/* Counterparty name — the star */}
-                <h3 className="text-base font-bold text-gray-900 group-hover:text-violet-700 transition-colors">
+                <h3 className="text-base font-bold text-gray-900 group-hover:text-primary-700 transition-colors">
                   {counterparty}
                 </h3>
 
@@ -443,7 +443,7 @@ export default function RelationshipsPage() {
                   <HealthRing score={rel.health_score} size={32} />
                   <span className="text-xs text-gray-500">Health Score</span>
                 </div>
-                <span className="text-xs text-violet-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="text-xs text-primary-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                   View Breakdown →
                 </span>
               </button>
@@ -485,7 +485,7 @@ export default function RelationshipsPage() {
                 <select
                   value={formData.org_a_id || ''}
                   onChange={(e) => setFormData({ ...formData, org_a_id: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Select organization...</option>
                   {organizations.map((org) => (
@@ -498,7 +498,7 @@ export default function RelationshipsPage() {
                 <select
                   value={formData.org_b_id || ''}
                   onChange={(e) => setFormData({ ...formData, org_b_id: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Select organization...</option>
                   {organizations.filter(o => o.id !== formData.org_a_id).map((org) => (
@@ -512,7 +512,7 @@ export default function RelationshipsPage() {
                   <select
                     value={formData.relationship_type || 'customer'}
                     onChange={(e) => setFormData({ ...formData, relationship_type: e.target.value as any })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="customer">Customer</option>
                     <option value="supplier">Supplier</option>
@@ -527,7 +527,7 @@ export default function RelationshipsPage() {
                   <select
                     value={formData.governance_tier || 'tactical'}
                     onChange={(e) => setFormData({ ...formData, governance_tier: e.target.value as any })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="operational">Operational</option>
                     <option value="tactical">Tactical</option>
@@ -542,7 +542,7 @@ export default function RelationshipsPage() {
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -552,7 +552,7 @@ export default function RelationshipsPage() {
                     type="number"
                     value={formData.annual_value || ''}
                     onChange={(e) => setFormData({ ...formData, annual_value: Number(e.target.value) })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -563,7 +563,7 @@ export default function RelationshipsPage() {
                     onChange={(e) => setFormData({ ...formData, currency: e.target.value.toUpperCase() })}
                     placeholder="USD"
                     maxLength={3}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>

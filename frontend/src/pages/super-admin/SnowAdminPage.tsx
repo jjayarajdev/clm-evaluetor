@@ -69,8 +69,8 @@ export default function SnowAdminPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card p-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-violet-100 flex items-center justify-center">
-              <ServerIcon className="h-5 w-5 text-violet-600" />
+            <div className="h-10 w-10 rounded-lg bg-primary-100 flex items-center justify-center">
+              <ServerIcon className="h-5 w-5 text-primary-600" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Total Configurations</p>
@@ -119,7 +119,7 @@ export default function SnowAdminPage() {
       {/* Tenant Configurations Table */}
       <div className="card overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-          <CloudArrowUpIcon className="h-5 w-5 text-violet-600" />
+          <CloudArrowUpIcon className="h-5 w-5 text-primary-600" />
           <h3 className="text-sm font-medium text-gray-900">Tenant Configurations</h3>
         </div>
         <div className="overflow-x-auto">

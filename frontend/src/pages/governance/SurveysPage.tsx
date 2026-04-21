@@ -125,7 +125,7 @@ export default function SurveysPage() {
             className={cn(
               'pb-3 text-sm font-medium border-b-2 transition-colors',
               tab === 'instances'
-                ? 'border-violet-500 text-violet-600'
+                ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >
@@ -136,7 +136,7 @@ export default function SurveysPage() {
             className={cn(
               'pb-3 text-sm font-medium border-b-2 transition-colors',
               tab === 'templates'
-                ? 'border-violet-500 text-violet-600'
+                ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >
@@ -152,7 +152,7 @@ export default function SurveysPage() {
             <div key={instance.id} className="card card-body">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <ClipboardDocumentListIcon className="h-5 w-5 text-violet-500" />
+                  <ClipboardDocumentListIcon className="h-5 w-5 text-primary-500" />
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{instance.template_name || instance.title || instance.period || 'Untitled Survey'}</p>
                     <div className="flex items-center gap-2 mt-1">
@@ -209,7 +209,7 @@ export default function SurveysPage() {
                       <p className="text-xs text-gray-500 mt-0.5">{tmpl.description}</p>
                     )}
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-700 capitalize">
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-700 capitalize">
                         {tmpl.survey_type}
                       </span>
                       <span className="text-xs text-gray-400">
@@ -248,7 +248,7 @@ export default function SurveysPage() {
                   type="text"
                   value={templateForm.name || ''}
                   onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -256,7 +256,7 @@ export default function SurveysPage() {
                 <select
                   value={templateForm.survey_type || 'satisfaction'}
                   onChange={(e) => setTemplateForm({ ...templateForm, survey_type: e.target.value as SurveyType })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="satisfaction">Satisfaction</option>
                   <option value="performance">Performance</option>
@@ -270,7 +270,7 @@ export default function SurveysPage() {
                   value={templateForm.description || ''}
                   onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })}
                   rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -307,7 +307,7 @@ export default function SurveysPage() {
                 <select
                   value={instanceForm.template_id || ''}
                   onChange={(e) => setInstanceForm({ ...instanceForm, template_id: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Select template...</option>
                   {templates.map((tmpl) => (
@@ -320,7 +320,7 @@ export default function SurveysPage() {
                 <select
                   value={instanceForm.relationship_id || ''}
                   onChange={(e) => setInstanceForm({ ...instanceForm, relationship_id: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Select relationship...</option>
                   {relationships.map((rel) => (
@@ -337,7 +337,7 @@ export default function SurveysPage() {
                   value={instanceForm.period || ''}
                   onChange={(e) => setInstanceForm({ ...instanceForm, period: e.target.value })}
                   placeholder="e.g., 2026-Q2"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -346,7 +346,7 @@ export default function SurveysPage() {
                   type="date"
                   value={instanceForm.due_date || ''}
                   onChange={(e) => setInstanceForm({ ...instanceForm, due_date: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>

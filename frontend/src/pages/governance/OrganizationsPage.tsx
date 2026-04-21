@@ -97,13 +97,13 @@ export default function OrganizationsPage() {
             placeholder="Search organizations..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-3 py-2 w-full border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+            className="pl-9 pr-3 py-2 w-full border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
         </div>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
         >
           <option value="">All Types</option>
           {Object.entries(ORG_TYPE_LABELS).map(([value, label]) => (
@@ -130,9 +130,9 @@ export default function OrganizationsPage() {
               {filtered.map((org) => (
                 <tr key={org.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <Link to={`/organizations/${org.id}`} className="flex items-center gap-2 hover:text-violet-600">
+                    <Link to={`/organizations/${org.id}`} className="flex items-center gap-2 hover:text-primary-600">
                       <BuildingLibraryIcon className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-900 hover:text-violet-600">{org.name}</span>
+                      <span className="text-sm font-medium text-gray-900 hover:text-primary-600">{org.name}</span>
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">{org.code}</td>
@@ -184,7 +184,7 @@ export default function OrganizationsPage() {
                     type="text"
                     value={formData.name || ''}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -193,7 +193,7 @@ export default function OrganizationsPage() {
                     type="text"
                     value={formData.code || ''}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                     placeholder="e.g., ACME"
                   />
                 </div>
@@ -204,7 +204,7 @@ export default function OrganizationsPage() {
                   <select
                     value={formData.org_type || 'vendor'}
                     onChange={(e) => setFormData({ ...formData, org_type: e.target.value as OrgType })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     {Object.entries(ORG_TYPE_LABELS).map(([value, label]) => (
                       <option key={value} value={value}>{label}</option>
@@ -217,7 +217,7 @@ export default function OrganizationsPage() {
                     type="text"
                     value={formData.industry || ''}
                     onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -228,7 +228,7 @@ export default function OrganizationsPage() {
                     type="text"
                     value={formData.region || ''}
                     onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -237,7 +237,7 @@ export default function OrganizationsPage() {
                     type="text"
                     value={formData.country || ''}
                     onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -247,7 +247,7 @@ export default function OrganizationsPage() {
                   type="text"
                   value={formData.primary_contact_name || ''}
                   onChange={(e) => setFormData({ ...formData, primary_contact_name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -256,7 +256,7 @@ export default function OrganizationsPage() {
                   type="email"
                   value={formData.primary_contact_email || ''}
                   onChange={(e) => setFormData({ ...formData, primary_contact_email: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
