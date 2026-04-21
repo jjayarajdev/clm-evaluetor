@@ -68,7 +68,7 @@ function DocumentRow({ doc, contractId }: { doc: ContractDocument; contractId: s
         ) : (
           <ChevronRightIcon className="h-4 w-4 text-gray-400 shrink-0" />
         )}
-        <DocumentTextIcon className="h-5 w-5 text-violet-500 shrink-0" />
+        <DocumentTextIcon className="h-5 w-5 text-primary-500 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-900 truncate">{doc.title}</p>
           {doc.description && (
@@ -240,7 +240,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
                   type="text"
                   value={formData.title || ''}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -249,7 +249,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
                   <select
                     value={formData.document_type || 'other'}
                     onChange={(e) => setFormData({ ...formData, document_type: e.target.value as DocumentType })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     {Object.entries(DOC_TYPE_LABELS).map(([value, label]) => (
                       <option key={value} value={value}>{label}</option>
@@ -263,7 +263,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
                     value={formData.version || ''}
                     onChange={(e) => setFormData({ ...formData, version: e.target.value })}
                     placeholder="e.g., 1.0"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -273,7 +273,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -282,7 +282,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
                   type="text"
                   value={formData.language || 'en'}
                   onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>

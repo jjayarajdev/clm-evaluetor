@@ -31,12 +31,12 @@ const colorStyles = {
     chartBar: 'bg-gray-300',
   },
   primary: {
-    bg: 'bg-violet-50',
-    border: 'border-violet-200',
-    icon: 'text-violet-600',
-    iconBg: 'bg-violet-100',
+    bg: 'bg-primary-50',
+    border: 'border-primary-200',
+    icon: 'text-primary-600',
+    iconBg: 'bg-primary-100',
     text: 'text-gray-900',
-    chartBar: 'bg-violet-400',
+    chartBar: 'bg-primary-400',
   },
   success: {
     bg: 'bg-emerald-50',
@@ -63,12 +63,12 @@ const colorStyles = {
     chartBar: 'bg-red-400',
   },
   purple: {
-    bg: 'bg-violet-50',
-    border: 'border-violet-200',
-    icon: 'text-violet-600',
-    iconBg: 'bg-violet-100',
+    bg: 'bg-primary-50',
+    border: 'border-primary-200',
+    icon: 'text-primary-600',
+    iconBg: 'bg-primary-100',
     text: 'text-gray-900',
-    chartBar: 'bg-violet-400',
+    chartBar: 'bg-primary-400',
   },
   pink: {
     bg: 'bg-pink-50',
@@ -262,13 +262,13 @@ export function FilterPill({
   icon?: React.ElementType
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 text-violet-700 text-sm font-medium rounded-full">
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-100 text-primary-700 text-sm font-medium rounded-full">
       {Icon && <Icon className="h-3.5 w-3.5" />}
       {label}
       {onRemove && (
         <button
           onClick={onRemove}
-          className="ml-1 hover:bg-violet-200 rounded-full p-0.5"
+          className="ml-1 hover:bg-primary-200 rounded-full p-0.5"
         >
           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

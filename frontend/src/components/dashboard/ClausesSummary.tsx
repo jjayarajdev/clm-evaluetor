@@ -33,7 +33,7 @@ const CLAUSE_TYPE_COLORS: Record<string, { bg: string; bar: string; text: string
   service_description: { bg: 'bg-sky-50', bar: 'bg-sky-500', text: 'text-sky-700' },
   service_level: { bg: 'bg-emerald-50', bar: 'bg-emerald-500', text: 'text-emerald-700' },
   deliverable: { bg: 'bg-lime-50', bar: 'bg-lime-500', text: 'text-lime-700' },
-  governance: { bg: 'bg-violet-50', bar: 'bg-violet-500', text: 'text-violet-700' },
+  governance: { bg: 'bg-primary-50', bar: 'bg-primary-500', text: 'text-primary-700' },
   transition: { bg: 'bg-fuchsia-50', bar: 'bg-fuchsia-500', text: 'text-fuchsia-700' },
   change_management: { bg: 'bg-slate-50', bar: 'bg-slate-500', text: 'text-slate-700' },
   support: { bg: 'bg-blue-50', bar: 'bg-blue-400', text: 'text-blue-600' },

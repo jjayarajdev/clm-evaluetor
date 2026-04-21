@@ -198,7 +198,7 @@ export default function RelationshipDetailPage() {
               className={cn(
                 'pb-3 text-sm font-medium border-b-2 transition-colors',
                 activeTab === tab
-                  ? 'border-violet-600 text-violet-600'
+                  ? 'border-primary-600 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               )}
             >
@@ -284,7 +284,7 @@ export default function RelationshipDetailPage() {
                   className={cn(
                     'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
                     selectedCategory === 'all'
-                      ? 'bg-violet-600 text-white'
+                      ? 'bg-primary-600 text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   )}
                 >
@@ -297,7 +297,7 @@ export default function RelationshipDetailPage() {
                     className={cn(
                       'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
                       selectedCategory === cat
-                        ? 'bg-violet-600 text-white'
+                        ? 'bg-primary-600 text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     )}
                   >
@@ -371,7 +371,7 @@ export default function RelationshipDetailPage() {
                         <td className="px-4 py-3 text-center">
                           <button
                             onClick={() => setShowScore(kpi.id)}
-                            className="text-xs text-violet-600 hover:text-violet-800 font-medium"
+                            className="text-xs text-primary-600 hover:text-primary-800 font-medium"
                           >
                             Score
                           </button>
@@ -469,7 +469,7 @@ export default function RelationshipDetailPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {(member.is_primary || member.is_primary_contact) && (
-                        <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded">Primary</span>
+                        <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded">Primary</span>
                       )}
                       {member.receives_alerts && (
                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Alerts</span>
@@ -530,7 +530,7 @@ export default function RelationshipDetailPage() {
                     return (
                       <div className="mt-2 flex items-center gap-2">
                         <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                          <div className="bg-violet-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                          <div className="bg-primary-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                         <span className="text-[10px] text-gray-500">
                           {pct}%{imp.action_count ? ` (${imp.completed_action_count ?? 0}/${imp.action_count} actions)` : ''}
@@ -821,7 +821,7 @@ export default function RelationshipDetailPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Score: <span className="text-violet-600 font-bold">{scoreForm.score}/10</span>
+                  Score: <span className="text-primary-600 font-bold">{scoreForm.score}/10</span>
                 </label>
                 <input
                   type="range"
@@ -829,7 +829,7 @@ export default function RelationshipDetailPage() {
                   max={10}
                   value={scoreForm.score || 5}
                   onChange={(e) => setScoreForm({ ...scoreForm, score: Number(e.target.value) })}
-                  className="w-full accent-violet-600"
+                  className="w-full accent-primary-600"
                 />
                 <div className="flex justify-between text-xs text-gray-400">
                   <span>Poor</span><span>Excellent</span>

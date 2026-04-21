@@ -295,7 +295,7 @@ export default function SharePointIntegrationPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <CloudArrowDownIcon className="h-6 w-6 text-violet-600" />
+          <CloudArrowDownIcon className="h-6 w-6 text-primary-600" />
           <h1 className="text-xl font-semibold text-gray-900">SharePoint Import</h1>
         </div>
 
@@ -320,7 +320,7 @@ export default function SharePointIntegrationPage() {
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className={cn('h-2 rounded-full transition-all', isDone ? 'bg-green-500' : 'bg-violet-500')}
+                className={cn('h-2 rounded-full transition-all', isDone ? 'bg-green-500' : 'bg-primary-500')}
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -361,7 +361,7 @@ export default function SharePointIntegrationPage() {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => { setView('browse'); setImportJobId(null) }}
-                className="px-4 py-2 text-sm font-medium rounded-md bg-violet-600 text-white hover:bg-violet-700"
+                className="px-4 py-2 text-sm font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700"
               >
                 Import More
               </button>
@@ -388,7 +388,7 @@ export default function SharePointIntegrationPage() {
             <button onClick={() => setView('config')} className="text-gray-500 hover:text-gray-700">
               <ArrowLeftIcon className="h-5 w-5" />
             </button>
-            <FolderOpenIcon className="h-6 w-6 text-violet-600" />
+            <FolderOpenIcon className="h-6 w-6 text-primary-600" />
             <h1 className="text-xl font-semibold text-gray-900">Browse SharePoint</h1>
           </div>
         </div>
@@ -404,7 +404,7 @@ export default function SharePointIntegrationPage() {
                 placeholder="Search sites by name..."
                 value={siteSearch}
                 onChange={(e) => setSiteSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
             {sitesLoading && <LoadingSpinner size="sm" />}
@@ -414,9 +414,9 @@ export default function SharePointIntegrationPage() {
                   <button
                     key={site.id}
                     onClick={() => setSelectedSite(site)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-md hover:bg-violet-50 transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-md hover:bg-primary-50 transition-colors"
                   >
-                    <FolderIcon className="h-5 w-5 text-violet-500 shrink-0" />
+                    <FolderIcon className="h-5 w-5 text-primary-500 shrink-0" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{site.display_name || site.name}</p>
                       {site.web_url && <p className="text-xs text-gray-500 truncate">{site.web_url}</p>}
@@ -440,7 +440,7 @@ export default function SharePointIntegrationPage() {
                 <ArrowLeftIcon className="h-4 w-4" />
               </button>
               <h3 className="text-sm font-medium text-gray-700">
-                Document Libraries in <span className="text-violet-600">{selectedSite.display_name || selectedSite.name}</span>
+                Document Libraries in <span className="text-primary-600">{selectedSite.display_name || selectedSite.name}</span>
               </h3>
             </div>
             {drivesLoading && <LoadingSpinner size="sm" />}
@@ -448,7 +448,7 @@ export default function SharePointIntegrationPage() {
               <button
                 key={drive.id}
                 onClick={() => { setSelectedDrive(drive); setFolderPath('root'); setFolderHistory([]) }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-md hover:bg-violet-50 border border-gray-100"
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-md hover:bg-primary-50 border border-gray-100"
               >
                 <FolderIcon className="h-5 w-5 text-amber-500 shrink-0" />
                 <div className="min-w-0">
@@ -484,7 +484,7 @@ export default function SharePointIntegrationPage() {
               <button
                 onClick={() => importMutation.mutate()}
                 disabled={importMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
               >
                 <CloudArrowDownIcon className="h-4 w-4" />
                 {importMutation.isPending ? 'Starting...' : 'Import This Folder'}
@@ -557,8 +557,8 @@ export default function SharePointIntegrationPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-violet-100 flex items-center justify-center">
-            <svg className="h-6 w-6 text-violet-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <div className="h-10 w-10 rounded-lg bg-primary-100 flex items-center justify-center">
+            <svg className="h-6 w-6 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
             </svg>
           </div>
@@ -592,7 +592,7 @@ export default function SharePointIntegrationPage() {
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
                   placeholder="SharePoint"
                 />
               </div>
@@ -602,7 +602,7 @@ export default function SharePointIntegrationPage() {
                   type="text"
                   value={formAzureTenant}
                   onChange={(e) => setFormAzureTenant(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500 font-mono"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 font-mono"
                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                 />
               </div>
@@ -612,7 +612,7 @@ export default function SharePointIntegrationPage() {
                   type="text"
                   value={formClientId}
                   onChange={(e) => setFormClientId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500 font-mono"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 font-mono"
                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                 />
               </div>
@@ -622,7 +622,7 @@ export default function SharePointIntegrationPage() {
                   type="password"
                   value={formClientSecret}
                   onChange={(e) => setFormClientSecret(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-violet-500 focus:border-violet-500 font-mono"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 font-mono"
                   placeholder="Enter client secret value"
                 />
               </div>
@@ -642,7 +642,7 @@ export default function SharePointIntegrationPage() {
               <button
                 onClick={() => saveMutation.mutate()}
                 disabled={saveMutation.isPending || !formAzureTenant || !formClientId || !formClientSecret}
-                className="px-4 py-2 text-sm font-medium rounded-md bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
               >
                 {saveMutation.isPending ? 'Saving...' : 'Save & Connect'}
               </button>
@@ -687,7 +687,7 @@ export default function SharePointIntegrationPage() {
             <div className="flex gap-2 pt-2 border-t">
               <button
                 onClick={() => setView('browse')}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md bg-violet-600 text-white hover:bg-violet-700"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700"
               >
                 <FolderOpenIcon className="h-4 w-4" />
                 Browse & Import
@@ -729,23 +729,23 @@ export default function SharePointIntegrationPage() {
 
       {/* How it works */}
       {(!config || !config.is_active) && (
-        <div className="bg-violet-50 rounded-lg border border-violet-100 p-5">
-          <h3 className="text-sm font-semibold text-violet-900 mb-3">How it works</h3>
-          <ol className="space-y-2 text-sm text-violet-800">
+        <div className="bg-primary-50 rounded-lg border border-primary-100 p-5">
+          <h3 className="text-sm font-semibold text-primary-900 mb-3">How it works</h3>
+          <ol className="space-y-2 text-sm text-primary-800">
             <li className="flex gap-2">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-200 text-violet-700 text-xs flex items-center justify-center font-bold">1</span>
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary-200 text-primary-700 text-xs flex items-center justify-center font-bold">1</span>
               Register an app in Azure AD Portal with <strong>Sites.Read.All</strong> application permission
             </li>
             <li className="flex gap-2">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-200 text-violet-700 text-xs flex items-center justify-center font-bold">2</span>
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary-200 text-primary-700 text-xs flex items-center justify-center font-bold">2</span>
               Enter the Azure Tenant ID, Client ID, and Client Secret above
             </li>
             <li className="flex gap-2">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-200 text-violet-700 text-xs flex items-center justify-center font-bold">3</span>
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary-200 text-primary-700 text-xs flex items-center justify-center font-bold">3</span>
               Browse your SharePoint sites and pick a folder to import contracts from
             </li>
             <li className="flex gap-2">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-200 text-violet-700 text-xs flex items-center justify-center font-bold">4</span>
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary-200 text-primary-700 text-xs flex items-center justify-center font-bold">4</span>
               All PDFs and DOCXs are imported and processed through AI extraction automatically
             </li>
           </ol>

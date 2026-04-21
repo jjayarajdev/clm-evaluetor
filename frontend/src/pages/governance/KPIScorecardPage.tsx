@@ -58,7 +58,7 @@ export default function KPIScorecardPage() {
         <select
           value={selectedRelId}
           onChange={(e) => setSelectedRelId(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 min-w-[300px]"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 min-w-[300px]"
         >
           <option value="">All Relationships</option>
           {relationships.map((rel) => (
@@ -111,7 +111,7 @@ export default function KPIScorecardPage() {
                 <tr key={kpi.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <ChartBarSquareIcon className="h-4 w-4 text-violet-500" />
+                      <ChartBarSquareIcon className="h-4 w-4 text-primary-500" />
                       <span className="text-sm font-medium text-gray-900">{kpi.name}</span>
                     </div>
                     {kpi.description && (

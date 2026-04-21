@@ -73,7 +73,7 @@ function StageIcon({ status }: { status: 'completed' | 'active' | 'pending' | 'f
     return <CheckCircleIcon className="h-4 w-4 text-green-500" />
   }
   if (status === 'active') {
-    return <ArrowPathIcon className="h-4 w-4 text-violet-600 animate-spin" />
+    return <ArrowPathIcon className="h-4 w-4 text-primary-600 animate-spin" />
   }
   if (status === 'failed') {
     return <XCircleIcon className="h-4 w-4 text-red-500" />
@@ -130,7 +130,7 @@ export function ProcessingStatusIndicator({
           ) : isCompleted ? (
             <CheckCircleIcon className="h-5 w-5 text-green-500" />
           ) : (
-            <ArrowPathIcon className="h-5 w-5 text-violet-600 animate-spin" />
+            <ArrowPathIcon className="h-5 w-5 text-primary-600 animate-spin" />
           )}
           <span
             className={cn(
@@ -144,7 +144,7 @@ export function ProcessingStatusIndicator({
         <span
           className={cn(
             'text-sm font-medium',
-            isFailed ? 'text-red-600' : isCompleted ? 'text-green-600' : 'text-violet-600'
+            isFailed ? 'text-red-600' : isCompleted ? 'text-green-600' : 'text-primary-600'
           )}
         >
           {percent}%
@@ -160,7 +160,7 @@ export function ProcessingStatusIndicator({
               ? 'bg-red-500'
               : isCompleted
                 ? 'bg-green-500'
-                : 'bg-gradient-to-r from-violet-500 to-violet-400'
+                : 'bg-gradient-to-r from-primary-500 to-primary-400'
           )}
           style={{ width: `${percent}%` }}
         />
@@ -203,7 +203,7 @@ export function ProcessingStatusIndicator({
                         className={cn(
                           'flex items-center gap-1 px-2 py-1 rounded text-[11px]',
                           status === 'completed' && 'bg-green-50 text-green-700',
-                          status === 'active' && 'bg-violet-50 text-violet-700 font-medium',
+                          status === 'active' && 'bg-primary-50 text-primary-700 font-medium',
                           status === 'pending' && 'bg-gray-50 text-gray-400',
                           status === 'failed' && 'bg-red-50 text-red-600'
                         )}
@@ -251,7 +251,7 @@ export function ProcessingStatusBadge({
     <span
       className={cn(
         'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium',
-        isFailed ? 'bg-red-100 text-red-700' : 'bg-violet-100 text-violet-700'
+        isFailed ? 'bg-red-100 text-red-700' : 'bg-primary-100 text-primary-700'
       )}
       title={progress.message}
     >

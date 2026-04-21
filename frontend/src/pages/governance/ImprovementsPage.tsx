@@ -98,7 +98,7 @@ export default function ImprovementsPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
         >
           <option value="">All Statuses</option>
           <option value="open">Open</option>
@@ -110,7 +110,7 @@ export default function ImprovementsPage() {
         <select
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
         >
           <option value="">All Priorities</option>
           <option value="critical">Critical</option>
@@ -168,7 +168,7 @@ export default function ImprovementsPage() {
                   <p className="text-sm font-semibold text-gray-900">{imp.progress}%</p>
                   <div className="w-20 h-1.5 bg-gray-200 rounded-full mt-1">
                     <div
-                      className="h-full bg-violet-500 rounded-full"
+                      className="h-full bg-primary-500 rounded-full"
                       style={{ width: `${imp.progress}%` }}
                     />
                   </div>
@@ -202,7 +202,7 @@ export default function ImprovementsPage() {
                 <select
                   value={formData.relationship_id || ''}
                   onChange={(e) => setFormData({ ...formData, relationship_id: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Select relationship...</option>
                   {relationships.map((rel) => (
@@ -218,7 +218,7 @@ export default function ImprovementsPage() {
                   type="text"
                   value={formData.title || ''}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -227,7 +227,7 @@ export default function ImprovementsPage() {
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -236,7 +236,7 @@ export default function ImprovementsPage() {
                   <select
                     value={formData.priority || 'medium'}
                     onChange={(e) => setFormData({ ...formData, priority: e.target.value as ImprovementPriority })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -249,7 +249,7 @@ export default function ImprovementsPage() {
                   <select
                     value={formData.kpi_id || ''}
                     onChange={(e) => setFormData({ ...formData, kpi_id: e.target.value || undefined })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="">None</option>
                     {kpis.map((kpi) => (

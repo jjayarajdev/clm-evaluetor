@@ -6,10 +6,10 @@
 // Role-based color themes
 export const roleThemes = {
   legal: {
-    primary: 'indigo',
-    accent: 'violet',
-    gradient: 'from-indigo-600 via-violet-600 to-purple-700',
-    lightGradient: 'from-indigo-50 via-violet-50 to-purple-50',
+    primary: 'primary',
+    accent: 'slate',
+    gradient: 'from-primary-700 via-primary-600 to-primary-500',
+    lightGradient: 'from-primary-50 via-primary-100 to-primary-50',
     icon: 'ScaleIcon',
     label: 'Legal Counsel',
   },
@@ -102,8 +102,8 @@ export const riskThemes = {
     glow: 'shadow-rose-200',
   },
   critical: {
-    gradient: 'from-purple-500 to-violet-600',
-    bg: 'bg-gradient-to-r from-purple-50 to-violet-50',
+    gradient: 'from-purple-500 to-fuchsia-600',
+    bg: 'bg-gradient-to-r from-purple-50 to-fuchsia-50',
     text: 'text-purple-700',
     border: 'border-purple-300',
     glow: 'shadow-purple-200',

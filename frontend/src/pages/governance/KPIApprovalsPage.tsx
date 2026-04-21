@@ -132,7 +132,7 @@ export default function KPIApprovalsPage() {
             {periods.map(p => (
               <button key={p} onClick={() => setPeriod(p)}
                 className={cn('px-3 py-1 text-xs font-medium rounded-md transition-colors',
-                  period === p ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
+                  period === p ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
                 {p}
               </button>
             ))}
@@ -168,7 +168,7 @@ export default function KPIApprovalsPage() {
           <div className="flex items-center gap-6 text-sm">
             <span className="font-medium text-gray-900">{selectedRel?.name}</span>
             <span className="text-gray-400">|</span>
-            <span><span className="font-bold text-violet-600">{rows.length}</span> <span className="text-gray-500">KPIs</span></span>
+            <span><span className="font-bold text-primary-600">{rows.length}</span> <span className="text-gray-500">KPIs</span></span>
             <span><span className="font-bold text-amber-600">{pendingN}</span> <span className="text-gray-500">pending</span></span>
             <span>
               <span className={cn('font-bold', avgGap > 1.5 ? 'text-red-600' : avgGap > 0.8 ? 'text-amber-600' : 'text-green-600')}>
@@ -208,12 +208,12 @@ export default function KPIApprovalsPage() {
                               <input type="number" min={1} max={10} step={0.1} value={editing[sid(r.int)]}
                                 onChange={e => { const id = sid(r.int!); setEditing(p => ({ ...p, [id]: parseFloat(e.target.value) })) }}
                                 onKeyDown={e => { if (e.key === 'Enter') doSave(r.int!); if (e.key === 'Escape') { const id = sid(r.int!); setEditing(p => { const n = { ...p }; delete n[id]; return n }) } }}
-                                className="w-14 text-center border border-violet-300 rounded text-sm py-0.5" autoFocus />
-                              <button onClick={() => doSave(r.int!)} className="text-violet-600"><CheckCircleIcon className="h-4 w-4" /></button>
+                                className="w-14 text-center border border-primary-300 rounded text-sm py-0.5" autoFocus />
+                              <button onClick={() => doSave(r.int!)} className="text-primary-600"><CheckCircleIcon className="h-4 w-4" /></button>
                             </span>
                           ) : (
                             <button onClick={() => { const id = sid(r.int!); setEditing(p => ({ ...p, [id]: Number(r.int!.score) })) }}
-                              className={cn('font-bold cursor-pointer', r.int.approval_status === 'pending_approval' ? 'text-amber-600' : 'text-gray-900 hover:text-violet-600')}>
+                              className={cn('font-bold cursor-pointer', r.int.approval_status === 'pending_approval' ? 'text-amber-600' : 'text-gray-900 hover:text-primary-600')}>
                               {Number(r.int.score).toFixed(1)}
                             </button>
                           )
@@ -226,12 +226,12 @@ export default function KPIApprovalsPage() {
                               <input type="number" min={1} max={10} step={0.1} value={editing[sid(r.ext)]}
                                 onChange={e => { const id = sid(r.ext!); setEditing(p => ({ ...p, [id]: parseFloat(e.target.value) })) }}
                                 onKeyDown={e => { if (e.key === 'Enter') doSave(r.ext!); if (e.key === 'Escape') { const id = sid(r.ext!); setEditing(p => { const n = { ...p }; delete n[id]; return n }) } }}
-                                className="w-14 text-center border border-violet-300 rounded text-sm py-0.5" autoFocus />
-                              <button onClick={() => doSave(r.ext!)} className="text-violet-600"><CheckCircleIcon className="h-4 w-4" /></button>
+                                className="w-14 text-center border border-primary-300 rounded text-sm py-0.5" autoFocus />
+                              <button onClick={() => doSave(r.ext!)} className="text-primary-600"><CheckCircleIcon className="h-4 w-4" /></button>
                             </span>
                           ) : (
                             <button onClick={() => { const id = sid(r.ext!); setEditing(p => ({ ...p, [id]: Number(r.ext!.score) })) }}
-                              className={cn('font-bold cursor-pointer', r.ext.approval_status === 'pending_approval' ? 'text-amber-600' : 'text-gray-900 hover:text-violet-600')}>
+                              className={cn('font-bold cursor-pointer', r.ext.approval_status === 'pending_approval' ? 'text-amber-600' : 'text-gray-900 hover:text-primary-600')}>
                               {Number(r.ext.score).toFixed(1)}
                             </button>
                           )
@@ -292,7 +292,7 @@ export default function KPIApprovalsPage() {
             </p>
             <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
               placeholder={modal.type === 'reject' ? 'Reason...' : 'Comments (optional)'}
-              className="w-full border rounded-lg px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-violet-500" />
+              className="w-full border rounded-lg px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-primary-500" />
             <div className="flex justify-end gap-3">
               <button onClick={() => { setModal(null); setComment('') }} className="btn-secondary">Cancel</button>
               <button onClick={() => {

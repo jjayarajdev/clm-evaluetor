@@ -189,7 +189,7 @@ export default function LoginPage() {
                   {ssoLoading === p.tenant_slug ? (
                     <LoadingSpinner size="sm" />
                   ) : (
-                    <ShieldCheckIcon className="h-5 w-5 text-violet-500" />
+                    <ShieldCheckIcon className="h-5 w-5 text-primary-500" />
                   )}
                   Sign in with {p.tenant_name} SSO
                 </button>

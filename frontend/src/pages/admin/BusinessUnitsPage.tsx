@@ -79,7 +79,7 @@ function TreeNode({
         {/* Icon */}
         <BuildingOfficeIcon className={cn(
           'w-5 h-5',
-          node.is_active ? 'text-violet-500' : 'text-gray-400'
+          node.is_active ? 'text-primary-500' : 'text-gray-400'
         )} />
 
         {/* Name and code */}
@@ -109,7 +109,7 @@ function TreeNode({
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={() => onAddChild(node.id)}
-            className="p-1.5 rounded hover:bg-violet-100 text-gray-400 hover:text-violet-600"
+            className="p-1.5 rounded hover:bg-primary-100 text-gray-400 hover:text-primary-600"
             title="Add child unit"
           >
             <PlusIcon className="w-4 h-4" />
@@ -338,7 +338,7 @@ export default function BusinessUnitsPage() {
         </div>
         <button
           onClick={() => openCreateModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
           disabled={isSuperAdmin && !selectedTenantId}
         >
           <PlusIcon className="w-5 h-5" />
@@ -428,7 +428,7 @@ export default function BusinessUnitsPage() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="e.g., Sales Department"
                   required
                 />
@@ -442,7 +442,7 @@ export default function BusinessUnitsPage() {
                   type="text"
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 uppercase"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 uppercase"
                   placeholder="e.g., SALES"
                   maxLength={20}
                   required
@@ -457,7 +457,7 @@ export default function BusinessUnitsPage() {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Optional description..."
                   rows={2}
                 />
@@ -470,7 +470,7 @@ export default function BusinessUnitsPage() {
                 <select
                   value={formData.parent_id}
                   onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
                   <option value="">None (Top Level)</option>
                   {listData?.items
@@ -490,7 +490,7 @@ export default function BusinessUnitsPage() {
                     id="is_active"
                     checked={formData.is_active}
                     onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="rounded text-violet-600 focus:ring-violet-500"
+                    className="rounded text-primary-600 focus:ring-primary-500"
                   />
                   <label htmlFor="is_active" className="text-sm text-gray-700">
                     Active
@@ -509,7 +509,7 @@ export default function BusinessUnitsPage() {
                 <button
                   type="submit"
                   disabled={createMutation.isPending || updateMutation.isPending}
-                  className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
                 >
                   {createMutation.isPending || updateMutation.isPending
                     ? 'Saving...'

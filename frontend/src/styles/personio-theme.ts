@@ -1,28 +1,29 @@
 /**
- * Personio-Inspired Design System
- * European minimal with purple accent
+ * Coast Design System
+ * Sophisticated coastal palette built around #5A687D
  */
 
 export const colors = {
-  // Primary - Purple/Violet
+  // Primary — Coast slate blue-gray (matches CSS variables in index.css)
   primary: {
-    50: '#f5f3ff',
-    100: '#ede9fe',
-    200: '#ddd6fe',
-    300: '#c4b5fd',
-    400: '#a78bfa',
-    500: '#8b5cf6',
-    600: '#7c3aed',
-    700: '#6d28d9',
-    800: '#5b21b6',
-    900: '#4c1d95',
+    50: '#F4F6F8',
+    100: '#E8ECF1',
+    200: '#D1D9E2',
+    300: '#B0BCC9',
+    400: '#8A9AAD',
+    500: '#6B7D91',
+    600: '#5A687D',
+    700: '#49576A',
+    800: '#3D4A5C',
+    900: '#2C3847',
   },
 
-  // Accent - Pink/Magenta (for highlights)
+  // Accent — Warm sandy gold & sea foam teal
   accent: {
-    light: '#fce7f3',
-    DEFAULT: '#ec4899',
-    dark: '#be185d',
+    light: '#F5E6D3',
+    DEFAULT: '#C4956A',
+    dark: '#9A7048',
+    teal: '#6B9E9B',
   },
 
   // Status colors
@@ -76,7 +77,7 @@ export const borderRadius = {
 
 // Button variants
 export const buttonStyles = {
-  primary: 'bg-violet-600 hover:bg-violet-700 text-white shadow-sm',
+  primary: 'bg-primary-600 hover:bg-primary-700 text-white shadow-sm',
   secondary: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm',
   ghost: 'hover:bg-gray-100 text-gray-700',
   danger: 'bg-red-600 hover:bg-red-700 text-white shadow-sm',
@@ -89,5 +90,5 @@ export const badgeStyles = {
   pending: 'bg-amber-100 text-amber-700 border-amber-200',
   breached: 'bg-red-100 text-red-700 border-red-200',
   internal: 'bg-gray-100 text-gray-600 border-gray-200',
-  new: 'bg-violet-100 text-violet-700 border-violet-200',
+  new: 'bg-primary-100 text-primary-700 border-primary-200',
 }

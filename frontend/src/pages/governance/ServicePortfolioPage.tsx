@@ -117,13 +117,13 @@ export default function ServicePortfolioPage() {
             placeholder="Search services..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-3 py-2 w-full border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+            className="pl-9 pr-3 py-2 w-full border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
         </div>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
         >
           <option value="">All Types</option>
           {Object.entries(SERVICE_TYPE_LABELS).map(([value, label]) => (
@@ -133,7 +133,7 @@ export default function ServicePortfolioPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
         >
           <option value="">All Statuses</option>
           {Object.entries(STATUS_LABELS).map(([value, label]) => (
@@ -180,7 +180,7 @@ export default function ServicePortfolioPage() {
                 <tr key={svc.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <CubeIcon className="h-5 w-5 text-violet-500" />
+                      <CubeIcon className="h-5 w-5 text-primary-500" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">{svc.name}</p>
                         {svc.description && (
@@ -238,7 +238,7 @@ export default function ServicePortfolioPage() {
                     type="text"
                     value={formData.name || ''}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -247,7 +247,7 @@ export default function ServicePortfolioPage() {
                     type="text"
                     value={formData.code || ''}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                     placeholder="e.g., IT-CONSULT"
                   />
                 </div>
@@ -258,7 +258,7 @@ export default function ServicePortfolioPage() {
                   <select
                     value={formData.service_type || 'it_services'}
                     onChange={(e) => setFormData({ ...formData, service_type: e.target.value as ServiceType })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     {Object.entries(SERVICE_TYPE_LABELS).map(([value, label]) => (
                       <option key={value} value={value}>{label}</option>
@@ -270,7 +270,7 @@ export default function ServicePortfolioPage() {
                   <select
                     value={formData.organization_id || ''}
                     onChange={(e) => setFormData({ ...formData, organization_id: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="">Select organization</option>
                     {organizations.map((org) => (
@@ -285,7 +285,7 @@ export default function ServicePortfolioPage() {
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>

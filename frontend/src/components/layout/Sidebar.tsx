@@ -146,7 +146,7 @@ function NavItemLink({
                 ? 'pl-7 pr-3 py-2'
                 : 'px-3 py-2.5',
             isActive
-              ? 'bg-violet-100 text-violet-700'
+              ? 'bg-primary-100 text-primary-700'
               : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
           )
         }
@@ -157,7 +157,7 @@ function NavItemLink({
               className={cn(
                 indent ? 'h-4 w-4' : 'h-5 w-5',
                 'shrink-0',
-                isActive ? 'text-violet-600' : ''
+                isActive ? 'text-primary-600' : ''
               )}
               aria-hidden="true"
             />
@@ -217,7 +217,7 @@ function CollapsibleGroup({
         className={cn(
           'w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider transition-colors',
           hasActiveChild
-            ? 'text-violet-600'
+            ? 'text-primary-600'
             : 'text-gray-400 hover:text-gray-600'
         )}
       >
@@ -264,7 +264,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       {/* Logo & Toggle */}
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 px-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="h-8 w-8 shrink-0 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center">
+          <div className="h-8 w-8 shrink-0 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
             <span className="text-white font-bold text-sm">E</span>
           </div>
           {!collapsed && (
@@ -356,8 +356,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 ? 'justify-center'
                 : 'p-2 hover:bg-gray-50 w-full'
             )}>
-              <div className="h-9 w-9 shrink-0 rounded-full bg-gradient-to-br from-violet-100 to-violet-200 flex items-center justify-center hover:ring-2 hover:ring-violet-300 transition-all">
-                <span className="text-sm font-semibold text-violet-700">
+              <div className="h-9 w-9 shrink-0 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center hover:ring-2 hover:ring-primary-300 transition-all">
+                <span className="text-sm font-semibold text-primary-700">
                   {user.username.charAt(0).toUpperCase()}
                 </span>
               </div>
