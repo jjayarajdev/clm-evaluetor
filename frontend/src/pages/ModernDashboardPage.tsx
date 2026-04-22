@@ -249,8 +249,8 @@ export default function ModernDashboardPage() {
         quickActions={getQuickActions()}
       />
 
-      {/* Stats Grid - Personio-style colorful widgets */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats Grid - 6 cards in one row */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard
           title="Total Contracts"
           value={summaryData?.total_contracts || 0}
@@ -299,6 +299,22 @@ export default function ModernDashboardPage() {
             label: 'vs last week'
           } : undefined}
           chart={trendData?.total_contract_value || undefined}
+        />
+        <StatCard
+          title="Obligations"
+          value={`${(complianceData?.obligations?.compliance_rate || 0).toFixed(1)}%`}
+          icon={ScaleIcon}
+          color={(complianceData?.obligations?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.obligations?.compliance_rate || 0) >= 70 ? 'warning' : 'danger'}
+          variant="filled"
+          chart={trendData?.compliance_rate || undefined}
+        />
+        <StatCard
+          title="SLA Performance"
+          value={`${(complianceData?.slas?.compliance_rate || 0).toFixed(1)}%`}
+          icon={ChartBarIcon}
+          color={(complianceData?.slas?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.slas?.compliance_rate || 0) >= 70 ? 'warning' : 'danger'}
+          variant="filled"
+          chart={trendData?.sla_compliance_rate || undefined}
         />
       </div>
 
@@ -425,7 +441,7 @@ export default function ModernDashboardPage() {
               <h2 className="font-semibold text-gray-900">Recent Activity</h2>
             </div>
             <div className="px-5 divide-y divide-gray-50">
-              {activityData?.activities?.map((activity, idx) => {
+              {activityData?.activities?.slice(0, 5).map((activity, idx) => {
                 const iconMap: Record<string, React.ElementType> = {
                   document: DocumentTextIcon,
                   check: CheckCircleIcon,
@@ -464,25 +480,6 @@ export default function ModernDashboardPage() {
             </Link>
           </div>
 
-          {/* Quick Stats - Personio-style filled cards */}
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard
-              title="Obligations"
-              value={`${(complianceData?.obligations?.compliance_rate || 0).toFixed(1)}%`}
-              color={(complianceData?.obligations?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.obligations?.compliance_rate || 0) >= 70 ? 'warning' : 'danger'}
-              variant="filled"
-              size="sm"
-              chart={trendData?.compliance_rate || undefined}
-            />
-            <StatCard
-              title="SLA Performance"
-              value={`${(complianceData?.slas?.compliance_rate || 0).toFixed(1)}%`}
-              color={(complianceData?.slas?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.slas?.compliance_rate || 0) >= 70 ? 'warning' : 'danger'}
-              variant="filled"
-              size="sm"
-              chart={trendData?.sla_compliance_rate || undefined}
-            />
-          </div>
         </div>
       </div>
     </div>

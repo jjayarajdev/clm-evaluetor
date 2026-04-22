@@ -12,6 +12,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Cache-bust: unique build ID forces new asset hashes each deploy
+ARG CACHE_BUST=1
+ENV VITE_BUILD_ID=$CACHE_BUST
+
 # Build the application
 RUN npm run build
 

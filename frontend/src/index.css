@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Flyout menu animation */
+@keyframes flyoutIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* ── Coast Theme ─────────────────────────────────────────────────
    Primary palette built around #5A687D (slate blue-gray).
    Change these variables to re-theme the entire application.

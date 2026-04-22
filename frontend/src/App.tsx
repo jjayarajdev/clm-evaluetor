@@ -1,4 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+
+// Force unique build hash
+if (typeof window !== 'undefined') (window as any).__BUILD = '20260422v4'
 import { useAuth } from './contexts/AuthContext'
 import { SidebarProvider } from './contexts/SidebarContext'
 import MainLayout from './components/layout/MainLayout'

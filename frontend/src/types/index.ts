@@ -81,6 +81,9 @@ export interface ContractSummary {
   counterparty: string | null
   status: ContractStatus
   risk_level: RiskLevel | null
+  contract_value: number | null
+  currency: string | null
+  expiration_date: string | null
   uploaded_at: string
 }
 
@@ -89,9 +92,6 @@ export interface Contract extends ContractSummary {
   file_size: number | null
   mime_type: string | null
   effective_date: string | null
-  expiration_date: string | null
-  contract_value: number | null
-  currency: string | null
   jurisdiction: string | null
   risk_score: number | null
   auto_renewal: boolean | null

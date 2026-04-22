@@ -63,6 +63,9 @@ def contract_to_summary(contract) -> ContractSummary:
         counterparty=contract.counterparty,
         status=contract.status.value,
         risk_level=contract.risk_level.value if contract.risk_level else None,
+        contract_value=contract.contract_value,
+        currency=contract.currency,
+        expiration_date=contract.expiration_date,
         uploaded_at=contract.created_at,
     )
 
@@ -1549,10 +1552,36 @@ async def get_contract_hierarchy(
     """
     from app.models.contract_link import ContractLink
     from app.core.tenant import apply_tenant_filter
+    from app.models.user import Role
 
-    # Get all contracts for the tenant
+    # Get all contracts for the tenant with BU filtering
     contracts_query = select(Contract)
     contracts_query = apply_tenant_filter(contracts_query, tenant_id, Contract)
+
+    # Apply BU filter based on user role (same logic as ContractService)
+    user_role = current_user.role.value if current_user.role else None
+    bu_id = current_user.business_unit_id
+    if user_role not in [Role.SUPER_ADMIN.value, Role.ADMIN.value, "super_admin", "admin"]:
+        if bu_id is not None:
+            if user_role in [Role.BU_HEAD.value, "bu_head"]:
+                bu_child_ids = []
+                if current_user.business_unit:
+                    bu_child_ids = list(current_user.business_unit.get_all_child_ids())
+                all_bu_ids = [bu_id] + bu_child_ids
+                contracts_query = contracts_query.where(
+                    or_(
+                        Contract.business_unit_id.in_(all_bu_ids),
+                        Contract.business_unit_id.is_(None),
+                    )
+                )
+            else:
+                contracts_query = contracts_query.where(
+                    or_(
+                        Contract.business_unit_id == bu_id,
+                        Contract.business_unit_id.is_(None),
+                    )
+                )
+
     result = await db.execute(contracts_query)
     contracts = result.scalars().all()
 
