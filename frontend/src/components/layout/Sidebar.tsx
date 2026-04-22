@@ -162,7 +162,7 @@ function NavItemLink({
               aria-hidden="true"
             />
             {!collapsed && (
-              <span className={cn('font-medium truncate', indent ? 'text-xs' : 'text-sm')}>{item.name}</span>
+              <span className={cn('font-medium truncate', indent ? 'text-[13px]' : 'text-sm')}>{item.name}</span>
             )}
           </>
         )}
@@ -215,7 +215,7 @@ function CollapsibleGroup({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider transition-colors',
+          'w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[11px] font-medium uppercase tracking-wider transition-colors',
           hasActiveChild
             ? 'text-primary-700'
             : 'text-gray-500 hover:text-gray-700'
@@ -316,7 +316,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <>
             <div className={cn('border-t border-gray-200 !my-3', collapsed ? 'w-6' : 'w-full')} />
             {!collapsed && (
-              <p className="px-3 mb-1 text-[10px] font-bold text-primary-400 uppercase tracking-wider">Admin</p>
+              <p className="px-3 mb-1 text-[11px] font-medium text-primary-400 uppercase tracking-wider">Admin</p>
             )}
             {adminGroups.map((group) => (
               <CollapsibleGroup key={group.label} group={group} userRole={role} onClose={onClose} collapsed={collapsed} />
@@ -329,7 +329,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <>
             <div className={cn('border-t border-gray-200 !my-3', collapsed ? 'w-6' : 'w-full')} />
             {!collapsed && (
-              <p className="px-3 mb-2 text-[10px] font-semibold text-primary-400 uppercase tracking-wider">
+              <p className="px-3 mb-2 text-[11px] font-medium text-primary-400 uppercase tracking-wider">
                 Super Admin
               </p>
             )}
