@@ -33,7 +33,7 @@ export default function MasterDataPage() {
               className={cn(
                 'flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-medium transition-colors',
                 activeTab === tab.key
-                  ? 'border-violet-500 text-violet-600'
+                  ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               )}
             >

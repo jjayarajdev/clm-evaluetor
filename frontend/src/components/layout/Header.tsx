@@ -48,16 +48,30 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
           {/* User menu */}
           <Menu as="div" className="relative">
-            <Menu.Button className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-50">
-              <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
-                <span className="text-sm font-medium text-primary-700">
+            <Menu.Button className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-gray-50">
+              <div className="hidden sm:block text-right">
+                <span className="block text-sm font-semibold text-gray-900">
+                  {user?.full_name || user?.username}
+                </span>
+                <span className="block text-xs text-gray-500">
+                  <span className={cn(
+                    'inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide mr-1',
+                    user?.role === 'super_admin' ? 'bg-pink-100 text-pink-700' :
+                    user?.role === 'legal' ? 'bg-blue-100 text-blue-700' :
+                    user?.role === 'admin' ? 'bg-primary-100 text-primary-700' :
+                    'bg-gray-100 text-gray-600'
+                  )}>
+                    {user?.role === 'super_admin' ? 'Super Admin' : user?.role}
+                  </span>
+                  {user?.tenant_name || 'System'}
+                </span>
+              </div>
+              <div className="h-9 w-9 rounded-full bg-primary-100 flex items-center justify-center">
+                <span className="text-sm font-semibold text-primary-700">
                   {user?.username.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <span className="hidden sm:block text-gray-700 font-medium">
-                {user?.full_name || user?.username}
-              </span>
-              <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+              <ChevronDownIcon className="h-4 w-4 text-gray-400" />
             </Menu.Button>
 
             <Transition
@@ -75,6 +89,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     {user?.full_name || user?.username}
                   </p>
                   <p className="text-xs text-gray-500">{user?.email}</p>
+                  <p className="text-xs font-medium text-primary-600 capitalize mt-0.5">
+                    {user?.role === 'super_admin' ? 'Super Admin' : user?.role} &middot; {user?.tenant_name || 'System'}
+                  </p>
                 </div>
 
                 <Menu.Item>

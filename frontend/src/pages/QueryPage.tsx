@@ -179,7 +179,7 @@ function TableViz({ data, title }: { data: { columns: string[]; rows: string[][]
           </thead>
           <tbody>
             {data.rows.map((row, ri) => (
-              <tr key={ri} className="border-b border-gray-50 last:border-0 hover:bg-violet-50/30 transition-colors">
+              <tr key={ri} className="border-b border-gray-50 last:border-0 hover:bg-primary-50/30 transition-colors">
                 {row.map((cell, ci) => (
                   <td key={ci} className={cn(
                     'px-4 py-2.5 text-gray-700 whitespace-nowrap',
@@ -215,9 +215,9 @@ function VisualizationRenderer({ viz }: { viz: Visualization }) {
 function TypingIndicator() {
   return (
     <div className="flex items-center gap-1 px-1 py-2">
-      <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:0ms]" />
-      <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:150ms]" />
-      <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:300ms]" />
+      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce [animation-delay:0ms]" />
+      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce [animation-delay:150ms]" />
+      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce [animation-delay:300ms]" />
     </div>
   )
 }
@@ -284,7 +284,7 @@ function ChatHistorySidebar({
       <div className="p-3 border-b border-gray-100">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 transition-all shadow-sm"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-primary-50 hover:border-primary-200 hover:text-primary-700 transition-all shadow-sm"
         >
           <PlusIcon className="h-4 w-4" />
           New Chat
@@ -295,7 +295,7 @@ function ChatHistorySidebar({
       <div className="flex-1 overflow-y-auto px-2 py-2">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="w-5 h-5 border-2 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
           </div>
         ) : sessions.length === 0 ? (
           <div className="text-center py-12 px-4">
@@ -319,7 +319,7 @@ function ChatHistorySidebar({
                   className={cn(
                     'group relative w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left cursor-pointer transition-all duration-100',
                     session.id === activeSessionId
-                      ? 'bg-violet-50 text-violet-700'
+                      ? 'bg-primary-50 text-primary-700'
                       : 'text-gray-600 hover:bg-gray-50'
                   )}
                 >
@@ -328,7 +328,7 @@ function ChatHistorySidebar({
                   {session.message_count > 0 && (
                     <span className={cn(
                       'text-[10px] tabular-nums shrink-0 transition-opacity',
-                      session.id === activeSessionId ? 'text-violet-400' : 'text-gray-300',
+                      session.id === activeSessionId ? 'text-primary-400' : 'text-gray-300',
                       'group-hover:opacity-0'
                     )}>
                       {session.message_count}
@@ -572,8 +572,8 @@ export default function QueryPage() {
         {!loadingSession && !hasMessages && (
           <div className="flex-1 flex flex-col items-center justify-center px-4">
             <div className="relative mb-8">
-              <div className="absolute inset-0 blur-3xl opacity-20 bg-gradient-to-r from-violet-400 via-blue-400 to-violet-400 rounded-full scale-150" />
-              <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-lg shadow-violet-200">
+              <div className="absolute inset-0 blur-3xl opacity-20 bg-gradient-to-r from-primary-400 via-blue-400 to-primary-400 rounded-full scale-150" />
+              <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-200">
                 <SparklesIcon className="h-8 w-8 text-white" />
               </div>
             </div>
@@ -585,10 +585,10 @@ export default function QueryPage() {
             </p>
 
             {selectedContract && selectedContractName && (
-              <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-50 border border-violet-100 text-xs font-medium text-violet-700">
+              <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-50 border border-primary-100 text-xs font-medium text-primary-700">
                 <DocumentTextIcon className="h-3.5 w-3.5" />
                 Scoped to: {selectedContractName}
-                <button onClick={() => setSelectedContract(undefined)} className="ml-1 hover:text-violet-900">
+                <button onClick={() => setSelectedContract(undefined)} className="ml-1 hover:text-primary-900">
                   <XMarkIcon className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -600,10 +600,10 @@ export default function QueryPage() {
                   key={idx}
                   onClick={() => submitQuestion(q.text)}
                   disabled={isSubmitting}
-                  className="group flex items-center gap-3 text-left px-4 py-3 rounded-xl border border-gray-150 bg-white hover:border-violet-200 hover:bg-violet-50/50 transition-all duration-150 shadow-sm hover:shadow disabled:opacity-50"
+                  className="group flex items-center gap-3 text-left px-4 py-3 rounded-xl border border-gray-150 bg-white hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-150 shadow-sm hover:shadow disabled:opacity-50"
                 >
                   <span className="text-base">{q.icon}</span>
-                  <span className="text-sm text-gray-700 group-hover:text-violet-700 transition-colors leading-snug">
+                  <span className="text-sm text-gray-700 group-hover:text-primary-700 transition-colors leading-snug">
                     {q.text}
                   </span>
                 </button>
@@ -620,7 +620,7 @@ export default function QueryPage() {
                 <div key={message.id}>
                   {message.role === 'user' && (
                     <div className="flex justify-end mb-1">
-                      <div className="max-w-2xl px-4 py-2.5 rounded-2xl rounded-br-md bg-violet-600 text-white shadow-sm">
+                      <div className="max-w-2xl px-4 py-2.5 rounded-2xl rounded-br-md bg-primary-600 text-white shadow-sm">
                         <p className="text-sm leading-relaxed">{message.content}</p>
                       </div>
                     </div>
@@ -629,7 +629,7 @@ export default function QueryPage() {
                   {message.role === 'assistant' && (
                     <div className="flex gap-3">
                       <div className="shrink-0 mt-1">
-                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center">
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
                           <SparklesIcon className="h-3.5 w-3.5 text-white" />
                         </div>
                       </div>
@@ -655,7 +655,7 @@ export default function QueryPage() {
                                 key={idx}
                                 onClick={() => submitQuestion(q)}
                                 disabled={isSubmitting}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-gray-200 text-gray-600 rounded-full hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-all duration-150 shadow-sm disabled:opacity-50"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-gray-200 text-gray-600 rounded-full hover:border-primary-300 hover:text-primary-700 hover:bg-primary-50 transition-all duration-150 shadow-sm disabled:opacity-50"
                               >
                                 <ChevronRightIcon className="h-3 w-3" />
                                 {q}
@@ -672,7 +672,7 @@ export default function QueryPage() {
               {isSubmitting && (
                 <div className="flex gap-3">
                   <div className="shrink-0 mt-1">
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
                       <SparklesIcon className="h-3.5 w-3.5 text-white" />
                     </div>
                   </div>
@@ -694,10 +694,10 @@ export default function QueryPage() {
             <div className="max-w-4xl mx-auto">
               {hasMessages && selectedContract && selectedContractName && (
                 <div className="mb-2 flex items-center">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-50 text-xs font-medium text-violet-600">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary-50 text-xs font-medium text-primary-600">
                     <DocumentTextIcon className="h-3 w-3" />
                     {selectedContractName}
-                    <button onClick={() => setSelectedContract(undefined)} className="ml-0.5 hover:text-violet-800">
+                    <button onClick={() => setSelectedContract(undefined)} className="ml-0.5 hover:text-primary-800">
                       <XMarkIcon className="h-3 w-3" />
                     </button>
                   </span>
@@ -711,13 +711,13 @@ export default function QueryPage() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask about your contracts..."
-                  className="w-full pl-4 pr-14 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 focus:bg-white transition-all placeholder:text-gray-400"
+                  className="w-full pl-4 pr-14 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400 focus:bg-white transition-all placeholder:text-gray-400"
                   disabled={isSubmitting}
                 />
                 <button
                   type="submit"
                   disabled={!input.trim() || isSubmitting}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:bg-gray-200 disabled:text-gray-400 transition-all duration-150"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:bg-gray-200 disabled:text-gray-400 transition-all duration-150"
                 >
                   <PaperAirplaneIcon className="h-4 w-4" />
                 </button>

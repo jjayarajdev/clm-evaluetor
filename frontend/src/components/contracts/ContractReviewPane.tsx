@@ -622,7 +622,7 @@ function InlineComments({
         className={cn(
           'flex items-center gap-1 text-xs px-1.5 py-0.5 rounded',
           comments.length > 0
-            ? 'text-violet-600 bg-violet-50 hover:bg-violet-100'
+            ? 'text-primary-600 bg-primary-50 hover:bg-primary-100'
             : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
         )}
       >
@@ -631,7 +631,7 @@ function InlineComments({
       </button>
 
       {showComments && (
-        <div className="mt-1.5 ml-1 border-l-2 border-violet-200 pl-2 space-y-1.5">
+        <div className="mt-1.5 ml-1 border-l-2 border-primary-200 pl-2 space-y-1.5">
           {comments.map((c) => (
             <div key={c.id} className="text-xs">
               <div className="flex items-center gap-1.5">
@@ -651,12 +651,12 @@ function InlineComments({
               onChange={(e) => setNewComment(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
               placeholder="Add comment..."
-              className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-violet-400"
+              className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-primary-400"
             />
             <button
               onClick={handleSubmit}
               disabled={!newComment.trim()}
-              className="text-xs px-2 py-1 bg-violet-600 text-white rounded hover:bg-violet-700 disabled:opacity-40"
+              className="text-xs px-2 py-1 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-40"
             >
               Send
             </button>
@@ -800,7 +800,7 @@ function ObligationRow({
           {obligation.status?.replace('_', ' ')}
         </span>
         {comments.length > 0 && (
-          <span className="flex items-center gap-0.5 text-xs text-violet-600 flex-shrink-0">
+          <span className="flex items-center gap-0.5 text-xs text-primary-600 flex-shrink-0">
             <ChatBubbleLeftIcon className="h-3 w-3" />
             {comments.length}
           </span>
@@ -889,7 +889,7 @@ function SLARow({
         </button>
         <RiskBadge level={sla.severity} />
         {comments.length > 0 && (
-          <span className="flex items-center gap-0.5 text-xs text-violet-600">
+          <span className="flex items-center gap-0.5 text-xs text-primary-600">
             <ChatBubbleLeftIcon className="h-3 w-3" />
             {comments.length}
           </span>

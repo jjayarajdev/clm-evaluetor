@@ -2,6 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Flyout menu animation */
+@keyframes flyoutIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── Coast Theme ─────────────────────────────────────────────────
+   Primary palette built around #5A687D (slate blue-gray).
+   Change these variables to re-theme the entire application.
+   ─────────────────────────────────────────────────────────────── */
+:root {
+  --color-primary-50:  #F4F6F8;
+  --color-primary-100: #E8ECF1;
+  --color-primary-200: #D1D9E2;
+  --color-primary-300: #B0BCC9;
+  --color-primary-400: #8A9AAD;
+  --color-primary-500: #6B7D91;
+  --color-primary-600: #5A687D;
+  --color-primary-700: #49576A;
+  --color-primary-800: #3D4A5C;
+  --color-primary-900: #2C3847;
+  --color-primary-950: #1E2A3A;
+
+  --color-accent-warm: #C4956A;
+  --color-accent-teal: #6B9E9B;
+}
+
 @layer base {
   html {
     @apply antialiased;
@@ -20,11 +53,11 @@
   }
 
   .btn-primary {
-    @apply btn bg-violet-600 text-white hover:bg-violet-700 focus:ring-violet-500 shadow-sm hover:shadow;
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-sm hover:shadow;
   }
 
   .btn-secondary {
-    @apply btn bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 focus:ring-violet-500;
+    @apply btn bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 focus:ring-primary-500;
   }
 
   .btn-danger {
@@ -37,7 +70,7 @@
 
   /* Personio-style inputs */
   .input {
-    @apply block w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-100 focus:border-violet-400 transition-all duration-150;
+    @apply block w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400 transition-all duration-150;
   }
 
   .input:hover:not(:focus) {
@@ -90,10 +123,10 @@
 
 /* Focus visible for accessibility */
 :focus-visible {
-  @apply outline-none ring-2 ring-violet-500 ring-offset-2;
+  @apply outline-none ring-2 ring-primary-500 ring-offset-2;
 }
 
 /* Selection color */
 ::selection {
-  @apply bg-violet-100 text-violet-900;
+  @apply bg-primary-100 text-primary-900;
 }

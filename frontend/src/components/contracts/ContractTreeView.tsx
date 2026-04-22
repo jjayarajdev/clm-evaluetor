@@ -71,7 +71,7 @@ function TreeNode({ node, depth, onDragStart, onDragOver, onDrop, onUnlink, drag
         className={cn(
           'flex items-center gap-2 py-2 px-3 rounded-lg cursor-grab transition-all group',
           'hover:bg-gray-50 active:cursor-grabbing',
-          isDragTarget && 'ring-2 ring-violet-400 bg-violet-50',
+          isDragTarget && 'ring-2 ring-primary-400 bg-primary-50',
         )}
         style={{ paddingLeft: `${depth * 24 + 12}px` }}
       >
@@ -108,7 +108,7 @@ function TreeNode({ node, depth, onDragStart, onDragOver, onDrop, onUnlink, drag
         <Link
           to={`/contracts/${node.id}`}
           draggable={false}
-          className="text-sm font-medium text-gray-900 hover:text-violet-700 truncate flex-1 min-w-0"
+          className="text-sm font-medium text-gray-900 hover:text-primary-700 truncate flex-1 min-w-0"
           onClick={(e) => e.stopPropagation()}
         >
           {node.filename}
@@ -116,7 +116,7 @@ function TreeNode({ node, depth, onDragStart, onDragOver, onDrop, onUnlink, drag
 
         {/* Link type badge (how this relates to its parent) */}
         {node.link_type && (
-          <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
+          <span className="text-[10px] bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
             {LINK_TYPE_LABELS[node.link_type] || node.link_type}
           </span>
         )}
@@ -328,7 +328,7 @@ export default function ContractTreeView({ roots, totalContracts, totalLinks }: 
           'mx-3 mt-2 rounded-lg border-2 border-dashed transition-all text-center',
           draggingId
             ? dragOverId === '__root__'
-              ? 'border-violet-400 bg-violet-50 py-3'
+              ? 'border-primary-400 bg-primary-50 py-3'
               : 'border-gray-300 bg-gray-50 py-3'
             : 'border-transparent py-0 h-0 overflow-hidden',
         )}
@@ -336,7 +336,7 @@ export default function ContractTreeView({ roots, totalContracts, totalLinks }: 
         {draggingId && (
           <p className={cn(
             'text-xs font-medium',
-            dragOverId === '__root__' ? 'text-violet-600' : 'text-gray-400',
+            dragOverId === '__root__' ? 'text-primary-600' : 'text-gray-400',
           )}>
             Drop here to move to root level
           </p>
@@ -376,7 +376,7 @@ export default function ContractTreeView({ roots, totalContracts, totalLinks }: 
 
       {/* Feedback */}
       {(moveMutation.isPending || unlinkMutation.isPending) && (
-        <div className="px-4 py-2 border-t bg-violet-50 text-sm text-violet-700 text-center">
+        <div className="px-4 py-2 border-t bg-primary-50 text-sm text-primary-700 text-center">
           {moveMutation.isPending ? 'Moving contract...' : 'Removing link...'}
         </div>
       )}

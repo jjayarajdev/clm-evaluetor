@@ -18,19 +18,19 @@ export default function AdminDashboard({ data }: Props) {
       name: 'Total Contracts',
       value: formatNumber(data.contract_stats.total),
       icon: DocumentTextIcon,
-      color: 'bg-blue-500',
+      color: 'bg-primary-600',
     },
     {
       name: 'Total Users',
       value: formatNumber(data.user_stats.total),
       icon: UsersIcon,
-      color: 'bg-green-500',
+      color: 'bg-emerald-500',
     },
     {
       name: 'Queries (7d)',
       value: formatNumber(data.activity.queries_7d),
       icon: MagnifyingGlassIcon,
-      color: 'bg-purple-500',
+      color: 'bg-primary-500',
     },
     {
       name: 'Uploads (7d)',

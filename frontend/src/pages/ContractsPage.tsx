@@ -3,23 +3,96 @@ import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import {
   MagnifyingGlassIcon,
-  FunnelIcon,
   XMarkIcon,
   ChevronDownIcon,
   BuildingOfficeIcon,
   TrashIcon,
   ExclamationTriangleIcon,
-  DocumentTextIcon,
   PlusIcon,
   ListBulletIcon,
   Squares2X2Icon,
+  FunnelIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import PageHeader from '@/components/ui/PageHeader'
-import StatCard from '@/components/ui/StatCard'
 import ContractTreeView from '@/components/contracts/ContractTreeView'
-import { cn, formatDate, getRiskColor, getStatusColor } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+
+// ── Helpers ──────────────────────────────────────────────────────
+
+function formatValue(value: number | null, currency: string | null): string {
+  if (value == null) return '\u2014'
+  const c = currency || 'USD'
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: c, maximumFractionDigits: 0 }).format(value)
+}
+
+function formatExpiry(dateStr: string | null): string {
+  if (!dateStr) return '\u2014'
+  const d = new Date(dateStr)
+  const now = new Date()
+  // Check if ongoing (far future or no real date)
+  if (d.getFullYear() > now.getFullYear() + 50) return 'Ongoing'
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+const statusStyles: Record<string, string> = {
+  completed: 'bg-emerald-100 text-emerald-700',
+  active: 'bg-emerald-100 text-emerald-700',
+  processing: 'bg-blue-100 text-blue-700',
+  pending: 'bg-gray-100 text-gray-600',
+  draft: 'bg-gray-100 text-gray-600',
+  failed: 'bg-red-100 text-red-700',
+  expired: 'bg-red-100 text-red-700',
+  under_review: 'bg-blue-100 text-blue-700',
+}
+
+const riskStyles: Record<string, string> = {
+  low: 'bg-emerald-100 text-emerald-700',
+  medium: 'bg-amber-100 text-amber-700',
+  high: 'bg-red-100 text-red-700',
+  critical: 'bg-purple-100 text-purple-700',
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const key = status.toLowerCase().replace(/\s+/g, '_')
+  const label = status.replace(/_/g, ' ')
+  return (
+    <span className={cn(
+      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize',
+      statusStyles[key] || 'bg-gray-100 text-gray-600'
+    )}>
+      {label}
+    </span>
+  )
+}
+
+function RiskBadge({ level }: { level: string }) {
+  return (
+    <span className={cn(
+      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize',
+      riskStyles[level.toLowerCase()] || 'bg-gray-100 text-gray-600'
+    )}>
+      {level}
+    </span>
+  )
+}
+
+// ── Type filter pills ────────────────────────────────────────────
+
+const typeLabels: Record<string, string> = {
+  msa: 'MSA',
+  nda: 'NDA',
+  sow: 'SOW',
+  amendment: 'Amendment',
+  vendor_agreement: 'Vendor',
+  employment: 'Employment',
+  consulting: 'Consulting',
+  license: 'License',
+}
+
+// ── Page Component ───────────────────────────────────────────────
 
 export default function ContractsPage() {
   const queryClient = useQueryClient()
@@ -37,6 +110,7 @@ export default function ContractsPage() {
   const [selectedContracts, setSelectedContracts] = useState<Set<string>>(new Set())
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'tree'>('table')
+  const pageSize = 10
   const partyDropdownRef = useRef<HTMLDivElement>(null)
   const partyInputRef = useRef<HTMLInputElement>(null)
   const clientDropdownRef = useRef<HTMLDivElement>(null)
@@ -47,12 +121,12 @@ export default function ContractsPage() {
     queryFn: () => api.getContractFilterOptions(),
   })
 
-  // Fetch contracts with filters
+  // Fetch contracts
   const { data, isLoading } = useQuery({
     queryKey: ['contracts', page, search, selectedCounterparty, selectedType, selectedRisk, selectedClientId],
     queryFn: () => api.getContracts({
       page,
-      page_size: 20,
+      page_size: pageSize,
       search: search || undefined,
       counterparty: selectedCounterparty || undefined,
       contract_type: selectedType || undefined,
@@ -61,56 +135,44 @@ export default function ContractsPage() {
     }),
   })
 
-  // Fetch contract hierarchy for tree view
+  // Tree view
   const { data: hierarchyData, isLoading: hierarchyLoading } = useQuery({
     queryKey: ['contract-hierarchy'],
     queryFn: () => api.getContractHierarchy(),
     enabled: viewMode === 'tree',
   })
 
-  // Batch delete mutation
+  // Batch delete
   const deleteMutation = useMutation({
     mutationFn: (contractIds: string[]) => api.batchDeleteContracts(contractIds),
     onSuccess: () => {
-      // Clear selection and refresh data
       setSelectedContracts(new Set())
       setShowDeleteConfirm(false)
-      // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: ['contracts'] })
       queryClient.invalidateQueries({ queryKey: ['contract-filter-options'] })
       queryClient.invalidateQueries({ queryKey: ['contracts-summary'] })
-      queryClient.invalidateQueries({ queryKey: ['obligations-summary'] })
-      queryClient.invalidateQueries({ queryKey: ['clauses-summary'] })
-      queryClient.invalidateQueries({ queryKey: ['clients-summary'] })
     },
   })
 
-  // Toggle single contract selection
   const toggleContractSelection = (contractId: string) => {
     setSelectedContracts(prev => {
       const next = new Set(prev)
-      if (next.has(contractId)) {
-        next.delete(contractId)
-      } else {
-        next.add(contractId)
-      }
+      if (next.has(contractId)) next.delete(contractId)
+      else next.add(contractId)
       return next
     })
   }
 
-  // Toggle all contracts on current page
   const toggleAllContracts = () => {
     if (!data?.items) return
     const allSelected = data.items.every(c => selectedContracts.has(c.id))
     if (allSelected) {
-      // Deselect all on current page
       setSelectedContracts(prev => {
         const next = new Set(prev)
         data.items.forEach(c => next.delete(c.id))
         return next
       })
     } else {
-      // Select all on current page
       setSelectedContracts(prev => {
         const next = new Set(prev)
         data.items.forEach(c => next.add(c.id))
@@ -119,30 +181,18 @@ export default function ContractsPage() {
     }
   }
 
-  const handleBatchDelete = () => {
-    if (selectedContracts.size === 0) return
-    deleteMutation.mutate(Array.from(selectedContracts))
-  }
-
-  // Close dropdowns when clicking outside
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (partyDropdownRef.current && !partyDropdownRef.current.contains(event.target as Node)) {
-        setPartyDropdownOpen(false)
-      }
-      if (clientDropdownRef.current && !clientDropdownRef.current.contains(event.target as Node)) {
-        setClientDropdownOpen(false)
-      }
+      if (partyDropdownRef.current && !partyDropdownRef.current.contains(event.target as Node)) setPartyDropdownOpen(false)
+      if (clientDropdownRef.current && !clientDropdownRef.current.contains(event.target as Node)) setClientDropdownOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Focus input when dropdown opens
   useEffect(() => {
-    if (partyDropdownOpen && partyInputRef.current) {
-      partyInputRef.current.focus()
-    }
+    if (partyDropdownOpen && partyInputRef.current) partyInputRef.current.focus()
   }, [partyDropdownOpen])
 
   const handleSearch = (e: React.FormEvent) => {
@@ -159,14 +209,28 @@ export default function ContractsPage() {
     setPage(1)
   }
 
-  const hasActiveFilters = selectedCounterparty || selectedType || selectedRisk || selectedClientId
-
+  const hasActiveFilters = selectedCounterparty || selectedRisk || selectedClientId
   const selectedClient = filterOptions?.clients?.find((c: any) => c.id === selectedClientId)
-
-  // Filter counterparties by search
-  const filteredCounterparties = filterOptions?.counterparties.filter(cp =>
+  const filteredCounterparties = filterOptions?.counterparties.filter((cp: string) =>
     cp.toLowerCase().includes(partySearch.toLowerCase())
   ) || []
+
+  // Pagination helpers
+  const totalPages = data?.pages || 1
+  const startItem = data ? (data.page - 1) * pageSize + 1 : 0
+  const endItem = data ? Math.min(data.page * pageSize, data.total) : 0
+
+  function getPageNumbers(): (number | '...')[] {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
+    const pages: (number | '...')[] = [1]
+    if (page > 3) pages.push('...')
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
+      pages.push(i)
+    }
+    if (page < totalPages - 2) pages.push('...')
+    pages.push(totalPages)
+    return pages
+  }
 
   return (
     <div className="space-y-6">
@@ -187,524 +251,250 @@ export default function ContractsPage() {
               clauses, obligations, and vector embeddings. This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={deleteMutation.isPending}
-                className="btn-secondary"
-              >
+              <button onClick={() => setShowDeleteConfirm(false)} disabled={deleteMutation.isPending} className="btn-secondary">
                 Cancel
               </button>
               <button
-                onClick={handleBatchDelete}
+                onClick={() => deleteMutation.mutate(Array.from(selectedContracts))}
                 disabled={deleteMutation.isPending}
                 className="btn-primary bg-red-600 hover:bg-red-700 focus:ring-red-500 flex items-center gap-2"
               >
-                {deleteMutation.isPending ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <TrashIcon className="h-4 w-4" />
-                    Delete
-                  </>
-                )}
+                {deleteMutation.isPending ? <><LoadingSpinner size="sm" /> Deleting...</> : <><TrashIcon className="h-4 w-4" /> Delete</>}
               </button>
             </div>
-            {deleteMutation.isError && (
-              <p className="mt-3 text-sm text-red-600">
-                Error: {(deleteMutation.error as Error).message}
-              </p>
-            )}
           </div>
         </div>
       )}
 
       {/* Header */}
-      <PageHeader
-        title="Contracts"
-        description="Browse and manage your contract documents"
-        icon={DocumentTextIcon}
-        variant="bordered"
-        actions={
-          <div className="flex items-center gap-3">
-            {selectedContracts.size > 0 && (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                <TrashIcon className="h-4 w-4" />
-                Delete ({selectedContracts.size})
-              </button>
-            )}
-            <Link
-              to="/upload"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Contracts</h1>
+          <p className="mt-1 text-sm text-gray-500">Manage and review your contract portfolio</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {selectedContracts.size > 0 && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
             >
-              <PlusIcon className="h-4 w-4" />
-              Upload Contract
-            </Link>
-          </div>
-        }
-      />
+              <TrashIcon className="h-4 w-4" />
+              Delete ({selectedContracts.size})
+            </button>
+          )}
+          <Link
+            to="/upload"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 transition-colors"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Upload
+          </Link>
+        </div>
+      </div>
 
-      {/* Quick Stats - Personio-style filled widgets */}
-      {data && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Contracts"
-            value={data.total}
-            icon={DocumentTextIcon}
-            color="primary"
-            variant="filled"
-            chart={[5, 8, 6, 9, 7, 11, 10, 12]}
-          />
-          <StatCard
-            title="High Risk"
-            value={data.items.filter(c => c.risk_level === 'high' || c.risk_level === 'critical').length}
-            icon={ExclamationTriangleIcon}
-            color="danger"
-            variant="filled"
-            chart={[6, 5, 4, 5, 3, 2, 3, 2]}
-          />
-          <StatCard
-            title="Processing"
-            value={data.items.filter(c => c.status === 'processing').length}
-            icon={DocumentTextIcon}
-            color="warning"
-            variant="filled"
-          />
-          <StatCard
-            title="Completed"
-            value={data.items.filter(c => c.status === 'completed').length}
-            icon={DocumentTextIcon}
-            color="success"
-            variant="filled"
-            chart={[8, 10, 12, 15, 14, 18, 20, 22]}
+      {/* Search bar - full width */}
+      <form onSubmit={handleSearch}>
+        <div className="relative">
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search contracts by name, counterparty, or type..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition-all"
           />
         </div>
-      )}
+      </form>
 
-      {/* Search and filters */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <form onSubmit={handleSearch} className="flex-1 max-w-md">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search contracts..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="input pl-10"
-              />
-            </div>
-          </form>
+      {/* Type filter pills + advanced filter toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => { setSelectedType(null); setPage(1) }}
+            className={cn(
+              'px-4 py-1.5 rounded-full text-sm font-medium border transition-all',
+              !selectedType
+                ? 'bg-primary-700 text-white border-primary-700'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+            )}
+          >
+            All
+          </button>
+          {(filterOptions?.contract_types || []).map((type: string) => (
+            <button
+              key={type}
+              onClick={() => { setSelectedType(selectedType === type ? null : type); setPage(1) }}
+              className={cn(
+                'px-4 py-1.5 rounded-full text-sm font-medium border transition-all',
+                selectedType === type
+                  ? 'bg-primary-700 text-white border-primary-700'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              )}
+            >
+              {typeLabels[type] || type.toUpperCase()}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
-              "btn-secondary",
-              hasActiveFilters && "ring-2 ring-primary-500"
+              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors',
+              hasActiveFilters
+                ? 'bg-primary-50 border-primary-300 text-primary-700'
+                : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
             )}
           >
-            <FunnelIcon className="h-4 w-4 mr-2" />
+            <FunnelIcon className="h-4 w-4" />
             Filters
-            {hasActiveFilters && (
-              <span className="ml-1 bg-primary-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                {[selectedCounterparty, selectedType, selectedRisk].filter(Boolean).length}
-              </span>
-            )}
           </button>
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
-              Clear all
-            </button>
-          )}
           {/* View mode toggle */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5 ml-auto">
-            <button
-              onClick={() => setViewMode('table')}
-              className={cn(
-                'p-1.5 rounded-md transition-colors',
-                viewMode === 'table' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-              )}
-              title="Table view"
-            >
+          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+            <button onClick={() => setViewMode('table')} className={cn('p-1.5 rounded-md transition-colors', viewMode === 'table' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700')} title="Table view">
               <ListBulletIcon className="h-4 w-4" />
             </button>
-            <button
-              onClick={() => setViewMode('tree')}
-              className={cn(
-                'p-1.5 rounded-md transition-colors',
-                viewMode === 'tree' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-              )}
-              title="Tree view"
-            >
+            <button onClick={() => setViewMode('tree')} className={cn('p-1.5 rounded-md transition-colors', viewMode === 'tree' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700')} title="Tree view">
               <Squares2X2Icon className="h-4 w-4" />
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Filter Panel */}
-        {showFilters && (
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Client Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Client
-                </label>
-                <div className="relative" ref={clientDropdownRef}>
-                  <button
-                    onClick={() => setClientDropdownOpen(!clientDropdownOpen)}
-                    className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left text-sm transition-colors bg-white",
-                      clientDropdownOpen
-                        ? "border-primary-500 ring-2 ring-primary-100"
-                        : "border-gray-300 hover:border-gray-400"
-                    )}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <BuildingOfficeIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      {selectedClient ? (
-                        <span className="truncate font-medium text-gray-900">
-                          {selectedClient.name}
-                        </span>
-                      ) : (
-                        <span className="text-gray-500">All Clients</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {selectedClientId && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedClientId(null)
-                            setPage(1)
-                          }}
-                          className="p-0.5 hover:bg-gray-100 rounded"
-                        >
-                          <XMarkIcon className="h-4 w-4 text-gray-400" />
-                        </button>
-                      )}
-                      <ChevronDownIcon className={cn(
-                        "h-4 w-4 text-gray-400 transition-transform",
-                        clientDropdownOpen && "rotate-180"
-                      )} />
-                    </div>
-                  </button>
-
-                  {clientDropdownOpen && (
-                    <div className="absolute z-50 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg max-h-56 overflow-auto">
-                      <button
-                        onClick={() => {
-                          setSelectedClientId(null)
-                          setClientDropdownOpen(false)
-                          setPage(1)
-                        }}
-                        className={cn(
-                          "w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors",
-                          !selectedClientId && "bg-primary-50"
-                        )}
-                      >
-                        <span className={cn(
-                          "font-medium",
-                          !selectedClientId ? "text-primary-700" : "text-gray-700"
-                        )}>
-                          All Clients
-                        </span>
+      {/* Advanced Filter Panel */}
+      {showFilters && (
+        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Client Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+              <div className="relative" ref={clientDropdownRef}>
+                <button
+                  onClick={() => setClientDropdownOpen(!clientDropdownOpen)}
+                  className={cn(
+                    'w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left text-sm bg-white',
+                    clientDropdownOpen ? 'border-primary-500 ring-2 ring-primary-100' : 'border-gray-300 hover:border-gray-400'
+                  )}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <BuildingOfficeIcon className="h-4 w-4 text-gray-400 shrink-0" />
+                    <span className={selectedClient ? 'truncate font-medium text-gray-900' : 'text-gray-500'}>
+                      {selectedClient ? selectedClient.name : 'All Clients'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {selectedClientId && (
+                      <button onClick={(e) => { e.stopPropagation(); setSelectedClientId(null); setPage(1) }} className="p-0.5 hover:bg-gray-100 rounded">
+                        <XMarkIcon className="h-4 w-4 text-gray-400" />
                       </button>
-                      {filterOptions?.clients?.map((client: any) => (
-                        <button
-                          key={client.id}
-                          onClick={() => {
-                            setSelectedClientId(client.id)
-                            setClientDropdownOpen(false)
-                            setPage(1)
-                          }}
-                          className={cn(
-                            "w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors",
-                            selectedClientId === client.id && "bg-primary-50"
-                          )}
-                        >
-                          <span className={cn(
-                            "truncate",
-                            selectedClientId === client.id ? "text-primary-700 font-medium" : "text-gray-700"
-                          )}>
-                            {client.name} <span className="text-gray-400">({client.code})</span>
-                          </span>
-                          <span className="text-gray-400 text-xs ml-2 flex-shrink-0">
-                            {client.contract_count}
-                          </span>
+                    )}
+                    <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition-transform', clientDropdownOpen && 'rotate-180')} />
+                  </div>
+                </button>
+                {clientDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg max-h-56 overflow-auto">
+                    <button onClick={() => { setSelectedClientId(null); setClientDropdownOpen(false); setPage(1) }} className={cn('w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50', !selectedClientId && 'bg-primary-50')}>
+                      <span className={cn('font-medium', !selectedClientId ? 'text-primary-700' : 'text-gray-700')}>All Clients</span>
+                    </button>
+                    {filterOptions?.clients?.map((client: any) => (
+                      <button key={client.id} onClick={() => { setSelectedClientId(client.id); setClientDropdownOpen(false); setPage(1) }} className={cn('w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50', selectedClientId === client.id && 'bg-primary-50')}>
+                        <span className={cn('truncate', selectedClientId === client.id ? 'text-primary-700 font-medium' : 'text-gray-700')}>
+                          {client.name} <span className="text-gray-400">({client.code})</span>
+                        </span>
+                        <span className="text-gray-400 text-xs ml-2 shrink-0">{client.contract_count}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Counterparty Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Counterparty</label>
+              <div className="relative" ref={partyDropdownRef}>
+                <button
+                  onClick={() => setPartyDropdownOpen(!partyDropdownOpen)}
+                  className={cn(
+                    'w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left text-sm bg-white',
+                    partyDropdownOpen ? 'border-primary-500 ring-2 ring-primary-100' : 'border-gray-300 hover:border-gray-400'
+                  )}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <BuildingOfficeIcon className="h-4 w-4 text-gray-400 shrink-0" />
+                    <span className={selectedCounterparty ? 'truncate font-medium text-gray-900' : 'text-gray-500'}>
+                      {selectedCounterparty || 'All Parties'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {selectedCounterparty && (
+                      <button onClick={(e) => { e.stopPropagation(); setSelectedCounterparty(null); setPage(1) }} className="p-0.5 hover:bg-gray-100 rounded">
+                        <XMarkIcon className="h-4 w-4 text-gray-400" />
+                      </button>
+                    )}
+                    <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition-transform', partyDropdownOpen && 'rotate-180')} />
+                  </div>
+                </button>
+                {partyDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg">
+                    <div className="p-2 border-b border-gray-100">
+                      <div className="relative">
+                        <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input ref={partyInputRef} type="text" placeholder="Search parties..." value={partySearch} onChange={(e) => setPartySearch(e.target.value)} className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-500" />
+                      </div>
+                    </div>
+                    <div className="max-h-56 overflow-y-auto">
+                      <button onClick={() => { setSelectedCounterparty(null); setPartyDropdownOpen(false); setPartySearch(''); setPage(1) }} className={cn('w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50', !selectedCounterparty && 'bg-primary-50')}>
+                        <span className={cn('font-medium', !selectedCounterparty ? 'text-primary-700' : 'text-gray-700')}>All Parties</span>
+                      </button>
+                      {filteredCounterparties.map((party: string) => (
+                        <button key={party} onClick={() => { setSelectedCounterparty(party); setPartyDropdownOpen(false); setPartySearch(''); setPage(1) }} className={cn('w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50', selectedCounterparty === party && 'bg-primary-50')}>
+                          <span className={cn('truncate', selectedCounterparty === party ? 'text-primary-700 font-medium' : 'text-gray-700')}>{party}</span>
                         </button>
                       ))}
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Counterparty/Party Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Party / Counterparty
-                </label>
-                <div className="relative" ref={partyDropdownRef}>
-                  <button
-                    onClick={() => setPartyDropdownOpen(!partyDropdownOpen)}
-                    className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left text-sm transition-colors bg-white",
-                      partyDropdownOpen
-                        ? "border-primary-500 ring-2 ring-primary-100"
-                        : "border-gray-300 hover:border-gray-400"
-                    )}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <BuildingOfficeIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      {selectedCounterparty ? (
-                        <span className="truncate font-medium text-gray-900">
-                          {selectedCounterparty}
-                        </span>
-                      ) : (
-                        <span className="text-gray-500">All Parties</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {selectedCounterparty && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedCounterparty(null)
-                            setPage(1)
-                          }}
-                          className="p-0.5 hover:bg-gray-100 rounded"
-                        >
-                          <XMarkIcon className="h-4 w-4 text-gray-400" />
-                        </button>
-                      )}
-                      <ChevronDownIcon className={cn(
-                        "h-4 w-4 text-gray-400 transition-transform",
-                        partyDropdownOpen && "rotate-180"
-                      )} />
-                    </div>
-                  </button>
-
-                  {/* Dropdown menu */}
-                  {partyDropdownOpen && (
-                    <div className="absolute z-50 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg">
-                      {/* Search input */}
-                      <div className="p-2 border-b border-gray-100">
-                        <div className="relative">
-                          <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <input
-                            ref={partyInputRef}
-                            type="text"
-                            placeholder="Search parties..."
-                            value={partySearch}
-                            onChange={(e) => setPartySearch(e.target.value)}
-                            className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Options list */}
-                      <div className="max-h-56 overflow-y-auto">
-                        {/* All Parties option */}
-                        <button
-                          onClick={() => {
-                            setSelectedCounterparty(null)
-                            setPartyDropdownOpen(false)
-                            setPartySearch('')
-                            setPage(1)
-                          }}
-                          className={cn(
-                            "w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors",
-                            selectedCounterparty === null && "bg-primary-50"
-                          )}
-                        >
-                          <span className={cn(
-                            "font-medium",
-                            selectedCounterparty === null ? "text-primary-700" : "text-gray-700"
-                          )}>
-                            All Parties
-                          </span>
-                          <span className="text-gray-400 text-xs">
-                            ({filterOptions?.counterparties.length || 0})
-                          </span>
-                        </button>
-
-                        {/* Filtered counterparties */}
-                        {filteredCounterparties.length > 0 ? (
-                          filteredCounterparties.map((party) => {
-                            const count = filterOptions?.counterparty_counts[party] || 0
-                            const isSelected = selectedCounterparty === party
-
-                            return (
-                              <button
-                                key={party}
-                                onClick={() => {
-                                  setSelectedCounterparty(party)
-                                  setPartyDropdownOpen(false)
-                                  setPartySearch('')
-                                  setPage(1)
-                                }}
-                                className={cn(
-                                  "w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors",
-                                  isSelected && "bg-primary-50"
-                                )}
-                              >
-                                <span className={cn(
-                                  "truncate",
-                                  isSelected ? "text-primary-700 font-medium" : "text-gray-700"
-                                )}>
-                                  {party}
-                                </span>
-                                <span className="text-gray-400 text-xs ml-2 flex-shrink-0">
-                                  {count}
-                                </span>
-                              </button>
-                            )
-                          })
-                        ) : (
-                          <div className="px-3 py-4 text-center text-sm text-gray-500">
-                            No parties found matching "{partySearch}"
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Contract Type Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contract Type
-                </label>
-                <select
-                  value={selectedType || ''}
-                  onChange={(e) => {
-                    setSelectedType(e.target.value || null)
-                    setPage(1)
-                  }}
-                  className="input text-sm"
-                >
-                  <option value="">All Types</option>
-                  {filterOptions?.contract_types.map((type) => (
-                    <option key={type} value={type}>
-                      {type.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Risk Level Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Risk Level
-                </label>
-                <select
-                  value={selectedRisk || ''}
-                  onChange={(e) => {
-                    setSelectedRisk(e.target.value || null)
-                    setPage(1)
-                  }}
-                  className="input text-sm"
-                >
-                  <option value="">All Risk Levels</option>
-                  {filterOptions?.risk_levels.map((risk) => (
-                    <option key={risk} value={risk}>
-                      {risk.charAt(0).toUpperCase() + risk.slice(1)}
-                    </option>
-                  ))}
-                </select>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Active Filters Tags */}
-        {hasActiveFilters && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-gray-500">Active filters:</span>
-            {selectedCounterparty && (
-              <span className="inline-flex items-center gap-1 bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded-full">
-                <BuildingOfficeIcon className="h-3 w-3" />
-                {selectedCounterparty}
-                <button
-                  onClick={() => { setSelectedCounterparty(null); setPage(1); }}
-                  className="hover:text-primary-900"
-                >
-                  <XMarkIcon className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {selectedType && (
-              <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                Type: {selectedType.toUpperCase()}
-                <button
-                  onClick={() => { setSelectedType(null); setPage(1); }}
-                  className="hover:text-blue-900"
-                >
-                  <XMarkIcon className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {selectedRisk && (
-              <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full">
-                Risk: {selectedRisk}
-                <button
-                  onClick={() => { setSelectedRisk(null); setPage(1); }}
-                  className="hover:text-amber-900"
-                >
-                  <XMarkIcon className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {selectedClient && (
-              <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                <BuildingOfficeIcon className="h-3 w-3" />
-                Client: {selectedClient.name}
-                <button
-                  onClick={() => { setSelectedClientId(null); setPage(1); }}
-                  className="hover:text-green-900"
-                >
-                  <XMarkIcon className="h-3 w-3" />
-                </button>
-              </span>
-            )}
+            {/* Risk Level Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Risk Level</label>
+              <select value={selectedRisk || ''} onChange={(e) => { setSelectedRisk(e.target.value || null); setPage(1) }} className="input text-sm">
+                <option value="">All Risk Levels</option>
+                {filterOptions?.risk_levels.map((risk: string) => (
+                  <option key={risk} value={risk}>{risk.charAt(0).toUpperCase() + risk.slice(1)}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        )}
-      </div>
+          {hasActiveFilters && (
+            <div className="mt-3 flex items-center gap-2">
+              <button onClick={clearFilters} className="text-sm text-primary-600 hover:text-primary-800 font-medium">
+                Clear all filters
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tree View */}
       {viewMode === 'tree' && (
         hierarchyLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <LoadingSpinner size="lg" />
-          </div>
+          <div className="flex items-center justify-center h-64"><LoadingSpinner size="lg" /></div>
         ) : hierarchyData ? (
-          <ContractTreeView
-            roots={hierarchyData.roots}
-            totalContracts={hierarchyData.total_contracts}
-            totalLinks={hierarchyData.total_links}
-          />
+          <ContractTreeView roots={hierarchyData.roots} totalContracts={hierarchyData.total_contracts} totalLinks={hierarchyData.total_links} />
         ) : null
       )}
 
-      {/* Table */}
+      {/* Table View */}
       {viewMode === 'table' && (isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <LoadingSpinner size="lg" />
-        </div>
+        <div className="flex items-center justify-center h-64"><LoadingSpinner size="lg" /></div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50/80">
-              <tr>
+            <thead>
+              <tr className="border-t-2 border-primary-500">
                 <th className="px-4 py-3 w-10">
                   <input
                     type="checkbox"
@@ -713,36 +503,25 @@ export default function ContractsPage() {
                     className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Counterparty
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Risk
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Uploaded
-                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Contract Name</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Counterparty</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Value</th>
+                <th className="px-4 py-3 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Risk</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Expiry</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-100">
               {data?.items.map((contract) => (
                 <tr
                   key={contract.id}
                   className={cn(
-                    "hover:bg-gray-50",
-                    selectedContracts.has(contract.id) && "bg-primary-50"
+                    'hover:bg-gray-50/50 transition-colors',
+                    selectedContracts.has(contract.id) && 'bg-primary-50/50'
                   )}
                 >
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3.5">
                     <input
                       type="checkbox"
                       checked={selectedContracts.has(contract.id)}
@@ -750,58 +529,42 @@ export default function ContractsPage() {
                       className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3.5">
                     <Link
                       to={`/contracts/${contract.id}`}
-                      className="text-sm font-medium text-primary-600 hover:text-primary-800"
+                      className="text-sm font-medium text-gray-900 hover:text-primary-700 transition-colors"
                     >
-                      {contract.filename}
+                      {contract.filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ')}
                     </Link>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900 capitalize">
-                      {contract.contract_type?.toUpperCase() || '-'}
+                  <td className="px-4 py-3.5">
+                    <span className="text-sm text-gray-600">
+                      {contract.contract_type?.toUpperCase() || '\u2014'}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    {contract.counterparty ? (
-                      <button
-                        onClick={() => {
-                          setSelectedCounterparty(contract.counterparty || null)
-                          setShowFilters(true)
-                          setPage(1)
-                        }}
-                        className="text-sm text-gray-700 hover:text-primary-600 hover:underline"
-                      >
-                        {contract.counterparty}
-                      </button>
-                    ) : (
-                      <span className="text-sm text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize',
-                      getStatusColor(contract.status)
-                    )}>
-                      {contract.status}
+                  <td className="px-4 py-3.5">
+                    <span className="text-sm text-gray-700">
+                      {contract.counterparty || '\u2014'}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3.5">
+                    <StatusBadge status={contract.status} />
+                  </td>
+                  <td className="px-4 py-3.5 text-right">
+                    <span className="text-sm text-gray-700 font-medium tabular-nums">
+                      {formatValue(contract.contract_value, contract.currency)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5 text-center">
                     {contract.risk_level ? (
-                      <span className={cn(
-                        'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize',
-                        getRiskColor(contract.risk_level)
-                      )}>
-                        {contract.risk_level}
-                      </span>
+                      <RiskBadge level={contract.risk_level} />
                     ) : (
-                      <span className="text-sm text-gray-400">-</span>
+                      <span className="text-sm text-gray-400">\u2014</span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-500">
-                      {formatDate(contract.uploaded_at)}
+                  <td className="px-4 py-3.5">
+                    <span className="text-sm text-gray-600">
+                      {formatExpiry(contract.expiration_date)}
                     </span>
                   </td>
                 </tr>
@@ -814,36 +577,49 @@ export default function ContractsPage() {
             <div className="text-center py-12">
               <p className="text-gray-500">No contracts found matching your filters.</p>
               {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="mt-2 text-primary-600 hover:text-primary-800 text-sm"
-                >
-                  Clear all filters
-                </button>
+                <button onClick={clearFilters} className="mt-2 text-primary-600 hover:text-primary-800 text-sm">Clear all filters</button>
               )}
             </div>
           )}
 
           {/* Pagination */}
           {data && data.pages > 1 && (
-            <div className="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-              <p className="text-sm text-gray-700">
-                Page {data.page} of {data.pages} ({data.total} total)
+            <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+              <p className="text-sm text-gray-500">
+                Showing {startItem}\u2013{endItem} of {data.total} contracts
               </p>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-1">
                 <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="btn-secondary text-sm disabled:opacity-50"
+                  className="px-2 py-1.5 text-sm text-gray-500 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  Previous
+                  &lsaquo;
                 </button>
+                {getPageNumbers().map((p, i) =>
+                  p === '...' ? (
+                    <span key={`dots-${i}`} className="px-2 py-1.5 text-sm text-gray-400">&hellip;</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p as number)}
+                      className={cn(
+                        'min-w-[32px] h-8 rounded-md text-sm font-medium transition-colors',
+                        page === p
+                          ? 'bg-primary-700 text-white'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      )}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
                 <button
-                  onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
-                  disabled={page === data.pages}
-                  className="btn-secondary text-sm disabled:opacity-50"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-2 py-1.5 text-sm text-gray-500 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  Next
+                  &rsaquo;
                 </button>
               </div>
             </div>

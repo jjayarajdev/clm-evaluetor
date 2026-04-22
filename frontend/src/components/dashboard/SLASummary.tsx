@@ -643,7 +643,7 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
                       <div className="flex items-center gap-2">
                         <h4 className="font-medium text-gray-900">{sla.sla_name}</h4>
                         {sla.source === 'ai_extracted' && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-700">
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary-100 text-primary-700">
                             <SparklesIcon className="h-3 w-3" /> AI Extracted
                           </span>
                         )}
@@ -884,7 +884,7 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
                             <button
                               onClick={() => addFromLibraryMutation.mutate(item.id)}
                               disabled={addFromLibraryMutation.isPending}
-                              className="shrink-0 inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-violet-600 rounded-md hover:bg-violet-700 disabled:opacity-50"
+                              className="shrink-0 inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                             >
                               <PlusIcon className="h-3 w-3 mr-1" /> Add
                             </button>

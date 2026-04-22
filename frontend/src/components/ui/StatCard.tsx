@@ -1,6 +1,6 @@
 /**
- * Stat Card Component - Personio Style
- * Clean widgets with subtle colors and optional mini charts
+ * Stat Card Component - Coast Theme
+ * Clean cards with top accent border and uppercase labels
  */
 import { cn } from '@/lib/utils'
 
@@ -9,7 +9,7 @@ interface StatCardProps {
   value: string | number
   subtitle?: string
   icon?: React.ElementType
-  info?: string // Tooltip text shown on (i) icon hover
+  info?: string
   trend?: {
     value: number
     label?: string
@@ -18,11 +18,12 @@ interface StatCardProps {
   color?: 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'purple' | 'pink' | 'blue'
   size?: 'sm' | 'md' | 'lg'
   onClick?: () => void
-  chart?: number[] // Mini bar chart data
+  chart?: number[]
 }
 
 const colorStyles = {
   default: {
+    accent: 'border-t-gray-300',
     bg: 'bg-white',
     border: 'border-gray-200',
     icon: 'text-gray-500',
@@ -31,56 +32,63 @@ const colorStyles = {
     chartBar: 'bg-gray-300',
   },
   primary: {
-    bg: 'bg-violet-50',
-    border: 'border-violet-200',
-    icon: 'text-violet-600',
-    iconBg: 'bg-violet-100',
+    accent: 'border-t-primary-600',
+    bg: 'bg-white',
+    border: 'border-gray-200',
+    icon: 'text-primary-600',
+    iconBg: 'bg-primary-100',
     text: 'text-gray-900',
-    chartBar: 'bg-violet-400',
+    chartBar: 'bg-primary-400',
   },
   success: {
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
+    accent: 'border-t-emerald-500',
+    bg: 'bg-white',
+    border: 'border-gray-200',
     icon: 'text-emerald-600',
     iconBg: 'bg-emerald-100',
     text: 'text-gray-900',
     chartBar: 'bg-emerald-400',
   },
   warning: {
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
+    accent: 'border-t-amber-500',
+    bg: 'bg-white',
+    border: 'border-gray-200',
     icon: 'text-amber-600',
     iconBg: 'bg-amber-100',
     text: 'text-gray-900',
     chartBar: 'bg-amber-400',
   },
   danger: {
-    bg: 'bg-red-50',
-    border: 'border-red-200',
+    accent: 'border-t-red-500',
+    bg: 'bg-white',
+    border: 'border-gray-200',
     icon: 'text-red-600',
     iconBg: 'bg-red-100',
     text: 'text-gray-900',
     chartBar: 'bg-red-400',
   },
   purple: {
-    bg: 'bg-violet-50',
-    border: 'border-violet-200',
-    icon: 'text-violet-600',
-    iconBg: 'bg-violet-100',
+    accent: 'border-t-purple-500',
+    bg: 'bg-white',
+    border: 'border-gray-200',
+    icon: 'text-purple-600',
+    iconBg: 'bg-purple-100',
     text: 'text-gray-900',
-    chartBar: 'bg-violet-400',
+    chartBar: 'bg-purple-400',
   },
   pink: {
-    bg: 'bg-pink-50',
-    border: 'border-pink-200',
+    accent: 'border-t-pink-500',
+    bg: 'bg-white',
+    border: 'border-gray-200',
     icon: 'text-pink-600',
     iconBg: 'bg-pink-100',
     text: 'text-gray-900',
     chartBar: 'bg-pink-400',
   },
   blue: {
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
+    accent: 'border-t-blue-500',
+    bg: 'bg-white',
+    border: 'border-gray-200',
     icon: 'text-blue-600',
     iconBg: 'bg-blue-100',
     text: 'text-gray-900',
@@ -107,10 +115,10 @@ export default function StatCard({
   title,
   value,
   subtitle,
-  icon: Icon,
+  icon: _Icon,
   info,
   trend,
-  variant = 'default',
+  variant: _variant = 'default',
   color = 'default',
   size = 'md',
   onClick,
@@ -130,42 +138,33 @@ export default function StatCard({
     lg: 'text-3xl',
   }
 
-  const isFilled = variant === 'filled'
-
   return (
     <div
       className={cn(
-        'rounded-xl border transition-all duration-200',
+        'rounded-xl border border-t-[3px] bg-white transition-all duration-200',
         sizeClasses[size],
-        isFilled ? styles.bg : 'bg-white',
         styles.border,
+        styles.accent,
         onClick && 'cursor-pointer hover:shadow-md'
       )}
       onClick={onClick}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            {Icon && (
-              <div className={cn('p-1.5 rounded-lg', styles.iconBg)}>
-                <Icon className={cn('h-4 w-4', styles.icon)} />
-              </div>
-            )}
-            <p className="text-sm font-medium text-gray-600 flex items-center gap-1">
-              {title}
-              {info && (
-                <span className="relative group/info">
-                  <svg className="h-3.5 w-3.5 text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg whitespace-normal w-56 text-center opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 shadow-lg">
-                    {info}
-                    <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                  </span>
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+            {title}
+            {info && (
+              <span className="relative group/info">
+                <svg className="h-3.5 w-3.5 text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg whitespace-normal w-56 text-center opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 shadow-lg normal-case tracking-normal font-normal">
+                  {info}
+                  <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                 </span>
-              )}
-            </p>
-          </div>
+              </span>
+            )}
+          </p>
           <p className={cn(
             'mt-2 font-bold tracking-tight',
             valueSize[size],
@@ -195,7 +194,7 @@ export default function StatCard({
             trend.value < 0 ? 'text-red-500' :
             'text-gray-500'
           )}>
-            {trend.value > 0 ? '↑' : trend.value < 0 ? '↓' : '→'} {Math.abs(trend.value)}%
+            {trend.value > 0 ? '▲' : trend.value < 0 ? '▼' : '→'} {Math.abs(trend.value)}%
           </span>
           {trend.label && (
             <span className="text-xs text-gray-500">
@@ -208,7 +207,7 @@ export default function StatCard({
   )
 }
 
-// Status badge component (Personio-style)
+// Status badge component
 export function StatusBadge({
   status,
   size = 'sm',
@@ -262,13 +261,13 @@ export function FilterPill({
   icon?: React.ElementType
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 text-violet-700 text-sm font-medium rounded-full">
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-100 text-primary-700 text-sm font-medium rounded-full">
       {Icon && <Icon className="h-3.5 w-3.5" />}
       {label}
       {onRemove && (
         <button
           onClick={onRemove}
-          className="ml-1 hover:bg-violet-200 rounded-full p-0.5"
+          className="ml-1 hover:bg-primary-200 rounded-full p-0.5"
         >
           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

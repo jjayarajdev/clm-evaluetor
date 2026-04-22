@@ -724,8 +724,8 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
       <div className="card p-6 space-y-6 max-w-3xl">
         <div className="flex items-center justify-between pb-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-violet-100 flex items-center justify-center">
-              <ShieldCheckIcon className="h-5 w-5 text-violet-600" />
+            <div className="h-10 w-10 rounded-lg bg-primary-100 flex items-center justify-center">
+              <ShieldCheckIcon className="h-5 w-5 text-primary-600" />
             </div>
             <div>
               <p className="font-semibold text-gray-900">{config.name}</p>
@@ -894,7 +894,7 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
           <input
             type="checkbox" id="sso_auto_provision" checked={form.auto_provision}
             onChange={(e) => setForm({ ...form, auto_provision: e.target.checked })}
-            className="h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
           />
           <label htmlFor="sso_auto_provision" className="text-sm text-gray-700">Auto-create users on first SSO login</label>
         </div>
@@ -910,7 +910,7 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
             <button
               type="button"
               onClick={() => setForm({ ...form, role_mappings: [...form.role_mappings, { idp_group: '', app_role: 'legal' }] })}
-              className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 font-medium"
+              className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
             >
               <PlusIcon className="h-3.5 w-3.5" />
               Add Mapping

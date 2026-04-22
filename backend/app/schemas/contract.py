@@ -49,6 +49,9 @@ class ContractSummary(BaseModel):
     counterparty: str | None
     status: str
     risk_level: str | None
+    contract_value: Decimal | None = None
+    currency: str | None = None
+    expiration_date: date | None = None
     uploaded_at: datetime
 
     model_config = {"from_attributes": True}

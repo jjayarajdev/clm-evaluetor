@@ -220,7 +220,7 @@ export default function ExternalGovernancePage() {
         <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
                 <span className="text-white font-bold text-lg">E</span>
               </div>
               <div>
@@ -272,7 +272,7 @@ export default function ExternalGovernancePage() {
                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded capitalize">
                     {relationship.relationship_type.replace(/_/g, ' ')}
                   </span>
-                  <span className="text-xs bg-violet-50 text-violet-700 px-2 py-1 rounded capitalize">
+                  <span className="text-xs bg-primary-50 text-primary-700 px-2 py-1 rounded capitalize">
                     {relationship.governance_tier}
                   </span>
                   <span
@@ -341,7 +341,7 @@ export default function ExternalGovernancePage() {
               className={cn(
                 'flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
                 activeTab === 'kpis'
-                  ? 'border-violet-600 text-violet-600'
+                  ? 'border-primary-600 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               )}
             >
@@ -352,7 +352,7 @@ export default function ExternalGovernancePage() {
                   className={cn(
                     'text-xs px-1.5 py-0.5 rounded-full',
                     activeTab === 'kpis'
-                      ? 'bg-violet-100 text-violet-700'
+                      ? 'bg-primary-100 text-primary-700'
                       : 'bg-gray-100 text-gray-600'
                   )}
                 >
@@ -365,7 +365,7 @@ export default function ExternalGovernancePage() {
               className={cn(
                 'flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
                 activeTab === 'improvements'
-                  ? 'border-violet-600 text-violet-600'
+                  ? 'border-primary-600 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               )}
             >
@@ -376,7 +376,7 @@ export default function ExternalGovernancePage() {
                   className={cn(
                     'text-xs px-1.5 py-0.5 rounded-full',
                     activeTab === 'improvements'
-                      ? 'bg-violet-100 text-violet-700'
+                      ? 'bg-primary-100 text-primary-700'
                       : 'bg-gray-100 text-gray-600'
                   )}
                 >
@@ -398,7 +398,7 @@ export default function ExternalGovernancePage() {
                       className={cn(
                         'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
                         selectedCategory === 'all'
-                          ? 'bg-violet-600 text-white'
+                          ? 'bg-primary-600 text-white'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       )}
                     >
@@ -411,7 +411,7 @@ export default function ExternalGovernancePage() {
                         className={cn(
                           'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
                           selectedCategory === cat
-                            ? 'bg-violet-600 text-white'
+                            ? 'bg-primary-600 text-white'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         )}
                       >
@@ -533,7 +533,7 @@ export default function ExternalGovernancePage() {
                                   setScorePeriod(getCurrentQuarter())
                                   setScoreComments('')
                                 }}
-                                className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 font-medium px-2.5 py-1 rounded-md hover:bg-violet-50 transition-colors"
+                                className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 font-medium px-2.5 py-1 rounded-md hover:bg-primary-50 transition-colors"
                               >
                                 <StarIcon className="w-3.5 h-3.5" />
                                 Rate
@@ -688,7 +688,7 @@ export default function ExternalGovernancePage() {
                           <div className="mt-3 flex items-center gap-2">
                             <div className="flex-1 bg-gray-100 rounded-full h-1.5">
                               <div
-                                className="bg-violet-500 h-1.5 rounded-full transition-all"
+                                className="bg-primary-500 h-1.5 rounded-full transition-all"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
@@ -756,7 +756,7 @@ export default function ExternalGovernancePage() {
                   value={scorePeriod}
                   onChange={(e) => setScorePeriod(e.target.value)}
                   placeholder="e.g., 2026-Q2"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
 
@@ -764,7 +764,7 @@ export default function ExternalGovernancePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Your Score:{' '}
-                  <span className="text-violet-600 font-bold text-lg">{scoreValue}/10</span>
+                  <span className="text-primary-600 font-bold text-lg">{scoreValue}/10</span>
                 </label>
                 <input
                   type="range"
@@ -773,7 +773,7 @@ export default function ExternalGovernancePage() {
                   step={1}
                   value={scoreValue}
                   onChange={(e) => setScoreValue(Number(e.target.value))}
-                  className="w-full accent-violet-600 h-2"
+                  className="w-full accent-primary-600 h-2"
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-1">
                   <span>1 - Poor</span>
@@ -789,9 +789,9 @@ export default function ExternalGovernancePage() {
                       className={cn(
                         'w-7 h-7 rounded-full text-xs font-medium transition-all',
                         v === scoreValue
-                          ? 'bg-violet-600 text-white shadow-md scale-110'
+                          ? 'bg-primary-600 text-white shadow-md scale-110'
                           : v <= scoreValue
-                            ? 'bg-violet-100 text-violet-700 hover:bg-violet-200'
+                            ? 'bg-primary-100 text-primary-700 hover:bg-primary-200'
                             : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                       )}
                     >
@@ -811,7 +811,7 @@ export default function ExternalGovernancePage() {
                   onChange={(e) => setScoreComments(e.target.value)}
                   rows={3}
                   placeholder="Share your perspective on this KPI's performance..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
             </div>
@@ -840,7 +840,7 @@ export default function ExternalGovernancePage() {
                   })
                 }}
                 disabled={submitScoreMutation.isPending || !scorePeriod.trim()}
-                className="px-4 py-2 text-sm font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center gap-2"
               >
                 {submitScoreMutation.isPending ? (
                   <>

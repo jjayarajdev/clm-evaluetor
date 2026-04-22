@@ -57,7 +57,7 @@ function TreeNodeComponent({ node, depth = 0 }: { node: OrganizationTreeNode; de
         ) : (
           <span className="w-4" />
         )}
-        <BuildingLibraryIcon className="h-4 w-4 text-violet-500 shrink-0" />
+        <BuildingLibraryIcon className="h-4 w-4 text-primary-500 shrink-0" />
         <span className="text-sm font-medium text-gray-900">{node.name}</span>
         <span className="text-xs text-gray-400 font-mono">{node.code}</span>
         {node.organization_level && (
@@ -153,7 +153,7 @@ export default function OrganizationDetailPage() {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <BuildingLibraryIcon className="h-6 w-6 text-violet-500" />
+            <BuildingLibraryIcon className="h-6 w-6 text-primary-500" />
             <h1 className="text-xl font-bold text-gray-900">{org.name}</h1>
             <span className="text-sm text-gray-400 font-mono">{org.code}</span>
           </div>
@@ -175,7 +175,7 @@ export default function OrganizationDetailPage() {
               className={cn(
                 'pb-3 text-sm font-medium border-b-2 transition-colors',
                 activeTab === tab
-                  ? 'border-violet-600 text-violet-600'
+                  ? 'border-primary-600 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               )}
             >
@@ -244,7 +244,7 @@ export default function OrganizationDetailPage() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-gray-900">{officer.name}</span>
                           {officer.is_primary && (
-                            <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">Primary</span>
+                            <span className="text-[10px] bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded">Primary</span>
                           )}
                         </div>
                       </td>
@@ -294,7 +294,7 @@ export default function OrganizationDetailPage() {
               {hierarchy.parent && (
                 <div className="card card-body">
                   <p className="text-xs text-gray-500 mb-1">Parent Organization</p>
-                  <Link to={`/organizations/${hierarchy.parent.id}`} className="text-sm font-medium text-violet-600 hover:text-violet-800">
+                  <Link to={`/organizations/${hierarchy.parent.id}`} className="text-sm font-medium text-primary-600 hover:text-primary-800">
                     {hierarchy.parent.name}
                   </Link>
                   <p className="text-xs text-gray-400 font-mono">{hierarchy.parent.code}</p>
@@ -415,7 +415,7 @@ export default function OrganizationDetailPage() {
                     type="text"
                     value={officerForm.name || ''}
                     onChange={(e) => setOfficerForm({ ...officerForm, name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -424,7 +424,7 @@ export default function OrganizationDetailPage() {
                     type="text"
                     value={officerForm.title || ''}
                     onChange={(e) => setOfficerForm({ ...officerForm, title: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -434,7 +434,7 @@ export default function OrganizationDetailPage() {
                   <select
                     value={officerForm.governance_role || ''}
                     onChange={(e) => setOfficerForm({ ...officerForm, governance_role: (e.target.value || undefined) as GovernanceRole | undefined })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="">Select role</option>
                     {Object.entries(ROLE_LABELS).map(([value, label]) => (
@@ -447,7 +447,7 @@ export default function OrganizationDetailPage() {
                   <select
                     value={officerForm.side || 'internal'}
                     onChange={(e) => setOfficerForm({ ...officerForm, side: e.target.value as OfficerSide })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="internal">Internal</option>
                     <option value="external">External</option>
@@ -461,7 +461,7 @@ export default function OrganizationDetailPage() {
                     type="email"
                     value={officerForm.email || ''}
                     onChange={(e) => setOfficerForm({ ...officerForm, email: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -470,7 +470,7 @@ export default function OrganizationDetailPage() {
                     type="text"
                     value={officerForm.phone || ''}
                     onChange={(e) => setOfficerForm({ ...officerForm, phone: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -480,7 +480,7 @@ export default function OrganizationDetailPage() {
                   type="text"
                   value={officerForm.department || ''}
                   onChange={(e) => setOfficerForm({ ...officerForm, department: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -488,7 +488,7 @@ export default function OrganizationDetailPage() {
                   type="checkbox"
                   checked={officerForm.is_primary || false}
                   onChange={(e) => setOfficerForm({ ...officerForm, is_primary: e.target.checked })}
-                  className="rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
                 Primary Contact
               </label>
