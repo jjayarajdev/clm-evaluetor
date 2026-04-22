@@ -146,8 +146,8 @@ function NavItemLink({
                 ? 'pl-7 pr-3 py-2'
                 : 'px-3 py-2.5',
             isActive
-              ? 'bg-primary-100 text-primary-700'
-              : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+              ? 'bg-primary-100 text-primary-800'
+              : 'text-gray-700 hover:bg-primary-50 hover:text-primary-700'
           )
         }
       >
@@ -217,8 +217,8 @@ function CollapsibleGroup({
         className={cn(
           'w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider transition-colors',
           hasActiveChild
-            ? 'text-primary-600'
-            : 'text-gray-400 hover:text-gray-600'
+            ? 'text-primary-700'
+            : 'text-gray-500 hover:text-gray-700'
         )}
       >
         {group.label}
@@ -316,7 +316,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <>
             <div className={cn('border-t border-gray-200 !my-3', collapsed ? 'w-6' : 'w-full')} />
             {!collapsed && (
-              <p className="px-3 mb-1 text-[10px] font-bold text-gray-300 uppercase tracking-wider">Admin</p>
+              <p className="px-3 mb-1 text-[10px] font-bold text-primary-400 uppercase tracking-wider">Admin</p>
             )}
             {adminGroups.map((group) => (
               <CollapsibleGroup key={group.label} group={group} userRole={role} onClose={onClose} collapsed={collapsed} />
@@ -329,7 +329,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <>
             <div className={cn('border-t border-gray-200 !my-3', collapsed ? 'w-6' : 'w-full')} />
             {!collapsed && (
-              <p className="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+              <p className="px-3 mb-2 text-[10px] font-semibold text-primary-400 uppercase tracking-wider">
                 Super Admin
               </p>
             )}
