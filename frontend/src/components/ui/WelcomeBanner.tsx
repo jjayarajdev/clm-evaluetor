@@ -101,7 +101,7 @@ export default function WelcomeBanner({
                 ? 'bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300'
                 : action.badgeColor === 'amber'
                 ? 'bg-amber-50 hover:bg-amber-100 border border-amber-200 hover:border-amber-300'
-                : 'bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300'
+                : 'bg-primary-50 hover:bg-primary-100 border border-primary-200 hover:border-primary-300'
             )}
           >
             <div className={cn(
@@ -110,13 +110,13 @@ export default function WelcomeBanner({
                 ? 'bg-red-100 border-red-200 group-hover:border-red-300'
                 : action.badgeColor === 'amber'
                 ? 'bg-amber-100 border-amber-200 group-hover:border-amber-300'
-                : 'bg-white border-gray-200 group-hover:border-gray-300'
+                : 'bg-primary-100 border-primary-200 group-hover:border-primary-300'
             )}>
               <action.icon className={cn(
                 'h-5 w-5',
                 action.badgeColor === 'red' ? 'text-red-600'
                 : action.badgeColor === 'amber' ? 'text-amber-600'
-                : 'text-gray-600'
+                : 'text-primary-600'
               )} />
             </div>
             <div className="flex-1 min-w-0">
@@ -125,14 +125,14 @@ export default function WelcomeBanner({
                   'text-sm font-medium',
                   action.badgeColor === 'red' ? 'text-red-900'
                   : action.badgeColor === 'amber' ? 'text-amber-900'
-                  : 'text-gray-900'
+                  : 'text-primary-900'
                 )}>{action.label}</span>
                 {action.badge !== undefined && (
                   <span className={cn(
                     'px-1.5 py-0.5 text-xs font-semibold rounded-full',
                     action.badgeColor === 'red' ? 'bg-red-200 text-red-800' :
                     action.badgeColor === 'amber' ? 'bg-amber-200 text-amber-800' :
-                    'bg-gray-200 text-gray-700'
+                    'bg-primary-200 text-primary-800'
                   )}>
                     {action.badge}
                   </span>
@@ -142,14 +142,14 @@ export default function WelcomeBanner({
                 'text-xs truncate',
                 action.badgeColor === 'red' ? 'text-red-600'
                 : action.badgeColor === 'amber' ? 'text-amber-600'
-                : 'text-gray-500'
+                : 'text-primary-500'
               )}>{action.description}</p>
             </div>
             <ArrowRightIcon className={cn(
               'h-4 w-4 group-hover:translate-x-0.5 transition-all',
               action.badgeColor === 'red' ? 'text-red-400 group-hover:text-red-600'
               : action.badgeColor === 'amber' ? 'text-amber-400 group-hover:text-amber-600'
-              : 'text-gray-400 group-hover:text-gray-600'
+              : 'text-primary-400 group-hover:text-primary-600'
             )} />
           </Link>
         ))}

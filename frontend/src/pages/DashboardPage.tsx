@@ -104,7 +104,7 @@ export default function DashboardPage() {
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors",
               selectedClientId
-                ? "bg-green-50 border-green-300 text-green-700"
+                ? "bg-primary-50 border-primary-300 text-primary-700"
                 : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
             )}
           >
@@ -118,7 +118,7 @@ export default function DashboardPage() {
                     setSelectedClientId(null)
                     setSelectedContractId(null)
                   }}
-                  className="p-0.5 hover:bg-green-100 rounded"
+                  className="p-0.5 hover:bg-primary-100 rounded"
                 >
                   <XMarkIcon className="h-4 w-4" />
                 </button>
