@@ -1,6 +1,6 @@
 /**
- * Welcome Banner - European Minimal Style
- * Clean, sophisticated greeting with quick actions
+ * Welcome Banner - Coast Theme
+ * Dark gradient header with date and quick actions
  */
 import { Link } from 'react-router-dom'
 import {
@@ -67,6 +67,15 @@ function getTimeBasedGreeting(): string {
   return 'Good evening'
 }
 
+function formatDate(): string {
+  return new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
 export default function WelcomeBanner({
   userName,
   role,
@@ -78,19 +87,19 @@ export default function WelcomeBanner({
   const firstName = userName.split(' ')[0]
 
   return (
-    <div className="pb-6 border-b border-gray-200">
-      {/* Header */}
-      <div>
-        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-          {roleLabels[role]} Dashboard
-        </p>
-        <h1 className="mt-1 text-2xl md:text-3xl font-semibold text-gray-900 tracking-tight">
+    <div className="space-y-6">
+      {/* Dark gradient hero banner */}
+      <div className="bg-gradient-to-r from-primary-800 via-primary-700 to-primary-600 rounded-xl px-8 py-7">
+        <h1 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">
           {displayGreeting}, {firstName}
         </h1>
+        <p className="mt-1.5 text-sm text-gray-300">
+          {formatDate()} — {roleLabels[role]} Portfolio Overview
+        </p>
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {actions.map((action) => (
           <Link
             key={action.label}
@@ -153,13 +162,6 @@ export default function WelcomeBanner({
             )} />
           </Link>
         ))}
-      </div>
-
-      {/* Keyboard shortcut hint */}
-      <div className="mt-4 flex items-center gap-2 text-gray-400 text-xs">
-        <span>Press</span>
-        <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono text-xs">⌘K</kbd>
-        <span>to open command palette</span>
       </div>
     </div>
   )

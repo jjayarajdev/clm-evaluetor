@@ -146,8 +146,8 @@ function NavItemLink({
                 ? 'pl-7 pr-3 py-2'
                 : 'px-3 py-2.5',
             isActive
-              ? 'bg-primary-100 text-primary-800'
-              : 'text-gray-700 hover:bg-primary-50 hover:text-primary-700'
+              ? 'bg-white/15 text-white'
+              : 'text-gray-300 hover:bg-white/10 hover:text-white'
           )
         }
       >
@@ -157,7 +157,7 @@ function NavItemLink({
               className={cn(
                 indent ? 'h-4 w-4' : 'h-5 w-5',
                 'shrink-0',
-                isActive ? 'text-primary-600' : ''
+                isActive ? 'text-white' : 'text-gray-400'
               )}
               aria-hidden="true"
             />
@@ -217,8 +217,8 @@ function CollapsibleGroup({
         className={cn(
           'w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[11px] font-medium uppercase tracking-wider transition-colors',
           hasActiveChild
-            ? 'text-primary-700'
-            : 'text-gray-500 hover:text-gray-700'
+            ? 'text-gray-200'
+            : 'text-gray-500 hover:text-gray-300'
         )}
       >
         {group.label}
@@ -258,26 +258,31 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
   const sidebarContent = (
     <div className={cn(
-      'flex h-full flex-col bg-white border-r border-gray-200 transition-all duration-200',
+      'flex h-full flex-col bg-primary-800 transition-all duration-200',
       sidebarWidth
     )}>
       {/* Logo & Toggle */}
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 px-3">
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="h-8 w-8 shrink-0 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
+          <div className="h-8 w-8 shrink-0 rounded-lg bg-primary-600 flex items-center justify-center">
             <span className="text-white font-bold text-sm">E</span>
           </div>
           {!collapsed && (
-            <span className="text-base font-semibold text-gray-900 truncate">
-              Evaluetor
-            </span>
+            <div className="min-w-0">
+              <span className="text-base font-semibold text-white truncate block leading-tight">
+                Evaluetor
+              </span>
+              <span className="text-[9px] font-medium text-gray-400 uppercase tracking-widest">
+                Contract Intelligence
+              </span>
+            </div>
           )}
         </div>
         <button
           onClick={toggleCollapsed}
           className={cn(
-            'p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors',
-            collapsed && 'absolute -right-3 top-4 bg-white border border-gray-200 shadow-sm z-10'
+            'p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors',
+            collapsed && 'absolute -right-3 top-5 bg-primary-800 border border-white/20 shadow-lg z-10'
           )}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -306,7 +311,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {/* Governance group */}
         {filteredGov.length > 0 && (
           <>
-            <div className={cn('border-t border-gray-200 !my-3', collapsed ? 'w-6' : 'w-full')} />
+            <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
             <CollapsibleGroup group={governanceNav} userRole={role} onClose={onClose} collapsed={collapsed} />
           </>
         )}
@@ -314,9 +319,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {/* Admin groups */}
         {hasAdmin && (
           <>
-            <div className={cn('border-t border-gray-200 !my-3', collapsed ? 'w-6' : 'w-full')} />
+            <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
             {!collapsed && (
-              <p className="px-3 mb-1 text-[11px] font-medium text-primary-400 uppercase tracking-wider">Admin</p>
+              <p className="px-3 mb-1 text-[11px] font-medium text-gray-500 uppercase tracking-wider">Admin</p>
             )}
             {adminGroups.map((group) => (
               <CollapsibleGroup key={group.label} group={group} userRole={role} onClose={onClose} collapsed={collapsed} />
@@ -327,9 +332,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {/* Super Admin */}
         {hasSuperAdmin && filteredSuperAdmin.length > 0 && (
           <>
-            <div className={cn('border-t border-gray-200 !my-3', collapsed ? 'w-6' : 'w-full')} />
+            <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
             {!collapsed && (
-              <p className="px-3 mb-2 text-[11px] font-medium text-primary-400 uppercase tracking-wider">
+              <p className="px-3 mb-2 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                 Super Admin
               </p>
             )}
@@ -342,7 +347,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
       {/* User Avatar (bottom) */}
       <div className={cn(
-        'border-t border-gray-200 py-4',
+        'border-t border-white/10 py-4',
         collapsed ? 'flex flex-col items-center' : 'px-3'
       )}>
         {user && (
@@ -354,19 +359,19 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               'flex items-center gap-3 rounded-lg transition-all cursor-pointer',
               collapsed
                 ? 'justify-center'
-                : 'p-2 hover:bg-gray-50 w-full'
+                : 'p-2 hover:bg-white/10 w-full'
             )}>
-              <div className="h-9 w-9 shrink-0 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center hover:ring-2 hover:ring-primary-300 transition-all">
-                <span className="text-sm font-semibold text-primary-700">
+              <div className="h-9 w-9 shrink-0 rounded-full bg-primary-600 flex items-center justify-center hover:ring-2 hover:ring-primary-400 transition-all">
+                <span className="text-sm font-semibold text-white">
                   {user.username.charAt(0).toUpperCase()}
                 </span>
               </div>
               {!collapsed && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-white truncate">
                     {user.full_name || user.username}
                   </p>
-                  <p className="text-xs text-gray-500 capitalize truncate">{user.role}</p>
+                  <p className="text-xs text-gray-400 capitalize truncate">{user.role}</p>
                 </div>
               )}
             </div>
@@ -390,7 +395,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       {/* Mobile sidebar overlay */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -407,7 +412,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         aria-label="Mobile navigation"
       >
         <button
-          className="absolute right-2 top-2 p-2 text-gray-500 hover:text-gray-700"
+          className="absolute right-2 top-2 p-2 text-gray-400 hover:text-white"
           onClick={onClose}
           aria-label="Close sidebar"
         >
