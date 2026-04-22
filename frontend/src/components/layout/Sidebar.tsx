@@ -51,27 +51,29 @@ interface NavGroup {
 
 // ── Navigation Structure ──────────────────────────────────────────
 
-const mainNav: NavItem[] = [
+const mainSection: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
   { name: 'Contracts', href: '/contracts', icon: DocumentTextIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
   { name: 'Compliance', href: '/compliance', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
   { name: 'Renewals', href: '/renewals', icon: CalendarDaysIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
+]
+
+const managementSection: NavItem[] = [
   { name: 'Vendors', href: '/vendors', icon: BuildingOffice2Icon, roles: ['admin', 'procurement', 'bu_head'] },
   { name: 'Reports', href: '/reports', icon: DocumentChartBarIcon, roles: ['admin', 'legal', 'bu_head'] },
   { name: 'Upload', href: '/upload', icon: CloudArrowUpIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'Ask AI', href: '/query', icon: ChatBubbleLeftRightIcon, roles: ['admin', 'legal', 'procurement'] },
 ]
 
-const governanceNav: NavGroup = {
-  label: 'Governance',
-  collapsible: true,
-  items: [
-    { name: 'Organizations', href: '/organizations', icon: BuildingLibraryIcon, roles: ['admin', 'legal', 'procurement'] },
-    { name: 'Relationships', href: '/relationships', icon: LinkIcon, roles: ['admin', 'legal', 'procurement'] },
-    { name: 'KPI Approvals', href: '/kpi-approvals', icon: ShieldCheckIcon, roles: ['admin'] },
-    { name: 'Surveys', href: '/surveys', icon: ClipboardDocumentListIcon, roles: ['admin', 'legal'] },
-  ],
-}
+const governanceSection: NavItem[] = [
+  { name: 'Organizations', href: '/organizations', icon: BuildingLibraryIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'Relationships', href: '/relationships', icon: LinkIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'KPI Approvals', href: '/kpi-approvals', icon: ShieldCheckIcon, roles: ['admin'] },
+  { name: 'Surveys', href: '/surveys', icon: ClipboardDocumentListIcon, roles: ['admin', 'legal'] },
+]
+
+const intelligenceSection: NavItem[] = [
+  { name: 'Ask AI', href: '/query', icon: ChatBubbleLeftRightIcon, roles: ['admin', 'legal', 'procurement'] },
+]
 
 const adminGroups: NavGroup[] = [
   {
@@ -113,6 +115,17 @@ const superAdminNav: NavItem[] = [
   { name: 'Integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, roles: ['super_admin'] },
 ]
 
+// ── Section Label ─────────────────────────────────────────────────
+
+function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean }) {
+  if (collapsed) return null
+  return (
+    <p className="px-3 pt-1 pb-1 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+      {label}
+    </p>
+  )
+}
+
 // ── Nav Item Component ────────────────────────────────────────────
 
 function NavItemLink({
@@ -144,7 +157,7 @@ function NavItemLink({
               ? 'justify-center w-10 h-10'
               : indent
                 ? 'pl-7 pr-3 py-2'
-                : 'px-3 py-2.5',
+                : 'px-3 py-2',
             isActive
               ? 'bg-white/15 text-white'
               : 'text-gray-300 hover:bg-white/10 hover:text-white'
@@ -199,7 +212,6 @@ function CollapsibleGroup({
 
   if (items.length === 0) return null
 
-  // When sidebar is collapsed, show only the first item's icon as a representative
   if (collapsed) {
     return (
       <>
@@ -240,6 +252,34 @@ function CollapsibleGroup({
   )
 }
 
+// ── Nav Section (label + items) ───────────────────────────────────
+
+function NavSection({
+  label,
+  items,
+  role,
+  onClose,
+  collapsed,
+}: {
+  label: string
+  items: NavItem[]
+  role: string
+  onClose: () => void
+  collapsed: boolean
+}) {
+  const filtered = items.filter((item) => item.roles.includes(role))
+  if (filtered.length === 0) return null
+
+  return (
+    <>
+      <SectionLabel label={label} collapsed={collapsed} />
+      {filtered.map((item) => (
+        <NavItemLink key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
+      ))}
+    </>
+  )
+}
+
 // ── Main Sidebar ──────────────────────────────────────────────────
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
@@ -247,9 +287,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const { collapsed, toggleCollapsed } = useSidebar()
 
   const role = user?.role || ''
-
-  const filteredMain = mainNav.filter((item) => item.roles.includes(role))
-  const filteredGov = governanceNav.items.filter((item) => item.roles.includes(role))
+  const filteredGov = governanceSection.filter((item) => item.roles.includes(role))
   const filteredSuperAdmin = superAdminNav.filter((item) => item.roles.includes(role))
   const hasAdmin = role === 'admin'
   const hasSuperAdmin = role === 'super_admin'
@@ -262,27 +300,22 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       sidebarWidth
     )}>
       {/* Logo & Toggle */}
-      <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-3">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="h-8 w-8 shrink-0 rounded-lg bg-primary-600 flex items-center justify-center">
             <span className="text-white font-bold text-sm">E</span>
           </div>
           {!collapsed && (
-            <div className="min-w-0">
-              <span className="text-base font-semibold text-white truncate block leading-tight">
-                Evaluetor
-              </span>
-              <span className="text-[9px] font-medium text-gray-400 uppercase tracking-widest">
-                Contract Intelligence
-              </span>
-            </div>
+            <span className="text-base font-semibold text-white truncate">
+              Evaluetor
+            </span>
           )}
         </div>
         <button
           onClick={toggleCollapsed}
           className={cn(
             'p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors',
-            collapsed && 'absolute -right-3 top-5 bg-primary-800 border border-white/20 shadow-lg z-10'
+            collapsed && 'absolute -right-3 top-4 bg-primary-800 border border-white/20 shadow-lg z-10'
           )}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -295,7 +328,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         </button>
       </div>
 
-      {/* Main Navigation */}
+      {/* Navigation */}
       <nav
         className={cn(
           'flex-1 flex flex-col py-4 overflow-y-auto',
@@ -303,26 +336,30 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         )}
         aria-label="Main navigation"
       >
-        {/* Core nav */}
-        {filteredMain.map((item) => (
-          <NavItemLink key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
-        ))}
+        {/* MAIN */}
+        <NavSection label="Main" items={mainSection} role={role} onClose={onClose} collapsed={collapsed} />
 
-        {/* Governance group */}
+        {/* MANAGEMENT */}
+        <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
+        <NavSection label="Management" items={managementSection} role={role} onClose={onClose} collapsed={collapsed} />
+
+        {/* GOVERNANCE */}
         {filteredGov.length > 0 && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <CollapsibleGroup group={governanceNav} userRole={role} onClose={onClose} collapsed={collapsed} />
+            <NavSection label="Governance" items={governanceSection} role={role} onClose={onClose} collapsed={collapsed} />
           </>
         )}
+
+        {/* INTELLIGENCE */}
+        <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
+        <NavSection label="Intelligence" items={intelligenceSection} role={role} onClose={onClose} collapsed={collapsed} />
 
         {/* Admin groups */}
         {hasAdmin && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            {!collapsed && (
-              <p className="px-3 mb-1 text-[11px] font-medium text-gray-500 uppercase tracking-wider">Admin</p>
-            )}
+            <SectionLabel label="Admin" collapsed={collapsed} />
             {adminGroups.map((group) => (
               <CollapsibleGroup key={group.label} group={group} userRole={role} onClose={onClose} collapsed={collapsed} />
             ))}
@@ -333,11 +370,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {hasSuperAdmin && filteredSuperAdmin.length > 0 && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            {!collapsed && (
-              <p className="px-3 mb-2 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-                Super Admin
-              </p>
-            )}
+            <SectionLabel label="Super Admin" collapsed={collapsed} />
             {filteredSuperAdmin.map((item) => (
               <NavItemLink key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
             ))}
