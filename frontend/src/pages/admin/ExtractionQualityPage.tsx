@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams, Link } from 'react-router-dom'
 import {
   CheckCircleIcon,
   XCircleIcon,
@@ -15,6 +16,7 @@ import {
   XMarkIcon,
   EyeIcon,
   GlobeAltIcon,
+  FunnelIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
@@ -782,10 +784,27 @@ function ContractTextViewer({ text, highlightText }: { text: string; highlightTe
 export default function ExtractionQualityPage() {
   const queryClient = useQueryClient()
   const { isSuperAdmin } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filterEntityType = searchParams.get('entity_type')
+  const filterTaxonomyCode = searchParams.get('taxonomy_code')
   const [view, setView] = useState<ViewMode>('overview')
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'metadata' | 'clauses' | 'obligations' | 'slas'>('metadata')
   const [showAddDialog, setShowAddDialog] = useState(false)
+
+  // Auto-set tab from URL params
+  useEffect(() => {
+    if (filterEntityType) {
+      const tabMap: Record<string, 'metadata' | 'clauses' | 'obligations' | 'slas'> = {
+        clause: 'clauses',
+        obligation: 'obligations',
+        sla: 'slas',
+        metadata: 'metadata',
+      }
+      const tab = tabMap[filterEntityType]
+      if (tab) setActiveTab(tab)
+    }
+  }, [filterEntityType])
   const [addAsGlobal, setAddAsGlobal] = useState(false)
   const [contractSearch, setContractSearch] = useState('')
   const [showDocViewer, setShowDocViewer] = useState(true)
@@ -1194,6 +1213,29 @@ export default function ExtractionQualityPage() {
           </button>
         </div>
       </div>
+
+      {/* Filter banner from cross-page navigation */}
+      {filterEntityType && filterTaxonomyCode && (
+        <div className="flex items-center justify-between p-3 bg-violet-50 rounded-lg border border-violet-200">
+          <div className="flex items-center gap-2">
+            <FunnelIcon className="h-4 w-4 text-violet-500" />
+            <span className="text-sm text-violet-800">
+              Filtering: <strong>{filterEntityType}</strong> type <strong className="font-mono">{filterTaxonomyCode}</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link to="/admin/industry-profiles" className="text-xs text-violet-600 hover:text-violet-800 font-medium">
+              &larr; Back to Industry Profiles
+            </Link>
+            <button
+              onClick={() => setSearchParams({})}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              Clear filter
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Score Cards */}
       {overview && (
