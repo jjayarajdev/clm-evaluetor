@@ -23,6 +23,7 @@ from app.models.contract import Contract, RiskLevel
 from app.models.clause import Clause
 from app.models.sla import ContractSLA, SLAMetricType, SLAUnit
 from app.models.organization import Organization, OrganizationType, OrganizationLevel
+from app.models.tenant import Tenant
 from app.models.party import ContractParty, PartyRole
 from app.models.preamble import ContractPreamble, ContractPartyDetail
 from app.models.relationship import (
@@ -194,6 +195,95 @@ class GovernanceBridgeService:
         await self.db.flush()
         return summary
 
+    # ── Automation 0: Counterparty Resolution ────────────────────────────
+
+    async def _resolve_counterparty(
+        self,
+        contract: Contract,
+        tenant_id: uuid.UUID,
+        counterparty: str,
+    ) -> Optional[str]:
+        """Check if counterparty is the tenant's own entity and correct if so.
+
+        Loads the tenant name and party_aliases from config_overrides.
+        If the counterparty matches any of them, it swaps to the other party
+        found in the contract's extracted parties list or preamble.
+        Also updates contract.counterparty in-place so downstream code sees
+        the corrected value.
+
+        Returns the (possibly corrected) counterparty name, or None if
+        the counterparty is self-referential and no alternative was found.
+        """
+        tenant = await self.db.get(Tenant, tenant_id)
+        if not tenant:
+            return counterparty
+
+        # Build set of names that belong to the tenant
+        own_names: set[str] = set()
+        if tenant.name:
+            own_names.add(tenant.name.lower())
+        aliases = (tenant.config_overrides or {}).get("party_aliases", [])
+        for alias in aliases:
+            if alias:
+                own_names.add(alias.strip().lower())
+
+        if not own_names:
+            return counterparty
+
+        # Check if counterparty matches a tenant name/alias
+        if counterparty.lower() not in own_names:
+            return counterparty  # All good — counterparty is external
+
+        # Counterparty is the tenant's own entity — find the real vendor
+        logger.info(
+            f"Counterparty '{counterparty}' matches tenant alias — "
+            f"searching for the real external party"
+        )
+
+        # Look in contract_parties table
+        result = await self.db.execute(
+            select(ContractParty).where(
+                ContractParty.contract_id == contract.id,
+            )
+        )
+        parties = result.scalars().all()
+        for party in parties:
+            name = (party.legal_name or "").strip()
+            if name and name.lower() not in own_names:
+                logger.info(f"Corrected counterparty: '{counterparty}' → '{name}' (from contract_parties)")
+                contract.counterparty = name
+                return name
+
+        # Look in preamble party details
+        result = await self.db.execute(
+            select(ContractPartyDetail)
+            .join(ContractPreamble, ContractPartyDetail.preamble_id == ContractPreamble.id)
+            .where(ContractPreamble.contract_id == contract.id)
+        )
+        preamble_parties = result.scalars().all()
+        for pp in preamble_parties:
+            name = (pp.party_name or "").strip()
+            if name and name.lower() not in own_names:
+                logger.info(f"Corrected counterparty: '{counterparty}' → '{name}' (from preamble)")
+                contract.counterparty = name
+                return name
+
+        # Look in metadata parties list (stored in extracted_metadata)
+        if contract.extracted_metadata and isinstance(contract.extracted_metadata, dict):
+            meta_parties = contract.extracted_metadata.get("parties", [])
+            for p in meta_parties:
+                name = (p if isinstance(p, str) else "").strip()
+                if name and name.lower() not in own_names:
+                    logger.info(f"Corrected counterparty: '{counterparty}' → '{name}' (from metadata.parties)")
+                    contract.counterparty = name
+                    return name
+
+        logger.warning(
+            f"Counterparty '{counterparty}' is a tenant alias but no "
+            f"alternative party found — skipping org creation"
+        )
+        return None
+
     # ── Automation 1 ─────────────────────────────────────────────────────
 
     async def _match_or_create_organization(
@@ -203,6 +293,14 @@ class GovernanceBridgeService:
     ) -> Optional[Organization]:
         """Match counterparty to an existing Organization or create one."""
         counterparty = (contract.counterparty or "").strip()
+        if not counterparty:
+            return None
+
+        # ── Guard: counterparty is the tenant's own entity ──────────────
+        # If the counterparty matches the tenant name or a party alias,
+        # the metadata extraction picked the wrong party. Try to correct it
+        # by finding the real vendor from the contract's extracted parties.
+        counterparty = await self._resolve_counterparty(contract, tenant_id, counterparty)
         if not counterparty:
             return None
 
