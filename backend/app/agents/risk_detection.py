@@ -205,6 +205,7 @@ async def assess_risk(
     contract_text: str,
     contract_id: str | None = None,
     user_id: str | None = None,
+    industry_hint: str = "",
 ) -> RiskAssessmentResult:
     """Assess risk in contract text using the AI agent.
 
@@ -230,8 +231,10 @@ async def assess_risk(
     for chunk_idx, chunk_text in enumerate(chunks):
         chunk_label = f"[Part {chunk_idx + 1}/{len(chunks)}]" if len(chunks) > 1 else ""
 
-        query = f"""Assess the risks in this contract {chunk_label}:
+        industry_context = f"\nINDUSTRY-SPECIFIC GUIDANCE:\n{industry_hint}\n" if industry_hint else ""
 
+        query = f"""Assess the risks in this contract {chunk_label}:
+{industry_context}
 ---
 {chunk_text}
 ---

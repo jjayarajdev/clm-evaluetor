@@ -26,7 +26,7 @@ from app.agents.base import (
     inject_context,
 )
 from app.config import settings
-from app.models.contract import Contract, ContractType
+from app.models.contract import Contract
 from app.services.orchestrator import get_orchestrator
 
 logger = logging.getLogger(__name__)
@@ -249,6 +249,7 @@ async def extract_metadata(
     user_role: str | None = None,
     excluded_parties: list[str] | None = None,
     few_shot_context: str = "",
+    industry_hint: str = "",
 ) -> ExtractedMetadata:
     """Extract metadata from contract text using the AI agent.
 
@@ -299,8 +300,13 @@ The counterparty must be the OTHER party — the external vendor, supplier, or p
 If the document mentions "between {excluded_parties[0]} and [OtherCompany]", the counterparty is [OtherCompany].
 """
 
+    # Build industry-specific hint
+    industry_context = ""
+    if industry_hint:
+        industry_context = f"\nINDUSTRY-SPECIFIC GUIDANCE:\n{industry_hint}\n"
+
     query = f"""Extract metadata from the following contract text:
-{filename_hint}{exclusion_hint}{few_shot_context}
+{filename_hint}{exclusion_hint}{industry_context}{few_shot_context}
 ---
 {text_sample}
 ---
@@ -627,97 +633,116 @@ async def update_contract_metadata(
     # Map contract type
     if metadata.contract_type and metadata.contract_type.confidence >= confidence_threshold:
         type_value = str(metadata.contract_type.value).upper().strip()
-        type_map = {
+        type_map: dict[str, str] = {
             # NDA variants
-            "NDA": ContractType.NDA,
-            "NON-DISCLOSURE AGREEMENT": ContractType.NDA,
-            "NON DISCLOSURE AGREEMENT": ContractType.NDA,
-            "NONDISCLOSURE AGREEMENT": ContractType.NDA,
-            "MUTUAL NON-DISCLOSURE AGREEMENT": ContractType.NDA,
-            "MUTUAL NDA": ContractType.NDA,
-            "CONFIDENTIALITY AGREEMENT": ContractType.NDA,
-            "MUTUAL CONFIDENTIALITY AGREEMENT": ContractType.NDA,
-            "CONFIDENTIAL DISCLOSURE AGREEMENT": ContractType.NDA,
-            "CDA": ContractType.NDA,
+            "NDA": "nda",
+            "NON-DISCLOSURE AGREEMENT": "nda",
+            "NON DISCLOSURE AGREEMENT": "nda",
+            "NONDISCLOSURE AGREEMENT": "nda",
+            "MUTUAL NON-DISCLOSURE AGREEMENT": "nda",
+            "MUTUAL NDA": "nda",
+            "CONFIDENTIALITY AGREEMENT": "nda",
+            "MUTUAL CONFIDENTIALITY AGREEMENT": "nda",
+            "CONFIDENTIAL DISCLOSURE AGREEMENT": "nda",
+            "CDA": "nda",
             # MSA variants
-            "MSA": ContractType.MSA,
-            "MASTER SERVICES AGREEMENT": ContractType.MSA,
-            "MASTER SERVICE AGREEMENT": ContractType.MSA,
-            "MASTER AGREEMENT": ContractType.MSA,
-            "FRAMEWORK AGREEMENT": ContractType.MSA,
-            "SERVICES AGREEMENT": ContractType.MSA,
-            "SERVICE AGREEMENT": ContractType.MSA,
-            "PROFESSIONAL SERVICES AGREEMENT": ContractType.MSA,
-            "CONSULTING AGREEMENT": ContractType.MSA,
-            "CONSULTING SERVICES AGREEMENT": ContractType.MSA,
-            "BUSINESS PROCESS OUTSOURCING AGREEMENT": ContractType.MSA,
-            "BPO AGREEMENT": ContractType.MSA,
-            "OUTSOURCING AGREEMENT": ContractType.MSA,
+            "MSA": "msa",
+            "MASTER SERVICES AGREEMENT": "msa",
+            "MASTER SERVICE AGREEMENT": "msa",
+            "MASTER AGREEMENT": "msa",
+            "FRAMEWORK AGREEMENT": "msa",
+            "SERVICES AGREEMENT": "msa",
+            "SERVICE AGREEMENT": "msa",
+            "PROFESSIONAL SERVICES AGREEMENT": "msa",
+            "CONSULTING AGREEMENT": "msa",
+            "CONSULTING SERVICES AGREEMENT": "msa",
+            "BUSINESS PROCESS OUTSOURCING AGREEMENT": "msa",
+            "BPO AGREEMENT": "msa",
+            "OUTSOURCING AGREEMENT": "msa",
             # SOW variants
-            "SOW": ContractType.SOW,
-            "STATEMENT OF WORK": ContractType.SOW,
-            "SCOPE OF WORK": ContractType.SOW,
-            "WORK ORDER": ContractType.SOW,
-            "PURCHASE ORDER": ContractType.SOW,
-            "TASK ORDER": ContractType.SOW,
-            "PROJECT ORDER": ContractType.SOW,
-            "SCHEDULE": ContractType.SOW,
-            "SERVICE ORDER": ContractType.SOW,
-            "ORDER FORM": ContractType.SOW,
-            "CSOW": ContractType.SOW,
-            "CHANGE SOW": ContractType.SOW,
-            "CHANGE STATEMENT OF WORK": ContractType.SOW,
+            "SOW": "sow",
+            "STATEMENT OF WORK": "sow",
+            "SCOPE OF WORK": "sow",
+            "WORK ORDER": "sow",
+            "PURCHASE ORDER": "sow",
+            "TASK ORDER": "sow",
+            "PROJECT ORDER": "sow",
+            "SCHEDULE": "sow",
+            "SERVICE ORDER": "sow",
+            "ORDER FORM": "sow",
+            "CSOW": "sow",
+            "CHANGE SOW": "sow",
+            "CHANGE STATEMENT OF WORK": "sow",
             # Amendment variants
-            "AMENDMENT": ContractType.AMENDMENT,
-            "ADDENDUM": ContractType.AMENDMENT,
-            "CONTRACT AMENDMENT": ContractType.AMENDMENT,
-            "FIRST AMENDMENT": ContractType.AMENDMENT,
-            "SECOND AMENDMENT": ContractType.AMENDMENT,
-            "THIRD AMENDMENT": ContractType.AMENDMENT,
-            "MODIFICATION": ContractType.AMENDMENT,
-            "CONTRACT MODIFICATION": ContractType.AMENDMENT,
-            "SUPPLEMENT": ContractType.AMENDMENT,
-            "SUPPLEMENTAL AGREEMENT": ContractType.AMENDMENT,
-            "CHANGE ORDER": ContractType.AMENDMENT,
-            "SIDE LETTER": ContractType.AMENDMENT,
-            "LETTER AMENDMENT": ContractType.AMENDMENT,
+            "AMENDMENT": "amendment",
+            "ADDENDUM": "amendment",
+            "CONTRACT AMENDMENT": "amendment",
+            "FIRST AMENDMENT": "amendment",
+            "SECOND AMENDMENT": "amendment",
+            "THIRD AMENDMENT": "amendment",
+            "MODIFICATION": "amendment",
+            "CONTRACT MODIFICATION": "amendment",
+            "SUPPLEMENT": "amendment",
+            "SUPPLEMENTAL AGREEMENT": "amendment",
+            "CHANGE ORDER": "amendment",
+            "SIDE LETTER": "amendment",
+            "LETTER AMENDMENT": "amendment",
             # Vendor agreement variants
-            "VENDOR": ContractType.VENDOR_AGREEMENT,
-            "VENDOR_AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "VENDOR AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SUPPLIER AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SUPPLY AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "PROCUREMENT AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "LICENSE AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SOFTWARE LICENSE AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SAAS AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SAAS SUBSCRIPTION AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SUBSCRIPTION AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "RESELLER AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "DISTRIBUTION AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "PARTNERSHIP AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "JOINT VENTURE AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "LEASE AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "LEASE": ContractType.VENDOR_AGREEMENT,
-            "RENTAL AGREEMENT": ContractType.VENDOR_AGREEMENT,
+            "VENDOR": "vendor_agreement",
+            "VENDOR_AGREEMENT": "vendor_agreement",
+            "VENDOR AGREEMENT": "vendor_agreement",
+            "SUPPLIER AGREEMENT": "vendor_agreement",
+            "PROCUREMENT AGREEMENT": "vendor_agreement",
+            # License / SaaS (now distinct types)
+            "LICENSE AGREEMENT": "license",
+            "SOFTWARE LICENSE AGREEMENT": "license",
+            "SAAS AGREEMENT": "license",
+            "SAAS SUBSCRIPTION AGREEMENT": "license",
+            "SUBSCRIPTION AGREEMENT": "license",
+            "RESELLER AGREEMENT": "vendor_agreement",
+            "DISTRIBUTION AGREEMENT": "vendor_agreement",
+            "PARTNERSHIP AGREEMENT": "vendor_agreement",
+            "JOINT VENTURE AGREEMENT": "vendor_agreement",
+            # Lease
+            "LEASE AGREEMENT": "lease",
+            "LEASE": "lease",
+            "RENTAL AGREEMENT": "lease",
             # Employment variants
-            "EMPLOYMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "EMPLOYMENT_CONTRACT": ContractType.EMPLOYMENT_CONTRACT,
-            "EMPLOYMENT CONTRACT": ContractType.EMPLOYMENT_CONTRACT,
-            "EMPLOYMENT AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "OFFER LETTER": ContractType.EMPLOYMENT_CONTRACT,
-            "INDEPENDENT CONTRACTOR AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "CONTRACTOR AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "FREELANCE AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "SEPARATION AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "NON-COMPETE AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "NON COMPETE AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "NONCOMPETE AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
+            "EMPLOYMENT": "employment_contract",
+            "EMPLOYMENT_CONTRACT": "employment_contract",
+            "EMPLOYMENT CONTRACT": "employment_contract",
+            "EMPLOYMENT AGREEMENT": "employment_contract",
+            "OFFER LETTER": "employment_contract",
+            "INDEPENDENT CONTRACTOR AGREEMENT": "employment_contract",
+            "CONTRACTOR AGREEMENT": "employment_contract",
+            "FREELANCE AGREEMENT": "employment_contract",
+            "SEPARATION AGREEMENT": "employment_contract",
+            "NON-COMPETE AGREEMENT": "employment_contract",
+            "NON COMPETE AGREEMENT": "employment_contract",
+            "NONCOMPETE AGREEMENT": "employment_contract",
+            # Manufacturing types
+            "SUPPLY AGREEMENT": "supply_agreement",
+            "QUALITY AGREEMENT": "quality_agreement",
+            "BLANKET PURCHASE ORDER": "blanket_po",
+            "BLANKET PO": "blanket_po",
+            "TOOLING AGREEMENT": "tooling_agreement",
+            "TOLL MANUFACTURING AGREEMENT": "toll_manufacturing",
+            # Pharma types
+            "CLINICAL SUPPLY AGREEMENT": "csa",
+            "CSA": "csa",
+            "CMO AGREEMENT": "cmo_agreement",
+            "CONTRACT MANUFACTURING AGREEMENT": "cmo_agreement",
+            "CRO AGREEMENT": "cro_agreement",
+            "CLINICAL RESEARCH AGREEMENT": "cro_agreement",
+            "PHARMACOVIGILANCE AGREEMENT": "pharmacovigilance",
         }
         mapped_type = type_map.get(type_value)
         if mapped_type:
             contract.contract_type = mapped_type
-        # Don't clear existing contract_type if AI returns unrecognized value
+        elif type_value:
+            # For unrecognized types, store as lowercase slug
+            slug = type_value.lower().replace(" ", "_").replace("-", "_")
+            contract.contract_type = slug
 
     # Helper to check if a value matches any excluded party (the uploader's org)
     def _is_excluded_party(value: str) -> bool:
@@ -1071,6 +1096,7 @@ async def extract_metadata_with_fallback(
     excluded_parties: list[str] | None = None,
     few_shot_context: str = "",
     tenant_id: str | None = None,
+    industry_hint: str = "",
 ) -> ExtractedMetadata:
     """Extract metadata using AI with regex fallback.
 
@@ -1098,7 +1124,7 @@ async def extract_metadata_with_fallback(
             logger.debug(f"DSPy metadata extraction unavailable, falling back: {e}")
 
     # Try AI extraction first
-    ai_metadata = await extract_metadata(contract_text, contract_id, user_id, user_role, excluded_parties, few_shot_context=few_shot_context)
+    ai_metadata = await extract_metadata(contract_text, contract_id, user_id, user_role, excluded_parties, few_shot_context=few_shot_context, industry_hint=industry_hint)
 
     # If AI extraction got good results, use it
     if ai_metadata.overall_confidence >= 0.6:

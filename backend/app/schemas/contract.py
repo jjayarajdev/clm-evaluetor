@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.models.contract import ContractStatus, ContractType, RiskLevel
+from app.models.contract import ContractStatus, RiskLevel
 
 
 class ContractUploadResponse(BaseModel):
@@ -122,7 +122,7 @@ class ContractListResponse(BaseModel):
 class ContractFilter(BaseModel):
     """Contract filter options."""
 
-    contract_type: ContractType | None = None
+    contract_type: str | None = None
     counterparty: str | None = None
     risk_level: RiskLevel | None = None
     status: ContractStatus | None = None
@@ -143,7 +143,7 @@ class ContractUpdate(BaseModel):
     auto_renewal: bool | None = None
     notice_period_days: int | None = None
     renewal_term_months: int | None = None
-    contract_type: ContractType | None = None
+    contract_type: str | None = None
     risk_level: RiskLevel | None = None
     custom_fields: dict | None = None
 

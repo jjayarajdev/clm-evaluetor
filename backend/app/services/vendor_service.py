@@ -282,7 +282,7 @@ async def build_vendor_metrics(db: AsyncSession, vendor_name: str, contracts: li
 
     contract_types = {}
     for c in contracts:
-        ct = c.contract_type.value if c.contract_type else "unknown"
+        ct = c.contract_type or "unknown"
         contract_types[ct] = contract_types.get(ct, 0) + 1
 
     effective_dates = [c.effective_date for c in contracts if c.effective_date]

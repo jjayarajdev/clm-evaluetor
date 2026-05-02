@@ -161,7 +161,7 @@ class UserService:
 
         self.db.add(user)
         await self.db.flush()
-        await self.db.refresh(user, attribute_names=["business_unit"])
+        await self.db.refresh(user, attribute_names=["business_unit", "tenant"])
 
         return user
 

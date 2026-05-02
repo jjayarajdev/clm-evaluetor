@@ -108,7 +108,7 @@ async def list_compliance_rules(
         ComplianceRuleSummary(
             id=str(r.id),
             industry=r.industry.value,
-            primary_contract_type=r.primary_contract_type.value,
+            primary_contract_type=r.primary_contract_type,
             required_document_type=r.required_document_type.value,
             rule_name=r.rule_name,
             severity_if_missing=r.severity_if_missing.value,
@@ -141,7 +141,7 @@ async def get_compliance_rule(
         id=str(rule.id),
         tenant_id=str(rule.tenant_id),
         industry=rule.industry.value,
-        primary_contract_type=rule.primary_contract_type.value,
+        primary_contract_type=rule.primary_contract_type,
         required_document_type=rule.required_document_type.value,
         is_required=rule.is_required,
         condition_description=rule.condition_description,
@@ -163,11 +163,8 @@ async def create_compliance_rule(
     tenant_id: UUID = Depends(get_current_tenant_id),
 ):
     """Create a new compliance rule."""
-    from app.models.contract import ContractType
-
     try:
         industry_enum = Industry(rule_data.industry)
-        contract_type_enum = ContractType(rule_data.primary_contract_type)
         doc_type_enum = ComplianceDocumentType(rule_data.required_document_type)
         severity_enum = ComplianceGapSeverity(rule_data.severity_if_missing)
     except ValueError as e:
@@ -176,7 +173,7 @@ async def create_compliance_rule(
     rule = IndustryComplianceRule(
         tenant_id=tenant_id,
         industry=industry_enum,
-        primary_contract_type=contract_type_enum,
+        primary_contract_type=rule_data.primary_contract_type,
         required_document_type=doc_type_enum,
         is_required=rule_data.is_required,
         condition_description=rule_data.condition_description,
@@ -195,7 +192,7 @@ async def create_compliance_rule(
         id=str(rule.id),
         tenant_id=str(rule.tenant_id),
         industry=rule.industry.value,
-        primary_contract_type=rule.primary_contract_type.value,
+        primary_contract_type=rule.primary_contract_type,
         required_document_type=rule.required_document_type.value,
         is_required=rule.is_required,
         condition_description=rule.condition_description,
@@ -251,7 +248,7 @@ async def update_compliance_rule(
         id=str(rule.id),
         tenant_id=str(rule.tenant_id),
         industry=rule.industry.value,
-        primary_contract_type=rule.primary_contract_type.value,
+        primary_contract_type=rule.primary_contract_type,
         required_document_type=rule.required_document_type.value,
         is_required=rule.is_required,
         condition_description=rule.condition_description,
@@ -563,7 +560,7 @@ async def suggest_matching_documents(
                 contract_id=str(m.contract.id),
                 filename=m.contract.filename,
                 counterparty=m.contract.counterparty,
-                contract_type=m.contract.contract_type.value if m.contract.contract_type else None,
+                contract_type=m.contract.contract_type or None,
                 match_score=m.match_score,
                 match_reason=m.match_reason,
                 effective_date=m.contract.effective_date,

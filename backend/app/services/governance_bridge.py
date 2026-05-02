@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 
-from app.models.contract import Contract, ContractType, RiskLevel
+from app.models.contract import Contract, RiskLevel
 from app.models.clause import Clause
 from app.models.sla import ContractSLA, SLAMetricType, SLAUnit
 from app.models.organization import Organization, OrganizationType, OrganizationLevel
@@ -53,11 +53,19 @@ logger = logging.getLogger(__name__)
 # ── Contract type → default org type mapping ─────────────────────────────
 
 CONTRACT_TYPE_TO_ORG: dict[str, str] = {
-    ContractType.MSA.value: OrganizationType.CUSTOMER.value,
-    ContractType.SOW.value: OrganizationType.CUSTOMER.value,
-    ContractType.NDA.value: OrganizationType.PARTNER.value,
-    ContractType.VENDOR_AGREEMENT.value: OrganizationType.VENDOR.value,
-    ContractType.AMENDMENT.value: OrganizationType.CUSTOMER.value,
+    "msa": OrganizationType.CUSTOMER.value,
+    "sow": OrganizationType.CUSTOMER.value,
+    "nda": OrganizationType.PARTNER.value,
+    "vendor_agreement": OrganizationType.VENDOR.value,
+    "amendment": OrganizationType.CUSTOMER.value,
+    # Manufacturing
+    "supply_agreement": OrganizationType.VENDOR.value,
+    "quality_agreement": OrganizationType.VENDOR.value,
+    "blanket_po": OrganizationType.VENDOR.value,
+    # Pharma
+    "csa": OrganizationType.VENDOR.value,
+    "cmo_agreement": OrganizationType.VENDOR.value,
+    "cro_agreement": OrganizationType.VENDOR.value,
 }
 
 # ── High-risk clause types that warrant improvement points ───────────────
@@ -111,7 +119,7 @@ class GovernanceBridgeService:
             return summary
 
         # Skip employment contracts — no B2B governance
-        if contract.contract_type == ContractType.EMPLOYMENT_CONTRACT:
+        if contract.contract_type == "employment_contract":
             return summary
 
         # ── Automation 1: Counterparty → Organization ────────────────
@@ -379,7 +387,7 @@ class GovernanceBridgeService:
 
         # ── Signal 4: Contract type mapping (fallback) ────────────────────
         org_type = CONTRACT_TYPE_TO_ORG.get(
-            contract.contract_type.value if contract.contract_type else "",
+            contract.contract_type or "",
             OrganizationType.CUSTOMER.value,
         )
         logger.info(f"Org type from contract_type fallback: {org_type}")
@@ -893,7 +901,7 @@ If you cannot determine a field, use null for that field."""
         tenant_id: uuid.UUID,
     ) -> list:
         """Link SOW service descriptions to Service Portfolio entries."""
-        if not contract.contract_type or contract.contract_type != ContractType.SOW:
+        if not contract.contract_type or contract.contract_type != "sow":
             return []
 
         # Try to get service descriptions from schema_data or clauses

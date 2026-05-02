@@ -49,9 +49,8 @@ RegulatoryObligationCategoryType = Literal[
 
 ComplianceStatusType = Literal["green", "amber", "red", "not_assessed"]
 
-ContractTypeStr = Literal[
-    "nda", "msa", "sow", "amendment", "vendor_agreement", "employment_contract"
-]
+# Contract types are now data-driven via IndustryProfile; accept any string
+ContractTypeStr = str
 
 
 # ============ Compliance Rule Schemas ============

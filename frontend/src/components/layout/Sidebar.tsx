@@ -26,6 +26,7 @@ import {
   ShieldCheckIcon,
   BeakerIcon,
   FolderIcon,
+  SwatchIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSidebar } from '@/contexts/SidebarContext'
@@ -98,6 +99,7 @@ const adminGroups: NavGroup[] = [
     label: 'System',
     collapsible: true,
     items: [
+      { name: 'Industry Profiles', href: '/admin/industry-profiles', icon: SwatchIcon, roles: ['admin'] },
       { name: 'Extraction Quality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['admin'] },
       { name: 'Master Data', href: '/admin/master-data', icon: CircleStackIcon, roles: ['admin'] },
       { name: 'Scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
@@ -394,7 +396,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const { collapsed, toggleCollapsed } = useSidebar()
 
   const role = user?.role || ''
+  const filteredMain = mainSection.filter((item) => item.roles.includes(role))
+  const filteredMgmt = managementSection.filter((item) => item.roles.includes(role))
   const filteredGov = governanceSection.filter((item) => item.roles.includes(role))
+  const filteredIntel = intelligenceSection.filter((item) => item.roles.includes(role))
   const filteredSuperAdmin = superAdminNav.filter((item) => item.roles.includes(role))
   const hasAdmin = role === 'admin'
   const hasSuperAdmin = role === 'super_admin'
@@ -444,11 +449,17 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         aria-label="Main navigation"
       >
         {/* MAIN */}
-        <NavSection label="Main" items={mainSection} role={role} onClose={onClose} collapsed={collapsed} />
+        {filteredMain.length > 0 && (
+          <NavSection label="Main" items={mainSection} role={role} onClose={onClose} collapsed={collapsed} />
+        )}
 
         {/* MANAGEMENT */}
-        <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-        <NavSection label="Management" items={managementSection} role={role} onClose={onClose} collapsed={collapsed} />
+        {filteredMgmt.length > 0 && (
+          <>
+            <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
+            <NavSection label="Management" items={managementSection} role={role} onClose={onClose} collapsed={collapsed} />
+          </>
+        )}
 
         {/* GOVERNANCE */}
         {filteredGov.length > 0 && (
@@ -459,8 +470,12 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         )}
 
         {/* INTELLIGENCE */}
-        <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-        <NavSection label="Intelligence" items={intelligenceSection} role={role} onClose={onClose} collapsed={collapsed} />
+        {filteredIntel.length > 0 && (
+          <>
+            <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
+            <NavSection label="Intelligence" items={intelligenceSection} role={role} onClose={onClose} collapsed={collapsed} />
+          </>
+        )}
 
         {/* Admin flyout */}
         {hasAdmin && (
@@ -478,19 +493,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </>
         )}
 
-        {/* Super Admin flyout */}
+        {/* Super Admin — show items directly (no flyout needed, it's their only section) */}
         {hasSuperAdmin && filteredSuperAdmin.length > 0 && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
             <SectionLabel label="Super Admin" collapsed={collapsed} />
-            <FlyoutMenu
-              groups={[{ label: 'Platform', items: superAdminNav }]}
-              userRole={role}
-              onClose={onClose}
-              collapsed={collapsed}
-              triggerIcon={GlobeAltIcon}
-              triggerLabel="Platform Admin"
-            />
+            {filteredSuperAdmin.map((item) => (
+              <NavItemLink key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
+            ))}
           </>
         )}
       </nav>

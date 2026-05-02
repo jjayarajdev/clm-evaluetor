@@ -156,6 +156,7 @@ async def extract_clauses(
     user_id: str | None = None,
     few_shot_context: str = "",
     tenant_id: str | None = None,
+    industry_hint: str = "",
 ) -> ClauseExtractionResult:
     """Extract clauses from contract text using DSPy (if compiled) or AI agent.
 
@@ -194,8 +195,10 @@ async def extract_clauses(
     chunks = _split_for_extraction(contract_text, max_chunk_size)
 
     for i, chunk in enumerate(chunks):
+        industry_context = f"\nINDUSTRY-SPECIFIC GUIDANCE:\n{industry_hint}\n" if industry_hint else ""
+
         query = f"""Extract all clauses from this contract section (part {i + 1} of {len(chunks)}):
-{few_shot_context}
+{industry_context}{few_shot_context}
 ---
 {chunk}
 ---

@@ -307,7 +307,7 @@ async def get_at_risk_contracts(
                 contract_id=str(contract.id),
                 filename=contract.filename,
                 counterparty=contract.counterparty,
-                contract_type=contract.contract_type.value if contract.contract_type else None,
+                contract_type=contract.contract_type or None,
                 contract_value=float(contract.contract_value) if contract.contract_value else None,
                 risk_score=risk_score,
                 risk_level=risk_level,

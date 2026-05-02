@@ -24,6 +24,28 @@ from app.models.tenant import Tenant
 logger = logging.getLogger(__name__)
 
 
+async def _load_extraction_hints(db: AsyncSession, tenant_id) -> dict[str, str]:
+    """Load industry-specific extraction hints for a tenant's profile.
+
+    Returns dict like {"metadata": "...", "clauses": "...", "risks": "...", ...}
+    or empty dict if no profile is configured.
+    """
+    if not tenant_id:
+        return {}
+    try:
+        from sqlalchemy.orm import selectinload
+        from sqlalchemy import select
+        tenant = await db.get(Tenant, tenant_id)
+        if tenant and tenant.industry_profile_id:
+            from app.models.industry_profile import IndustryProfile
+            profile = await db.get(IndustryProfile, tenant.industry_profile_id)
+            if profile and profile.extraction_hints:
+                return profile.extraction_hints
+    except Exception as e:
+        logger.debug(f"Extraction hints loading skipped: {e}")
+    return {}
+
+
 class IndexingError(Exception):
     """Exception raised for indexing errors."""
 
@@ -124,7 +146,7 @@ class IndexingService:
             logger.info(f"Extracting metadata for contract {contract.id}")
             full_text = parsed.full_text or ""
 
-            # Build excluded parties list from tenant/client names
+            # Build excluded parties list from tenant/client names + party aliases
             # so the AI doesn't set the uploader's own org as the counterparty
             excluded_parties: list[str] = []
             if contract.tenant_id:
@@ -132,6 +154,13 @@ class IndexingService:
                     tenant = await self.db.get(Tenant, contract.tenant_id)
                     if tenant and tenant.name:
                         excluded_parties.append(tenant.name)
+                    # Load party aliases from tenant config_overrides
+                    if tenant and tenant.config_overrides:
+                        aliases = tenant.config_overrides.get("party_aliases", [])
+                        if isinstance(aliases, list):
+                            for alias in aliases:
+                                if alias and alias not in excluded_parties:
+                                    excluded_parties.append(alias)
                 except Exception:
                     pass
             if contract.client_id:
@@ -142,6 +171,9 @@ class IndexingService:
                         excluded_parties.append(client.name)
                 except Exception:
                     pass
+
+            # Load industry-specific extraction hints
+            extraction_hints = await _load_extraction_hints(self.db, contract.tenant_id)
 
             # Build few-shot context from golden set
             meta_few_shot = ""
@@ -164,6 +196,7 @@ class IndexingService:
                     excluded_parties=excluded_parties if excluded_parties else None,
                     few_shot_context=meta_few_shot,
                     tenant_id=str(contract.tenant_id) if contract.tenant_id else None,
+                    industry_hint=extraction_hints.get("metadata", ""),
                 )
                 await update_contract_metadata(self.db, contract, metadata, excluded_parties=excluded_parties if excluded_parties else None)
                 logger.info(f"Metadata extracted for contract {contract.id} (confidence: {metadata.overall_confidence:.2f})")
@@ -207,6 +240,7 @@ class IndexingService:
                     contract_text=full_text,
                     contract_id=str(contract.id),
                     user_id=user_id,
+                    industry_hint=extraction_hints.get("risks", ""),
                 )
                 await update_contract_risk(self.db, contract, risk_result)
                 logger.info(f"Risk assessed for contract {contract.id}: {risk_result.risk_level}")

@@ -199,6 +199,10 @@ from app.models.extraction_quality import (
     ExtractionVerification,
     VerificationStatus,
 )
+# Industry Profiles (Multi-Domain CLM)
+from app.models.industry_profile import IndustryProfile
+# Taxonomy Suggestions
+from app.models.taxonomy_suggestion import TaxonomySuggestion, SuggestionStatus
 
 __all__ = [
     # Base
@@ -418,4 +422,6 @@ __all__ = [
     "GoldenSetContract",
     "ExtractionVerification",
     "VerificationStatus",
+    # Industry Profiles (Multi-Domain CLM)
+    "IndustryProfile",
 ]

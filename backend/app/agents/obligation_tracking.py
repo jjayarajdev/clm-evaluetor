@@ -181,6 +181,7 @@ async def extract_obligations(
     user_id: str | None = None,
     few_shot_context: str = "",
     tenant_id: str | None = None,
+    industry_hint: str = "",
 ) -> ObligationExtractionResult:
     """Extract obligations from contract text using DSPy (if compiled) or AI agent.
 
@@ -217,8 +218,10 @@ async def extract_obligations(
     for chunk_idx, chunk_text in enumerate(chunks):
         chunk_label = f"[Part {chunk_idx + 1}/{len(chunks)}]" if len(chunks) > 1 else ""
 
+        industry_context = f"\nINDUSTRY-SPECIFIC GUIDANCE:\n{industry_hint}\n" if industry_hint else ""
+
         query = f"""Extract all contractual obligations from the following contract {chunk_label}:
-{few_shot_context}
+{industry_context}{few_shot_context}
 ---
 {chunk_text}
 ---

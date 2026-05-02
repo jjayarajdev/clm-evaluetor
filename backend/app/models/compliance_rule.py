@@ -12,7 +12,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.models.base import TenantMixin, TimestampMixin, UUIDMixin
-from app.models.contract import ContractType
 from app.models.industry import (
     ComplianceDocumentType,
     ComplianceGapSeverity,
@@ -48,13 +47,8 @@ class IndustryComplianceRule(Base, UUIDMixin, TimestampMixin, TenantMixin):
         nullable=False,
         index=True,
     )
-    primary_contract_type: Mapped[ContractType] = mapped_column(
-        Enum(
-            ContractType,
-            name='contracttype',
-            create_type=False,
-            values_callable=lambda x: [e.value for e in x],
-        ),
+    primary_contract_type: Mapped[str] = mapped_column(
+        String(100),
         nullable=False,
         index=True,
     )
@@ -145,6 +139,6 @@ class IndustryComplianceRule(Base, UUIDMixin, TimestampMixin, TenantMixin):
     def __repr__(self) -> str:
         return (
             f"<IndustryComplianceRule {self.industry.value}/"
-            f"{self.primary_contract_type.value} -> "
+            f"{self.primary_contract_type} -> "
             f"{self.required_document_type.value}>"
         )

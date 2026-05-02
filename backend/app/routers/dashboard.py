@@ -135,7 +135,7 @@ async def get_contracts_summary(
         cards.append(ContractSummaryCard(
             id=str(c.id),
             filename=c.filename,
-            contract_type=c.contract_type.value if c.contract_type else None,
+            contract_type=c.contract_type or None,
             counterparty=c.counterparty,
             status=status_val,
             risk_level=c.risk_level.value if c.risk_level else None,
@@ -215,7 +215,7 @@ async def get_contract_intelligence(
 
     # Key terms
     key_terms = ContractKeyTerms(
-        contract_type=contract.contract_type.value if contract.contract_type else None,
+        contract_type=contract.contract_type or None,
         counterparty=contract.counterparty,
         effective_date=contract.effective_date,
         expiration_date=contract.expiration_date,
@@ -571,7 +571,7 @@ async def get_clause_detail(
         id=str(clause.id),
         contract_id=str(clause.contract_id),
         contract_filename=filename,
-        contract_type=contract_type.value if contract_type else None,
+        contract_type=contract_type if contract_type else None,
         counterparty=counterparty,
         clause_type=clause.clause_type.value if clause.clause_type else "other",
         text=clause.text,
@@ -681,7 +681,7 @@ async def get_obligation_detail(
         contract_id=str(obl.contract_id),
         contract_filename=row[1],
         counterparty=row[2],
-        contract_type=row[3].value if row[3] else None,
+        contract_type=row[3] if row[3] else None,
         description=obl.description,
         obligation_type=obl.obligation_type.value if obl.obligation_type else "other",
         obligated_party=obl.obligated_party,
@@ -922,7 +922,7 @@ async def compare_definitions(
             "contract_id": str(defn.contract_id),
             "contract_filename": filename,
             "counterparty": counterparty,
-            "contract_type": contract_type.value if contract_type else None,
+            "contract_type": contract_type if contract_type else None,
             "term": defn.term,
             "definition_text": defn.definition_text,
             "category": defn.category,

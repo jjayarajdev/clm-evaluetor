@@ -305,7 +305,7 @@ class EventDetector:
                     "expiration_date": contract.expiration_date.isoformat(),
                     "days_until_expiry": days_until,
                     "contract_value": float(contract.total_value) if contract.total_value else None,
-                    "contract_type": contract.contract_type.value if contract.contract_type else None,
+                    "contract_type": contract.contract_type or None,
                 },
                 detected_by="event_detector",
                 status=EventStatus.pending,

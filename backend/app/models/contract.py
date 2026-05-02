@@ -13,7 +13,12 @@ from app.models.industry import Industry
 
 
 class ContractType(str, enum.Enum):
-    """Supported contract types."""
+    """Legacy contract type enum — kept for backward compatibility.
+
+    The database column is now VARCHAR(100), not a PostgreSQL enum.
+    New contract types are defined in IndustryProfile.contract_types (JSONB).
+    Use these constants for common comparisons but any string value is valid.
+    """
 
     NDA = "nda"
     MSA = "msa"
@@ -21,6 +26,9 @@ class ContractType(str, enum.Enum):
     AMENDMENT = "amendment"
     VENDOR_AGREEMENT = "vendor_agreement"
     EMPLOYMENT_CONTRACT = "employment_contract"
+    # Extended types (data-driven, no PG enum needed)
+    LICENSE = "license"
+    LEASE = "lease"
 
 
 class ContractStatus(str, enum.Enum):
@@ -68,9 +76,9 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         index=True,
     )
 
-    # Extracted metadata
-    contract_type: Mapped[ContractType | None] = mapped_column(
-        Enum(ContractType, name='contracttype', create_type=False, values_callable=lambda x: [e.value for e in x]),
+    # Extracted metadata — now VARCHAR, not PG enum; accepts any industry profile type
+    contract_type: Mapped[str | None] = mapped_column(
+        String(100),
         nullable=True,
         index=True,
     )

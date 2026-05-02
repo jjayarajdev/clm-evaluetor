@@ -2,7 +2,7 @@
 
 Comprehensive data model documentation with Mermaid diagrams for the Contract Lifecycle Management platform.
 
-**53 model files** defining **77 database tables** across multi-tenancy, contract intelligence, post-signing management, relationship governance, compliance, workflows, integrations, and supporting entities.
+**55 model files** defining **81 database tables** across multi-tenancy, contract intelligence, post-signing management, relationship governance, compliance, workflows, integrations, industry-aware extraction, and supporting entities.
 
 ---
 
@@ -21,9 +21,10 @@ Comprehensive data model documentation with Mermaid diagrams for the Contract Li
 11. [Notifications](#11-notifications)
 12. [Chat](#12-chat)
 13. [Supporting Entities](#13-supporting-entities)
-14. [Complete Overview](#14-complete-entity-relationship-overview)
-15. [Data Flow Diagrams](#15-data-flow-diagrams)
-16. [Key Design Decisions](#16-key-design-decisions)
+14. [Industry-Aware Multi-Domain CLM](#14-industry-aware-multi-domain-clm)
+15. [Complete Overview](#15-complete-entity-relationship-overview)
+16. [Data Flow Diagrams](#16-data-flow-diagrams)
+17. [Key Design Decisions](#17-key-design-decisions)
 
 ---
 
@@ -53,6 +54,8 @@ erDiagram
         boolean is_active
         jsonb custom_field_definitions
         text settings
+        uuid industry_profile_id FK "optional → IndustryProfile"
+        jsonb config_overrides "tenant-level taxonomy overrides"
         timestamp created_at
         timestamp updated_at
     }
@@ -156,6 +159,8 @@ erDiagram
         text description
         uuid head_user_id FK
         boolean is_active
+        uuid industry_profile_id FK "optional → IndustryProfile"
+        jsonb config_overrides "BU-level taxonomy overrides"
         timestamp created_at
         timestamp updated_at
     }
@@ -295,7 +300,7 @@ erDiagram
         string file_path
         string content_hash
         enum status "pending|processing|completed|failed"
-        enum contract_type "msa|sow|nda|employment|vendor|lease|license|other"
+        varchar contract_type "VARCHAR(100), industry-profile-driven"
         string counterparty
         date effective_date
         date expiration_date
@@ -335,6 +340,7 @@ erDiagram
         decimal confidence_score "AI confidence"
         text extracted_value
         jsonb custom_fields
+        jsonb highlight_rects "PDF bounding boxes per page"
         timestamp created_at
         timestamp updated_at
     }
@@ -462,6 +468,7 @@ erDiagram
         date next_compliance_due
         text compliance_notes
         jsonb custom_fields
+        jsonb highlight_rects "PDF bounding boxes per page"
         timestamp created_at
         timestamp updated_at
     }
@@ -881,6 +888,7 @@ erDiagram
         decimal current_compliance_rate
         int consecutive_breaches
         boolean is_active
+        jsonb highlight_rects "PDF bounding boxes per page"
         timestamp created_at
     }
 
@@ -2074,7 +2082,148 @@ erDiagram
 
 ---
 
-## 14. Complete Entity Relationship Overview
+## 14. Industry-Aware Multi-Domain CLM
+
+### Industry Profiles & Taxonomy Configuration
+
+Defines per-industry extraction taxonomies (contract types, clause types, risk categories, SLA metrics) that drive AI agent behavior. Tenants and Business Units reference profiles and can apply config overrides.
+
+```mermaid
+erDiagram
+    IndustryProfile ||--o{ Tenant : "used by"
+    IndustryProfile ||--o{ BusinessUnit : "used by"
+    Tenant ||--o{ TaxonomySuggestion : "has suggestions"
+    Contract ||--o{ TaxonomySuggestion : "sourced from"
+    BusinessUnit ||--o{ TaxonomySuggestion : "scoped to"
+
+    IndustryProfile {
+        uuid id PK
+        string name UK "e.g. IT Services, Healthcare"
+        string code UK "e.g. it_services, healthcare"
+        text description
+        jsonb contract_types "list of type definitions"
+        jsonb clause_types "list of clause definitions"
+        jsonb risk_categories "list of risk definitions"
+        jsonb sla_metrics "list of SLA metric definitions"
+        jsonb field_definitions "custom field schemas"
+        jsonb extraction_hints "AI extraction guidance"
+        jsonb ui_config "frontend display config"
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    TaxonomySuggestion {
+        uuid id PK
+        uuid tenant_id FK
+        uuid contract_id FK "optional — source contract"
+        uuid business_unit_id FK "optional"
+        string category "contract_type|clause_type|risk_category|sla_metric|obligation_type"
+        string code "machine-readable key"
+        string label "human-readable name"
+        jsonb details "additional context"
+        string source_agent "metadata_extraction|clause_extraction|quality_feedback|..."
+        float confidence "0.0–1.0"
+        text source_text "excerpt that triggered suggestion"
+        enum status "pending|approved|rejected"
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+### Extraction Quality (Golden Set)
+
+Golden set contracts are benchmarks for measuring AI extraction accuracy. Verifications mark individual extracted items (clauses, obligations, SLAs, metadata fields) as correct, incorrect, or partial. Scores roll up per-contract and per-taxonomy-item.
+
+```mermaid
+erDiagram
+    Contract ||--o| GoldenSetContract : "benchmarked by"
+    GoldenSetContract ||--o{ ExtractionVerification : "has verifications"
+
+    GoldenSetContract {
+        uuid id PK
+        uuid contract_id FK UK
+        uuid tenant_id FK "nullable for global"
+        boolean is_global "platform-wide benchmark"
+        string added_by "user ID"
+        text notes
+        float metadata_score "0–100"
+        float clause_score "0–100"
+        float obligation_score "0–100"
+        float sla_score "0–100"
+        float overall_score "0–100"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ExtractionVerification {
+        uuid id PK
+        uuid golden_set_id FK
+        string entity_type "metadata_field|clause|obligation|sla"
+        string entity_id "UUID of verified entity"
+        enum status "correct|incorrect|partial"
+        string verified_by "user ID"
+        jsonb corrected_value "human-corrected data"
+        text notes
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+### Config Resolution Hierarchy
+
+Industry profile configuration resolves with a cascading override pattern:
+
+```mermaid
+graph TB
+    IP[IndustryProfile defaults] --> TO[Tenant config_overrides]
+    TO --> BO[BusinessUnit config_overrides]
+    BO --> MC[Merged Config used by AI agents]
+
+    IP -.- IPD["Base taxonomy: contract types, clause types,<br/>risk categories, SLA metrics, extraction hints"]
+    TO -.- TOD["Tenant adds/removes/modifies items<br/>Stored in tenants.config_overrides JSONB"]
+    BO -.- BOD["BU adds/removes/modifies items<br/>Stored in business_units.config_overrides JSONB"]
+    MC -.- MCD["get_merged_config() resolves at runtime<br/>Used by all 9 AI extraction agents"]
+
+    style MC fill:#e8f5e9
+```
+
+### Quality Feedback Loop
+
+```mermaid
+graph LR
+    subgraph Configure["1. Configure"]
+        IP2[Industry Profile]
+        OV[Config Overrides]
+    end
+
+    subgraph Extract["2. Extract"]
+        AI2[AI Agents]
+        CL2[Clauses/Obligations/SLAs]
+    end
+
+    subgraph Measure["3. Measure"]
+        GS[Golden Set]
+        VER[Verifications]
+        ACC[Per-Taxonomy Accuracy]
+    end
+
+    subgraph Refine["4. Refine"]
+        TS[Taxonomy Suggestions]
+        HNT[Quality-Driven Hints]
+    end
+
+    Configure --> Extract --> Measure --> Refine --> Configure
+
+    style Configure fill:#e3f2fd
+    style Extract fill:#fff3e0
+    style Measure fill:#f3e5f5
+    style Refine fill:#e8f5e9
+```
+
+---
+
+## 15. Complete Entity Relationship Overview
 
 ```mermaid
 graph TB
@@ -2178,6 +2327,13 @@ graph TB
         NT[NotificationTemplate]
         NL[NotificationLog]
         NR[NotificationRule]
+    end
+
+    subgraph IndustryAware["Industry-Aware Extraction"]
+        IPRO[IndustryProfile]
+        TSUG[TaxonomySuggestion]
+        GSC[GoldenSetContract]
+        EVER[ExtractionVerification]
     end
 
     subgraph Supporting["Supporting"]
@@ -2289,11 +2445,18 @@ graph TB
     CSESS --> CMSG
 
     NT --> NL
+
+    IPRO --> T
+    IPRO --> BU
+    T --> TSUG
+    C --> TSUG
+    C --> GSC
+    GSC --> EVER
 ```
 
 ---
 
-## 15. Data Flow Diagrams
+## 16. Data Flow Diagrams
 
 ### Tenant Creation Flow
 
@@ -2455,7 +2618,7 @@ sequenceDiagram
 
 ---
 
-## 16. Key Design Decisions
+## 17. Key Design Decisions
 
 ### Files & Documents
 
@@ -2495,7 +2658,7 @@ sequenceDiagram
 
 ---
 
-## Complete Table Inventory (77 tables from 51 model files)
+## Complete Table Inventory (81 tables from 55 model files)
 
 | # | Table Name | Model File | Section |
 |---|-----------|------------|---------|
@@ -2576,6 +2739,10 @@ sequenceDiagram
 | 75 | project_phases | project_task.py | Supporting |
 | 76 | project_tasks | project_task.py | Supporting |
 | 77 | project_notes | project_task.py | Supporting |
+| 78 | industry_profiles | industry_profile.py | Industry-Aware |
+| 79 | taxonomy_suggestions | taxonomy_suggestion.py | Industry-Aware |
+| 80 | golden_set_contracts | extraction_quality.py | Industry-Aware |
+| 81 | extraction_verifications | extraction_quality.py | Industry-Aware |
 
 ---
 
@@ -2591,3 +2758,4 @@ sequenceDiagram
 | 1.5 | 2026-03-09 | Updated Contract Processing Pipeline: KG extraction deferred to deep_analysis, auto-link detection runs in indexer pipeline, metadata flush before optional stages, excluded parties in metadata extraction. |
 | 2.0 | 2026-03-29 | Comprehensive update: 53 models, ~77 tables. Added Contract Extraction Details (preambles, definitions, exhibits, process steps, financials, liabilities, key dates, clause indicators), Document Package (contract_documents, signatures, sections), Workflows & Approvals (workflow_definitions, workflow_steps, action_executions, approvers, approval_requests), Events, Integrations (integration_configs, integration_logs, sla_measurements), Notification templates/logs, External Access Tokens, Snow SLA Mappings, Organization Officers, Relationship Status History, Service Portfolio, Improvement Actions, Alert Configs, Project Tracking, Master Data. Fixed ExternalUser/ContractShare/ContractComment/NotificationRule/MetricSnapshot fields to match actual models. Added complete 77-table inventory. Added event-driven workflow flow diagram. |
 | 2.1 | 2026-04-08 | Accuracy audit against codebase. Added ContractProcessingJob (DB-backed processing queue). Fixed Survey section: removed phantom SurveyRespondent table, updated SurveyTemplate/Question/Instance/Response fields to match code. Fixed Knowledge Graph: entity types (party→sla_metric), relationship types (has_party→expires_on), table names (kg_entities, kg_relationships). Fixed BusinessRelationship fields (added name, governance_config, review_frequency_days). Fixed RelationshipTeam role enum and fields. Fixed SLAPerformance fields. Fixed 3 wrong table names in inventory (relationship_teams, kg_entities, kg_relationships). Added Tenant Creation Flow, Governance Bridge Flow diagrams to data flow section. |
+| 2.2 | 2026-04-29 | Industry-Aware Multi-Domain CLM: Added IndustryProfile, TaxonomySuggestion, GoldenSetContract, ExtractionVerification tables (section 14). Added industry_profile_id FK and config_overrides JSONB to Tenant and BusinessUnit. Changed Contract.contract_type from enum to VARCHAR(100). Added highlight_rects JSONB to Clause, Obligation, ContractSLA for PDF bounding-box highlighting. Added config resolution hierarchy and quality feedback loop diagrams. Updated table count from 77→81. |

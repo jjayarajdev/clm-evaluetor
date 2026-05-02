@@ -20,7 +20,7 @@ from app.core.deps import AdminUser, CurrentUser, CurrentTenantId
 from app.models.contract import Contract
 from app.database import get_db
 from app.models.audit import AuditAction
-from app.models.contract import ContractStatus, ContractType, RiskLevel
+from app.models.contract import ContractStatus, RiskLevel
 from app.schemas.contract import (
     BatchUploadResponse,
     ContractFilter,
@@ -37,13 +37,27 @@ from app.services.progress_tracker import get_progress_tracker, ProcessingStage
 router = APIRouter(prefix="/api/contracts", tags=["Contracts"])
 
 
-def _make_contract_service(db: AsyncSession, current_user, tenant_id):
+async def _get_all_child_bu_ids(db: AsyncSession, parent_id) -> list:
+    """Recursively get all child BU IDs using DB queries (async-safe)."""
+    from app.models.business_unit import BusinessUnit
+
+    result = await db.execute(
+        select(BusinessUnit.id).where(BusinessUnit.parent_id == parent_id)
+    )
+    child_ids = [row[0] for row in result.all()]
+    all_ids = list(child_ids)
+    for cid in child_ids:
+        all_ids.extend(await _get_all_child_bu_ids(db, cid))
+    return all_ids
+
+
+async def _make_contract_service(db: AsyncSession, current_user, tenant_id):
     """Create a ContractService with proper BU hierarchy for BU_HEAD users."""
     from app.services.contracts import ContractService
 
     bu_child_ids = None
-    if current_user.business_unit_id and current_user.is_bu_head and current_user.business_unit:
-        bu_child_ids = list(current_user.business_unit.get_all_child_ids())
+    if current_user.business_unit_id and current_user.is_bu_head:
+        bu_child_ids = await _get_all_child_bu_ids(db, current_user.business_unit_id)
 
     return ContractService(
         db,
@@ -59,7 +73,7 @@ def contract_to_summary(contract) -> ContractSummary:
     return ContractSummary(
         id=str(contract.id),
         filename=contract.filename,
-        contract_type=contract.contract_type.value if contract.contract_type else None,
+        contract_type=contract.contract_type or None,
         counterparty=contract.counterparty,
         status=contract.status.value,
         risk_level=contract.risk_level.value if contract.risk_level else None,
@@ -280,6 +294,7 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
         clause_few_shot = ""
         obligation_few_shot = ""
         sla_few_shot = ""
+        extraction_hints: dict[str, str] = {}
         if tenant_id:
             try:
                 from app.services.few_shot_service import get_few_shot_context
@@ -292,6 +307,16 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             except Exception as e:
                 logger.debug(f"[DEEP ANALYSIS] Few-shot context skipped: {e}")
 
+            # Load industry-specific extraction hints
+            try:
+                from app.services.indexer import _load_extraction_hints
+                async with async_session_maker() as session:
+                    extraction_hints = await _load_extraction_hints(session, tenant_id)
+                if extraction_hints:
+                    logger.info(f"[DEEP ANALYSIS] Using industry extraction hints")
+            except Exception as e:
+                logger.debug(f"[DEEP ANALYSIS] Extraction hints skipped: {e}")
+
         # --- AI extraction stage (no DB needed) ---
         tenant_id_str = str(tenant_id) if tenant_id else None
 
@@ -302,6 +327,7 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             user_id=user_id,
             few_shot_context=clause_few_shot,
             tenant_id=tenant_id_str,
+            industry_hint=extraction_hints.get("clauses", ""),
         )
         logger.info(f"[DEEP ANALYSIS] Extracted {len(clause_result.extracted_clauses) if clause_result else 0} clauses")
 
@@ -312,6 +338,7 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             user_id=user_id,
             few_shot_context=obligation_few_shot,
             tenant_id=tenant_id_str,
+            industry_hint=extraction_hints.get("obligations", ""),
         )
         logger.info(f"[DEEP ANALYSIS] Extracted {len(obligation_result.obligations) if obligation_result else 0} obligations")
 
@@ -322,6 +349,7 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             user_id=user_id,
             few_shot_context=sla_few_shot,
             tenant_id=tenant_id_str,
+            industry_hint=extraction_hints.get("slas", ""),
         )
         logger.info(f"[DEEP ANALYSIS] Extracted {len(sla_result.slas) if sla_result else 0} SLAs")
 
@@ -429,6 +457,23 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             await session.commit()
             logger.info(f"[DEEP ANALYSIS] Clause/obligation/SLA extraction stored for {contract_id}")
 
+        # --- Taxonomy discovery: compare extracted items against tenant config ---
+        if tenant_id:
+            try:
+                from app.services.taxonomy_discovery import discover_taxonomy_suggestions
+
+                async with async_session_maker() as session:
+                    suggestion_count = await discover_taxonomy_suggestions(
+                        db=session,
+                        contract_id=cid_uuid,
+                        tenant_id=tenant_id,
+                    )
+                    await session.commit()
+                    if suggestion_count > 0:
+                        logger.info(f"[DEEP ANALYSIS] Created {suggestion_count} taxonomy suggestions")
+            except Exception as e:
+                logger.warning(f"[DEEP ANALYSIS] Taxonomy discovery failed (non-fatal): {e}")
+
         # --- Renewal + Schema + Type classification in one session ---
         tracker.update_progress(contract_id, ProcessingStage.RENEWAL_ANALYSIS, "Analyzing renewal terms...")
         try:
@@ -457,7 +502,7 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                     tracker.update_progress(contract_id, ProcessingStage.SCHEMA_EXTRACTION, "Running structured data extraction...")
                     if contract.contract_type:
                         registry = get_schema_registry()
-                        schema = registry.get_schema_for_contract_type(contract.contract_type.value)
+                        schema = registry.get_schema_for_contract_type(contract.contract_type)
                         if schema:
                             try:
                                 extraction_result = await extract_with_schema(
@@ -478,21 +523,25 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                     # Classify contract_type if still NULL
                     if not contract.contract_type:
                         try:
-                            from app.models.contract import ContractType as CT
                             from app.services.orchestrator import get_orchestrator, AgentRequest
 
                             orchestrator = get_orchestrator()
                             classify_prompt = (
                                 f"Classify this contract into exactly ONE of these types: "
-                                f"NDA, MSA, SOW, AMENDMENT, VENDOR_AGREEMENT, EMPLOYMENT_CONTRACT.\n\n"
+                                f"nda, msa, sow, amendment, vendor_agreement, employment_contract, "
+                                f"license, lease, supply_agreement, quality_agreement.\n\n"
                                 f"Rules:\n"
-                                f"- NDA: non-disclosure, confidentiality agreements\n"
-                                f"- MSA: master services, framework, consulting, professional services, BPO agreements\n"
-                                f"- SOW: statement of work, work order, schedule, service order, purchase order\n"
-                                f"- AMENDMENT: amendments, addenda, modifications, change orders, supplements\n"
-                                f"- VENDOR_AGREEMENT: license, SaaS, subscription, supply, lease, distribution agreements\n"
-                                f"- EMPLOYMENT_CONTRACT: employment, offer letters, contractor, non-compete agreements\n\n"
-                                f"Respond with ONLY the type name (e.g., 'MSA'). No explanation.\n\n"
+                                f"- nda: non-disclosure, confidentiality agreements\n"
+                                f"- msa: master services, framework, consulting, professional services, BPO agreements\n"
+                                f"- sow: statement of work, work order, schedule, service order, purchase order\n"
+                                f"- amendment: amendments, addenda, modifications, change orders, supplements\n"
+                                f"- vendor_agreement: SaaS, subscription, distribution agreements\n"
+                                f"- employment_contract: employment, offer letters, contractor, non-compete agreements\n"
+                                f"- license: license, software license agreements\n"
+                                f"- lease: lease, rental agreements\n"
+                                f"- supply_agreement: supply, manufacturing, procurement agreements\n"
+                                f"- quality_agreement: quality, QA agreements\n\n"
+                                f"Respond with ONLY the type code (e.g., 'msa'). Lowercase, no explanation.\n\n"
                                 f"Document title: {contract.filename}\n"
                                 f"Counterparty: {contract.counterparty or 'unknown'}\n\n"
                                 f"First 3000 chars:\n{full_text[:3000]}"
@@ -506,10 +555,9 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                                     context={"task": "contract_type_classification"},
                                 )
                             )
-                            classified = resp.response.strip().upper().replace(" ", "_")
-                            type_enum_map = {t.name: t for t in CT}
-                            if classified in type_enum_map:
-                                contract.contract_type = type_enum_map[classified]
+                            classified = resp.response.strip().lower().replace(" ", "_")
+                            if classified and len(classified) < 50:
+                                contract.contract_type = classified
                                 logger.info(f"[DEEP ANALYSIS] Classified contract type as: {classified}")
                             else:
                                 logger.warning(f"Fallback classification returned unrecognized type: {classified}")
@@ -593,8 +641,8 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
 
                 # Child documents (exhibits, attachments, schedules) should be SOW, not MSA
                 if is_child and doc_role in ("exhibit", "attachment", "schedule", "appendix", "annex", "sow"):
-                    if contract.contract_type and contract.contract_type.value == "msa":
-                        contract.contract_type = CT.SOW
+                    if contract.contract_type and contract.contract_type == "msa":
+                        contract.contract_type = "sow"
                         changed = True
                         logger.info(f"[DEEP ANALYSIS] Reclassified child document from MSA -> SOW (role={doc_role})")
 
@@ -1256,7 +1304,7 @@ def contract_to_response(contract, clause_count=None, obligation_count=None, sla
         file_path=contract.file_path,
         file_size=contract.file_size,
         mime_type=contract.mime_type,
-        contract_type=contract.contract_type.value if contract.contract_type else None,
+        contract_type=contract.contract_type or None,
         counterparty=contract.counterparty,
         effective_date=contract.effective_date,
         expiration_date=contract.expiration_date,
@@ -1327,7 +1375,7 @@ async def get_filter_options(
         .where(Contract.contract_type.isnot(None))
     )
     type_result = await db.execute(add_tenant_filter(type_query))
-    contract_types = [r[0].value for r in type_result.fetchall() if r[0]]
+    contract_types = [r[0] for r in type_result.fetchall() if r[0]]
 
     # Get unique risk levels - with tenant filter
     risk_query = (
@@ -1414,14 +1462,7 @@ async def list_contracts(
     page_size = min(max(page_size, 1), 100)
     page = max(page, 1)
 
-    # Parse enum filters
-    type_enum = None
-    if contract_type:
-        try:
-            type_enum = ContractType(contract_type)
-        except ValueError:
-            pass
-
+    # Parse filters
     risk_enum = None
     if risk_level:
         try:
@@ -1436,11 +1477,11 @@ async def list_contracts(
         except ValueError:
             pass
 
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contracts, total = await service.list_contracts(
         page=page,
         page_size=page_size,
-        contract_type=type_enum,
+        contract_type=contract_type,
         counterparty=counterparty,
         risk_level=risk_enum,
         status=status_enum,
@@ -1485,7 +1526,7 @@ async def search_contracts(
     """
     from app.services.contracts import ContractService
 
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     results = await service.search_contracts(
         query_text=query,
         user_id=str(current_user.id),
@@ -1564,9 +1605,7 @@ async def get_contract_hierarchy(
     if user_role not in [Role.SUPER_ADMIN.value, Role.ADMIN.value, "super_admin", "admin"]:
         if bu_id is not None:
             if user_role in [Role.BU_HEAD.value, "bu_head"]:
-                bu_child_ids = []
-                if current_user.business_unit:
-                    bu_child_ids = list(current_user.business_unit.get_all_child_ids())
+                bu_child_ids = await _get_all_child_bu_ids(db, bu_id)
                 all_bu_ids = [bu_id] + bu_child_ids
                 contracts_query = contracts_query.where(
                     or_(
@@ -1674,7 +1713,7 @@ async def get_contract_hierarchy(
         return ContractTreeNode(
             id=contract_id,
             filename=c.filename,
-            contract_type=c.contract_type.value if c.contract_type else None,
+            contract_type=c.contract_type or None,
             counterparty=c.counterparty,
             status=c.status.value if c.status else None,
             risk_level=c.risk_level.value if c.risk_level else None,
@@ -1903,7 +1942,7 @@ async def get_contract(
     """
     from app.services.contracts import ContractService
 
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id)
 
     if not contract:
@@ -1950,7 +1989,7 @@ async def delete_contract(
     """
     from app.services.contracts import ContractService
 
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     deleted = await service.delete_contract(contract_id)
 
     if not deleted:
@@ -2012,7 +2051,7 @@ async def batch_delete_contracts(
     """
     from app.services.contracts import ContractService
 
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     deleted: list[str] = []
     failed: list[dict] = []
 
@@ -2044,6 +2083,39 @@ async def batch_delete_contracts(
         total_deleted=len(deleted),
         total_failed=len(failed),
     )
+
+
+@router.get("/{contract_id}/clauses")
+async def get_contract_clauses(
+    contract_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    clause_type: str | None = None,
+) -> list[dict]:
+    """Get clauses for a contract, optionally filtered by type."""
+    from app.models.clause import Clause
+
+    query = select(Clause).where(Clause.contract_id == uuid.UUID(contract_id))
+    if clause_type:
+        query = query.where(Clause.clause_type == clause_type)
+    query = query.order_by(Clause.clause_type, Clause.created_at)
+    result = await db.execute(query)
+    clauses = result.scalars().all()
+    return [
+        {
+            "id": str(c.id),
+            "clause_type": c.clause_type,
+            "text": c.text,
+            "summary": c.summary,
+            "section_number": c.section_number,
+            "page_number": c.page_number,
+            "risk_level": c.risk_level,
+            "risk_reason": c.risk_reason,
+            "confidence_score": c.confidence_score,
+        }
+        for c in clauses
+    ]
 
 
 @router.get("/{contract_id}/files")
@@ -2281,7 +2353,7 @@ async def analyze_contract(
 
             # Store results in database (new session for background task)
             async with async_session_maker() as session:
-                from sqlalchemy import delete, text
+                from sqlalchemy import delete, select, text
                 from app.models.clause import Clause, ClauseType
                 from app.models.obligation import Obligation
 
@@ -2344,6 +2416,58 @@ async def analyze_contract(
                         result=sla_result,
                     )
                     logging.info(f"Stored {len(sla_result.slas)} SLAs")
+
+                # Extract highlight coordinates for stored clauses, obligations, and SLAs
+                try:
+                    from app.services.highlight_extractor import extract_highlight_rects
+
+                    stored_clauses_q = await session.execute(
+                        select(Clause).where(Clause.contract_id == uuid_mod.UUID(contract_id))
+                    )
+                    stored_clauses = stored_clauses_q.scalars().all()
+                    if stored_clauses:
+                        clause_data = [
+                            {"id": str(c.id), "text": c.text, "page_number": c.page_number}
+                            for c in stored_clauses
+                        ]
+                        rects_map = extract_highlight_rects(contract.file_path, clause_data)
+                        for clause_obj in stored_clauses:
+                            cid_str = str(clause_obj.id)
+                            if cid_str in rects_map:
+                                clause_obj.highlight_rects = rects_map[cid_str]
+                        logging.info(f"Highlight rects: {len(rects_map)}/{len(stored_clauses)} clauses")
+
+                    stored_obls_q = await session.execute(
+                        select(Obligation).where(Obligation.contract_id == uuid_mod.UUID(contract_id))
+                    )
+                    stored_obls = stored_obls_q.scalars().all()
+                    if stored_obls:
+                        obl_data = [
+                            {"id": str(o.id), "text": o.source_text or o.description, "page_number": None}
+                            for o in stored_obls if o.source_text or o.description
+                        ]
+                        obl_rects = extract_highlight_rects(contract.file_path, obl_data)
+                        for obl_obj in stored_obls:
+                            if str(obl_obj.id) in obl_rects:
+                                obl_obj.highlight_rects = obl_rects[str(obl_obj.id)]
+                        logging.info(f"Highlight rects: {len(obl_rects)}/{len(stored_obls)} obligations")
+
+                    stored_slas_q = await session.execute(
+                        select(ContractSLA).where(ContractSLA.contract_id == uuid_mod.UUID(contract_id))
+                    )
+                    stored_slas = stored_slas_q.scalars().all()
+                    if stored_slas:
+                        sla_data = [
+                            {"id": str(s.id), "text": s.source_text or s.sla_description or s.sla_name, "page_number": None}
+                            for s in stored_slas if s.source_text or s.sla_description
+                        ]
+                        sla_rects = extract_highlight_rects(contract.file_path, sla_data)
+                        for sla_obj in stored_slas:
+                            if str(sla_obj.id) in sla_rects:
+                                sla_obj.highlight_rects = sla_rects[str(sla_obj.id)]
+                        logging.info(f"Highlight rects: {len(sla_rects)}/{len(stored_slas)} SLAs")
+                except Exception as e:
+                    logging.warning(f"Highlight extraction failed (non-fatal): {e}")
 
                 await session.commit()
                 logging.info(f"Clause/obligation/SLA extraction completed for {contract_id}")
@@ -2426,7 +2550,7 @@ async def analyze_contract(
 
                 if contract_obj and contract_obj.contract_type:
                     registry = get_schema_registry()
-                    schema = registry.get_schema_for_contract_type(contract_obj.contract_type.value)
+                    schema = registry.get_schema_for_contract_type(contract_obj.contract_type)
 
                     if schema:
                         logging.info(f"Running schema extraction with {schema.schema_id} for {contract_id}")
@@ -2452,7 +2576,7 @@ async def analyze_contract(
                         except Exception as e:
                             logging.warning(f"Schema extraction failed for {contract_id}: {e}")
                     else:
-                        logging.info(f"No schema available for contract type: {contract_obj.contract_type.value}")
+                        logging.info(f"No schema available for contract type: {contract_obj.contract_type}")
                 else:
                     logging.info(f"Contract {contract_id} has no contract_type set, skipping schema extraction")
 
@@ -3134,7 +3258,7 @@ async def share_contract(
     import uuid as uuid_mod
 
     # Verify contract exists and user has access
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id)
     if not contract:
         raise HTTPException(
@@ -3310,7 +3434,7 @@ async def list_contract_shares(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3353,7 +3477,7 @@ async def revoke_contract_share(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3400,7 +3524,7 @@ async def list_contract_comments(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3473,7 +3597,7 @@ async def add_contract_comment(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3545,7 +3669,7 @@ async def resolve_contract_comment(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3583,7 +3707,7 @@ async def delete_contract_comment(
     import uuid as uuid_mod
 
     # Verify contract exists
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3641,7 +3765,7 @@ async def download_contract_file(
     from pathlib import Path
     from app.services.contracts import ContractService
 
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(
@@ -3733,7 +3857,7 @@ async def get_contract_highlights(
     cid = uuid_mod.UUID(contract_id)
 
     # Verify contract access
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(status_code=404, detail="Contract not found")
@@ -3815,7 +3939,7 @@ async def update_clause(
     from app.models.clause import Clause, ClauseType
 
     # Verify contract exists and belongs to tenant
-    service = _make_contract_service(db, current_user, tenant_id)
+    service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id, include_clauses=False, include_obligations=False)
     if not contract:
         raise HTTPException(

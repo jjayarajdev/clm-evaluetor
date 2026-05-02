@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -15,6 +15,10 @@ class BusinessUnit(Base):
 
     Supports hierarchical structure with parent-child relationships.
     Users and contracts can be assigned to business units for access control.
+
+    Each BU can optionally have its own industry profile and config overrides,
+    allowing different departments (IT, Manufacturing, Procurement) to have
+    different taxonomy configurations under the same tenant.
     """
 
     __tablename__ = "business_units"
@@ -62,6 +66,22 @@ class BusinessUnit(Base):
         nullable=True,
     )
 
+    # Industry profile override — allows BU to use a different profile than the tenant
+    industry_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("industry_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # BU-specific overrides to the industry profile (same schema as tenant config_overrides)
+    config_overrides: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default='{}',
+    )
+
     # Status
     is_active: Mapped[bool] = mapped_column(
         Boolean,
@@ -104,6 +124,10 @@ class BusinessUnit(Base):
         foreign_keys=[head_user_id],
         lazy="selectin",
     )
+    industry_profile: Mapped["IndustryProfile | None"] = relationship(
+        "IndustryProfile",
+        lazy="selectin",
+    )
     users: Mapped[list["User"]] = relationship(
         "User",
         back_populates="business_unit",
@@ -133,3 +157,32 @@ class BusinessUnit(Base):
             child_ids.add(child.id)
             child_ids.update(child.get_all_child_ids())
         return child_ids
+
+    def get_industry_config(self) -> dict:
+        """Get merged industry config for this BU.
+
+        Resolution chain:
+        1. BU has its own industry_profile → use BU profile + BU overrides
+        2. Parent BU has a profile → inherit from parent
+        3. Fall back to tenant profile + tenant overrides
+        """
+        if self.industry_profile:
+            return self.industry_profile.get_merged_config(self.config_overrides or None)
+        # Walk up the parent chain
+        if self.parent:
+            return self.parent.get_industry_config()
+        # Fall back to tenant's config
+        if self.tenant:
+            return self.tenant.get_industry_config()
+        return {"industry": None, "industry_name": None}
+
+    @property
+    def effective_profile_name(self) -> str | None:
+        """Get the name of the effective industry profile (BU → parent BU → tenant)."""
+        if self.industry_profile:
+            return self.industry_profile.name
+        if self.parent:
+            return self.parent.effective_profile_name
+        if self.tenant and self.tenant.industry_profile:
+            return self.tenant.industry_profile.name
+        return None

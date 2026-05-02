@@ -106,6 +106,8 @@ async def get_business_unit_tree(
             description=bu.description,
             is_active=bu.is_active,
             head_user_id=bu.head_user_id,
+            industry_profile_id=bu.industry_profile_id,
+            effective_profile_name=bu.effective_profile_name,
             children=children,
         )
 
@@ -415,4 +417,50 @@ async def get_business_unit_contracts_summary(
             "processing": result.processing or 0,
             "pending": result.pending or 0,
         },
+    }
+
+
+@router.patch("/{bu_id}/profile")
+async def assign_bu_profile(
+    bu_id: UUID,
+    tenant_id: RequiredTenantId,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(Role.ADMIN)),
+    profile_id: Optional[UUID] = Query(None, description="Industry profile ID, or null to inherit from tenant"),
+):
+    """Assign an industry profile to a business unit.
+
+    Pass profile_id=null to clear the BU-level override and fall back to tenant profile.
+    """
+    from app.models.industry_profile import IndustryProfile
+
+    query = select(BusinessUnit).where(
+        BusinessUnit.id == bu_id,
+        BusinessUnit.tenant_id == tenant_id,
+    )
+    bu = (await db.execute(query)).scalar_one_or_none()
+    if not bu:
+        raise HTTPException(status_code=404, detail="Business unit not found")
+
+    if profile_id:
+        # Validate profile exists
+        profile = (await db.execute(
+            select(IndustryProfile).where(IndustryProfile.id == profile_id)
+        )).scalar_one_or_none()
+        if not profile:
+            raise HTTPException(status_code=404, detail="Industry profile not found")
+        bu.industry_profile_id = profile_id
+        profile_name = profile.name
+    else:
+        bu.industry_profile_id = None
+        profile_name = None
+
+    await db.commit()
+    await db.refresh(bu)
+
+    return {
+        "business_unit": bu.name,
+        "profile": profile_name,
+        "profile_id": str(bu.industry_profile_id) if bu.industry_profile_id else None,
+        "effective_profile": bu.effective_profile_name,
     }

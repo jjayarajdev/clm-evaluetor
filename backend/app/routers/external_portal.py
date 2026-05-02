@@ -281,7 +281,7 @@ async def list_shared_contracts(
         contracts.append({
             "id": str(contract.id),
             "filename": contract.filename,
-            "contract_type": contract.contract_type.value if contract.contract_type else None,
+            "contract_type": contract.contract_type or None,
             "counterparty": contract.counterparty,
             "effective_date": contract.effective_date.isoformat() if contract.effective_date else None,
             "expiration_date": contract.expiration_date.isoformat() if contract.expiration_date else None,
@@ -351,7 +351,7 @@ async def get_shared_contract(
     return {
         "id": str(contract.id),
         "filename": contract.filename,
-        "contract_type": contract.contract_type.value if contract.contract_type else None,
+        "contract_type": contract.contract_type or None,
         "counterparty": contract.counterparty,
         "effective_date": contract.effective_date.isoformat() if contract.effective_date else None,
         "expiration_date": contract.expiration_date.isoformat() if contract.expiration_date else None,

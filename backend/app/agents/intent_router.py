@@ -797,7 +797,7 @@ async def _handle_portfolio(
 
     total = len(contracts)
     by_type = dict(Counter(
-        (c.contract_type.value if hasattr(c.contract_type, "value") else str(c.contract_type or "unclassified"))
+        str(c.contract_type or "unclassified")
         for c in contracts
     ))
     by_status = dict(Counter(
@@ -838,7 +838,7 @@ async def _handle_portfolio(
     # Detail rows
     detail_rows = []
     for c in contracts:
-        ctype = c.contract_type.value if hasattr(c.contract_type, "value") else str(c.contract_type or "—")
+        ctype = str(c.contract_type or "—")
         risk = c.risk_level.value if hasattr(c.risk_level, "value") else str(c.risk_level or "—")
         cp = _clean_counterparty(c.counterparty, c.filename)
         val = f"${c.contract_value:,.0f}" if c.contract_value else "—"
