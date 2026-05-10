@@ -35,9 +35,22 @@ async def _resolve_effective_config(
     """Resolve the effective industry config for a contract.
 
     Returns (merged_config, business_unit_id).
-    Resolution: Contract BU profile → Tenant profile → empty.
+    Resolution: Contract profile → BU profile → Tenant profile → empty.
     """
     bu_id = contract.business_unit_id
+
+    # 1. Contract-level profile takes highest priority
+    if contract.industry_profile_id:
+        profile = await db.get(IndustryProfile, contract.industry_profile_id)
+        if profile:
+            logger.info(
+                f"[TAXONOMY] Using contract-level profile '{profile.name}' "
+                f"for contract {contract.id}"
+            )
+            # Merge with tenant overrides so custom taxonomy items are included
+            return profile.get_merged_config(tenant.config_overrides), bu_id
+
+    # 2. BU-level profile
     if bu_id:
         bu_result = await db.execute(
             select(BusinessUnit).where(BusinessUnit.id == bu_id)
@@ -50,7 +63,7 @@ async def _resolve_effective_config(
             )
             return bu.get_industry_config(), bu_id
 
-    # Fall back to tenant config
+    # 3. Fall back to tenant config
     return tenant.get_industry_config(), bu_id
 
 

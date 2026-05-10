@@ -52,6 +52,7 @@ class ContractSummary(BaseModel):
     contract_value: Decimal | None = None
     currency: str | None = None
     expiration_date: date | None = None
+    industry_profile_id: str | None = None
     uploaded_at: datetime
 
     model_config = {"from_attributes": True}
@@ -87,6 +88,9 @@ class ContractResponse(BaseModel):
     # Status
     status: str
     processing_error: str | None
+
+    # Industry profile
+    industry_profile_id: str | None = None
 
     # Schema extraction
     schema_id: str | None = None
@@ -145,6 +149,7 @@ class ContractUpdate(BaseModel):
     renewal_term_months: int | None = None
     contract_type: str | None = None
     risk_level: RiskLevel | None = None
+    industry_profile_id: str | None = None
     custom_fields: dict | None = None
 
 

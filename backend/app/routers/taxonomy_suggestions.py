@@ -225,9 +225,25 @@ async def approve_suggestion(
             if v is not None:
                 item[k] = v
 
-    # Deduplicate by code
+    # Deduplicate: check both override codes AND base profile codes
     existing_codes = {i.get("code") for i in category_list}
-    if suggestion.code not in existing_codes:
+
+    # Also check base profile to avoid duplicating items already in the profile
+    base_profile_codes: set[str] = set()
+    if hasattr(target, "industry_profile") and target.industry_profile:
+        profile = target.industry_profile
+        base_items = getattr(profile, suggestion.category, None)
+        if base_items and isinstance(base_items, list):
+            base_profile_codes = {i.get("code", "") for i in base_items}
+    elif hasattr(target, "industry_profile_id") and target.industry_profile_id:
+        from app.models.industry_profile import IndustryProfile
+        profile_result = await db.get(IndustryProfile, target.industry_profile_id)
+        if profile_result:
+            base_items = getattr(profile_result, suggestion.category, None)
+            if base_items and isinstance(base_items, list):
+                base_profile_codes = {i.get("code", "") for i in base_items}
+
+    if suggestion.code not in existing_codes and suggestion.code not in base_profile_codes:
         category_list.append(item)
         overrides[suggestion.category] = category_list
         target.config_overrides = overrides

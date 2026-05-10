@@ -63,6 +63,7 @@ async def _process_one_job(job, session: AsyncSession) -> None:
             await session.commit()
 
             await queue.update_progress(job.id, "deep_analysis", 70, "Running deep analysis")
+            await session.commit()  # Release locks before long-running deep analysis
 
             # Run deep analysis (clauses, obligations, SLAs, etc.)
             try:

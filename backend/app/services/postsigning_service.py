@@ -76,38 +76,68 @@ class PostSigningService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
+    @staticmethod
+    def _is_overdue(o, today) -> bool:
+        """Check if an obligation is overdue (computed, not stored)."""
+        return (
+            o.deadline is not None
+            and o.deadline < today
+            and o.status not in (ObligationStatus.COMPLETED, ObligationStatus.WAIVED)
+        )
+
+    @staticmethod
+    def _effective_status(o, today) -> str:
+        """Return the effective display status for an obligation."""
+        if o.status == ObligationStatus.COMPLETED:
+            return "completed"
+        if o.status == ObligationStatus.WAIVED:
+            return "waived"
+        if o.status == ObligationStatus.IN_PROGRESS:
+            return "in_progress"
+        # Compute overdue dynamically for pending obligations
+        if o.deadline and o.deadline < today:
+            return "overdue"
+        return o.status.value if o.status else "pending"
+
     def _build_obligation_widget(self, obligations, today):
         """Build the obligation widget from obligation data."""
         obl_total = len(obligations)
         obl_completed = sum(1 for o in obligations if o.status == ObligationStatus.COMPLETED)
         obl_in_progress = sum(1 for o in obligations if o.status == ObligationStatus.IN_PROGRESS)
-        obl_overdue = sum(1 for o in obligations if o.status == ObligationStatus.OVERDUE)
+        # Compute overdue dynamically: deadline passed AND not completed/waived
+        obl_overdue = sum(1 for o in obligations if self._is_overdue(o, today))
 
         obl_at_risk = sum(
             1 for o in obligations
-            if o.status == ObligationStatus.PENDING
+            if not self._is_overdue(o, today)
+            and o.status not in (ObligationStatus.COMPLETED, ObligationStatus.WAIVED)
             and o.deadline
             and 0 <= (o.deadline - today).days <= 7
         )
 
-        obl_green = sum(1 for o in obligations if o.rag_status == RAGStatus.GREEN)
-        obl_amber = sum(1 for o in obligations if o.rag_status == RAGStatus.AMBER)
-        obl_red = sum(1 for o in obligations if o.rag_status == RAGStatus.RED)
+        # RAG includes overdue as red
+        obl_green = sum(1 for o in obligations if o.rag_status == RAGStatus.GREEN and not self._is_overdue(o, today))
+        obl_amber = sum(1 for o in obligations if o.rag_status == RAGStatus.AMBER and not self._is_overdue(o, today))
+        obl_red = sum(1 for o in obligations if o.rag_status == RAGStatus.RED or self._is_overdue(o, today))
 
         waived = sum(1 for o in obligations if o.status == ObligationStatus.WAIVED)
         pending_future = sum(
             1 for o in obligations
-            if o.status == ObligationStatus.PENDING
+            if o.status in (ObligationStatus.PENDING, ObligationStatus.IN_PROGRESS)
             and o.deadline and o.deadline > today
         )
+        # Assessable = total minus waived minus future pending (not yet due)
         assessable = obl_total - waived - pending_future
         obl_compliance = ((obl_completed + obl_in_progress) / assessable * 100) if assessable > 0 else 100.0
 
-        # Urgent obligations
+        # Urgent obligations: overdue + due within 3 days
         urgent_obls = [
             o for o in obligations
-            if o.status == ObligationStatus.OVERDUE
-            or (o.status == ObligationStatus.PENDING and o.deadline and (o.deadline - today).days <= 3)
+            if self._is_overdue(o, today)
+            or (
+                o.status not in (ObligationStatus.COMPLETED, ObligationStatus.WAIVED)
+                and o.deadline and 0 <= (o.deadline - today).days <= 3
+            )
         ]
         urgent_obls.sort(key=lambda o: o.deadline or date.max)
 
@@ -116,8 +146,8 @@ class PostSigningService:
                 "id": str(o.id),
                 "title": o.description[:100] if o.description else "No description",
                 "due_date": o.deadline.isoformat() if o.deadline else None,
-                "status": o.status.value if o.status else "pending",
-                "rag": o.rag_status.value if o.rag_status else None,
+                "status": self._effective_status(o, today),
+                "rag": "red" if self._is_overdue(o, today) else (o.rag_status.value if o.rag_status else None),
             }
             for o in urgent_obls[:5]
         ]
@@ -295,8 +325,10 @@ class PostSigningService:
         )
         return widget, past_notice
 
-    def _build_vendor_widget(self, contracts, obligations, slas):
+    def _build_vendor_widget(self, contracts, obligations, slas, today=None):
         """Build the vendor widget from contract/obligation/SLA data."""
+        if today is None:
+            today = date.today()
         counterparties = list(set(c.counterparty for c in contracts if c.counterparty))
 
         vendor_scores = []
@@ -306,8 +338,10 @@ class PostSigningService:
 
             cp_obls = [o for o in obligations if o.contract_id in cp_contract_ids]
             cp_completed = sum(1 for o in cp_obls if o.status == ObligationStatus.COMPLETED)
+            cp_overdue = sum(1 for o in cp_obls if self._is_overdue(o, today))
             cp_total = len(cp_obls)
-            obl_rate = (cp_completed / cp_total * 100) if cp_total > 0 else 100
+            # Score accounts for both completions and overdue penalties
+            obl_rate = ((cp_completed / cp_total * 100) if cp_total > 0 else 100) - (cp_overdue / max(cp_total, 1) * 30)
 
             cp_slas = [s for s in slas if s.contract_id in cp_contract_ids]
             cp_sla_rates = [float(s.current_compliance_rate) for s in cp_slas if s.current_compliance_rate is not None]
@@ -337,10 +371,11 @@ class PostSigningService:
         milestones = [o for o in obligations if o.deadline]
         ms_total = len(milestones)
         ms_completed = sum(1 for o in milestones if o.status == ObligationStatus.COMPLETED)
-        ms_overdue = sum(1 for o in milestones if o.status == ObligationStatus.OVERDUE)
+        ms_overdue = sum(1 for o in milestones if self._is_overdue(o, today))
         ms_at_risk = sum(
             1 for o in milestones
-            if o.status == ObligationStatus.PENDING
+            if not self._is_overdue(o, today)
+            and o.status not in (ObligationStatus.COMPLETED, ObligationStatus.WAIVED)
             and o.deadline and 0 <= (o.deadline - today).days <= 7
         )
         ms_completion_rate = (ms_completed / ms_total * 100) if ms_total > 0 else 100
@@ -358,7 +393,7 @@ class PostSigningService:
                 "id": str(o.id),
                 "title": o.description[:100] if o.description else "No description",
                 "due_date": o.deadline.isoformat() if o.deadline else None,
-                "status": o.status.value if o.status else "pending",
+                "status": self._effective_status(o, today),
             }
             for o in due_this_week_obls[:5]
         ]
@@ -388,7 +423,7 @@ class PostSigningService:
         obl_widget, obl_compliance, obl_overdue, urgent_obls = self._build_obligation_widget(obligations, today)
         sla_widget, sla_compliance, sla_breached, recent_breaches = await self._build_sla_widget(slas, contracts, today)
         renewal_widget, past_notice = self._build_renewal_widget(contracts, today)
-        vendor_widget = self._build_vendor_widget(contracts, obligations, slas)
+        vendor_widget = self._build_vendor_widget(contracts, obligations, slas, today)
         milestone_widget = self._build_milestone_widget(obligations, today)
 
         # Compliance widget
@@ -396,7 +431,7 @@ class PostSigningService:
         contracts_at_risk = 0
         for c in contracts:
             c_obls = [o for o in obligations if o.contract_id == c.id]
-            c_overdue = sum(1 for o in c_obls if o.status == ObligationStatus.OVERDUE)
+            c_overdue = sum(1 for o in c_obls if self._is_overdue(o, today))
             if c_overdue >= 2 or (len(c_obls) > 0 and c_overdue / len(c_obls) > 0.3):
                 contracts_at_risk += 1
 
@@ -415,12 +450,15 @@ class PostSigningService:
         # Priority actions
         priority_actions = []
         for o in urgent_obls[:3]:
+            is_od = self._is_overdue(o, today)
             priority_actions.append({
                 "type": "obligation",
-                "severity": "high" if o.status == ObligationStatus.OVERDUE else "medium",
-                "title": f"{'Overdue' if o.status == ObligationStatus.OVERDUE else 'Upcoming'}: {o.description[:50] if o.description else 'Obligation'}",
+                "severity": "high" if is_od else "medium",
+                "title": f"{'Overdue' if is_od else 'Upcoming'}: {o.description[:50] if o.description else 'Obligation'}",
                 "action": "Review and complete obligation",
                 "due_date": o.deadline.isoformat() if o.deadline else None,
+                "obligation_id": str(o.id),
+                "contract_id": str(o.contract_id),
             })
         for breach in recent_breaches[:2]:
             if breach["severity"] == "critical":
@@ -430,6 +468,8 @@ class PostSigningService:
                     "title": f"SLA Breach: {breach['sla_name']}",
                     "action": "Escalate and remediate immediately",
                     "contract": breach["contract"],
+                    "sla_id": breach["sla_id"],
+                    "contract_id": breach["contract_id"],
                 })
         for c in past_notice[:2]:
             priority_actions.append({
@@ -438,6 +478,7 @@ class PostSigningService:
                 "title": f"Renewal: {c.filename}",
                 "action": "Make renewal decision - past notice deadline",
                 "expiration": c.expiration_date.isoformat() if c.expiration_date else None,
+                "contract_id": str(c.id),
             })
 
         contracts_needing_attention = contracts_at_risk + len(past_notice)
@@ -459,6 +500,7 @@ class PostSigningService:
 
     async def get_obligation_details(self, status_filter=None, rag_filter=None):
         """Get detailed obligation list with optional filters."""
+        today = date.today()
         query = (
             select(Obligation, Contract)
             .join(Contract, Obligation.contract_id == Contract.id)
@@ -467,14 +509,31 @@ class PostSigningService:
         query = self._apply_filters(query)
 
         if status_filter:
-            query = query.where(Obligation.status == ObligationStatus(status_filter))
+            if status_filter == "overdue":
+                query = query.where(
+                    Obligation.deadline < today,
+                    Obligation.status.notin_([ObligationStatus.COMPLETED, ObligationStatus.WAIVED]),
+                )
+            else:
+                query = query.where(Obligation.status == ObligationStatus(status_filter))
         if rag_filter:
-            query = query.where(Obligation.rag_status == RAGStatus(rag_filter))
+            if rag_filter == "red":
+                # Also include overdue obligations in RED filter
+                from sqlalchemy import or_
+                query = query.where(
+                    or_(
+                        Obligation.rag_status == RAGStatus.RED,
+                        (Obligation.deadline < today) & Obligation.status.notin_([ObligationStatus.COMPLETED, ObligationStatus.WAIVED]),
+                    )
+                )
+            else:
+                query = query.where(Obligation.rag_status == RAGStatus(rag_filter))
 
         query = query.order_by(Obligation.deadline)
         result = await self.db.execute(query)
         rows = result.all()
 
+        today_val = today
         return [
             {
                 "id": str(o.id),
@@ -486,7 +545,7 @@ class PostSigningService:
                 "category": o.category.value if o.category else None,
                 "owner": o.obligated_party,
                 "due_date": o.deadline.isoformat() if o.deadline else None,
-                "status": o.status.value if o.status else "pending",
+                "status": "overdue" if (o.deadline and o.deadline < today_val and o.status not in (ObligationStatus.COMPLETED, ObligationStatus.WAIVED)) else (o.status.value if o.status else "pending"),
                 "rag_status": o.rag_status.value if o.rag_status else None,
             }
             for o, c in rows
@@ -528,4 +587,37 @@ class PostSigningService:
                 "has_penalty": s.has_penalty,
             }
             for s, c in rows
+        ]
+
+    async def get_milestone_details(self):
+        """Get all obligations that have deadlines (i.e., milestones)."""
+        today = date.today()
+        query = (
+            select(Obligation, Contract)
+            .join(Contract, Obligation.contract_id == Contract.id)
+            .where(
+                and_(
+                    Contract.status == ContractStatus.COMPLETED,
+                    Obligation.deadline.isnot(None),
+                )
+            )
+        )
+        query = self._apply_filters(query)
+        query = query.order_by(Obligation.deadline)
+        result = await self.db.execute(query)
+        rows = result.all()
+
+        return [
+            {
+                "id": str(o.id),
+                "contract_id": str(c.id),
+                "contract_filename": c.filename,
+                "counterparty": c.counterparty,
+                "title": o.description[:100] if o.description else "No description",
+                "due_date": o.deadline.isoformat() if o.deadline else None,
+                "status": self._effective_status(o, today),
+                "category": o.category.value if o.category else None,
+                "owner": o.obligated_party,
+            }
+            for o, c in rows
         ]

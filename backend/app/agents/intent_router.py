@@ -579,6 +579,8 @@ async def _handle_obligations(
             "contract": cp_map.get(o.id, "Unknown"),
             "type": o.obligation_type or "Unclassified",
             "is_critical": o.is_critical,
+            "source_text": o.source_text or "",
+            "section_reference": o.section_reference or "",
         }
 
         if o.deadline:
@@ -611,6 +613,14 @@ async def _handle_obligations(
 
     if overdue:
         parts.append(f"\n⚠ **{len(overdue)} obligation(s) are past deadline** and require immediate attention.")
+        # Include source text for overdue obligations so AI can answer "show me the original text"
+        for e in overdue[:5]:
+            src = e.get("source_text", "")
+            sec = e.get("section_reference", "")
+            if src:
+                sec_label = f" (Section {sec})" if sec else ""
+                parts.append(f"\n**{e['contract']}** — {e['description']}{sec_label}:")
+                parts.append(f"> {src[:500]}")
 
     if not obligations:
         parts = ["No obligations found in your contracts."]
@@ -654,7 +664,9 @@ async def _handle_obligations(
         },
         "overdue_items": [
             {"obligation": e["description"][:50], "contract": e["contract"],
-             "deadline": e["deadline"], "days_overdue": abs(e.get("days_left", 0))}
+             "deadline": e["deadline"], "days_overdue": abs(e.get("days_left", 0)),
+             "source_text": e.get("source_text", ""),
+             "section_reference": e.get("section_reference", "")}
             for e in overdue[:5]
         ],
     }

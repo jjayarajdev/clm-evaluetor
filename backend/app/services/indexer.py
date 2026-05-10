@@ -24,26 +24,138 @@ from app.models.tenant import Tenant
 logger = logging.getLogger(__name__)
 
 
-async def _load_extraction_hints(db: AsyncSession, tenant_id) -> dict[str, str]:
-    """Load industry-specific extraction hints for a tenant's profile.
+async def _load_extraction_hints(
+    db: AsyncSession, tenant_id, contract_profile_id=None
+) -> dict[str, str]:
+    """Load industry-specific extraction hints.
 
+    Resolution: contract profile → tenant profile, merged with tenant overrides.
     Returns dict like {"metadata": "...", "clauses": "...", "risks": "...", ...}
     or empty dict if no profile is configured.
     """
     if not tenant_id:
         return {}
     try:
-        from sqlalchemy.orm import selectinload
         from sqlalchemy import select
+        from app.models.industry_profile import IndustryProfile
+
         tenant = await db.get(Tenant, tenant_id)
-        if tenant and tenant.industry_profile_id:
-            from app.models.industry_profile import IndustryProfile
-            profile = await db.get(IndustryProfile, tenant.industry_profile_id)
-            if profile and profile.extraction_hints:
-                return profile.extraction_hints
+        if not tenant:
+            return {}
+
+        # Contract-level profile takes priority
+        profile_id = contract_profile_id or (
+            tenant.industry_profile_id if tenant else None
+        )
+        if not profile_id:
+            return {}
+
+        profile = await db.get(IndustryProfile, profile_id)
+        if not profile:
+            return {}
+
+        # Merge with tenant overrides so custom hints are included
+        merged = profile.get_merged_config(tenant.config_overrides)
+        return merged.get("extraction_hints", {})
     except Exception as e:
         logger.debug(f"Extraction hints loading skipped: {e}")
     return {}
+
+
+async def _resolve_hints_for_contract(
+    db: AsyncSession,
+    tenant_id,
+    contract_type: str | None,
+    contract_profile_id=None,
+) -> dict[str, str]:
+    """Resolve the best extraction hints based on contract profile or detected type.
+
+    Resolution order:
+    1. Contract-level profile (if set) — always wins
+    2. Best-matching profile by contract_type across all profiles
+    3. Tenant's default profile
+
+    All results are merged with tenant overrides so custom hints apply.
+    """
+    from sqlalchemy import select
+    from app.models.industry_profile import IndustryProfile
+
+    if not tenant_id:
+        return {}
+
+    # 1. Contract-level profile takes priority
+    if contract_profile_id:
+        return await _load_extraction_hints(db, tenant_id, contract_profile_id)
+
+    # 2. Try to match contract_type against all profiles
+    if not contract_type:
+        return await _load_extraction_hints(db, tenant_id)
+
+    try:
+        result = await db.execute(select(IndustryProfile))
+        all_profiles = result.scalars().all()
+    except Exception as e:
+        logger.debug(f"Profile resolution skipped: {e}")
+        return await _load_extraction_hints(db, tenant_id)
+
+    if not all_profiles:
+        return await _load_extraction_hints(db, tenant_id)
+
+    ct_lower = contract_type.strip().lower()
+    tenant = await db.get(Tenant, tenant_id)
+    tenant_profile_id = tenant.industry_profile_id if tenant else None
+    best_profile = None
+
+    for profile in all_profiles:
+        if not profile.contract_types:
+            continue
+        profile_codes = {
+            ct.get("code", "").lower() for ct in profile.contract_types
+        }
+        profile_labels = {
+            ct.get("label", "").lower() for ct in profile.contract_types
+        }
+        profile_descriptions = {
+            ct.get("description", "").lower() for ct in profile.contract_types
+        }
+
+        if ct_lower in profile_codes:
+            best_profile = profile
+            break
+
+        for code in profile_codes:
+            if ct_lower in code or code in ct_lower:
+                best_profile = profile
+                break
+        if best_profile:
+            break
+
+        if ct_lower in profile_labels:
+            best_profile = profile
+            break
+
+        for desc in profile_descriptions:
+            if ct_lower in desc:
+                best_profile = profile
+                break
+        if best_profile:
+            break
+
+    if best_profile and best_profile.extraction_hints:
+        if best_profile.id != tenant_profile_id:
+            logger.info(
+                f"Contract type '{contract_type}' matched profile "
+                f"'{best_profile.name}' (tenant default: "
+                f"{tenant_profile_id})"
+            )
+        # Merge with tenant overrides
+        if tenant and tenant.config_overrides:
+            merged = best_profile.get_merged_config(tenant.config_overrides)
+            return merged.get("extraction_hints", {})
+        return best_profile.extraction_hints
+
+    # 3. Fall back to tenant's assigned profile
+    return await _load_extraction_hints(db, tenant_id)
 
 
 class IndexingError(Exception):
@@ -172,8 +284,10 @@ class IndexingService:
                 except Exception:
                     pass
 
-            # Load industry-specific extraction hints
-            extraction_hints = await _load_extraction_hints(self.db, contract.tenant_id)
+            # Load industry-specific extraction hints (contract profile → tenant profile)
+            extraction_hints = await _load_extraction_hints(
+                self.db, contract.tenant_id, contract.industry_profile_id
+            )
 
             # Build few-shot context from golden set
             meta_few_shot = ""
@@ -207,6 +321,19 @@ class IndexingService:
                 )
             except Exception as e:
                 logger.warning(f"Metadata extraction failed for {contract.id}: {e}")
+
+            # Re-resolve extraction hints based on detected contract type.
+            # The initial hints came from the tenant's default profile, but now
+            # that we know the contract type we can pick the best-fit profile.
+            if contract.contract_type:
+                resolved_hints = await _resolve_hints_for_contract(
+                    self.db,
+                    contract.tenant_id,
+                    contract.contract_type,
+                    contract_profile_id=contract.industry_profile_id,
+                )
+                if resolved_hints:
+                    extraction_hints = resolved_hints
 
             # Extract custom fields if tenant has them defined
             if contract.tenant_id:

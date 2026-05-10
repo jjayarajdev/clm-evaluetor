@@ -162,6 +162,7 @@ MANUFACTURING = {
         {"code": "tooling_agreement", "label": "Tooling Agreement", "description": "Tooling/mold ownership and maintenance"},
         {"code": "license", "label": "License", "description": "Technology or IP license"},
         {"code": "lease", "label": "Equipment Lease", "description": "Equipment or machinery lease"},
+        {"code": "procurement", "label": "Procurement Contract", "description": "Hardware, equipment, or goods procurement contract"},
         {"code": "procurement_agreement", "label": "Procurement Agreement", "description": "Government or enterprise procurement contract (GCC/SCC)"},
         {"code": "manufacturing_supply", "label": "Manufacturing Supply Agreement", "description": "Agreement for manufacture and supply of custom goods"},
         {"code": "annual_maintenance", "label": "Annual Maintenance Contract", "description": "AMC for equipment or plant maintenance"},

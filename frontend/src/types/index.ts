@@ -84,6 +84,7 @@ export interface ContractSummary {
   contract_value: number | null
   currency: string | null
   expiration_date: string | null
+  industry_profile_id: string | null
   uploaded_at: string
 }
 

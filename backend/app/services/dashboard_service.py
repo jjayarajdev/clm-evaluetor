@@ -1342,7 +1342,7 @@ async def get_insights(
         insights.append(InsightItem(
             title="Overdue Obligations",
             description=f"{overdue_count} obligation{'s' if overdue_count > 1 else ''} past due date. Immediate action required.",
-            action="/obligations?status=overdue",
+            action="/compliance?tab=obligations&status=overdue",
             action_label="View overdue",
             variant="warning"
         ))

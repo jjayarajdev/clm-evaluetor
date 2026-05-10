@@ -40,6 +40,20 @@ CONTRACT_TYPES = [
     ("AMENDMENT", "Contract Amendment"),
     ("VENDOR", "Vendor Agreement"),
     ("EMPLOYMENT", "Employment Contract"),
+    ("LICENSE", "Software/IP License Agreement"),
+    ("LEASE", "Equipment or Facility Lease"),
+    ("PROCUREMENT", "Procurement / Purchase Agreement"),
+    ("SUPPLY_AGREEMENT", "Supply Agreement"),
+    ("QUALITY_AGREEMENT", "Quality Agreement"),
+    ("DISTRIBUTION", "Distribution Agreement"),
+    ("CONSULTING", "Consulting Agreement"),
+    ("MAINTENANCE", "Maintenance / AMC Agreement"),
+    ("PARTNERSHIP", "Partnership / JV Agreement"),
+    ("LOAN", "Loan / Credit Agreement"),
+    ("INSURANCE", "Insurance Policy / Agreement"),
+    ("CONSTRUCTION", "Construction / EPC Contract"),
+    ("FRANCHISE", "Franchise Agreement"),
+    ("SETTLEMENT", "Settlement Agreement"),
 ]
 
 
@@ -82,14 +96,25 @@ IF THIS IS A TEMPLATE: Set counterparty to null with confidence 0.0. Set parties
 
 Extract the following fields from the provided contract text:
 
-1. **contract_type**: Classify the contract as one of:
+1. **contract_type**: Classify the contract. Common types include:
    - NDA (Non-Disclosure Agreement)
    - MSA (Master Service Agreement)
    - SOW (Statement of Work)
    - AMENDMENT (Contract Amendment)
    - VENDOR (Vendor Agreement)
    - EMPLOYMENT (Employment Contract)
-   - OTHER (if none of the above)
+   - LICENSE (Software/IP License)
+   - LEASE (Equipment or Facility Lease)
+   - PROCUREMENT (Procurement / Purchase Agreement — for supply of goods, equipment, hardware)
+   - SUPPLY_AGREEMENT (Supply of materials or components)
+   - QUALITY_AGREEMENT (Quality standards and inspection)
+   - DISTRIBUTION (Distribution Agreement)
+   - CONSULTING (Consulting Agreement)
+   - MAINTENANCE (Maintenance / AMC / Support Agreement)
+   - PARTNERSHIP (Partnership / Joint Venture)
+   - CONSTRUCTION (Construction / EPC Contract)
+   - OTHER (if none of the above match)
+   Choose the MOST SPECIFIC type. For hardware/equipment purchases, use PROCUREMENT.
 
 2. **counterparty**: Extract the VENDOR/SUPPLIER/SERVICE PROVIDER party — the party providing services.
    STEP-BY-STEP PROCESS:

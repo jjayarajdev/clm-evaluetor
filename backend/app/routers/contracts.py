@@ -307,13 +307,35 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             except Exception as e:
                 logger.debug(f"[DEEP ANALYSIS] Few-shot context skipped: {e}")
 
-            # Load industry-specific extraction hints
+            # Load industry-specific extraction hints, resolved per contract type
             try:
-                from app.services.indexer import _load_extraction_hints
+                from app.services.indexer import _resolve_hints_for_contract
+                # Fetch the contract's detected type and profile
+                contract_type_for_hints = None
+                contract_profile_id = None
                 async with async_session_maker() as session:
-                    extraction_hints = await _load_extraction_hints(session, tenant_id)
+                    ct_result = await session.execute(
+                        select(
+                            Contract.contract_type,
+                            Contract.industry_profile_id,
+                        ).where(Contract.id == cid_uuid)
+                    )
+                    row = ct_result.one_or_none()
+                    if row:
+                        contract_type_for_hints = row[0]
+                        contract_profile_id = row[1]
+                    extraction_hints = await _resolve_hints_for_contract(
+                        session,
+                        tenant_id,
+                        contract_type_for_hints,
+                        contract_profile_id=contract_profile_id,
+                    )
                 if extraction_hints:
-                    logger.info(f"[DEEP ANALYSIS] Using industry extraction hints")
+                    logger.info(
+                        f"[DEEP ANALYSIS] Using extraction hints for "
+                        f"contract_type='{contract_type_for_hints}'"
+                        f"{' (contract profile)' if contract_profile_id else ''}"
+                    )
             except Exception as e:
                 logger.debug(f"[DEEP ANALYSIS] Extraction hints skipped: {e}")
 
@@ -1320,6 +1342,7 @@ def contract_to_response(contract, clause_count=None, obligation_count=None, sla
         processing_error=contract.processing_error,
         schema_id=contract.schema_id,
         schema_data=contract.schema_data,
+        industry_profile_id=str(contract.industry_profile_id) if contract.industry_profile_id else None,
         custom_fields=contract.custom_fields or {},
         business_relationship_id=str(contract.business_relationship_id) if contract.business_relationship_id else None,
         uploaded_by=str(contract.uploaded_by),
@@ -1941,6 +1964,9 @@ async def get_contract(
         Full contract details.
     """
     from app.services.contracts import ContractService
+    from app.models.clause import Clause
+    from app.models.obligation import Obligation
+    from app.models.sla import ContractSLA
 
     service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id)
@@ -1950,6 +1976,18 @@ async def get_contract(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Contract not found: {contract_id}",
         )
+
+    # Query counts explicitly (relationships may not be loaded after commit)
+    cid = contract.id
+    clause_ct = (await db.execute(
+        select(func.count(Clause.id)).where(Clause.contract_id == cid)
+    )).scalar() or 0
+    obligation_ct = (await db.execute(
+        select(func.count(Obligation.id)).where(Obligation.contract_id == cid)
+    )).scalar() or 0
+    sla_ct = (await db.execute(
+        select(func.count(ContractSLA.id)).where(ContractSLA.contract_id == cid)
+    )).scalar() or 0
 
     # Audit log
     await log_audit(
@@ -1964,7 +2002,7 @@ async def get_contract(
 
     await db.commit()
 
-    return contract_to_response(contract)
+    return contract_to_response(contract, clause_count=clause_ct, obligation_count=obligation_ct, sla_count=sla_ct)
 
 
 @router.delete("/{contract_id}")
@@ -2738,6 +2776,13 @@ async def update_contract_metadata(
     update_dict = update_data.model_dump(exclude_unset=True)
     for field, value in update_dict.items():
         if hasattr(contract, field):
+            # Handle UUID fields: convert string to UUID, empty string to None
+            if field == "industry_profile_id":
+                if value and isinstance(value, str):
+                    import uuid as _uuid
+                    value = _uuid.UUID(value) if value.strip() else None
+                elif not value:
+                    value = None
             setattr(contract, field, value)
 
     await db.commit()

@@ -226,6 +226,13 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         index=True,
     )
 
+    # Industry profile override (per-contract, overrides tenant/BU default)
+    industry_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("industry_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Business Unit association
     business_unit_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("business_units.id"),
@@ -266,6 +273,10 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
     business_unit: Mapped["BusinessUnit | None"] = relationship(
         "BusinessUnit",
         back_populates="contracts",
+        lazy="noload",
+    )
+    industry_profile: Mapped["IndustryProfile | None"] = relationship(
+        "IndustryProfile",
         lazy="noload",
     )
     business_relationship: Mapped["BusinessRelationship | None"] = relationship(

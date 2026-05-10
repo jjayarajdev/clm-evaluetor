@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import { client as apiClient } from '@/lib/api/client'
+import { getIndustryProfiles } from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import SLASummary from '@/components/dashboard/SLASummary'
 import CustomFieldsDisplay from '@/components/contracts/CustomFieldsDisplay'
@@ -41,6 +42,8 @@ const TAB_ICON_MAP: Record<string, React.ComponentType<React.SVGProps<SVGSVGElem
   link: LinkIcon,
   folder: DocumentTextIcon,
   share: ShareIcon,
+  shield: ShieldExclamationIcon,
+  truck: DocumentTextIcon,
 }
 
 // Fallback tabs if config not loaded yet
@@ -61,13 +64,6 @@ export default function ContractViewPage() {
   const { user } = useAuth()
   const { config, contractTypeLabel, uiLabel } = useTenantConfig()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-
-  // Build tabs from config or use defaults
-  const tabs = (config?.ui?.detail_tabs || DEFAULT_TABS).map((t) => ({
-    id: t.id,
-    label: t.label,
-    iconComponent: TAB_ICON_MAP[t.icon || ''] || InformationCircleIcon,
-  }))
 
   // Get active tab from URL or default to first tab
   const activeTab = searchParams.get('tab') || 'overview'
@@ -115,6 +111,58 @@ export default function ContractViewPage() {
       queryClient.invalidateQueries({ queryKey: ['contracts'] })
     },
   })
+
+  // Industry profiles for per-contract assignment
+  const { data: industryProfiles = [] } = useQuery({
+    queryKey: ['industry-profiles'],
+    queryFn: getIndustryProfiles,
+  })
+
+  // Build tabs dynamically based on contract type
+  const PROCUREMENT_TYPES = new Set([
+    'procurement', 'procurement_agreement', 'hardware_procurement_contract',
+    'supply_agreement', 'quality_agreement', 'blanket_po', 'manufacturing_supply',
+    'annual_maintenance', 'rate_contract', 'distribution', 'vendor',
+  ])
+  const tabs = useMemo(() => {
+    const mapped = (config?.ui?.detail_tabs || DEFAULT_TABS).map((t) => ({
+      id: t.id,
+      label: t.label,
+      iconComponent: TAB_ICON_MAP[t.icon || ''] || InformationCircleIcon,
+    }))
+    const ct = contract?.contract_type?.toLowerCase() || ''
+    const needsProcurementTabs = PROCUREMENT_TYPES.has(ct) ||
+      ct.includes('procurement') || ct.includes('supply') || ct.includes('manufacturing')
+    if (needsProcurementTabs) {
+      const existingIds = new Set(mapped.map((t) => t.id))
+      const insertIdx = mapped.findIndex((t) => t.id === 'review') + 1 || 2
+      const extraTabs = [
+        { id: 'quality', label: 'Quality', icon: 'shield' },
+        { id: 'supply_chain', label: 'Supply Chain', icon: 'truck' },
+      ]
+      let offset = 0
+      for (const pt of extraTabs) {
+        if (!existingIds.has(pt.id)) {
+          mapped.splice(insertIdx + offset, 0, {
+            id: pt.id,
+            label: pt.label,
+            iconComponent: TAB_ICON_MAP[pt.icon] || InformationCircleIcon,
+          })
+          offset++
+        }
+      }
+      // Also ensure SLAs tab is present
+      if (!existingIds.has('slas')) {
+        const relIdx = mapped.findIndex((t) => t.id === 'supply_chain')
+        mapped.splice(relIdx + 1, 0, {
+          id: 'slas',
+          label: 'SLAs',
+          iconComponent: ChartBarIcon,
+        })
+      }
+    }
+    return mapped
+  }, [config, contract?.contract_type])
 
   if (isLoading) {
     return (
@@ -388,6 +436,26 @@ export default function ContractViewPage() {
                     <p className="text-sm font-medium text-gray-900">
                       {contract.renewal_term_months ? `${contract.renewal_term_months} months` : '-'}
                     </p>
+                  </div>
+                  {/* Industry Profile selector */}
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Industry Profile</p>
+                    {canEditCustomFields ? (
+                      <select
+                        value={contract.industry_profile_id || ''}
+                        onChange={(e) => updateMetadataMutation.mutate({ industry_profile_id: e.target.value || null })}
+                        className="w-full text-sm border border-gray-200 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      >
+                        <option value="">Inherit from tenant</option>
+                        {industryProfiles.map((p: any) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-sm font-medium text-gray-900">
+                        {industryProfiles.find((p: any) => p.id === contract.industry_profile_id)?.name || 'Tenant default'}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
