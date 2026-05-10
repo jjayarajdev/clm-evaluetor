@@ -126,7 +126,7 @@ def build_contract_renewal_info(
         contract_id=str(contract.id),
         filename=contract.filename,
         counterparty=contract.counterparty,
-        contract_type=contract.contract_type.value if contract.contract_type else None,
+        contract_type=contract.contract_type or None,
         contract_value=float(contract.contract_value) if contract.contract_value else None,
         effective_date=contract.effective_date,
         expiration_date=contract.expiration_date,
@@ -401,7 +401,7 @@ async def get_renewal_summary(
         by_renewal_status[renewal_status] = by_renewal_status.get(renewal_status, 0) + 1
 
         # Count by contract type
-        ct = contract.contract_type.value if contract.contract_type else "unknown"
+        ct = contract.contract_type or "unknown"
         if ct not in by_contract_type:
             by_contract_type[ct] = {"count": 0, "total_value": 0.0}
         by_contract_type[ct]["count"] += 1
@@ -745,7 +745,7 @@ async def export_calendar_ics(
                 description = (
                     f"Contract: {contract.filename}\\n"
                     f"Counterparty: {contract.counterparty or 'N/A'}\\n"
-                    f"Type: {contract.contract_type.value if contract.contract_type else 'N/A'}\\n"
+                    f"Type: {contract.contract_type or 'N/A'}\\n"
                     f"Value: ${float(contract.contract_value):,.2f}" if contract.contract_value else ""
                 )
                 events.append(_build_ics_event(

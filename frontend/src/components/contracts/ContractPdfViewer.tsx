@@ -194,7 +194,8 @@ export default function ContractPdfViewer({
   const highlightTextRef = useRef<string | null>(null)
   highlightTextRef.current = highlightText || null
 
-  const useRectHighlights = !!(activeRects || allHighlights)
+  const hasAllHighlights = allHighlights && Object.keys(allHighlights).length > 0
+  const useRectHighlights = !!(activeRects || hasAllHighlights)
 
   // Load file
   useEffect(() => {

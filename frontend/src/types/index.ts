@@ -70,7 +70,7 @@ export interface ClientCreate {
 }
 
 // Contract types
-export type ContractType = 'nda' | 'msa' | 'sow' | 'amendment' | 'vendor' | 'employment'
+export type ContractType = string
 export type ContractStatus = 'pending' | 'processing' | 'completed' | 'failed'
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 
@@ -84,6 +84,7 @@ export interface ContractSummary {
   contract_value: number | null
   currency: string | null
   expiration_date: string | null
+  industry_profile_id: string | null
   uploaded_at: string
 }
 

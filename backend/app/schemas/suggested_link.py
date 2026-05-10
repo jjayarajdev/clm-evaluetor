@@ -56,7 +56,7 @@ class SuggestedLinkResponse(BaseModel):
             id=str(contract.id),
             filename=contract.filename,
             contract_type=(
-                contract.contract_type.value
+                contract.contract_type
                 if contract.contract_type else None
             ),
             counterparty=contract.counterparty,

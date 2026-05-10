@@ -543,7 +543,15 @@ async def list_obligations(
         query = query.where(Obligation.contract_id == uuid_mod.UUID(contract_id))
 
     if status:
-        query = query.where(Obligation.status == ObligationStatus(status))
+        if status == "overdue":
+            # Overdue is computed: deadline past AND not completed/waived
+            from datetime import date as date_type
+            query = query.where(
+                Obligation.deadline < date_type.today(),
+                Obligation.status.notin_([ObligationStatus.COMPLETED, ObligationStatus.WAIVED]),
+            )
+        else:
+            query = query.where(Obligation.status == ObligationStatus(status))
 
     if rag_status:
         query = query.where(Obligation.rag_status == RAGStatus(rag_status))

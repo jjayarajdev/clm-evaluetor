@@ -8,10 +8,15 @@ import {
   PaintBrushIcon,
   PlusIcon,
   TrashIcon,
+  SwatchIcon,
+  CheckCircleIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTenantConfig } from '@/contexts/TenantConfigContext'
+import { getIndustryProfiles, setMyIndustryProfile, getTenantOverrides, updateTenantOverrides } from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance'
@@ -117,7 +122,9 @@ export default function SettingsPage() {
 }
 
 function GeneralSettings() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
+  const { config, refresh: refreshConfig } = useTenantConfig()
+  const queryClient = useQueryClient()
   const [settings, setSettings] = useState({
     orgName: user?.tenant_name || 'My Organization',
     currency: 'USD',
@@ -125,15 +132,136 @@ function GeneralSettings() {
   })
   const [saved, setSaved] = useState(false)
 
+  const { data: profiles } = useQuery({
+    queryKey: ['industry-profiles'],
+    queryFn: getIndustryProfiles,
+    enabled: isAdmin,
+  })
+
+  const assignMutation = useMutation({
+    mutationFn: (slug: string | null) => setMyIndustryProfile(slug),
+    onSuccess: () => {
+      refreshConfig()
+      queryClient.invalidateQueries({ queryKey: ['industry-profiles'] })
+    },
+  })
+
   const handleSave = () => {
-    // Settings are stored locally for now — backend tenant settings API can be wired up later
     localStorage.setItem('clm_settings', JSON.stringify(settings))
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
+  const currentSlug = config?.industry
+
   return (
     <div className="space-y-6">
+      {/* Industry Profile Selector */}
+      {isAdmin && (
+        <div className="pb-6 border-b border-gray-200">
+          <div className="flex items-center gap-2 mb-3">
+            <SwatchIcon className="h-5 w-5 text-violet-500" />
+            <h3 className="text-sm font-medium text-gray-900">Industry Profile</h3>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">
+            Choose an industry profile to configure AI extraction, contract types, risk categories, and SLA metrics for your organization.
+          </p>
+
+          {/* Current profile display */}
+          {currentSlug && config?.industry_name ? (
+            <div className="mb-4 p-3 bg-violet-50 border border-violet-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <CheckCircleIcon className="h-4 w-4 text-violet-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-violet-900">
+                    {config.industry_name}
+                  </span>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-violet-600">
+                    <span>{config.contract_types?.length || 0} contract types</span>
+                    <span>{config.clause_types?.length || 0} clause types</span>
+                    <span>{config.risk_categories?.length || 0} risk categories</span>
+                    <span>{config.sla_metrics?.length || 0} SLA metrics</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <SparklesIcon className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                <span className="text-sm text-amber-800">
+                  No industry profile selected. AI extraction will use generic defaults.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Profile selector grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {profiles?.map((profile: any) => {
+              const isActive = profile.slug === currentSlug
+              return (
+                <button
+                  key={profile.id}
+                  onClick={() => {
+                    if (!isActive) {
+                      assignMutation.mutate(profile.slug)
+                    }
+                  }}
+                  disabled={assignMutation.isPending}
+                  className={cn(
+                    'text-left p-3 rounded-lg border-2 transition-all',
+                    isActive
+                      ? 'border-violet-500 bg-violet-50/50 ring-1 ring-violet-200'
+                      : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/30',
+                    assignMutation.isPending && 'opacity-60 cursor-wait'
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-semibold text-gray-900">
+                      {profile.name}
+                    </span>
+                    {isActive && (
+                      <CheckCircleIcon className="h-4 w-4 text-violet-600" />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mb-2 line-clamp-2">
+                    {profile.description}
+                  </p>
+                  <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                    <span>{profile.contract_type_count} types</span>
+                    <span className="text-gray-300">|</span>
+                    <span>{profile.clause_type_count} clauses</span>
+                    <span className="text-gray-300">|</span>
+                    <span>{profile.risk_category_count} risks</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Clear profile option */}
+          {currentSlug && (
+            <button
+              onClick={() => assignMutation.mutate(null)}
+              disabled={assignMutation.isPending}
+              className="mt-2 text-xs text-gray-500 hover:text-red-600 transition-colors"
+            >
+              Clear industry profile
+            </button>
+          )}
+
+          {assignMutation.isError && (
+            <p className="mt-2 text-xs text-red-600">
+              {(assignMutation.error as any)?.response?.data?.detail || 'Failed to update profile'}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Party Aliases */}
+      {isAdmin && <PartyAliasesSection />}
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Organization Name
@@ -177,6 +305,103 @@ function GeneralSettings() {
         <button className="btn-primary" onClick={handleSave}>Save Changes</button>
         {saved && <span className="text-sm text-green-600">Settings saved</span>}
       </div>
+    </div>
+  )
+}
+
+function PartyAliasesSection() {
+  const queryClient = useQueryClient()
+  const [newAlias, setNewAlias] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const { data: overrides, isLoading } = useQuery({
+    queryKey: ['tenant-overrides'],
+    queryFn: getTenantOverrides,
+  })
+
+  const aliases: string[] = overrides?.party_aliases || []
+
+  const saveAliases = async (updated: string[]) => {
+    setSaving(true)
+    try {
+      await updateTenantOverrides({ party_aliases: updated })
+      queryClient.invalidateQueries({ queryKey: ['tenant-overrides'] })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const addAlias = async () => {
+    const trimmed = newAlias.trim()
+    if (!trimmed || aliases.includes(trimmed)) return
+    await saveAliases([...aliases, trimmed])
+    setNewAlias('')
+  }
+
+  const removeAlias = async (alias: string) => {
+    await saveAliases(aliases.filter((a) => a !== alias))
+  }
+
+  return (
+    <div className="pb-6 border-b border-gray-200">
+      <div className="flex items-center gap-2 mb-1">
+        <ShieldCheckIcon className="h-5 w-5 text-violet-500" />
+        <h3 className="text-sm font-medium text-gray-900">Legal Entity Names</h3>
+      </div>
+      <p className="text-xs text-gray-500 mb-4">
+        Register your organization's legal entity names (e.g. holding companies, subsidiaries, trading names).
+        The AI uses these to correctly identify the counterparty when extracting contract metadata — any name listed here
+        will be recognized as <em>your</em> organization, not the vendor.
+      </p>
+
+      {isLoading ? (
+        <LoadingSpinner size="sm" />
+      ) : (
+        <>
+          {/* Existing aliases */}
+          {aliases.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {aliases.map((alias) => (
+                <span
+                  key={alias}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 border border-violet-200 rounded-full text-sm text-violet-800"
+                >
+                  {alias}
+                  <button
+                    onClick={() => removeAlias(alias)}
+                    disabled={saving}
+                    className="text-violet-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                    title="Remove"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Add new alias */}
+          <div className="flex items-center gap-2 max-w-md">
+            <input
+              type="text"
+              value={newAlias}
+              onChange={(e) => setNewAlias(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addAlias()}
+              placeholder="e.g. Acme Holdings Ltd."
+              className="input flex-1"
+              disabled={saving}
+            />
+            <button
+              onClick={addAlias}
+              disabled={saving || !newAlias.trim()}
+              className="btn-primary flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Add
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

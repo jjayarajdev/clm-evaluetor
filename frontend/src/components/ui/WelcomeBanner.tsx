@@ -34,6 +34,7 @@ const roleLabels: Record<RoleType, string> = {
   legal: 'Legal',
   procurement: 'Procurement',
   admin: 'Admin',
+  bu_head: 'Business Unit',
   viewer: 'Viewer',
 }
 
@@ -52,6 +53,11 @@ const defaultQuickActions: Record<RoleType, QuickAction[]> = {
     { label: 'System Health', description: 'Monitor services', href: '/admin/scheduler', icon: ChartBarIcon },
     { label: 'Renewals', description: 'Expiring soon', href: '/renewals', icon: ClockIcon },
     { label: 'Users', description: 'Manage access', href: '/settings', icon: Cog6ToothIcon },
+  ],
+  bu_head: [
+    { label: 'My Contracts', description: 'Business unit contracts', href: '/contracts', icon: ChartBarIcon },
+    { label: 'Renewals', description: 'Expiring soon', href: '/renewals', icon: ClockIcon },
+    { label: 'Reports', description: 'Unit analytics', href: '/reports', icon: ChartBarIcon },
   ],
   viewer: [
     { label: 'Browse', description: 'All contracts', href: '/contracts', icon: ChartBarIcon },

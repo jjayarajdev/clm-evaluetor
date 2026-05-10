@@ -431,6 +431,121 @@ export async function getTenantStats(id: string): Promise<TenantStats> {
   return response.data
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getTenantConfig(): Promise<any> {
+  const response = await client.get('/tenants/current/config')
+  return response.data
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getIndustryProfiles(): Promise<any[]> {
+  const response = await client.get('/industry-profiles')
+  return response.data
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getIndustryProfile(profileId: string): Promise<any> {
+  const response = await client.get(`/industry-profiles/${profileId}`)
+  return response.data
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function updateIndustryProfile(profileId: string, updates: Record<string, any>): Promise<any> {
+  const response = await client.patch(`/industry-profiles/${profileId}/update`, updates)
+  return response.data
+}
+
+export async function assignIndustryProfile(tenantId: string, profileSlug: string | null): Promise<{ tenant: string; profile: string | null; slug: string | null }> {
+  const response = await client.patch(`/industry-profiles/${tenantId}/assign`, null, {
+    params: { profile_slug: profileSlug },
+  })
+  return response.data
+}
+
+export async function setMyIndustryProfile(profileSlug: string | null): Promise<{ tenant: string; profile: string | null; slug: string | null; profile_id: string | null }> {
+  const response = await client.patch('/industry-profiles/my-profile', null, {
+    params: { profile_slug: profileSlug },
+  })
+  return response.data
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getTenantOverrides(): Promise<Record<string, any>> {
+  const response = await client.get('/tenants/current/overrides')
+  return response.data
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function updateTenantOverrides(overrides: Record<string, any>): Promise<any> {
+  const response = await client.patch('/tenants/current/overrides', overrides)
+  return response.data
+}
+
+// ============================================================================
+// Taxonomy Suggestions
+// ============================================================================
+
+export interface TaxonomySuggestionItem {
+  id: string
+  contract_id: string
+  business_unit_id: string | null
+  category: string
+  code: string
+  label: string
+  details: Record<string, unknown>
+  source_agent: string
+  confidence: number
+  source_text: string | null
+  status: string
+  created_at: string
+}
+
+export interface TaxonomySuggestionStats {
+  pending: number
+  approved: number
+  rejected: number
+  by_category: Record<string, number>
+}
+
+export async function getTaxonomySuggestions(
+  statusFilter = 'pending',
+  category?: string,
+): Promise<TaxonomySuggestionItem[]> {
+  const params: Record<string, string> = { status_filter: statusFilter }
+  if (category) params.category = category
+  const response = await client.get('/taxonomy-suggestions', { params })
+  return response.data
+}
+
+export async function getTaxonomySuggestionStats(): Promise<TaxonomySuggestionStats> {
+  const response = await client.get('/taxonomy-suggestions/stats')
+  return response.data
+}
+
+export async function approveTaxonomySuggestion(
+  id: string,
+  modifications?: { code?: string; label?: string; details?: Record<string, unknown> },
+): Promise<{ status: string; category: string; code: string; label: string }> {
+  const response = await client.post(`/taxonomy-suggestions/${id}/approve`, modifications || {})
+  return response.data
+}
+
+export async function rejectTaxonomySuggestion(
+  id: string,
+): Promise<{ status: string; code: string }> {
+  const response = await client.post(`/taxonomy-suggestions/${id}/reject`)
+  return response.data
+}
+
+export async function approveAllTaxonomySuggestions(
+  category?: string,
+): Promise<{ approved: number }> {
+  const params: Record<string, string> = {}
+  if (category) params.category = category
+  const response = await client.post('/taxonomy-suggestions/approve-all', null, { params })
+  return response.data
+}
+
 export async function getPlatformStats(): Promise<PlatformStats> {
   // Aggregate stats from tenants list and individual tenant stats
   const tenants = await getTenants(true)
@@ -626,6 +741,21 @@ export async function deleteBusinessUnit(id: string, tenantId?: string): Promise
   await client.delete(`/business-units/${id}`, config)
 }
 
+/**
+ * Assign an industry profile to a business unit.
+ * Pass null profileId to clear the override and inherit from tenant.
+ */
+export async function assignBuProfile(
+  buId: string,
+  profileId: string | null,
+  tenantId?: string
+): Promise<{ business_unit: string; profile: string | null; profile_id: string | null; effective_profile: string | null }> {
+  const config = tenantId ? { headers: { 'X-Tenant-ID': tenantId }, params: { profile_id: profileId } }
+    : { params: { profile_id: profileId } }
+  const response = await client.patch(`/business-units/${buId}/profile`, null, config)
+  return response.data
+}
+
 // ============================================================================
 // External Users
 // ============================================================================
@@ -766,6 +896,35 @@ export async function getNotificationRuleStats(): Promise<unknown> {
 // ============================================================================
 // Extraction Quality / Golden Set
 // ============================================================================
+
+// Per-taxonomy accuracy
+export interface TaxonomyAccuracyItem { correct: number; total: number; accuracy: number }
+export type TaxonomyAccuracyResponse = {
+  clause_types: Record<string, TaxonomyAccuracyItem>
+  obligation_types: Record<string, TaxonomyAccuracyItem>
+  sla_metric_types: Record<string, TaxonomyAccuracyItem>
+}
+
+export async function getTaxonomyAccuracy(): Promise<TaxonomyAccuracyResponse> {
+  const response = await client.get<TaxonomyAccuracyResponse>('/admin/extraction-quality/taxonomy-accuracy')
+  return response.data
+}
+
+// Quality-driven hints
+export interface QualityHint {
+  category: string
+  agent: string
+  code: string
+  label: string
+  accuracy: number
+  total_verified: number
+  suggested_hint: string
+}
+
+export async function getQualityHints(): Promise<QualityHint[]> {
+  const response = await client.get<QualityHint[]>('/admin/extraction-quality/taxonomy-accuracy/hints')
+  return response.data
+}
 
 export async function getExtractionQualityOverview(): Promise<{
   total_golden: number

@@ -217,7 +217,7 @@ async def extract_from_contract(
 
     # Auto-detect from contract type if not specified
     if not schema_id and not contract_type and contract.contract_type:
-        contract_type = contract.contract_type.value
+        contract_type = contract.contract_type
 
     if not schema_id and not contract_type:
         raise HTTPException(

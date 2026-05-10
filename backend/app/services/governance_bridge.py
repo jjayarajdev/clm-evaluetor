@@ -19,10 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 
-from app.models.contract import Contract, ContractType, RiskLevel
+from app.models.contract import Contract, RiskLevel
 from app.models.clause import Clause
 from app.models.sla import ContractSLA, SLAMetricType, SLAUnit
 from app.models.organization import Organization, OrganizationType, OrganizationLevel
+from app.models.tenant import Tenant
 from app.models.party import ContractParty, PartyRole
 from app.models.preamble import ContractPreamble, ContractPartyDetail
 from app.models.relationship import (
@@ -53,11 +54,19 @@ logger = logging.getLogger(__name__)
 # ── Contract type → default org type mapping ─────────────────────────────
 
 CONTRACT_TYPE_TO_ORG: dict[str, str] = {
-    ContractType.MSA.value: OrganizationType.CUSTOMER.value,
-    ContractType.SOW.value: OrganizationType.CUSTOMER.value,
-    ContractType.NDA.value: OrganizationType.PARTNER.value,
-    ContractType.VENDOR_AGREEMENT.value: OrganizationType.VENDOR.value,
-    ContractType.AMENDMENT.value: OrganizationType.CUSTOMER.value,
+    "msa": OrganizationType.CUSTOMER.value,
+    "sow": OrganizationType.CUSTOMER.value,
+    "nda": OrganizationType.PARTNER.value,
+    "vendor_agreement": OrganizationType.VENDOR.value,
+    "amendment": OrganizationType.CUSTOMER.value,
+    # Manufacturing
+    "supply_agreement": OrganizationType.VENDOR.value,
+    "quality_agreement": OrganizationType.VENDOR.value,
+    "blanket_po": OrganizationType.VENDOR.value,
+    # Pharma
+    "csa": OrganizationType.VENDOR.value,
+    "cmo_agreement": OrganizationType.VENDOR.value,
+    "cro_agreement": OrganizationType.VENDOR.value,
 }
 
 # ── High-risk clause types that warrant improvement points ───────────────
@@ -111,7 +120,7 @@ class GovernanceBridgeService:
             return summary
 
         # Skip employment contracts — no B2B governance
-        if contract.contract_type == ContractType.EMPLOYMENT_CONTRACT:
+        if contract.contract_type == "employment_contract":
             return summary
 
         # ── Automation 1: Counterparty → Organization ────────────────
@@ -186,6 +195,95 @@ class GovernanceBridgeService:
         await self.db.flush()
         return summary
 
+    # ── Automation 0: Counterparty Resolution ────────────────────────────
+
+    async def _resolve_counterparty(
+        self,
+        contract: Contract,
+        tenant_id: uuid.UUID,
+        counterparty: str,
+    ) -> Optional[str]:
+        """Check if counterparty is the tenant's own entity and correct if so.
+
+        Loads the tenant name and party_aliases from config_overrides.
+        If the counterparty matches any of them, it swaps to the other party
+        found in the contract's extracted parties list or preamble.
+        Also updates contract.counterparty in-place so downstream code sees
+        the corrected value.
+
+        Returns the (possibly corrected) counterparty name, or None if
+        the counterparty is self-referential and no alternative was found.
+        """
+        tenant = await self.db.get(Tenant, tenant_id)
+        if not tenant:
+            return counterparty
+
+        # Build set of names that belong to the tenant
+        own_names: set[str] = set()
+        if tenant.name:
+            own_names.add(tenant.name.lower())
+        aliases = (tenant.config_overrides or {}).get("party_aliases", [])
+        for alias in aliases:
+            if alias:
+                own_names.add(alias.strip().lower())
+
+        if not own_names:
+            return counterparty
+
+        # Check if counterparty matches a tenant name/alias
+        if counterparty.lower() not in own_names:
+            return counterparty  # All good — counterparty is external
+
+        # Counterparty is the tenant's own entity — find the real vendor
+        logger.info(
+            f"Counterparty '{counterparty}' matches tenant alias — "
+            f"searching for the real external party"
+        )
+
+        # Look in contract_parties table
+        result = await self.db.execute(
+            select(ContractParty).where(
+                ContractParty.contract_id == contract.id,
+            )
+        )
+        parties = result.scalars().all()
+        for party in parties:
+            name = (party.legal_name or "").strip()
+            if name and name.lower() not in own_names:
+                logger.info(f"Corrected counterparty: '{counterparty}' → '{name}' (from contract_parties)")
+                contract.counterparty = name
+                return name
+
+        # Look in preamble party details
+        result = await self.db.execute(
+            select(ContractPartyDetail)
+            .join(ContractPreamble, ContractPartyDetail.preamble_id == ContractPreamble.id)
+            .where(ContractPreamble.contract_id == contract.id)
+        )
+        preamble_parties = result.scalars().all()
+        for pp in preamble_parties:
+            name = (pp.party_name or "").strip()
+            if name and name.lower() not in own_names:
+                logger.info(f"Corrected counterparty: '{counterparty}' → '{name}' (from preamble)")
+                contract.counterparty = name
+                return name
+
+        # Look in metadata parties list (stored in extracted_metadata)
+        if contract.extracted_metadata and isinstance(contract.extracted_metadata, dict):
+            meta_parties = contract.extracted_metadata.get("parties", [])
+            for p in meta_parties:
+                name = (p if isinstance(p, str) else "").strip()
+                if name and name.lower() not in own_names:
+                    logger.info(f"Corrected counterparty: '{counterparty}' → '{name}' (from metadata.parties)")
+                    contract.counterparty = name
+                    return name
+
+        logger.warning(
+            f"Counterparty '{counterparty}' is a tenant alias but no "
+            f"alternative party found — skipping org creation"
+        )
+        return None
+
     # ── Automation 1 ─────────────────────────────────────────────────────
 
     async def _match_or_create_organization(
@@ -195,6 +293,14 @@ class GovernanceBridgeService:
     ) -> Optional[Organization]:
         """Match counterparty to an existing Organization or create one."""
         counterparty = (contract.counterparty or "").strip()
+        if not counterparty:
+            return None
+
+        # ── Guard: counterparty is the tenant's own entity ──────────────
+        # If the counterparty matches the tenant name or a party alias,
+        # the metadata extraction picked the wrong party. Try to correct it
+        # by finding the real vendor from the contract's extracted parties.
+        counterparty = await self._resolve_counterparty(contract, tenant_id, counterparty)
         if not counterparty:
             return None
 
@@ -379,7 +485,7 @@ class GovernanceBridgeService:
 
         # ── Signal 4: Contract type mapping (fallback) ────────────────────
         org_type = CONTRACT_TYPE_TO_ORG.get(
-            contract.contract_type.value if contract.contract_type else "",
+            contract.contract_type or "",
             OrganizationType.CUSTOMER.value,
         )
         logger.info(f"Org type from contract_type fallback: {org_type}")
@@ -893,7 +999,7 @@ If you cannot determine a field, use null for that field."""
         tenant_id: uuid.UUID,
     ) -> list:
         """Link SOW service descriptions to Service Portfolio entries."""
-        if not contract.contract_type or contract.contract_type != ContractType.SOW:
+        if not contract.contract_type or contract.contract_type != "sow":
             return []
 
         # Try to get service descriptions from schema_data or clauses

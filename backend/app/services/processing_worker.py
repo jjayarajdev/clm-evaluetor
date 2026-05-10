@@ -63,6 +63,7 @@ async def _process_one_job(job, session: AsyncSession) -> None:
             await session.commit()
 
             await queue.update_progress(job.id, "deep_analysis", 70, "Running deep analysis")
+            await session.commit()  # Release locks before long-running deep analysis
 
             # Run deep analysis (clauses, obligations, SLAs, etc.)
             try:
@@ -75,7 +76,7 @@ async def _process_one_job(job, session: AsyncSession) -> None:
             # Complete the job
             await queue.complete_job(job.id, details={
                 "counterparty": contract.counterparty,
-                "contract_type": contract.contract_type.value if contract.contract_type else None,
+                "contract_type": contract.contract_type or None,
                 "risk_level": contract.risk_level.value if contract.risk_level else None,
             })
             await session.commit()

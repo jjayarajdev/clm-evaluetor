@@ -7,6 +7,7 @@ import {
   ChevronRightIcon,
   ChevronDownIcon,
   BuildingOfficeIcon,
+  SwatchIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
@@ -19,6 +20,7 @@ interface FormData {
   code: string
   description: string
   parent_id: string
+  industry_profile_id: string
   is_active: boolean
 }
 
@@ -27,6 +29,7 @@ const emptyFormData: FormData = {
   code: '',
   description: '',
   parent_id: '',
+  industry_profile_id: '',
   is_active: true,
 }
 
@@ -100,9 +103,25 @@ function TreeNode({
               </span>
             )}
           </div>
-          {node.description && (
-            <p className="text-sm text-gray-500 truncate">{node.description}</p>
-          )}
+          <div className="flex items-center gap-2 mt-0.5">
+            {node.description && (
+              <p className="text-sm text-gray-500 truncate">{node.description}</p>
+            )}
+            {node.effective_profile_name && (
+              <span className={cn(
+                'text-xs px-1.5 py-0.5 rounded inline-flex items-center gap-1',
+                node.industry_profile_id
+                  ? 'bg-violet-50 text-violet-700 border border-violet-200'
+                  : 'bg-gray-50 text-gray-500 border border-gray-200'
+              )}>
+                <SwatchIcon className="w-3 h-3" />
+                {node.effective_profile_name}
+                {!node.industry_profile_id && (
+                  <span className="text-gray-400">(inherited)</span>
+                )}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Actions */}
@@ -168,6 +187,12 @@ export default function BusinessUnitsPage() {
     enabled: isSuperAdmin,
   })
 
+  // Fetch industry profiles for the dropdown
+  const { data: profiles } = useQuery({
+    queryKey: ['industry-profiles'],
+    queryFn: () => api.getIndustryProfiles(),
+  })
+
   // Auto-select first tenant for super admin
   useEffect(() => {
     if (isSuperAdmin && tenants && tenants.length > 0 && !selectedTenantId) {
@@ -213,6 +238,15 @@ export default function BusinessUnitsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteBusinessUnit(id, effectiveTenantId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['business-units-tree', effectiveTenantId] })
+      queryClient.invalidateQueries({ queryKey: ['business-units-list', effectiveTenantId] })
+    },
+  })
+
+  const profileMutation = useMutation({
+    mutationFn: ({ buId, profileId }: { buId: string; profileId: string | null }) =>
+      api.assignBuProfile(buId, profileId, effectiveTenantId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business-units-tree', effectiveTenantId] })
       queryClient.invalidateQueries({ queryKey: ['business-units-list', effectiveTenantId] })
@@ -265,6 +299,7 @@ export default function BusinessUnitsPage() {
         code: bu.code,
         description: bu.description || '',
         parent_id: bu.parent_id || '',
+        industry_profile_id: bu.industry_profile_id || '',
         is_active: bu.is_active,
       })
       setIsModalOpen(true)
@@ -287,6 +322,7 @@ export default function BusinessUnitsPage() {
       code: formData.code,
       description: formData.description || undefined,
       parent_id: formData.parent_id || undefined,
+      industry_profile_id: formData.industry_profile_id || undefined,
     }
 
     if (editingId) {
@@ -297,6 +333,13 @@ export default function BusinessUnitsPage() {
           is_active: formData.is_active,
         },
       })
+      // If profile changed, also call the profile assignment endpoint
+      if (formData.industry_profile_id !== '') {
+        profileMutation.mutate({
+          buId: editingId,
+          profileId: formData.industry_profile_id || null,
+        })
+      }
     } else {
       createMutation.mutate(submitData)
     }
@@ -333,7 +376,7 @@ export default function BusinessUnitsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Business Units</h1>
           <p className="text-gray-500 mt-1">
-            Manage organizational structure and department hierarchy
+            Manage organizational structure, department hierarchy, and industry profile assignments
           </p>
         </div>
         <button
@@ -412,7 +455,7 @@ export default function BusinessUnitsPage() {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b">
               <h2 className="text-xl font-semibold">
                 {editingId ? 'Edit Business Unit' : 'Create Business Unit'}
@@ -481,6 +524,31 @@ export default function BusinessUnitsPage() {
                       </option>
                     ))}
                 </select>
+              </div>
+
+              {/* Industry Profile Assignment */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <span className="flex items-center gap-1.5">
+                    <SwatchIcon className="w-4 h-4 text-violet-500" />
+                    Industry Profile
+                  </span>
+                </label>
+                <select
+                  value={formData.industry_profile_id}
+                  onChange={(e) => setFormData({ ...formData, industry_profile_id: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">Inherit from Tenant (default)</option>
+                  {profiles?.map((profile: { id: string; name: string; slug: string }) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Override the tenant's default profile for this BU. Contracts in this BU will use this profile for taxonomy and extraction.
+                </p>
               </div>
 
               {editingId && (

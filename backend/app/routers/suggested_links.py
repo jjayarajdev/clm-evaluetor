@@ -127,7 +127,7 @@ async def get_contract_links(
             linked_contract=ContractLinkBrief(
                 id=str(c.id),
                 filename=c.filename,
-                contract_type=c.contract_type.value if c.contract_type else None,
+                contract_type=c.contract_type or None,
                 counterparty=c.counterparty,
                 effective_date=str(c.effective_date) if c.effective_date else None,
                 expiration_date=str(c.expiration_date) if c.expiration_date else None,
@@ -150,7 +150,7 @@ async def get_contract_links(
             linked_contract=ContractLinkBrief(
                 id=str(c.id),
                 filename=c.filename,
-                contract_type=c.contract_type.value if c.contract_type else None,
+                contract_type=c.contract_type or None,
                 counterparty=c.counterparty,
                 effective_date=str(c.effective_date) if c.effective_date else None,
                 expiration_date=str(c.expiration_date) if c.expiration_date else None,

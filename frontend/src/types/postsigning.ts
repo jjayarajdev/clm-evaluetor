@@ -338,4 +338,7 @@ export interface PriorityAction {
   due_date?: string
   contract?: string
   expiration?: string
+  obligation_id?: string
+  sla_id?: string
+  contract_id?: string
 }

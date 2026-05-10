@@ -13,13 +13,15 @@ Super admins see all entries across all tenants (including global/CUAD).
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, cast, func, select, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import (
     Contract, ContractStatus, Clause, Obligation, ContractSLA,
     GoldenSetContract, ExtractionVerification, VerificationStatus,
+    TaxonomySuggestion, Tenant,
 )
 
 
@@ -143,7 +145,7 @@ async def list_golden_set(
             "id": str(g.id),
             "contract_id": str(contract.id),
             "filename": contract.filename,
-            "contract_type": contract.contract_type.value if contract.contract_type else None,
+            "contract_type": contract.contract_type or None,
             "counterparty": contract.counterparty,
             "status": contract.status.value if contract.status else None,
             "is_baseline": g.is_baseline,
@@ -274,7 +276,7 @@ async def get_extraction_detail(
 
     # Metadata
     meta_fields = {
-        "contract_type": contract.contract_type.value if contract.contract_type else None,
+        "contract_type": contract.contract_type or None,
         "counterparty": contract.counterparty,
         "effective_date": contract.effective_date.isoformat() if contract.effective_date else None,
         "expiration_date": contract.expiration_date.isoformat() if contract.expiration_date else None,
@@ -520,6 +522,10 @@ async def verify_extraction(
     # Recompute golden set scores
     await _recompute_scores(db, golden_set_id)
 
+    # Create taxonomy suggestion if correction introduces new code
+    if status in ("incorrect", "partial") and corrected_value:
+        await _maybe_create_taxonomy_suggestion(db, gs, entity_type, corrected_value)
+
     return verification
 
 
@@ -572,6 +578,224 @@ async def _recompute_scores(db: AsyncSession, golden_set_id: UUID) -> None:
             weighted_sum += score * weight
             weight_total += weight
     golden.overall_score = round(weighted_sum / weight_total, 1) if weight_total > 0 else None
+
+
+async def get_per_taxonomy_accuracy(db: AsyncSession, tenant_id: UUID | None) -> dict:
+    """Get accuracy scores per taxonomy item (clause type, obligation type, SLA metric type).
+
+    Joins ExtractionVerification → entity table, groups by type field,
+    computes correct/total/accuracy for each taxonomy code.
+    """
+    result = {
+        "clause_types": {},
+        "obligation_types": {},
+        "sla_metric_types": {},
+    }
+
+    # Helper to compute scores from verification rows
+    score_expr = func.sum(
+        case(
+            (ExtractionVerification.status == "correct", 1.0),
+            (ExtractionVerification.status == "partial", 0.5),
+            else_=0.0,
+        )
+    )
+    count_expr = func.count(ExtractionVerification.id)
+
+    # -- Clause types --
+    clause_q = (
+        select(
+            cast(Clause.clause_type, String).label("type_code"),
+            score_expr.label("correct"),
+            count_expr.label("total"),
+        )
+        .select_from(ExtractionVerification)
+        .join(GoldenSetContract, ExtractionVerification.golden_set_id == GoldenSetContract.id)
+        .join(Clause, cast(ExtractionVerification.entity_id, PG_UUID(as_uuid=True)) == Clause.id)
+        .where(
+            ExtractionVerification.entity_type == "clause",
+            ExtractionVerification.status != "pending",
+            func.length(ExtractionVerification.entity_id) == 36,
+        )
+    )
+    clause_q = _golden_set_filter(clause_q, tenant_id)
+    clause_q = clause_q.group_by(cast(Clause.clause_type, String))
+    for row in (await db.execute(clause_q)).all():
+        result["clause_types"][row.type_code] = {
+            "correct": float(row.correct),
+            "total": row.total,
+            "accuracy": round(float(row.correct) / row.total * 100, 1) if row.total > 0 else 0,
+        }
+
+    # -- Obligation types --
+    obl_q = (
+        select(
+            cast(Obligation.obligation_type, String).label("type_code"),
+            score_expr.label("correct"),
+            count_expr.label("total"),
+        )
+        .select_from(ExtractionVerification)
+        .join(GoldenSetContract, ExtractionVerification.golden_set_id == GoldenSetContract.id)
+        .join(Obligation, cast(ExtractionVerification.entity_id, PG_UUID(as_uuid=True)) == Obligation.id)
+        .where(
+            ExtractionVerification.entity_type == "obligation",
+            ExtractionVerification.status != "pending",
+            func.length(ExtractionVerification.entity_id) == 36,
+        )
+    )
+    obl_q = _golden_set_filter(obl_q, tenant_id)
+    obl_q = obl_q.group_by(cast(Obligation.obligation_type, String))
+    for row in (await db.execute(obl_q)).all():
+        result["obligation_types"][row.type_code] = {
+            "correct": float(row.correct),
+            "total": row.total,
+            "accuracy": round(float(row.correct) / row.total * 100, 1) if row.total > 0 else 0,
+        }
+
+    # -- SLA metric types --
+    sla_q = (
+        select(
+            cast(ContractSLA.metric_type, String).label("type_code"),
+            score_expr.label("correct"),
+            count_expr.label("total"),
+        )
+        .select_from(ExtractionVerification)
+        .join(GoldenSetContract, ExtractionVerification.golden_set_id == GoldenSetContract.id)
+        .join(ContractSLA, cast(ExtractionVerification.entity_id, PG_UUID(as_uuid=True)) == ContractSLA.id)
+        .where(
+            ExtractionVerification.entity_type == "sla",
+            ExtractionVerification.status != "pending",
+            func.length(ExtractionVerification.entity_id) == 36,
+        )
+    )
+    sla_q = _golden_set_filter(sla_q, tenant_id)
+    sla_q = sla_q.group_by(cast(ContractSLA.metric_type, String))
+    for row in (await db.execute(sla_q)).all():
+        result["sla_metric_types"][row.type_code] = {
+            "correct": float(row.correct),
+            "total": row.total,
+            "accuracy": round(float(row.correct) / row.total * 100, 1) if row.total > 0 else 0,
+        }
+
+    return result
+
+
+async def get_quality_driven_hints(db: AsyncSession, tenant_id: UUID | None) -> list[dict]:
+    """Suggest extraction hints for taxonomy items with low accuracy.
+
+    Returns items with accuracy < 70% and at least 3 verified samples,
+    along with a suggested hint fragment the admin can apply.
+    """
+    accuracy = await get_per_taxonomy_accuracy(db, tenant_id)
+
+    hints = []
+    category_map = {
+        "clause_types": ("clauses", "Clause"),
+        "obligation_types": ("obligations", "Obligation"),
+        "sla_metric_types": ("slas", "SLA"),
+    }
+
+    for cat_key, (agent_key, entity_label) in category_map.items():
+        for code, data in accuracy.get(cat_key, {}).items():
+            if data["total"] >= 3 and data["accuracy"] < 70:
+                label = code.replace("_", " ").title()
+                hints.append({
+                    "category": cat_key,
+                    "agent": agent_key,
+                    "code": code,
+                    "label": label,
+                    "accuracy": data["accuracy"],
+                    "total_verified": data["total"],
+                    "suggested_hint": (
+                        f"Pay special attention to {label.lower()} {entity_label.lower()}s. "
+                        f"Current accuracy is {data['accuracy']}% across {data['total']} verified samples. "
+                        f"Look for explicit mentions, implied references, and variant phrasings."
+                    ),
+                })
+
+    # Sort by accuracy ascending (worst first)
+    hints.sort(key=lambda h: h["accuracy"])
+    return hints
+
+
+async def _maybe_create_taxonomy_suggestion(
+    db: AsyncSession,
+    golden_set: GoldenSetContract,
+    entity_type: str,
+    corrected_value: dict,
+) -> None:
+    """Create a taxonomy suggestion if the corrected value introduces an unknown code.
+
+    Called after verify_extraction() when status is incorrect/partial and corrected_value
+    provides a type code not in the tenant's industry profile config.
+    """
+    # Determine which field and category to check
+    type_field_map = {
+        "clause": ("clause_type", "clause_types"),
+        "obligation": ("obligation_type", "obligation_types"),  # Note: category is clause_types in overrides
+        "sla": ("metric_type", "sla_metrics"),
+    }
+    mapping = type_field_map.get(entity_type)
+    if not mapping:
+        return
+
+    field_key, category = mapping
+    corrected_code = corrected_value.get(field_key)
+    if not corrected_code or not isinstance(corrected_code, str):
+        return
+
+    corrected_code = corrected_code.strip().lower().replace(" ", "_")
+
+    # Load the tenant's industry config to check if this code already exists
+    tenant_id = golden_set.tenant_id
+    if tenant_id is None:
+        return  # Global golden set — no tenant to suggest to
+
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        return
+
+    config = tenant.get_industry_config()
+    # Check if code exists in base profile or overrides
+    existing_codes = set()
+    for item in config.get(category, []):
+        if isinstance(item, dict):
+            existing_codes.add(item.get("code", "").lower())
+    # Also check tenant overrides directly
+    overrides = tenant.config_overrides or {}
+    for item in overrides.get(category, []):
+        if isinstance(item, dict):
+            existing_codes.add(item.get("code", "").lower())
+
+    if corrected_code in existing_codes:
+        return
+
+    # Deduplicate against existing pending/approved suggestions
+    existing = await db.execute(
+        select(TaxonomySuggestion).where(
+            TaxonomySuggestion.tenant_id == tenant_id,
+            TaxonomySuggestion.category == category,
+            TaxonomySuggestion.code == corrected_code,
+            TaxonomySuggestion.status.in_(["pending", "approved", "modified"]),
+        )
+    )
+    if existing.scalar_one_or_none():
+        return
+
+    # Create the suggestion
+    label = corrected_code.replace("_", " ").title()
+    db.add(TaxonomySuggestion(
+        tenant_id=tenant_id,
+        contract_id=golden_set.contract_id,
+        category=category,
+        code=corrected_code,
+        label=label,
+        details=corrected_value,
+        source_agent="quality_feedback",
+        confidence=1.0,
+        status="pending",
+    ))
+    await db.flush()
 
 
 async def bulk_auto_approve_all(

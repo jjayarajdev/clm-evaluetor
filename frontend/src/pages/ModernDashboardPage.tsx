@@ -18,6 +18,7 @@ import {
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTenantConfig } from '@/contexts/TenantConfigContext'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import WelcomeBanner from '@/components/ui/WelcomeBanner'
@@ -153,8 +154,20 @@ function InsightCard({
   )
 }
 
+// Map config icon names to Heroicon components for stat cards
+const WIDGET_ICON_MAP: Record<string, React.ElementType> = {
+  document: DocumentTextIcon,
+  warning: ExclamationTriangleIcon,
+  check: CheckCircleIcon,
+  currency: CurrencyDollarIcon,
+  scale: ScaleIcon,
+  chart: ChartBarIcon,
+  clock: ClockIcon,
+}
+
 export default function ModernDashboardPage() {
   const { user } = useAuth()
+  const { config } = useTenantConfig()
   const userRole = (user?.role || 'viewer') as RoleType
 
   // Fetch summary data
@@ -230,6 +243,11 @@ export default function ModernDashboardPage() {
         { label: 'System Health', description: 'Monitor services', href: '/admin/scheduler', icon: ChartBarIcon },
         { label: 'Settings', description: 'Manage access', href: '/settings', icon: Cog6ToothIcon },
       ],
+      bu_head: [
+        { label: 'My Contracts', description: 'Business unit contracts', href: '/contracts', icon: DocumentTextIcon },
+        { label: 'Expiring Soon', description: 'Next 30 days', href: '/renewals?window=30', icon: ClockIcon, badge: expiringCount || undefined, badgeColor: 'amber' },
+        { label: 'Reports', description: 'Unit analytics', href: '/reports', icon: ChartBarIcon },
+      ],
       viewer: [
         { label: 'Browse', description: 'All contracts', href: '/contracts', icon: ChartBarIcon },
         { label: 'Ask AI', description: 'Query contracts', href: '/query', icon: SparklesIcon },
@@ -237,7 +255,7 @@ export default function ModernDashboardPage() {
       ],
     }
 
-    return actionsByRole[userRole]
+    return actionsByRole[userRole] || actionsByRole.viewer
   }
 
   return (
@@ -249,74 +267,106 @@ export default function ModernDashboardPage() {
         quickActions={getQuickActions()}
       />
 
-      {/* Stats Grid - 6 cards in one row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard
-          title="Total Contracts"
-          value={summaryData?.total_contracts || 0}
-          icon={DocumentTextIcon}
-          color="primary"
-          variant="filled"
-          trend={trendData?.total_contracts && trendData.total_contracts.length >= 2 ? {
-            value: Math.round(((trendData.total_contracts[trendData.total_contracts.length - 1] - trendData.total_contracts[0]) / Math.max(trendData.total_contracts[0], 1)) * 100),
-            label: 'vs last week'
-          } : undefined}
-          chart={trendData?.total_contracts || undefined}
-        />
-        <StatCard
-          title="At Risk"
-          value={complianceData?.compliance?.contracts_at_risk || summaryData?.by_risk?.high || 0}
-          icon={ExclamationTriangleIcon}
-          color="danger"
-          variant="filled"
-          trend={trendData?.contracts_at_risk && trendData.contracts_at_risk.length >= 2 ? {
-            value: Math.round(((trendData.contracts_at_risk[trendData.contracts_at_risk.length - 1] - trendData.contracts_at_risk[0]) / Math.max(trendData.contracts_at_risk[0], 1)) * 100),
-            label: 'vs last week'
-          } : undefined}
-          chart={trendData?.contracts_at_risk || undefined}
-        />
-        <StatCard
-          title="Compliance"
-          value={`${(complianceData?.compliance?.overall_compliance_rate || 0).toFixed(1)}%`}
-          info="Percentage of SLAs meeting or within warning threshold of their targets. Calculated as (compliant + warning) / total SLAs."
-          icon={CheckCircleIcon}
-          color="success"
-          variant="filled"
-          trend={trendData?.compliance_rate && trendData.compliance_rate.length >= 2 ? {
-            value: Math.round(trendData.compliance_rate[trendData.compliance_rate.length - 1] - trendData.compliance_rate[0]),
-            label: 'vs last week'
-          } : undefined}
-          chart={trendData?.compliance_rate || undefined}
-        />
-        <StatCard
-          title="Contract Value"
-          value={complianceData?.total_value ? formatCurrency(complianceData.total_value) : 'N/A'}
-          icon={CurrencyDollarIcon}
-          color="blue"
-          variant="filled"
-          trend={trendData?.total_contract_value && trendData.total_contract_value.length >= 2 ? {
-            value: Math.round(((trendData.total_contract_value[trendData.total_contract_value.length - 1] - trendData.total_contract_value[0]) / Math.max(trendData.total_contract_value[0], 1)) * 100),
-            label: 'vs last week'
-          } : undefined}
-          chart={trendData?.total_contract_value || undefined}
-        />
-        <StatCard
-          title="Obligations"
-          value={`${(complianceData?.obligations?.compliance_rate || 0).toFixed(1)}%`}
-          icon={ScaleIcon}
-          color={(complianceData?.obligations?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.obligations?.compliance_rate || 0) >= 70 ? 'warning' : 'danger'}
-          variant="filled"
-          chart={trendData?.compliance_rate || undefined}
-        />
-        <StatCard
-          title="SLA Performance"
-          value={`${(complianceData?.slas?.compliance_rate || 0).toFixed(1)}%`}
-          icon={ChartBarIcon}
-          color={(complianceData?.slas?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.slas?.compliance_rate || 0) >= 70 ? 'warning' : 'danger'}
-          variant="filled"
-          chart={trendData?.sla_compliance_rate || undefined}
-        />
-      </div>
+      {/* Stats Grid - driven by config.ui.dashboard_widgets */}
+      {(() => {
+        // Map widget keys to their computed values, icons, colors, trends, and charts
+        const widgetDataMap: Record<string, {
+          value: string | number
+          icon: React.ElementType
+          color: string
+          trend?: { value: number; label: string }
+          chart?: number[]
+          info?: string
+        }> = {
+          total_contracts: {
+            value: summaryData?.total_contracts || 0,
+            icon: DocumentTextIcon,
+            color: 'primary',
+            trend: (trendData?.total_contracts?.length ?? 0) >= 2 ? {
+              value: Math.round(((trendData!.total_contracts![trendData!.total_contracts!.length - 1] - trendData!.total_contracts![0]) / Math.max(trendData!.total_contracts![0], 1)) * 100),
+              label: 'vs last week'
+            } : undefined,
+            chart: trendData?.total_contracts,
+          },
+          at_risk: {
+            value: complianceData?.compliance?.contracts_at_risk || summaryData?.by_risk?.high || 0,
+            icon: ExclamationTriangleIcon,
+            color: 'danger',
+            trend: (trendData?.contracts_at_risk?.length ?? 0) >= 2 ? {
+              value: Math.round(((trendData!.contracts_at_risk![trendData!.contracts_at_risk!.length - 1] - trendData!.contracts_at_risk![0]) / Math.max(trendData!.contracts_at_risk![0], 1)) * 100),
+              label: 'vs last week'
+            } : undefined,
+            chart: trendData?.contracts_at_risk,
+          },
+          compliance_rate: {
+            value: `${(complianceData?.compliance?.overall_compliance_rate || 0).toFixed(1)}%`,
+            icon: CheckCircleIcon,
+            color: 'success',
+            info: 'Percentage of SLAs meeting or within warning threshold of their targets.',
+            trend: (trendData?.compliance_rate?.length ?? 0) >= 2 ? {
+              value: Math.round(trendData!.compliance_rate![trendData!.compliance_rate!.length - 1] - trendData!.compliance_rate![0]),
+              label: 'vs last week'
+            } : undefined,
+            chart: trendData?.compliance_rate,
+          },
+          total_value: {
+            value: complianceData?.total_value ? formatCurrency(complianceData.total_value) : 'N/A',
+            icon: CurrencyDollarIcon,
+            color: 'blue',
+            trend: (trendData?.total_contract_value?.length ?? 0) >= 2 ? {
+              value: Math.round(((trendData!.total_contract_value![trendData!.total_contract_value!.length - 1] - trendData!.total_contract_value![0]) / Math.max(trendData!.total_contract_value![0], 1)) * 100),
+              label: 'vs last week'
+            } : undefined,
+            chart: trendData?.total_contract_value,
+          },
+          obligation_rate: {
+            value: `${(complianceData?.obligations?.compliance_rate || 0).toFixed(1)}%`,
+            icon: ScaleIcon,
+            color: (complianceData?.obligations?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.obligations?.compliance_rate || 0) >= 70 ? 'warning' : 'danger',
+            chart: trendData?.compliance_rate,
+          },
+          sla_rate: {
+            value: `${(complianceData?.slas?.compliance_rate || 0).toFixed(1)}%`,
+            icon: ChartBarIcon,
+            color: (complianceData?.slas?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.slas?.compliance_rate || 0) >= 70 ? 'warning' : 'danger',
+            chart: trendData?.sla_compliance_rate,
+          },
+        }
+
+        const widgets = config?.ui?.dashboard_widgets || [
+          { key: 'total_contracts', label: 'Total Contracts', icon: 'document', color: 'primary' },
+          { key: 'at_risk', label: 'At Risk', icon: 'warning', color: 'danger' },
+          { key: 'compliance_rate', label: 'Compliance', icon: 'check', color: 'success' },
+          { key: 'total_value', label: 'Contract Value', icon: 'currency', color: 'blue' },
+          { key: 'obligation_rate', label: 'Obligations', icon: 'scale', color: 'warning' },
+          { key: 'sla_rate', label: 'SLA Performance', icon: 'chart', color: 'success' },
+        ]
+
+        const colClass = widgets.length <= 4 ? 'lg:grid-cols-4' : widgets.length <= 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-6'
+
+        return (
+          <div className={`grid grid-cols-2 sm:grid-cols-3 ${colClass} gap-4`}>
+            {widgets.map((w: any) => {
+              const data = widgetDataMap[w.key]
+              if (!data) return null
+              return (
+                <StatCard
+                  key={w.key}
+                  title={w.label}
+                  value={data.value}
+                  icon={WIDGET_ICON_MAP[w.icon] || data.icon}
+                  color={data.color as any}
+                  variant="filled"
+                  info={data.info}
+                  trend={data.trend}
+                  chart={data.chart}
+                />
+              )
+            })}
+          </div>
+        )
+      })()}
+
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

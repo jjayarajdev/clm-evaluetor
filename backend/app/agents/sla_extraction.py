@@ -221,6 +221,7 @@ async def extract_slas(
     user_id: str,
     few_shot_context: str = "",
     tenant_id: str | None = None,
+    industry_hint: str = "",
 ) -> SLAExtractionResult | None:
     """Extract SLAs from contract text using DSPy (if compiled) or AI.
 
@@ -273,7 +274,7 @@ async def extract_slas(
     try:
         response = await orchestrator.invoke_agent(
             agent_name="sla_extraction",
-            prompt=f"Extract all SLAs from this contract:\n{few_shot_context}\n{contract_text}",
+            prompt=f"Extract all SLAs from this contract:\n{f'INDUSTRY-SPECIFIC GUIDANCE: {industry_hint}' + chr(10) if industry_hint else ''}{few_shot_context}\n{contract_text}",
             user_id=user_id,
             contract_id=contract_id,
         )

@@ -27,6 +27,8 @@ from app.services.extraction_quality_service import (
     remove_from_golden_set,
     verify_extraction,
     bulk_auto_approve_all,
+    get_per_taxonomy_accuracy,
+    get_quality_driven_hints,
 )
 
 router = APIRouter(prefix="/api/admin/extraction-quality", tags=["extraction-quality"])
@@ -67,6 +69,34 @@ async def golden_set_overview(
     Super admins see metrics for all entries.
     """
     return await get_golden_set_overview(db, tenant_id)
+
+
+@router.get("/taxonomy-accuracy")
+async def taxonomy_accuracy(
+    tenant_id: CurrentTenantId,
+    current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get per-taxonomy-item extraction accuracy scores.
+
+    Returns accuracy (correct/total/%) for each clause type, obligation type,
+    and SLA metric type based on golden set verifications.
+    """
+    return await get_per_taxonomy_accuracy(db, tenant_id)
+
+
+@router.get("/taxonomy-accuracy/hints")
+async def taxonomy_accuracy_hints(
+    tenant_id: CurrentTenantId,
+    current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get suggested extraction hints for low-accuracy taxonomy items.
+
+    Returns items with accuracy < 70% and >= 3 verified samples,
+    with suggested hint text admins can apply to their extraction config.
+    """
+    return await get_quality_driven_hints(db, tenant_id)
 
 
 @router.get("/golden-set")

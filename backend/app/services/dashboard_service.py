@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.tenant import apply_bu_filter, apply_tenant_filter
 from app.models.audit import AuditLog, AuditAction
 from app.models.clause import Clause, ClauseType, RiskLevel
-from app.models.contract import Contract, ContractStatus, ContractType
+from app.models.contract import Contract, ContractStatus
 from app.models.obligation import Obligation, ObligationStatus, ObligationOwner, ObligationCategory, RAGStatus
 from app.models.clause_indicator import ContractClauseIndicator
 from app.models.contract_link import ContractLink
@@ -690,7 +690,7 @@ async def get_portfolio_dashboard(
         status_val = contract.status.value if contract.status else "unknown"
         contracts_by_status[status_val] += 1
 
-        type_val = contract.contract_type.value if contract.contract_type else "unknown"
+        type_val = contract.contract_type or "unknown"
         contracts_by_type[type_val] += 1
 
         risk_val = contract.risk_level.value if contract.risk_level else "unassessed"
@@ -866,7 +866,7 @@ async def get_portfolio_dashboard(
             expiring_contracts.append(PortfolioContractSummary(
                 contract_id=str(contract.id),
                 filename=contract.filename,
-                contract_type=contract.contract_type.value if contract.contract_type else None,
+                contract_type=contract.contract_type or None,
                 counterparty=contract.counterparty,
                 status=contract.status.value,
                 risk_level=contract.risk_level.value if contract.risk_level else None,
@@ -889,7 +889,7 @@ async def get_portfolio_dashboard(
         recently_added.append(PortfolioContractSummary(
             contract_id=str(contract.id),
             filename=contract.filename,
-            contract_type=contract.contract_type.value if contract.contract_type else None,
+            contract_type=contract.contract_type or None,
             counterparty=contract.counterparty,
             status=contract.status.value,
             risk_level=contract.risk_level.value if contract.risk_level else None,
@@ -1238,7 +1238,7 @@ async def get_contract_cockpit(
     return ContractCockpitResponse(
         contract_id=contract_id,
         filename=contract.filename,
-        contract_type=contract.contract_type.value if contract.contract_type else None,
+        contract_type=contract.contract_type or None,
         status=contract.status.value,
         counterparty=contract.counterparty,
         effective_date=contract.effective_date,
@@ -1342,7 +1342,7 @@ async def get_insights(
         insights.append(InsightItem(
             title="Overdue Obligations",
             description=f"{overdue_count} obligation{'s' if overdue_count > 1 else ''} past due date. Immediate action required.",
-            action="/obligations?status=overdue",
+            action="/compliance?tab=obligations&status=overdue",
             action_label="View overdue",
             variant="warning"
         ))

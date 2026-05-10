@@ -29,6 +29,14 @@ export const roleThemes = {
     icon: 'Cog6ToothIcon',
     label: 'Administrator',
   },
+  bu_head: {
+    primary: 'amber',
+    accent: 'orange',
+    gradient: 'from-amber-600 via-orange-600 to-amber-700',
+    lightGradient: 'from-amber-50 via-orange-50 to-amber-50',
+    icon: 'BuildingOfficeIcon',
+    label: 'Business Unit Head',
+  },
   viewer: {
     primary: 'blue',
     accent: 'sky',

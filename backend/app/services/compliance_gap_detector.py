@@ -17,7 +17,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.compliance_gap import ComplianceGap
 from app.models.compliance_rule import IndustryComplianceRule
-from app.models.contract import Contract, ContractType
+from app.models.contract import Contract
 from app.models.contract_link import ContractLink, LinkType
 from app.models.industry import (
     ComplianceDocumentType,
@@ -39,15 +39,15 @@ SEVERITY_DEADLINES = {
 }
 
 
-# Map compliance document types to likely contract types
-DOCUMENT_TYPE_TO_CONTRACT_TYPE: dict[ComplianceDocumentType, list[ContractType]] = {
-    ComplianceDocumentType.QUALITY_AGREEMENT: [ContractType.VENDOR_AGREEMENT],
-    ComplianceDocumentType.PHARMACOVIGILANCE_AGREEMENT: [ContractType.VENDOR_AGREEMENT],
-    ComplianceDocumentType.BAA: [ContractType.VENDOR_AGREEMENT, ContractType.MSA],
-    ComplianceDocumentType.DPA: [ContractType.VENDOR_AGREEMENT, ContractType.MSA],
-    ComplianceDocumentType.PRODUCT_SPECIFICATIONS: [ContractType.SOW],
-    ComplianceDocumentType.SAFETY_DATA_SHEET: [ContractType.VENDOR_AGREEMENT],
-    ComplianceDocumentType.SECURITY_ADDENDUM: [ContractType.MSA, ContractType.AMENDMENT],
+# Map compliance document types to likely contract types (string codes)
+DOCUMENT_TYPE_TO_CONTRACT_TYPE: dict[ComplianceDocumentType, list[str]] = {
+    ComplianceDocumentType.QUALITY_AGREEMENT: ["vendor_agreement", "quality_agreement"],
+    ComplianceDocumentType.PHARMACOVIGILANCE_AGREEMENT: ["vendor_agreement", "pharmacovigilance"],
+    ComplianceDocumentType.BAA: ["vendor_agreement", "msa"],
+    ComplianceDocumentType.DPA: ["vendor_agreement", "msa"],
+    ComplianceDocumentType.PRODUCT_SPECIFICATIONS: ["sow"],
+    ComplianceDocumentType.SAFETY_DATA_SHEET: ["vendor_agreement", "supply_agreement"],
+    ComplianceDocumentType.SECURITY_ADDENDUM: ["msa", "amendment"],
 }
 
 
@@ -399,7 +399,7 @@ class ComplianceGapDetector:
     async def _load_applicable_rules(
         self,
         industry: Industry,
-        contract_type: Optional[ContractType],
+        contract_type: Optional[str],
     ) -> list[IndustryComplianceRule]:
         """Load compliance rules applicable to this industry and contract type."""
         query = (
