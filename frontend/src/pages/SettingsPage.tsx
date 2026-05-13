@@ -20,6 +20,7 @@ import { useTenantConfig } from '@/contexts/TenantConfigContext'
 import {
   getIndustryProfiles, setMyIndustryProfile, getTenantOverrides, updateTenantOverrides,
   getExtractionThresholds, updateExtractionThresholds,
+  getPromptAddenda, updatePromptAddenda,
 } from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
@@ -65,9 +66,9 @@ const sections: SettingsSection[] = [
   },
   {
     id: 'extraction',
-    name: 'Extraction Thresholds',
+    name: 'AI Extraction',
     icon: AdjustmentsHorizontalIcon,
-    description: 'Per-field confidence thresholds for AI metadata extraction (admin only)',
+    description: 'Confidence thresholds and prompt customization for AI extraction (admin only)',
   },
 ]
 
@@ -129,7 +130,14 @@ export default function SettingsPage() {
               {activeTab === 'security' && <SecuritySettings />}
               {activeTab === 'integrations' && <IntegrationSettings />}
               {activeTab === 'appearance' && <AppearanceSettings />}
-              {activeTab === 'extraction' && isAdmin && <ExtractionThresholdsSettings />}
+              {activeTab === 'extraction' && isAdmin && (
+                <div className="space-y-8">
+                  <ExtractionThresholdsSettings />
+                  <div className="pt-6 border-t border-gray-200">
+                    <PromptAddendaSettings />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1037,6 +1045,152 @@ function ExtractionThresholdsSettings() {
           )}
         >
           {mutation.isPending ? 'Saving…' : 'Save Thresholds'}
+        </button>
+        {saved && (
+          <span className="text-sm text-green-600 inline-flex items-center gap-1">
+            <CheckCircleIcon className="h-4 w-4" /> Saved
+          </span>
+        )}
+        {error && <span className="text-sm text-red-600">{error}</span>}
+      </div>
+    </div>
+  )
+}
+
+// #27 — Per-tenant prompt addenda. Labels match the keys used by the backend's
+// PROMPT_ADDENDA_AGENTS tuple in admin_settings.py.
+const PROMPT_ADDENDA_LABELS: Record<string, { label: string; placeholder: string }> = {
+  metadata: {
+    label: 'Metadata extraction',
+    placeholder: "e.g. Treat 'Client' as our company, not the counterparty.",
+  },
+  clauses: {
+    label: 'Clause extraction',
+    placeholder: 'e.g. Always flag references to HIPAA or HITRUST.',
+  },
+  obligations: {
+    label: 'Obligation detection',
+    placeholder: "e.g. Health-system contracts often phrase obligations as 'shall ensure'.",
+  },
+  slas: {
+    label: 'SLA extraction',
+    placeholder: 'e.g. Uptime is reported as a quarterly average, not monthly.',
+  },
+  risks: {
+    label: 'Risk assessment',
+    placeholder: 'e.g. Liability caps below $1M are a hard no for us.',
+  },
+}
+const PROMPT_ADDENDA_ORDER = ['metadata', 'clauses', 'obligations', 'slas', 'risks']
+
+function PromptAddendaSettings() {
+  const queryClient = useQueryClient()
+  const { data, isLoading } = useQuery({
+    queryKey: ['prompt-addenda'],
+    queryFn: getPromptAddenda,
+  })
+
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (data?.addenda) setDraft({ ...data.addenda })
+  }, [data])
+
+  const mutation = useMutation({
+    mutationFn: (payload: Record<string, string>) => updatePromptAddenda(payload),
+    onSuccess: (resp) => {
+      setDraft({ ...resp.addenda })
+      setSaved(true)
+      setError(null)
+      setTimeout(() => setSaved(false), 2000)
+      queryClient.invalidateQueries({ queryKey: ['prompt-addenda'] })
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.detail || err?.message || 'Failed to save prompt addenda')
+    },
+  })
+
+  if (isLoading) {
+    return <div className="py-4 flex justify-center"><LoadingSpinner size="md" /></div>
+  }
+
+  const maxChars = data?.max_chars ?? 2000
+  const isDirty = !!data && JSON.stringify(draft) !== JSON.stringify(data.addenda || {})
+
+  const handleChange = (agent: string, value: string) => {
+    setDraft((prev) => ({ ...prev, [agent]: value }))
+  }
+
+  const handleSave = () => {
+    setError(null)
+    // Only send non-empty values; empty strings clear the entry on the backend
+    const cleaned: Record<string, string> = {}
+    for (const [k, v] of Object.entries(draft)) {
+      if (v && v.trim()) cleaned[k] = v.trim()
+    }
+    mutation.mutate(cleaned)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-base font-medium text-gray-900">Prompt Customization</h3>
+        <p className="text-sm text-gray-600 mt-1">
+          Extra instructions appended to the AI prompts for every contract in your
+          tenant. Use this to give the AI domain knowledge it couldn't otherwise know
+          — your terminology, your industry quirks, what to flag. Keep each
+          instruction tight; max {maxChars} characters per agent.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {PROMPT_ADDENDA_ORDER.map((agent) => {
+          const info = PROMPT_ADDENDA_LABELS[agent]
+          const value = draft[agent] || ''
+          const over = value.length > maxChars
+          return (
+            <div key={agent}>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-gray-700">
+                  {info.label}
+                </label>
+                <span className={cn(
+                  'text-xs',
+                  over ? 'text-red-600 font-medium' : 'text-gray-400'
+                )}>
+                  {value.length} / {maxChars}
+                </span>
+              </div>
+              <textarea
+                value={value}
+                onChange={(e) => handleChange(agent, e.target.value)}
+                placeholder={info.placeholder}
+                rows={3}
+                className={cn(
+                  'w-full text-sm border rounded-md p-2 focus:outline-none focus:ring-1',
+                  over
+                    ? 'border-red-300 focus:ring-red-400'
+                    : 'border-gray-200 focus:ring-primary-400'
+                )}
+              />
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="pt-2 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!isDirty || mutation.isPending || Object.values(draft).some(v => (v || '').length > maxChars)}
+          className={cn(
+            'btn btn-primary',
+            (!isDirty || mutation.isPending) && 'opacity-60 cursor-not-allowed'
+          )}
+        >
+          {mutation.isPending ? 'Saving…' : 'Save Prompt Addenda'}
         </button>
         {saved && (
           <span className="text-sm text-green-600 inline-flex items-center gap-1">

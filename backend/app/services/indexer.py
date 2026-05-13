@@ -29,14 +29,42 @@ from app.models.tenant import Tenant
 logger = logging.getLogger(__name__)
 
 
+def _merge_prompt_addenda(hints: dict[str, str], tenant) -> dict[str, str]:
+    """Append tenant-level prompt addenda (#27) onto the industry hints.
+
+    Storage: ``tenant.config_overrides["prompt_addenda"]`` is a dict mapping
+    agent-type keys (``metadata`` / ``clauses`` / ``obligations`` / ``slas``
+    / ``risks``) to free-text instructions. Each addendum is appended to the
+    corresponding entry in ``hints`` so every contract processed under this
+    tenant sees the extra guidance, regardless of industry profile.
+    """
+    if not tenant or not tenant.config_overrides:
+        return hints
+    addenda = tenant.config_overrides.get("prompt_addenda") or {}
+    if not isinstance(addenda, dict) or not addenda:
+        return hints
+    merged = dict(hints)
+    for agent_key in ("metadata", "clauses", "obligations", "slas", "risks"):
+        addendum = addenda.get(agent_key)
+        if not addendum or not isinstance(addendum, str):
+            continue
+        addendum = addendum.strip()
+        if not addendum:
+            continue
+        existing = merged.get(agent_key, "") or ""
+        merged[agent_key] = (existing + "\n\n" + addendum).strip() if existing else addendum
+    return merged
+
+
 async def _load_extraction_hints(
     db: AsyncSession, tenant_id, contract_profile_id=None
 ) -> dict[str, str]:
     """Load industry-specific extraction hints.
 
-    Resolution: contract profile → tenant profile, merged with tenant overrides.
+    Resolution: contract profile → tenant profile, merged with tenant overrides
+    AND per-tenant prompt addenda (#27).
     Returns dict like {"metadata": "...", "clauses": "...", "risks": "...", ...}
-    or empty dict if no profile is configured.
+    or empty dict if nothing is configured.
     """
     if not tenant_id:
         return {}
@@ -52,16 +80,17 @@ async def _load_extraction_hints(
         profile_id = contract_profile_id or (
             tenant.industry_profile_id if tenant else None
         )
-        if not profile_id:
-            return {}
 
-        profile = await db.get(IndustryProfile, profile_id)
-        if not profile:
-            return {}
+        hints: dict[str, str] = {}
+        if profile_id:
+            profile = await db.get(IndustryProfile, profile_id)
+            if profile:
+                # Merge with tenant overrides so custom hints are included
+                merged = profile.get_merged_config(tenant.config_overrides)
+                hints = merged.get("extraction_hints", {}) or {}
 
-        # Merge with tenant overrides so custom hints are included
-        merged = profile.get_merged_config(tenant.config_overrides)
-        return merged.get("extraction_hints", {})
+        # Tenant prompt addenda apply regardless of whether a profile is set
+        return _merge_prompt_addenda(hints, tenant)
     except Exception as e:
         logger.debug(f"Extraction hints loading skipped: {e}")
     return {}
@@ -156,8 +185,11 @@ async def _resolve_hints_for_contract(
         # Merge with tenant overrides
         if tenant and tenant.config_overrides:
             merged = best_profile.get_merged_config(tenant.config_overrides)
-            return merged.get("extraction_hints", {})
-        return best_profile.extraction_hints
+            hints = merged.get("extraction_hints", {}) or {}
+        else:
+            hints = best_profile.extraction_hints or {}
+        # Always apply tenant prompt addenda (#27) regardless of the profile path
+        return _merge_prompt_addenda(hints, tenant)
 
     # 3. Fall back to tenant's assigned profile
     return await _load_extraction_hints(db, tenant_id)

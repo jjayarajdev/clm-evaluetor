@@ -2762,6 +2762,176 @@ async def analyze_contract(
     }
 
 
+# ---------------------------------------------------------------------------
+# #30 — Re-extract a single metadata field
+# ---------------------------------------------------------------------------
+# Lets a user fix one wrong metadata value (e.g. counterparty) without paying
+# for a full deep_analysis re-run. The implementation reuses the existing
+# metadata extraction stack (so tenant thresholds + industry hints still
+# apply), runs one LLM call, and applies ONLY the requested field. Other
+# fields are intentionally left untouched.
+
+_REEXTRACTABLE_FIELDS = {
+    "counterparty",
+    "contract_type",
+    "effective_date",
+    "expiration_date",
+    "contract_value",
+    "currency",
+    "jurisdiction",
+}
+
+
+class ReExtractMetadataRequest(BaseModel):
+    field: str
+    hint: str | None = None  # optional caller-supplied instruction to nudge the LLM
+
+
+class ReExtractMetadataResponse(BaseModel):
+    field: str
+    applied: bool
+    new_value: Any | None = None
+    raw_text: str | None = None
+    confidence: float | None = None
+    reason: str | None = None  # populated when applied=False
+
+
+@router.post("/{contract_id}/re-extract-metadata", response_model=ReExtractMetadataResponse)
+async def re_extract_metadata_field(
+    contract_id: str,
+    body: ReExtractMetadataRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ReExtractMetadataResponse:
+    """Re-extract a single metadata field from the contract text.
+
+    Reuses ``extract_metadata_with_fallback`` so the same prompts, industry
+    hints, and confidence thresholds apply. Only the requested field is
+    written back to the contract; provenance for that field is updated.
+    """
+    from sqlalchemy import select
+    from app.models.contract import Contract
+    from app.models.tenant import Tenant
+    from app.agents.metadata_extraction import (
+        extract_metadata_with_fallback,
+        update_contract_metadata,
+        ExtractedMetadata,
+        MetadataField,
+    )
+
+    if body.field not in _REEXTRACTABLE_FIELDS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Field '{body.field}' is not re-extractable. Allowed: "
+                   f"{sorted(_REEXTRACTABLE_FIELDS)}",
+        )
+
+    result = await db.execute(select(Contract).where(Contract.id == contract_id))
+    contract = result.scalar_one_or_none()
+    if not contract:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract not found")
+
+    # Tenant scoping
+    if current_user.tenant_id and contract.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    full_text = contract.extracted_text
+    if not full_text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contract has no extracted text yet. Run full processing first.",
+        )
+
+    # Tenant context (excluded parties + thresholds) — same logic as indexer
+    excluded_parties: list[str] = []
+    field_thresholds: dict[str, float] | None = None
+    default_threshold = 0.7
+    industry_addendum = ""
+    if contract.tenant_id:
+        tenant = await db.get(Tenant, contract.tenant_id)
+        if tenant:
+            if tenant.name:
+                excluded_parties.append(tenant.name)
+            if tenant.config_overrides:
+                aliases = tenant.config_overrides.get("party_aliases", [])
+                if isinstance(aliases, list):
+                    for alias in aliases:
+                        if alias and alias not in excluded_parties:
+                            excluded_parties.append(alias)
+                ct_cfg = tenant.config_overrides.get("confidence_thresholds") or {}
+                if isinstance(ct_cfg.get("default"), (int, float)):
+                    default_threshold = float(ct_cfg["default"])
+                fields_cfg = ct_cfg.get("fields") or {}
+                if isinstance(fields_cfg, dict) and fields_cfg:
+                    field_thresholds = {
+                        k: float(v) for k, v in fields_cfg.items()
+                        if isinstance(v, (int, float))
+                    }
+                # #27: tenant-level prompt addenda
+                addenda = tenant.config_overrides.get("prompt_addenda") or {}
+                if isinstance(addenda, dict):
+                    industry_addendum = str(addenda.get("metadata", "") or "")
+
+    # Combine the tenant addendum with the caller's hint into the industry_hint
+    # the agent already understands.
+    hint_parts = [p for p in [industry_addendum, body.hint] if p]
+    industry_hint = "\n\n".join(hint_parts) if hint_parts else ""
+
+    metadata = await extract_metadata_with_fallback(
+        contract_text=full_text,
+        contract_id=str(contract.id),
+        user_id=str(current_user.id),
+        user_role=current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role),
+        excluded_parties=excluded_parties or None,
+        tenant_id=str(contract.tenant_id) if contract.tenant_id else None,
+        industry_hint=industry_hint,
+    )
+
+    new_field: MetadataField | None = getattr(metadata, body.field, None)
+    if new_field is None:
+        return ReExtractMetadataResponse(
+            field=body.field,
+            applied=False,
+            reason="AI did not return a value for this field on re-extraction.",
+        )
+
+    # Narrow the metadata object to JUST the requested field so
+    # update_contract_metadata doesn't touch anything else.
+    narrowed = ExtractedMetadata()
+    setattr(narrowed, body.field, new_field)
+
+    _, dropped = await update_contract_metadata(
+        db, contract, narrowed,
+        confidence_threshold=default_threshold,
+        excluded_parties=excluded_parties or None,
+        field_thresholds=field_thresholds,
+        merge_provenance=True,  # don't wipe provenance for the other 6 fields
+    )
+    await db.commit()
+    await db.refresh(contract)
+
+    drop = next((d for d in dropped if d["field"] == body.field), None)
+    if drop:
+        return ReExtractMetadataResponse(
+            field=body.field,
+            applied=False,
+            confidence=drop["confidence"],
+            reason=f"Confidence {drop['confidence']:.2f} below threshold {drop['threshold']:.2f}",
+        )
+
+    # The provenance dict was just rewritten by update_contract_metadata,
+    # but it only contains fields that passed this run. If our field passed,
+    # the entry is there.
+    prov = (contract.metadata_provenance or {}).get(body.field, {})
+    return ReExtractMetadataResponse(
+        field=body.field,
+        applied=True,
+        new_value=getattr(contract, body.field),
+        raw_text=prov.get("raw_text"),
+        confidence=prov.get("confidence"),
+    )
+
+
 @router.get("/{contract_id}/processing-status")
 async def get_processing_status_sse(
     contract_id: str,

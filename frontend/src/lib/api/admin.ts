@@ -1163,3 +1163,21 @@ export async function updateDspyAutoRecompileConfig(
   const response = await client.put<DspyAutoRecompileConfig>('/settings/dspy-auto-recompile', data)
   return response.data
 }
+
+// ============ #27 — Per-tenant prompt addenda ============
+
+export interface PromptAddenda {
+  addenda: Record<string, string>
+  available_agents: string[]
+  max_chars: number
+}
+
+export async function getPromptAddenda(): Promise<PromptAddenda> {
+  const response = await client.get<PromptAddenda>('/settings/prompt-addenda')
+  return response.data
+}
+
+export async function updatePromptAddenda(addenda: Record<string, string>): Promise<PromptAddenda> {
+  const response = await client.put<PromptAddenda>('/settings/prompt-addenda', { addenda })
+  return response.data
+}

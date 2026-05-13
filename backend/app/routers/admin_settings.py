@@ -475,3 +475,139 @@ async def update_dspy_auto_recompile(
         enabled=bool(final_cfg.get("enabled", DSPY_AUTO_RECOMPILE_DEFAULT_ENABLED)),
         threshold=int(final_cfg.get("threshold", DSPY_AUTO_RECOMPILE_DEFAULT_THRESHOLD)),
     )
+
+
+# -----------------------------------------------------------------------------
+# #27 — Per-tenant prompt addenda
+# -----------------------------------------------------------------------------
+#
+# Stored under tenant.config_overrides["prompt_addenda"]:
+#   {
+#     "metadata":    "Treat 'Client' as the contracted party, never the vendor.",
+#     "clauses":     "Flag any clause that references HIPAA or HITRUST.",
+#     "obligations": "Health-system contracts often phrase obligations as 'shall ensure'.",
+#     "slas":        "Uptime is reported as quarterly average, not monthly.",
+#     "risks":       "We're risk-averse on liability caps below $1M.",
+#   }
+#
+# These strings are APPENDED to the corresponding agent's industry_hint at
+# extraction time (see app.services.indexer._merge_prompt_addenda). Appending
+# rather than replacing keeps the platform's curated prompts intact while
+# letting tenants add domain knowledge the AI couldn't otherwise know.
+
+PROMPT_ADDENDA_AGENTS: tuple[str, ...] = (
+    "metadata",
+    "clauses",
+    "obligations",
+    "slas",
+    "risks",
+)
+
+PROMPT_ADDENDUM_MAX_CHARS = 2000
+
+
+class PromptAddendaResponse(BaseModel):
+    addenda: dict[str, str]
+    available_agents: list[str]
+    max_chars: int
+
+
+class PromptAddendaUpdate(BaseModel):
+    addenda: dict[str, str]
+
+
+def _validate_addenda(payload: dict[str, str] | None) -> dict[str, str]:
+    if not payload:
+        return {}
+    cleaned: dict[str, str] = {}
+    for k, v in payload.items():
+        if k not in PROMPT_ADDENDA_AGENTS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown agent '{k}'. Allowed: {list(PROMPT_ADDENDA_AGENTS)}",
+            )
+        if v is None:
+            continue
+        s = str(v).strip()
+        if len(s) > PROMPT_ADDENDUM_MAX_CHARS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Addendum for '{k}' exceeds {PROMPT_ADDENDUM_MAX_CHARS} chars "
+                       f"(got {len(s)}).",
+            )
+        if s:  # only store non-empty addenda; empty strings clear the entry
+            cleaned[k] = s
+    return cleaned
+
+
+@router.get("/prompt-addenda", response_model=PromptAddendaResponse)
+async def get_prompt_addenda(
+    tenant_id: CurrentTenantId,
+    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> PromptAddendaResponse:
+    """Get the current tenant's prompt addenda (extra instructions appended to AI prompts)."""
+    if tenant_id is None:
+        return PromptAddendaResponse(
+            addenda={},
+            available_agents=list(PROMPT_ADDENDA_AGENTS),
+            max_chars=PROMPT_ADDENDUM_MAX_CHARS,
+        )
+
+    tenant = await db.get(Tenant, tenant_id)
+    raw = (tenant.config_overrides or {}).get("prompt_addenda") if tenant else {}
+    raw = raw or {}
+    addenda = {
+        k: str(v) for k, v in raw.items()
+        if k in PROMPT_ADDENDA_AGENTS and isinstance(v, str) and v.strip()
+    }
+    return PromptAddendaResponse(
+        addenda=addenda,
+        available_agents=list(PROMPT_ADDENDA_AGENTS),
+        max_chars=PROMPT_ADDENDUM_MAX_CHARS,
+    )
+
+
+@router.put("/prompt-addenda", response_model=PromptAddendaResponse)
+async def update_prompt_addenda(
+    payload: PromptAddendaUpdate,
+    tenant_id: CurrentTenantId,
+    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> PromptAddendaResponse:
+    """Replace the current tenant's prompt addenda.
+
+    Empty-string values clear that agent's addendum. The endpoint replaces the
+    whole map — send all addenda you want to keep on every save.
+    """
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot configure prompt addenda without an active tenant.",
+        )
+
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+
+    cleaned = _validate_addenda(payload.addenda)
+
+    overrides = dict(tenant.config_overrides or {})
+    if cleaned:
+        overrides["prompt_addenda"] = cleaned
+    else:
+        overrides.pop("prompt_addenda", None)
+    tenant.config_overrides = overrides
+    flag_modified(tenant, "config_overrides")
+    await db.commit()
+    await db.refresh(tenant)
+
+    final = (tenant.config_overrides or {}).get("prompt_addenda") or {}
+    return PromptAddendaResponse(
+        addenda={
+            k: str(v) for k, v in final.items()
+            if k in PROMPT_ADDENDA_AGENTS and isinstance(v, str)
+        },
+        available_agents=list(PROMPT_ADDENDA_AGENTS),
+        max_chars=PROMPT_ADDENDUM_MAX_CHARS,
+    )

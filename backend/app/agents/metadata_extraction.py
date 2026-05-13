@@ -644,6 +644,7 @@ async def update_contract_metadata(
     confidence_threshold: float = 0.7,
     excluded_parties: list[str] | None = None,
     field_thresholds: dict[str, float] | None = None,
+    merge_provenance: bool = False,
 ) -> tuple[Contract, list[dict]]:
     """Update a contract with extracted metadata.
 
@@ -660,6 +661,12 @@ async def update_contract_metadata(
             "effective_date", "expiration_date", "currency", "jurisdiction",
             "contract_type"). Values are floats in [0.0, 1.0]. A field not
             present here uses ``confidence_threshold`` as fallback.
+        merge_provenance: When True, only updates provenance entries for
+            fields actually attempted in this call (i.e. non-None on the
+            ``metadata`` argument). Used by the single-field re-extract
+            endpoint so re-extracting one field doesn't wipe the others'
+            source quotes. Default False keeps the legacy "this run
+            replaces everything" behavior used by the full-pipeline indexer.
 
     Returns:
         Tuple of (updated_contract, dropped_fields). Each entry in
@@ -669,8 +676,12 @@ async def update_contract_metadata(
     """
     dropped: list[dict] = []
     # Collected per-field provenance for fields that pass their threshold.
-    # Written to contract.metadata_provenance at the end, replacing the previous run.
+    # Written to contract.metadata_provenance at the end. The persistence
+    # strategy depends on merge_provenance:
+    #   - False (default): replace the whole dict with this run's results.
+    #   - True: only update entries for fields we actually attempted.
     provenance: dict[str, dict] = {}
+    attempted_fields: set[str] = set()
 
     def _threshold_for(field_name: str) -> float:
         if field_thresholds and field_name in field_thresholds:
@@ -687,6 +698,7 @@ async def update_contract_metadata(
         """
         if not field:
             return False
+        attempted_fields.add(field_name)
         threshold = _threshold_for(field_name)
         if field.confidence >= threshold:
             raw_text = getattr(field, "raw_text", None)
@@ -902,14 +914,25 @@ async def update_contract_metadata(
     if metadata.jurisdiction and _check("jurisdiction", metadata.jurisdiction):
         contract.jurisdiction = str(metadata.jurisdiction.value)
 
-    # Persist provenance — entire field map replaced each run so stale
-    # entries from previous extractions don't linger.
-    if provenance:
-        contract.metadata_provenance = provenance
-    elif contract.metadata_provenance is not None:
-        # All fields failed their threshold this run; clear to avoid showing
-        # stale provenance for values that were just blanked out.
-        contract.metadata_provenance = None
+    # Persist provenance.
+    # Replace mode (full pipeline): the dict reflects only this run, so we
+    # overwrite — stale entries from previous extractions don't linger.
+    # Merge mode (single-field re-extract): only update entries for the
+    # fields we actually attempted; leave everything else alone.
+    if merge_provenance:
+        existing = dict(contract.metadata_provenance or {})
+        for f in attempted_fields:
+            if f in provenance:
+                existing[f] = provenance[f]
+            elif f in existing:
+                # Field was attempted but dropped — clear its stale entry
+                del existing[f]
+        contract.metadata_provenance = existing or None
+    else:
+        if provenance:
+            contract.metadata_provenance = provenance
+        elif contract.metadata_provenance is not None:
+            contract.metadata_provenance = None
 
     await db.flush()
     return contract, dropped

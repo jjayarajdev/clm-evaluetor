@@ -401,3 +401,35 @@ export async function createDocumentSection(contractId: string, docId: string, d
   const response = await client.post(`/contracts/${contractId}/documents/${docId}/sections`, data)
   return response.data
 }
+
+// ============ #30 — Re-extract single metadata field ============
+
+export type ReExtractableField =
+  | 'counterparty'
+  | 'contract_type'
+  | 'effective_date'
+  | 'expiration_date'
+  | 'contract_value'
+  | 'currency'
+  | 'jurisdiction'
+
+export interface ReExtractMetadataResponse {
+  field: string
+  applied: boolean
+  new_value?: string | number | null
+  raw_text?: string | null
+  confidence?: number | null
+  reason?: string | null
+}
+
+export async function reExtractMetadataField(
+  contractId: string,
+  field: ReExtractableField,
+  hint?: string,
+): Promise<ReExtractMetadataResponse> {
+  const response = await client.post<ReExtractMetadataResponse>(
+    `/contracts/${contractId}/re-extract-metadata`,
+    { field, hint: hint || null },
+  )
+  return response.data
+}
