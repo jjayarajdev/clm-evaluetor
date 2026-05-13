@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Cog6ToothIcon,
@@ -11,15 +11,19 @@ import {
   SwatchIcon,
   CheckCircleIcon,
   SparklesIcon,
+  AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
-import { getIndustryProfiles, setMyIndustryProfile, getTenantOverrides, updateTenantOverrides } from '@/lib/api/admin'
+import {
+  getIndustryProfiles, setMyIndustryProfile, getTenantOverrides, updateTenantOverrides,
+  getExtractionThresholds, updateExtractionThresholds,
+} from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
-type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance'
+type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance' | 'extraction'
 
 interface SettingsSection {
   id: SettingsTab
@@ -59,10 +63,22 @@ const sections: SettingsSection[] = [
     icon: PaintBrushIcon,
     description: 'Customize the look and feel',
   },
+  {
+    id: 'extraction',
+    name: 'Extraction Thresholds',
+    icon: AdjustmentsHorizontalIcon,
+    description: 'Per-field confidence thresholds for AI metadata extraction (admin only)',
+  },
 ]
 
 export default function SettingsPage() {
+  const { isAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+
+  const visibleSections = useMemo(
+    () => sections.filter((s) => s.id !== 'extraction' || isAdmin),
+    [isAdmin]
+  )
 
   return (
     <div className="space-y-6">
@@ -78,7 +94,7 @@ export default function SettingsPage() {
         {/* Sidebar */}
         <div className="w-64 shrink-0">
           <nav className="space-y-1">
-            {sections.map((section) => (
+            {visibleSections.map((section) => (
               <button
                 key={section.id}
                 onClick={() => setActiveTab(section.id)}
@@ -113,6 +129,7 @@ export default function SettingsPage() {
               {activeTab === 'security' && <SecuritySettings />}
               {activeTab === 'integrations' && <IntegrationSettings />}
               {activeTab === 'appearance' && <AppearanceSettings />}
+              {activeTab === 'extraction' && isAdmin && <ExtractionThresholdsSettings />}
             </div>
           </div>
         </div>
@@ -823,6 +840,210 @@ function AppearanceSettings() {
           </select>
           <span className="text-xs text-gray-400">Coming soon</span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// Friendly labels for extraction threshold fields
+const EXTRACTION_FIELD_LABELS: Record<string, string> = {
+  contract_type: 'Contract Type',
+  counterparty: 'Counterparty',
+  effective_date: 'Effective Date',
+  expiration_date: 'Expiration Date',
+  contract_value: 'Contract Value',
+  currency: 'Currency',
+  jurisdiction: 'Jurisdiction',
+}
+
+function ExtractionThresholdsSettings() {
+  const queryClient = useQueryClient()
+  const { data, isLoading } = useQuery({
+    queryKey: ['extraction-thresholds'],
+    queryFn: getExtractionThresholds,
+  })
+
+  const [defaultThreshold, setDefaultThreshold] = useState<number>(0.7)
+  const [fields, setFields] = useState<Record<string, number>>({})
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Sync local state when server data arrives or refreshes
+  useEffect(() => {
+    if (data) {
+      setDefaultThreshold(data.default)
+      setFields({ ...data.fields })
+    }
+  }, [data])
+
+  const mutation = useMutation({
+    mutationFn: updateExtractionThresholds,
+    onSuccess: (resp) => {
+      setDefaultThreshold(resp.default)
+      setFields({ ...resp.fields })
+      setSaved(true)
+      setError(null)
+      setTimeout(() => setSaved(false), 2000)
+      queryClient.invalidateQueries({ queryKey: ['extraction-thresholds'] })
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.detail || err?.message || 'Failed to save thresholds')
+    },
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <LoadingSpinner size="md" />
+      </div>
+    )
+  }
+
+  const availableFields = data?.available_fields || Object.keys(EXTRACTION_FIELD_LABELS)
+  const unsetFields = availableFields.filter((f) => !(f in fields))
+
+  const updateField = (field: string, raw: string) => {
+    const v = parseFloat(raw)
+    if (Number.isNaN(v)) return
+    if (v < 0 || v > 1) return
+    setFields((prev) => ({ ...prev, [field]: v }))
+  }
+
+  const removeField = (field: string) => {
+    setFields((prev) => {
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  const addField = (field: string) => {
+    if (!field) return
+    setFields((prev) => ({ ...prev, [field]: defaultThreshold }))
+  }
+
+  const handleSave = () => {
+    setError(null)
+    mutation.mutate({ default: defaultThreshold, fields })
+  }
+
+  const isDirty =
+    !!data &&
+    (data.default !== defaultThreshold ||
+      JSON.stringify(data.fields) !== JSON.stringify(fields))
+
+  return (
+    <div className="space-y-6">
+      <div className="text-sm text-gray-600">
+        AI metadata extraction returns a confidence score (0–1) for each field. Fields below the
+        applicable threshold are dropped instead of overwriting existing values. Raise thresholds
+        on critical fields if you'd rather have a blank than a low-confidence guess.
+      </div>
+
+      {/* Default threshold */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Default Threshold
+        </label>
+        <p className="text-xs text-gray-500 mb-2">
+          Applied to any field without a specific override below.
+        </p>
+        <div className="flex items-center gap-3 max-w-xs">
+          <input
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={defaultThreshold}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              if (!Number.isNaN(v) && v >= 0 && v <= 1) setDefaultThreshold(v)
+            }}
+            className="input"
+          />
+          <span className="text-sm text-gray-500">{(defaultThreshold * 100).toFixed(0)}%</span>
+        </div>
+      </div>
+
+      {/* Per-field overrides */}
+      <div>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Per-Field Overrides</h3>
+        {Object.keys(fields).length === 0 ? (
+          <p className="text-sm text-gray-400 italic mb-3">
+            No overrides yet. All fields use the default threshold.
+          </p>
+        ) : (
+          <div className="space-y-2 mb-3">
+            {Object.entries(fields).map(([field, value]) => (
+              <div key={field} className="flex items-center gap-3">
+                <span className="w-40 text-sm text-gray-700">
+                  {EXTRACTION_FIELD_LABELS[field] || field}
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={value}
+                  onChange={(e) => updateField(field, e.target.value)}
+                  className="input w-32"
+                />
+                <span className="text-xs text-gray-500 w-12">
+                  {(value * 100).toFixed(0)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeField(field)}
+                  className="text-gray-400 hover:text-red-600"
+                  title="Remove override (use default)"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {unsetFields.length > 0 && (
+          <div className="flex items-center gap-2">
+            <select
+              className="input max-w-xs"
+              value=""
+              onChange={(e) => {
+                addField(e.target.value)
+                e.currentTarget.value = ''
+              }}
+            >
+              <option value="">+ Add field override…</option>
+              {unsetFields.map((f) => (
+                <option key={f} value={f}>
+                  {EXTRACTION_FIELD_LABELS[f] || f}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Save row */}
+      <div className="pt-4 border-t border-gray-200 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!isDirty || mutation.isPending}
+          className={cn(
+            'btn btn-primary',
+            (!isDirty || mutation.isPending) && 'opacity-60 cursor-not-allowed'
+          )}
+        >
+          {mutation.isPending ? 'Saving…' : 'Save Thresholds'}
+        </button>
+        {saved && (
+          <span className="text-sm text-green-600 inline-flex items-center gap-1">
+            <CheckCircleIcon className="h-4 w-4" /> Saved
+          </span>
+        )}
+        {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
     </div>
   )

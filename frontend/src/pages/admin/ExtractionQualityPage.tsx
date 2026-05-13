@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams, Link } from 'react-router-dom'
 import {
@@ -17,8 +17,17 @@ import {
   EyeIcon,
   GlobeAltIcon,
   FunnelIcon,
+  SparklesIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
+import {
+  getDspyCompilationStatus,
+  compileDspyPrograms,
+  getDspyAutoRecompileConfig,
+  updateDspyAutoRecompileConfig,
+  type DspyAgentType,
+} from '@/lib/api/admin'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ContractPdfViewer from '@/components/contracts/ContractPdfViewer'
@@ -779,6 +788,315 @@ function ContractTextViewer({ text, highlightText }: { text: string; highlightTe
   )
 }
 
+// ======================== DSPY COMPILATION PANEL ========================
+
+const DSPY_AGENT_LABELS: Record<DspyAgentType, string> = {
+  metadata: 'Metadata',
+  clause: 'Clauses',
+  obligation: 'Obligations',
+  sla: 'SLAs',
+}
+const DSPY_AGENT_ORDER: DspyAgentType[] = ['metadata', 'clause', 'obligation', 'sla']
+
+function formatRelativeTime(epochSeconds: number | undefined): string {
+  if (!epochSeconds) return '—'
+  const diffSec = Math.floor(Date.now() / 1000 - epochSeconds)
+  if (diffSec < 60) return 'just now'
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`
+  if (diffSec < 86400 * 30) return `${Math.floor(diffSec / 86400)}d ago`
+  return `${Math.floor(diffSec / (86400 * 30))}mo ago`
+}
+
+function DspyCompilationPanel() {
+  const queryClient = useQueryClient()
+  const [pendingAgent, setPendingAgent] = useState<DspyAgentType | 'all' | null>(null)
+  const [resultMessage, setResultMessage] = useState<string | null>(null)
+  const [resultIsError, setResultIsError] = useState(false)
+  const [editingThreshold, setEditingThreshold] = useState<number | null>(null)
+
+  const { data: status, isLoading } = useQuery({
+    queryKey: ['dspy-compilation-status'],
+    queryFn: getDspyCompilationStatus,
+  })
+
+  const { data: autoConfig } = useQuery({
+    queryKey: ['dspy-auto-recompile-config'],
+    queryFn: getDspyAutoRecompileConfig,
+  })
+
+  const autoConfigMutation = useMutation({
+    mutationFn: updateDspyAutoRecompileConfig,
+    onSuccess: () => {
+      setEditingThreshold(null)
+      queryClient.invalidateQueries({ queryKey: ['dspy-auto-recompile-config'] })
+    },
+  })
+
+  const compileMutation = useMutation({
+    mutationFn: (agentTypes: DspyAgentType[] | undefined) => compileDspyPrograms(agentTypes),
+    onSuccess: (resp) => {
+      const lines: string[] = []
+      let anyError = false
+      for (const [agent, r] of Object.entries(resp.results || {})) {
+        if (r.status === 'compiled') {
+          lines.push(`${DSPY_AGENT_LABELS[agent as DspyAgentType] || agent}: compiled with ${r.examples} examples`)
+        } else if (r.status === 'skipped') {
+          lines.push(`${DSPY_AGENT_LABELS[agent as DspyAgentType] || agent}: ${r.message}`)
+        } else if (r.status === 'in_progress') {
+          lines.push(`${DSPY_AGENT_LABELS[agent as DspyAgentType] || agent}: already compiling — try again in a moment`)
+        } else {
+          lines.push(`${DSPY_AGENT_LABELS[agent as DspyAgentType] || agent}: ${r.message || 'failed'}`)
+          anyError = true
+        }
+      }
+      setResultMessage(lines.join(' · '))
+      setResultIsError(anyError)
+      setPendingAgent(null)
+      queryClient.invalidateQueries({ queryKey: ['dspy-compilation-status'] })
+    },
+    onError: (err: any) => {
+      setResultMessage(err?.response?.data?.detail || err?.message || 'Compilation failed')
+      setResultIsError(true)
+      setPendingAgent(null)
+    },
+  })
+
+  const handleCompileOne = (agent: DspyAgentType) => {
+    setResultMessage(null)
+    setPendingAgent(agent)
+    compileMutation.mutate([agent])
+  }
+
+  const handleCompileAll = () => {
+    if (!confirm('Compile all four DSPy programs? This makes many LLM calls and can take several minutes.')) return
+    setResultMessage(null)
+    setPendingAgent('all')
+    compileMutation.mutate(undefined)
+  }
+
+  const anyPending = pendingAgent !== null
+
+  return (
+    <div className="bg-white rounded-lg border">
+      <div className="px-4 py-3 border-b flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <SparklesIcon className="h-4 w-4 text-violet-500" />
+          <h2 className="text-sm font-semibold text-gray-700">Prompt Optimization (DSPy)</h2>
+          <span className="text-xs text-gray-400" title="DSPy compiles tenant-specific extraction prompts from your verified golden set.">
+            (compiles from golden set)
+          </span>
+        </div>
+        <button
+          onClick={handleCompileAll}
+          disabled={anyPending}
+          className={cn(
+            'inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border',
+            anyPending
+              ? 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'
+              : 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
+          )}
+        >
+          {pendingAgent === 'all' ? (
+            <>
+              <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+              Compiling…
+            </>
+          ) : (
+            <>
+              <SparklesIcon className="h-3.5 w-3.5" />
+              Compile All
+            </>
+          )}
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="p-6 flex justify-center"><LoadingSpinner size="sm" /></div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {DSPY_AGENT_ORDER.map((agent) => {
+            const s = status?.programs?.[agent]
+            const compiled = s?.compiled === true
+            const compiledAt = s?.compiled_at
+            const sizeKb = s?.size_bytes ? Math.round(s.size_bytes / 1024) : null
+            const isPending = pendingAgent === agent || pendingAgent === 'all'
+            return (
+              <div key={agent} className="px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
+                      compiled
+                        ? 'bg-green-50 text-green-700'
+                        : 'bg-gray-100 text-gray-500'
+                    )}
+                  >
+                    {compiled ? (
+                      <>
+                        <CheckCircleIcon className="h-3.5 w-3.5" />
+                        Compiled
+                      </>
+                    ) : (
+                      <>
+                        <ExclamationTriangleIcon className="h-3.5 w-3.5" />
+                        Defaults
+                      </>
+                    )}
+                  </span>
+                  <span className="text-sm font-medium text-gray-900 min-w-[80px]">
+                    {DSPY_AGENT_LABELS[agent]}
+                  </span>
+                  {compiled ? (
+                    <span
+                      className="text-xs text-gray-500"
+                      title={compiledAt ? new Date(compiledAt * 1000).toLocaleString() : undefined}
+                    >
+                      Last compiled {formatRelativeTime(compiledAt)}
+                      {sizeKb != null && ` · ${sizeKb} KB`}
+                      {typeof s?.verifications_since_last_compile === 'number' &&
+                        s.verifications_since_last_compile > 0 && (
+                        <span
+                          className={cn(
+                            'ml-2 px-1.5 py-0.5 rounded text-xs font-medium',
+                            autoConfig?.enabled &&
+                              s.verifications_since_last_compile >= (autoConfig.threshold || 5)
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-blue-50 text-blue-700'
+                          )}
+                          title={
+                            autoConfig?.enabled
+                              ? `Auto-recompile triggers at ${autoConfig.threshold} new verifications`
+                              : 'Enable auto-recompile below to trigger automatically'
+                          }
+                        >
+                          +{s.verifications_since_last_compile} new
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400 italic">
+                      Using generic GPT-4o prompts.
+                      {typeof s?.verifications_since_last_compile === 'number' && s.verifications_since_last_compile > 0 && (
+                        <span className="ml-1 text-gray-600">
+                          {s.verifications_since_last_compile} verified example
+                          {s.verifications_since_last_compile === 1 ? '' : 's'} available.
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => handleCompileOne(agent)}
+                  disabled={anyPending}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border',
+                    anyPending
+                      ? 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  )}
+                >
+                  {isPending ? (
+                    <>
+                      <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                      {pendingAgent === 'all' ? 'Waiting' : 'Compiling'}
+                    </>
+                  ) : (
+                    'Compile'
+                  )}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Auto-recompile config */}
+      {autoConfig && (
+        <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <label className="inline-flex items-center gap-2 text-xs font-medium text-gray-700">
+              <input
+                type="checkbox"
+                checked={autoConfig.enabled}
+                onChange={(e) =>
+                  autoConfigMutation.mutate({ enabled: e.target.checked })
+                }
+                disabled={autoConfigMutation.isPending}
+                className="rounded border-gray-300"
+              />
+              Auto-recompile when new verifications cross threshold
+            </label>
+            <span className="text-xs text-gray-400" title="Background task — does not block your verify clicks.">
+              (runs in background)
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-gray-600">
+            <span>Threshold:</span>
+            {editingThreshold !== null ? (
+              <>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={editingThreshold}
+                  onChange={(e) => setEditingThreshold(Number(e.target.value) || 1)}
+                  className="w-16 px-1.5 py-0.5 text-xs border border-gray-300 rounded"
+                />
+                <button
+                  onClick={() =>
+                    editingThreshold && autoConfigMutation.mutate({ threshold: editingThreshold })
+                  }
+                  disabled={autoConfigMutation.isPending}
+                  className="text-violet-600 hover:text-violet-800 font-medium"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setEditingThreshold(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="font-medium text-gray-900">
+                  {autoConfig.threshold} new verification{autoConfig.threshold === 1 ? '' : 's'}
+                </span>
+                <button
+                  onClick={() => setEditingThreshold(autoConfig.threshold)}
+                  className="text-violet-600 hover:text-violet-800 font-medium"
+                >
+                  Edit
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {resultMessage && (
+        <div
+          className={cn(
+            'px-4 py-2 text-xs border-t flex items-start gap-2',
+            resultIsError
+              ? 'bg-red-50 text-red-700 border-red-200'
+              : 'bg-green-50 text-green-700 border-green-200'
+          )}
+        >
+          {resultIsError ? (
+            <XCircleIcon className="h-4 w-4 mt-0.5 shrink-0" />
+          ) : (
+            <CheckCircleIcon className="h-4 w-4 mt-0.5 shrink-0" />
+          )}
+          <span>{resultMessage}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ======================== MAIN PAGE ========================
 
 export default function ExtractionQualityPage() {
@@ -791,6 +1109,22 @@ export default function ExtractionQualityPage() {
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'metadata' | 'clauses' | 'obligations' | 'slas'>('metadata')
   const [showAddDialog, setShowAddDialog] = useState(false)
+
+  // ─── Review UX (#26): filter + focus + keyboard nav ───
+  // Filter the list to what actually needs the reviewer's attention.
+  // Pending = no verification yet (most common review task).
+  const [reviewFilter, setReviewFilter] = useState<'pending' | 'verified' | 'all'>('pending')
+  // Auto-advance to the next pending item after a successful verify.
+  const [autoAdvance, setAutoAdvance] = useState<boolean>(true)
+  // Currently focused item id, used by keyboard nav and the focus ring.
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false)
+  // Map of itemId → row DOM node, for scrollIntoView on focus change.
+  const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const registerRow = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) rowRefs.current.set(id, el)
+    else rowRefs.current.delete(id)
+  }, [])
 
   // Auto-set tab from URL params
   useEffect(() => {
@@ -897,7 +1231,66 @@ export default function ExtractionQualityPage() {
     setSelectedContractId(null)
   }
 
-  const handleVerify = (entityType: string, entityId: string, status: 'correct' | 'incorrect' | 'partial', correctedValue?: Record<string, unknown>, notes?: string) => {
+  // ─── Helpers for review-UX filtering / focus ───
+  // Unique key per item across tabs (metadata uses `field`, others use `id`).
+  const itemKey = useCallback(
+    (tab: string, item: { field?: string; id?: string }) =>
+      tab === 'metadata' ? `metadata:${item.field}` : `${tab}:${item.id}`,
+    []
+  )
+
+  // Items for the current tab, filtered + ordered so reviewers see pending first.
+  // Always returns metadata items so we don't lose the field list,
+  // but other tabs only return their respective arrays.
+  const filteredItems = useMemo(() => {
+    if (!detail || !detail.is_golden) return []
+    const raw: any[] =
+      activeTab === 'metadata' ? detail.metadata :
+      activeTab === 'clauses' ? detail.clauses :
+      activeTab === 'obligations' ? detail.obligations :
+      detail.slas
+    return raw.filter((item: any) => {
+      const status = item.verification?.status
+      if (reviewFilter === 'pending') return !status
+      if (reviewFilter === 'verified') return !!status
+      return true
+    })
+  }, [detail, activeTab, reviewFilter])
+
+  // Pending counts per tab (always over the full list, not the filter).
+  const tabPendingCounts = useMemo(() => {
+    if (!detail) return { metadata: 0, clauses: 0, obligations: 0, slas: 0 }
+    const countPending = (arr: any[]) =>
+      arr.filter((i) => !i.verification?.status).length
+    return {
+      metadata: detail.is_golden ? countPending(detail.metadata) : 0,
+      clauses: detail.is_golden ? countPending(detail.clauses) : 0,
+      obligations: detail.is_golden ? countPending(detail.obligations) : 0,
+      slas: detail.is_golden ? countPending(detail.slas) : 0,
+    }
+  }, [detail])
+
+  // Scroll focused item into view whenever focus changes.
+  useEffect(() => {
+    if (!focusedItemId) return
+    const el = rowRefs.current.get(focusedItemId)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [focusedItemId])
+
+  // Reset filter / focus when tab changes so the reviewer doesn't get stuck.
+  useEffect(() => {
+    setFocusedItemId(null)
+  }, [activeTab])
+
+  const handleVerify = (
+    entityType: string,
+    entityId: string,
+    status: 'correct' | 'incorrect' | 'partial',
+    correctedValue?: Record<string, unknown>,
+    notes?: string,
+  ) => {
     if (!detail?.golden_set_id) return
     verifyMutation.mutate({
       golden_set_id: detail.golden_set_id,
@@ -907,6 +1300,26 @@ export default function ExtractionQualityPage() {
       corrected_value: correctedValue,
       notes,
     })
+
+    // Auto-advance: move focus to the next pending item in the current tab.
+    // Uses the *current* filtered list (the item being verified is still in
+    // it because the mutation hasn't refetched yet) so we pick the row right
+    // after it.
+    if (autoAdvance) {
+      const currentKey = entityType === 'metadata_field'
+        ? `metadata:${entityId}`
+        : `${activeTab}:${entityId}`
+      const idx = filteredItems.findIndex((it: any) => itemKey(activeTab, it) === currentKey)
+      // The item we just verified will no longer be pending after refetch.
+      // For 'pending' filter, advancing by 1 row points to what becomes the
+      // new "current" pending; for other filters, just advance.
+      const next = filteredItems[idx + 1]
+      if (next) {
+        setFocusedItemId(itemKey(activeTab, next))
+      } else {
+        setFocusedItemId(null)
+      }
+    }
   }
 
   const handleAddManual = (entityType: string, correctedValue: Record<string, unknown>) => {
@@ -921,6 +1334,87 @@ export default function ExtractionQualityPage() {
       notes: 'Manually added — AI missed this extraction',
     })
   }
+
+  // ─── Keyboard shortcuts for the detail review view ───
+  //   j / k     next / prev item in current filtered list
+  //   c / x / p mark focused item correct / incorrect / partial (no correction)
+  //   1-4       switch tabs (metadata / clauses / obligations / slas)
+  //   /         toggle filter (pending → verified → all → pending)
+  //   ?         show shortcut help
+  //   Esc       close help / clear focus
+  useEffect(() => {
+    if (view !== 'detail' || !detail?.is_golden) return
+
+    const handler = (e: KeyboardEvent) => {
+      // Ignore when typing in any editable element so corrections aren't disrupted.
+      const target = e.target as HTMLElement | null
+      if (target) {
+        const tag = target.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+        if (target.isContentEditable) return
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+
+      const navigate = (direction: 1 | -1) => {
+        if (filteredItems.length === 0) return
+        const currentIdx = focusedItemId
+          ? filteredItems.findIndex((it: any) => itemKey(activeTab, it) === focusedItemId)
+          : -1
+        const nextIdx = currentIdx < 0
+          ? (direction === 1 ? 0 : filteredItems.length - 1)
+          : Math.max(0, Math.min(filteredItems.length - 1, currentIdx + direction))
+        setFocusedItemId(itemKey(activeTab, filteredItems[nextIdx]))
+      }
+
+      const verifyFocused = (status: 'correct' | 'incorrect' | 'partial') => {
+        if (!focusedItemId) return
+        const item: any = filteredItems.find((it: any) => itemKey(activeTab, it) === focusedItemId)
+        if (!item) return
+        const entityType = activeTab === 'metadata' ? 'metadata_field' :
+                           activeTab === 'clauses' ? 'clause' :
+                           activeTab === 'obligations' ? 'obligation' : 'sla'
+        const entityId = activeTab === 'metadata' ? item.field : item.id
+        // For keyboard verify we don't supply a correction; reviewer should use
+        // the per-row edit UI if they want to change the value.
+        handleVerify(entityType, entityId, status)
+      }
+
+      switch (e.key) {
+        case 'j':
+        case 'ArrowDown':
+          e.preventDefault(); navigate(1); break
+        case 'k':
+        case 'ArrowUp':
+          e.preventDefault(); navigate(-1); break
+        case 'c':
+          e.preventDefault(); verifyFocused('correct'); break
+        case 'x':
+          e.preventDefault(); verifyFocused('incorrect'); break
+        case 'p':
+          e.preventDefault(); verifyFocused('partial'); break
+        case '1':
+          e.preventDefault(); setActiveTab('metadata'); break
+        case '2':
+          e.preventDefault(); setActiveTab('clauses'); break
+        case '3':
+          e.preventDefault(); setActiveTab('obligations'); break
+        case '4':
+          e.preventDefault(); setActiveTab('slas'); break
+        case '/':
+          e.preventDefault()
+          setReviewFilter((f) => f === 'pending' ? 'verified' : f === 'verified' ? 'all' : 'pending')
+          break
+        case '?':
+          e.preventDefault(); setShowShortcutsHelp(true); break
+        case 'Escape':
+          if (showShortcutsHelp) setShowShortcutsHelp(false)
+          else setFocusedItemId(null)
+          break
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [view, detail, activeTab, filteredItems, focusedItemId, itemKey, showShortcutsHelp])
 
   if (overviewLoading || goldenSetLoading) {
     return (
@@ -952,10 +1446,10 @@ export default function ExtractionQualityPage() {
     }
 
     const tabs = [
-      { key: 'metadata' as const, label: 'Metadata', count: detail.summary.metadata_total },
-      { key: 'clauses' as const, label: 'Clauses', count: detail.summary.clause_count },
-      { key: 'obligations' as const, label: 'Obligations', count: detail.summary.obligation_count },
-      { key: 'slas' as const, label: 'SLAs', count: detail.summary.sla_count },
+      { key: 'metadata' as const,    label: 'Metadata',    total: detail.summary.metadata_total,  pending: tabPendingCounts.metadata },
+      { key: 'clauses' as const,     label: 'Clauses',     total: detail.summary.clause_count,    pending: tabPendingCounts.clauses },
+      { key: 'obligations' as const, label: 'Obligations', total: detail.summary.obligation_count, pending: tabPendingCounts.obligations },
+      { key: 'slas' as const,        label: 'SLAs',        total: detail.summary.sla_count,       pending: tabPendingCounts.slas },
     ]
 
     const detailMimeType = /\.docx?$/i.test(detail.filename || '')
@@ -1051,17 +1545,98 @@ export default function ExtractionQualityPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 )}
               >
-                {tab.label} <span className="text-gray-400 ml-1">({tab.count})</span>
+                {tab.label}{' '}
+                {detail.is_golden && tab.total > 0 ? (
+                  <span
+                    className={cn(
+                      'ml-1 px-1.5 py-0.5 rounded text-xs font-medium',
+                      tab.pending === 0
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-amber-100 text-amber-700'
+                    )}
+                    title={tab.pending === 0
+                      ? `All ${tab.total} reviewed`
+                      : `${tab.pending} pending of ${tab.total}`}
+                  >
+                    {tab.pending === 0 ? `✓ ${tab.total}` : `${tab.pending} / ${tab.total}`}
+                  </span>
+                ) : (
+                  <span className="text-gray-400 ml-1">({tab.total})</span>
+                )}
               </button>
             ))}
           </nav>
         </div>
 
+        {/* Review filter bar — only meaningful for golden contracts */}
+        {detail.is_golden && (
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
+            <div className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white p-0.5 text-xs">
+              {(['pending', 'verified', 'all'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setReviewFilter(f)}
+                  className={cn(
+                    'px-2.5 py-1 rounded font-medium capitalize transition-colors',
+                    reviewFilter === f
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  )}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+              <span>
+                Showing <strong className="text-gray-900">{filteredItems.length}</strong>
+                {' · '}
+                <strong className="text-amber-700">{tabPendingCounts[activeTab]}</strong> pending
+                {' / '}
+                <strong className="text-gray-900">
+                  {activeTab === 'metadata' ? detail.summary.metadata_total :
+                   activeTab === 'clauses' ? detail.summary.clause_count :
+                   activeTab === 'obligations' ? detail.summary.obligation_count :
+                   detail.summary.sla_count} total
+                </strong>
+              </span>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer" title="After verifying, focus jumps to the next item">
+                <input
+                  type="checkbox"
+                  checked={autoAdvance}
+                  onChange={(e) => setAutoAdvance(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                Auto-advance
+              </label>
+              <button
+                onClick={() => setShowShortcutsHelp(true)}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 hover:bg-gray-50 font-medium"
+                title="Show keyboard shortcuts"
+              >
+                <span className="font-mono">?</span> Shortcuts
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Tab Content */}
         <div className="bg-white rounded-lg border divide-y">
-          {activeTab === 'metadata' && detail.is_golden && detail.metadata.map((item) => (
-            <MetadataEditRow key={item.field} item={item} goldenSetId={detail.golden_set_id!} onVerify={handleVerify} />
-          ))}
+          {activeTab === 'metadata' && detail.is_golden && filteredItems.map((item: any) => {
+            const key = itemKey('metadata', item)
+            return (
+              <div
+                key={key}
+                ref={(el) => registerRow(key, el)}
+                className={cn(
+                  focusedItemId === key && 'ring-2 ring-inset ring-primary-400 bg-primary-50/30'
+                )}
+                onClick={() => setFocusedItemId(key)}
+              >
+                <MetadataEditRow item={item} goldenSetId={detail.golden_set_id!} onVerify={handleVerify} />
+              </div>
+            )
+          })}
           {activeTab === 'metadata' && !detail.is_golden && detail.metadata.map((item) => (
             <div key={item.field} className="flex items-center justify-between px-4 py-3">
               <div className="flex-1">
@@ -1071,28 +1646,39 @@ export default function ExtractionQualityPage() {
             </div>
           ))}
 
-          {activeTab === 'clauses' && detail.is_golden && detail.clauses.map((clause: any) => (
-            clause.is_manual ? (
-              <div key={clause.id} className="px-4 py-3 bg-amber-50/30">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{clause.clause_type || 'unknown'}</span>
-                    {clause.risk_level && (
-                      <span className={cn('text-xs rounded px-1.5 py-0.5', clause.risk_level === 'high' ? 'bg-red-50 text-red-600' : clause.risk_level === 'medium' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600')}>
-                        {clause.risk_level} risk
-                      </span>
-                    )}
-                    <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">manually added</span>
+          {activeTab === 'clauses' && detail.is_golden && filteredItems.map((clause: any) => {
+            const key = itemKey('clauses', clause)
+            const focused = focusedItemId === key
+            return (
+              <div
+                key={key}
+                ref={(el) => registerRow(key, el)}
+                className={cn(focused && 'ring-2 ring-inset ring-primary-400 bg-primary-50/30')}
+                onClick={() => setFocusedItemId(key)}
+              >
+                {clause.is_manual ? (
+                  <div className="px-4 py-3 bg-amber-50/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{clause.clause_type || 'unknown'}</span>
+                        {clause.risk_level && (
+                          <span className={cn('text-xs rounded px-1.5 py-0.5', clause.risk_level === 'high' ? 'bg-red-50 text-red-600' : clause.risk_level === 'medium' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600')}>
+                            {clause.risk_level} risk
+                          </span>
+                        )}
+                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">manually added</span>
+                      </div>
+                      {clause.verification && <VerificationBadge status={clause.verification.status} />}
+                    </div>
+                    <p className="text-sm text-gray-600 line-clamp-3">{clause.text}</p>
+                    {clause.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{clause.verification.notes}</p>}
                   </div>
-                  {clause.verification && <VerificationBadge status={clause.verification.status} />}
-                </div>
-                <p className="text-sm text-gray-600 line-clamp-3">{clause.text}</p>
-                {clause.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{clause.verification.notes}</p>}
+                ) : (
+                  <ClauseEditRow clause={clause} goldenSetId={detail.golden_set_id!} onVerify={handleVerify} onLocate={(text: string, page?: number | null) => { setHighlightText(text); setHighlightPage(page ?? null); }} />
+                )}
               </div>
-            ) : (
-              <ClauseEditRow key={clause.id} clause={clause} goldenSetId={detail.golden_set_id!} onVerify={handleVerify} onLocate={(text: string, page?: number | null) => { setHighlightText(text); setHighlightPage(page ?? null); }} />
             )
-          ))}
+          })}
           {activeTab === 'clauses' && !detail.is_golden && detail.clauses.map((clause: any) => (
             <div key={clause.id} className="px-4 py-3">
               <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{clause.clause_type || 'unknown'}</span>
@@ -1103,24 +1689,35 @@ export default function ExtractionQualityPage() {
             <AddMissingClause onAdd={(val) => handleAddManual('clause', val)} />
           )}
 
-          {activeTab === 'obligations' && detail.is_golden && detail.obligations.map((obl: any) => (
-            obl.is_manual ? (
-              <div key={obl.id} className="px-4 py-3 bg-amber-50/30">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || 'unknown'}</span>
-                    {obl.obligated_party && <span className="text-xs text-gray-400">{obl.obligated_party}</span>}
-                    <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">manually added</span>
+          {activeTab === 'obligations' && detail.is_golden && filteredItems.map((obl: any) => {
+            const key = itemKey('obligations', obl)
+            const focused = focusedItemId === key
+            return (
+              <div
+                key={key}
+                ref={(el) => registerRow(key, el)}
+                className={cn(focused && 'ring-2 ring-inset ring-primary-400 bg-primary-50/30')}
+                onClick={() => setFocusedItemId(key)}
+              >
+                {obl.is_manual ? (
+                  <div className="px-4 py-3 bg-amber-50/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || 'unknown'}</span>
+                        {obl.obligated_party && <span className="text-xs text-gray-400">{obl.obligated_party}</span>}
+                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">manually added</span>
+                      </div>
+                      {obl.verification && <VerificationBadge status={obl.verification.status} />}
+                    </div>
+                    <p className="text-sm text-gray-600 line-clamp-2">{obl.description}</p>
+                    {obl.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{obl.verification.notes}</p>}
                   </div>
-                  {obl.verification && <VerificationBadge status={obl.verification.status} />}
-                </div>
-                <p className="text-sm text-gray-600 line-clamp-2">{obl.description}</p>
-                {obl.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{obl.verification.notes}</p>}
+                ) : (
+                  <ObligationEditRow obl={obl} onVerify={handleVerify} />
+                )}
               </div>
-            ) : (
-              <ObligationEditRow key={obl.id} obl={obl} onVerify={handleVerify} />
             )
-          ))}
+          })}
           {activeTab === 'obligations' && !detail.is_golden && detail.obligations.map((obl: any) => (
             <div key={obl.id} className="px-4 py-3">
               <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || 'unknown'}</span>
@@ -1131,24 +1728,35 @@ export default function ExtractionQualityPage() {
             <AddMissingObligation onAdd={(val) => handleAddManual('obligation', val)} />
           )}
 
-          {activeTab === 'slas' && detail.is_golden && detail.slas.map((sla: any) => (
-            sla.is_manual ? (
-              <div key={sla.id} className="px-4 py-3 bg-amber-50/30">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-teal-600 bg-teal-50 rounded px-1.5 py-0.5">{sla.metric_type || 'SLA'}</span>
-                    <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">manually added</span>
+          {activeTab === 'slas' && detail.is_golden && filteredItems.map((sla: any) => {
+            const key = itemKey('slas', sla)
+            const focused = focusedItemId === key
+            return (
+              <div
+                key={key}
+                ref={(el) => registerRow(key, el)}
+                className={cn(focused && 'ring-2 ring-inset ring-primary-400 bg-primary-50/30')}
+                onClick={() => setFocusedItemId(key)}
+              >
+                {sla.is_manual ? (
+                  <div className="px-4 py-3 bg-amber-50/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-teal-600 bg-teal-50 rounded px-1.5 py-0.5">{sla.metric_type || 'SLA'}</span>
+                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">manually added</span>
+                      </div>
+                      {sla.verification && <VerificationBadge status={sla.verification.status} />}
+                    </div>
+                    <p className="text-sm text-gray-700 font-medium">{sla.sla_name}</p>
+                    <p className="text-sm text-gray-500">Target: {sla.target_value ?? '--'} {sla.metric_unit || ''}</p>
+                    {sla.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{sla.verification.notes}</p>}
                   </div>
-                  {sla.verification && <VerificationBadge status={sla.verification.status} />}
-                </div>
-                <p className="text-sm text-gray-700 font-medium">{sla.sla_name}</p>
-                <p className="text-sm text-gray-500">Target: {sla.target_value ?? '--'} {sla.metric_unit || ''}</p>
-                {sla.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{sla.verification.notes}</p>}
+                ) : (
+                  <SLAEditRow sla={sla} onVerify={handleVerify} />
+                )}
               </div>
-            ) : (
-              <SLAEditRow key={sla.id} sla={sla} onVerify={handleVerify} />
             )
-          ))}
+          })}
           {activeTab === 'slas' && !detail.is_golden && detail.slas.map((sla: any) => (
             <div key={sla.id} className="px-4 py-3">
               <span className="text-xs font-medium text-teal-600 bg-teal-50 rounded px-1.5 py-0.5">{sla.metric_type || 'SLA'}</span>
@@ -1163,10 +1771,78 @@ export default function ExtractionQualityPage() {
           {activeTab === 'clauses' && detail.clauses.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">No clauses extracted</div>}
           {activeTab === 'obligations' && detail.obligations.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">No obligations extracted</div>}
           {activeTab === 'slas' && detail.slas.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">No SLAs extracted</div>}
+
+          {/* Empty state when the active filter hides everything */}
+          {detail.is_golden && filteredItems.length === 0 && (
+            <div className="p-8 text-center text-sm">
+              {reviewFilter === 'pending' ? (
+                <div className="text-green-600">
+                  <CheckCircleIcon className="h-6 w-6 mx-auto mb-1" />
+                  Nothing pending in this tab — all caught up.
+                  {(tabPendingCounts.metadata + tabPendingCounts.clauses + tabPendingCounts.obligations + tabPendingCounts.slas - tabPendingCounts[activeTab]) > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Other tabs still have pending items.
+                    </p>
+                  )}
+                </div>
+              ) : reviewFilter === 'verified' ? (
+                <div className="text-gray-400">No verified items in this tab yet.</div>
+              ) : (
+                <div className="text-gray-400">No items in this tab.</div>
+              )}
+            </div>
+          )}
         </div>
         </div>
         </div>
         </div>
+
+        {/* Shortcuts help modal */}
+        {showShortcutsHelp && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setShowShortcutsHelp(false)}
+          >
+            <div
+              className="bg-white rounded-lg shadow-xl max-w-md w-full p-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900">Keyboard shortcuts</h3>
+                <button
+                  onClick={() => setShowShortcutsHelp(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="space-y-1.5 text-sm">
+                {[
+                  ['j / ↓', 'Next item'],
+                  ['k / ↑', 'Previous item'],
+                  ['c', 'Mark focused item Correct'],
+                  ['x', 'Mark focused item Incorrect'],
+                  ['p', 'Mark focused item Partial'],
+                  ['1 / 2 / 3 / 4', 'Switch to Metadata / Clauses / Obligations / SLAs'],
+                  ['/', 'Cycle filter: pending → verified → all'],
+                  ['Esc', 'Clear focus / close this dialog'],
+                  ['?', 'Show this help'],
+                ].map(([key, desc]) => (
+                  <div key={key} className="flex items-center gap-3">
+                    <kbd className="inline-block min-w-[80px] px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-xs font-mono text-gray-700">
+                      {key}
+                    </kbd>
+                    <span className="text-gray-600">{desc}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-4 leading-relaxed">
+                Shortcuts only apply when you're not typing in a field. Click any
+                row first to focus it (or press <kbd className="px-1 rounded bg-gray-100 text-xs">j</kbd>).
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -1262,6 +1938,9 @@ export default function ExtractionQualityPage() {
           <span><strong className="text-amber-600">{overview.pending_review}</strong> pending review</span>
         </div>
       )}
+
+      {/* DSPy compilation status + manual trigger */}
+      <DspyCompilationPanel />
 
       {/* Golden Set Contracts List */}
       <div className="bg-white rounded-lg border">

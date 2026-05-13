@@ -255,8 +255,14 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
     from sqlalchemy import delete, select
     import uuid as uuid_mod
 
-    from app.services.progress_tracker import get_progress_tracker, ProcessingStage
+    from app.services.progress_tracker import (
+        HealthRecorder,
+        ProcessingStage,
+        get_progress_tracker,
+        new_health_recorder,
+    )
     tracker = get_progress_tracker()
+    recorder = new_health_recorder()
     cid_uuid = uuid_mod.UUID(contract_id)
 
     try:
@@ -351,7 +357,9 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             tenant_id=tenant_id_str,
             industry_hint=extraction_hints.get("clauses", ""),
         )
-        logger.info(f"[DEEP ANALYSIS] Extracted {len(clause_result.extracted_clauses) if clause_result else 0} clauses")
+        clause_count = len(clause_result.extracted_clauses) if clause_result else 0
+        logger.info(f"[DEEP ANALYSIS] Extracted {clause_count} clauses")
+        recorder.success(ProcessingStage.CLAUSE_EXTRACTION, details={"count": clause_count})
 
         tracker.update_progress(contract_id, ProcessingStage.OBLIGATION_DETECTION, "Extracting obligations...")
         obligation_result = await extract_obligations(
@@ -362,7 +370,9 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             tenant_id=tenant_id_str,
             industry_hint=extraction_hints.get("obligations", ""),
         )
-        logger.info(f"[DEEP ANALYSIS] Extracted {len(obligation_result.obligations) if obligation_result else 0} obligations")
+        obligation_count = len(obligation_result.obligations) if obligation_result else 0
+        logger.info(f"[DEEP ANALYSIS] Extracted {obligation_count} obligations")
+        recorder.success(ProcessingStage.OBLIGATION_DETECTION, details={"count": obligation_count})
 
         tracker.update_progress(contract_id, ProcessingStage.SLA_EXTRACTION, "Extracting SLAs...")
         sla_result = await extract_slas(
@@ -373,7 +383,9 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             tenant_id=tenant_id_str,
             industry_hint=extraction_hints.get("slas", ""),
         )
-        logger.info(f"[DEEP ANALYSIS] Extracted {len(sla_result.slas) if sla_result else 0} SLAs")
+        sla_count = len(sla_result.slas) if sla_result else 0
+        logger.info(f"[DEEP ANALYSIS] Extracted {sla_count} SLAs")
+        recorder.success(ProcessingStage.SLA_EXTRACTION, details={"count": sla_count})
 
         # --- Store all extraction results in one session ---
         async with async_session_maker() as session:
@@ -473,8 +485,10 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                         if sid_str in sla_rects:
                             sla_obj.highlight_rects = sla_rects[sid_str]
                     logger.info(f"[DEEP ANALYSIS] Highlight rects: {len(sla_rects)}/{len(stored_slas)} SLAs")
+                recorder.success("highlight_extraction")
             except Exception as e:
                 logger.warning(f"[DEEP ANALYSIS] Highlight extraction failed (non-fatal): {e}")
+                recorder.failed("highlight_extraction", error=str(e))
 
             await session.commit()
             logger.info(f"[DEEP ANALYSIS] Clause/obligation/SLA extraction stored for {contract_id}")
@@ -493,8 +507,12 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                     await session.commit()
                     if suggestion_count > 0:
                         logger.info(f"[DEEP ANALYSIS] Created {suggestion_count} taxonomy suggestions")
+                recorder.success("taxonomy_discovery", details={"suggestions": suggestion_count})
             except Exception as e:
                 logger.warning(f"[DEEP ANALYSIS] Taxonomy discovery failed (non-fatal): {e}")
+                recorder.failed("taxonomy_discovery", error=str(e))
+        else:
+            recorder.skipped("taxonomy_discovery", reason="no tenant_id")
 
         # --- Renewal + Schema + Type classification in one session ---
         tracker.update_progress(contract_id, ProcessingStage.RENEWAL_ANALYSIS, "Analyzing renewal terms...")
@@ -519,6 +537,15 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                     if renewal_result and renewal_result.terms:
                         await update_contract_renewal(session, contract, renewal_result)
                         logger.info(f"[DEEP ANALYSIS] Renewal terms stored for {contract_id}")
+                        recorder.success(
+                            ProcessingStage.RENEWAL_ANALYSIS,
+                            details={"terms": len(renewal_result.terms)},
+                        )
+                    else:
+                        recorder.skipped(
+                            ProcessingStage.RENEWAL_ANALYSIS,
+                            reason="no renewal terms detected",
+                        )
 
                     # Schema extraction
                     tracker.update_progress(contract_id, ProcessingStage.SCHEMA_EXTRACTION, "Running structured data extraction...")
@@ -539,8 +566,23 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                                     from app.services.schema_sync import sync_schema_to_db
                                     await sync_schema_to_db(session, contract)
                                     logger.info(f"[DEEP ANALYSIS] Schema extraction completed for {contract_id}")
+                                recorder.success(
+                                    ProcessingStage.SCHEMA_EXTRACTION,
+                                    details={"schema_id": schema.schema_id},
+                                )
                             except Exception as e:
                                 logger.warning(f"Schema extraction failed for {contract_id}: {e}")
+                                recorder.failed(ProcessingStage.SCHEMA_EXTRACTION, error=str(e))
+                        else:
+                            recorder.skipped(
+                                ProcessingStage.SCHEMA_EXTRACTION,
+                                reason=f"no schema for contract_type={contract.contract_type}",
+                            )
+                    else:
+                        recorder.skipped(
+                            ProcessingStage.SCHEMA_EXTRACTION,
+                            reason="contract_type not detected",
+                        )
 
                     # Classify contract_type if still NULL
                     if not contract.contract_type:
@@ -590,6 +632,11 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
 
         except Exception as e:
             logger.warning(f"[DEEP ANALYSIS] Renewal/schema stage failed for {contract_id}: {e}")
+            # If neither sub-stage was recorded, mark them failed for visibility.
+            if ProcessingStage.RENEWAL_ANALYSIS.value not in recorder.stages:
+                recorder.failed(ProcessingStage.RENEWAL_ANALYSIS, error=str(e))
+            if ProcessingStage.SCHEMA_EXTRACTION.value not in recorder.stages:
+                recorder.failed(ProcessingStage.SCHEMA_EXTRACTION, error=str(e))
 
         # --- Reference extraction + child document corrections in one session ---
         async with async_session_maker() as session:
@@ -725,8 +772,18 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                         )
                         await session.commit()
                         logger.info(f"[DEEP ANALYSIS] Hierarchy detection created {num_suggestions} suggestions")
+                        recorder.success(
+                            ProcessingStage.LINK_DETECTION,
+                            details={"suggestions": num_suggestions or 0},
+                        )
+                    else:
+                        recorder.skipped(
+                            ProcessingStage.LINK_DETECTION,
+                            reason="fewer than 2 completed contracts to compare",
+                        )
         except Exception as e:
             logger.warning(f"[DEEP ANALYSIS] Hierarchy detection failed for {contract_id}: {e}")
+            recorder.failed(ProcessingStage.LINK_DETECTION, error=str(e))
 
         # --- Industry detection and compliance check ---
         tracker.update_progress(contract_id, ProcessingStage.COMPLIANCE_CHECK, "Running compliance analysis...")
@@ -776,6 +833,15 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                         if alerts:
                             logger.info(f"[DEEP ANALYSIS] Created {len(alerts)} compliance alerts for {contract_id}")
 
+                    recorder.success(
+                        ProcessingStage.COMPLIANCE_CHECK,
+                        details={
+                            "industry": industry_result.industry.value,
+                            "score": check_result.compliance_score,
+                            "gaps": len(check_result.gaps_found),
+                        },
+                    )
+
                     if industry_result.industry in REGULATED_INDUSTRIES and full_text:
                         reg_result = await extract_regulatory_obligations(
                             contract_text=full_text,
@@ -783,20 +849,33 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                             contract_id=contract_id,
                             user_id=user_id,
                         )
-                        if reg_result.obligations:
+                        reg_count = len(reg_result.obligations) if reg_result and reg_result.obligations else 0
+                        if reg_count:
                             await store_regulatory_obligations(
                                 db=session,
                                 contract_id=cid_uuid,
                                 industry=industry_result.industry,
                                 result=reg_result,
                             )
-                            logger.info(f"[DEEP ANALYSIS] Extracted {len(reg_result.obligations)} "
+                            logger.info(f"[DEEP ANALYSIS] Extracted {reg_count} "
                                        f"regulatory obligations for {contract_id}")
+                        recorder.success(
+                            "regulatory_extraction",
+                            details={"count": reg_count, "industry": industry_result.industry.value},
+                        )
+                    else:
+                        recorder.skipped(
+                            "regulatory_extraction",
+                            reason=f"industry '{industry_result.industry.value}' is not regulated",
+                        )
 
                     await session.commit()
 
         except Exception as e:
             logger.warning(f"[DEEP ANALYSIS] Compliance analysis failed for {contract_id}: {e}")
+            recorder.failed(ProcessingStage.COMPLIANCE_CHECK, error=str(e))
+            if "regulatory_extraction" not in recorder.stages:
+                recorder.failed("regulatory_extraction", error=str(e))
 
         # --- Governance bridge ---
         tracker.update_progress(contract_id, ProcessingStage.GOVERNANCE_BRIDGE, "Setting up governance...")
@@ -816,8 +895,31 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                     )
                     await session.commit()
                     logger.info(f"[DEEP ANALYSIS] Governance bridge completed for {contract_id}: {summary}")
+                    recorder.success(ProcessingStage.GOVERNANCE_BRIDGE, details=summary if isinstance(summary, dict) else None)
+                else:
+                    recorder.skipped(
+                        ProcessingStage.GOVERNANCE_BRIDGE,
+                        reason="contract or tenant_id missing",
+                    )
         except Exception as e:
             logger.warning(f"[DEEP ANALYSIS] Governance bridge failed for {contract_id}: {e}")
+            recorder.failed(ProcessingStage.GOVERNANCE_BRIDGE, error=str(e))
+
+        # Persist accumulated stage outcomes onto the contract, merging with
+        # whatever the indexer wrote so the final dict reflects the full pipeline.
+        try:
+            async with async_session_maker() as session:
+                result = await session.execute(
+                    select(Contract).where(Contract.id == cid_uuid)
+                )
+                contract = result.scalar_one_or_none()
+                if contract:
+                    merged = dict(contract.extraction_health or {})
+                    merged.update(recorder.to_dict())
+                    contract.extraction_health = merged
+                    await session.commit()
+        except Exception as e:
+            logger.warning(f"[DEEP ANALYSIS] Persisting extraction_health failed for {contract_id}: {e}")
 
         tracker.update_progress(contract_id, ProcessingStage.COMPLETED, "Processing complete")
         logger.info(f"[DEEP ANALYSIS] Completed for {contract_id}")
@@ -825,6 +927,20 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
     except Exception as e:
         tracker.update_progress(contract_id, ProcessingStage.FAILED, error=str(e))
         logger.exception(f"[DEEP ANALYSIS] FAILED for {contract_id}: {e}")
+        # Best-effort save of whatever stage outcomes we managed to record.
+        try:
+            async with async_session_maker() as session:
+                result = await session.execute(
+                    select(Contract).where(Contract.id == cid_uuid)
+                )
+                contract = result.scalar_one_or_none()
+                if contract and recorder.stages:
+                    merged = dict(contract.extraction_health or {})
+                    merged.update(recorder.to_dict())
+                    contract.extraction_health = merged
+                    await session.commit()
+        except Exception:
+            pass
 
 
 @router.post("/upload/batch", response_model=BatchUploadResponse)

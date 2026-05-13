@@ -1082,3 +1082,84 @@ export async function bulkVerifyExtraction(data: {
   const response = await client.post('/admin/extraction-quality/verify/bulk', data)
   return response.data
 }
+
+// ============ EXTRACTION CONFIDENCE THRESHOLDS ============
+
+export interface ExtractionThresholds {
+  default: number
+  fields: Record<string, number>
+  available_fields: string[]
+}
+
+export async function getExtractionThresholds(): Promise<ExtractionThresholds> {
+  const response = await client.get<ExtractionThresholds>('/settings/extraction-thresholds')
+  return response.data
+}
+
+export async function updateExtractionThresholds(data: {
+  default?: number | null
+  fields?: Record<string, number> | null
+}): Promise<ExtractionThresholds> {
+  const response = await client.put<ExtractionThresholds>('/settings/extraction-thresholds', data)
+  return response.data
+}
+
+// ============ DSPY COMPILATION ============
+
+export type DspyAgentType = 'metadata' | 'clause' | 'obligation' | 'sla'
+
+export interface DspyProgramStatus {
+  compiled: boolean
+  path?: string
+  size_bytes?: number
+  compiled_at?: number  // unix epoch seconds (file mtime)
+  compiling?: boolean   // a compile is currently running (lock file present)
+  verifications_since_last_compile?: number
+}
+
+export interface DspyCompilationStatus {
+  tenant_id: string
+  programs: Record<DspyAgentType, DspyProgramStatus>
+}
+
+export interface DspyCompileResult {
+  status: 'compiled' | 'skipped' | 'error' | 'in_progress'
+  message?: string
+  examples?: number
+  path?: string
+}
+
+export interface DspyCompileResponse {
+  tenant_id: string
+  results: Record<DspyAgentType, DspyCompileResult>
+}
+
+export interface DspyAutoRecompileConfig {
+  enabled: boolean
+  threshold: number
+}
+
+export async function getDspyCompilationStatus(): Promise<DspyCompilationStatus> {
+  const response = await client.get<DspyCompilationStatus>('/admin/extraction-quality/compile/status')
+  return response.data
+}
+
+export async function compileDspyPrograms(agentTypes?: DspyAgentType[]): Promise<DspyCompileResponse> {
+  const response = await client.post<DspyCompileResponse>(
+    '/admin/extraction-quality/compile',
+    agentTypes && agentTypes.length > 0 ? agentTypes : null,
+  )
+  return response.data
+}
+
+export async function getDspyAutoRecompileConfig(): Promise<DspyAutoRecompileConfig> {
+  const response = await client.get<DspyAutoRecompileConfig>('/settings/dspy-auto-recompile')
+  return response.data
+}
+
+export async function updateDspyAutoRecompileConfig(
+  data: { enabled?: boolean; threshold?: number }
+): Promise<DspyAutoRecompileConfig> {
+  const response = await client.put<DspyAutoRecompileConfig>('/settings/dspy-auto-recompile', data)
+  return response.data
+}

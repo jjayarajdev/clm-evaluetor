@@ -643,20 +643,68 @@ async def update_contract_metadata(
     metadata: ExtractedMetadata,
     confidence_threshold: float = 0.7,
     excluded_parties: list[str] | None = None,
-) -> Contract:
+    field_thresholds: dict[str, float] | None = None,
+) -> tuple[Contract, list[dict]]:
     """Update a contract with extracted metadata.
 
     Args:
         db: Database session.
         contract: Contract to update.
         metadata: Extracted metadata.
-        confidence_threshold: Minimum confidence to apply a field.
+        confidence_threshold: Default minimum confidence to apply a field
+            (used when no per-field threshold is configured).
+        excluded_parties: Names that must not be set as the counterparty
+            (typically the uploader's own org and aliases).
+        field_thresholds: Optional per-field minimum confidence overrides.
+            Keys are field names ("counterparty", "contract_value",
+            "effective_date", "expiration_date", "currency", "jurisdiction",
+            "contract_type"). Values are floats in [0.0, 1.0]. A field not
+            present here uses ``confidence_threshold`` as fallback.
 
     Returns:
-        Updated contract.
+        Tuple of (updated_contract, dropped_fields). Each entry in
+        ``dropped_fields`` is a dict with ``field``, ``confidence``, and
+        ``threshold`` keys describing a field rejected for being below
+        its applicable threshold.
     """
+    dropped: list[dict] = []
+    # Collected per-field provenance for fields that pass their threshold.
+    # Written to contract.metadata_provenance at the end, replacing the previous run.
+    provenance: dict[str, dict] = {}
+
+    def _threshold_for(field_name: str) -> float:
+        if field_thresholds and field_name in field_thresholds:
+            try:
+                return float(field_thresholds[field_name])
+            except (TypeError, ValueError):
+                pass
+        return confidence_threshold
+
+    def _check(field_name: str, field) -> bool:
+        """Return True if the field passes its threshold, else record drop.
+
+        On pass, also captures provenance (raw_text + confidence) for UI display.
+        """
+        if not field:
+            return False
+        threshold = _threshold_for(field_name)
+        if field.confidence >= threshold:
+            raw_text = getattr(field, "raw_text", None)
+            if raw_text:
+                provenance[field_name] = {
+                    "raw_text": str(raw_text)[:500],
+                    "confidence": round(float(field.confidence), 3),
+                }
+            return True
+        dropped.append({
+            "field": field_name,
+            "confidence": round(float(field.confidence), 3),
+            "threshold": threshold,
+        })
+        return False
+
     # Map contract type
-    if metadata.contract_type and metadata.contract_type.confidence >= confidence_threshold:
+    if metadata.contract_type and _check("contract_type", metadata.contract_type):
         type_value = str(metadata.contract_type.value).upper().strip()
         type_map: dict[str, str] = {
             # NDA variants
@@ -796,7 +844,7 @@ async def update_contract_metadata(
 
     # Update counterparty
     counterparty_set = False
-    if metadata.counterparty and metadata.counterparty.confidence >= confidence_threshold:
+    if metadata.counterparty and _check("counterparty", metadata.counterparty):
         counterparty_value = str(metadata.counterparty.value)
         if not _is_generic_counterparty(counterparty_value) and not _is_excluded_party(counterparty_value):
             contract.counterparty = counterparty_value
@@ -819,26 +867,26 @@ async def update_contract_metadata(
                     break
 
     # Update dates
-    if metadata.effective_date and metadata.effective_date.confidence >= confidence_threshold:
+    if metadata.effective_date and _check("effective_date", metadata.effective_date):
         try:
             contract.effective_date = _parse_date(metadata.effective_date.value)
         except Exception:
             pass
 
-    if metadata.expiration_date and metadata.expiration_date.confidence >= confidence_threshold:
+    if metadata.expiration_date and _check("expiration_date", metadata.expiration_date):
         try:
             contract.expiration_date = _parse_date(metadata.expiration_date.value)
         except Exception:
             pass
 
     # Update value
-    if metadata.contract_value and metadata.contract_value.confidence >= confidence_threshold:
+    if metadata.contract_value and _check("contract_value", metadata.contract_value):
         try:
             contract.contract_value = Decimal(str(metadata.contract_value.value))
         except Exception:
             pass
 
-    if metadata.currency and metadata.currency.confidence >= confidence_threshold:
+    if metadata.currency and _check("currency", metadata.currency):
         currency_val = str(metadata.currency.value).upper().strip()
         # Map common currency names to ISO codes (VARCHAR(3) column)
         currency_map = {
@@ -851,11 +899,20 @@ async def update_contract_metadata(
             contract.currency = currency_val
 
     # Update jurisdiction
-    if metadata.jurisdiction and metadata.jurisdiction.confidence >= confidence_threshold:
+    if metadata.jurisdiction and _check("jurisdiction", metadata.jurisdiction):
         contract.jurisdiction = str(metadata.jurisdiction.value)
 
+    # Persist provenance — entire field map replaced each run so stale
+    # entries from previous extractions don't linger.
+    if provenance:
+        contract.metadata_provenance = provenance
+    elif contract.metadata_provenance is not None:
+        # All fields failed their threshold this run; clear to avoid showing
+        # stale provenance for values that were just blanked out.
+        contract.metadata_provenance = None
+
     await db.flush()
-    return contract
+    return contract, dropped
 
 
 def _parse_date(value: Any) -> date | None:

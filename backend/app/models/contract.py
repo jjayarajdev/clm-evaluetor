@@ -219,6 +219,23 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         server_default='{}',
     )
 
+    # Per-stage outcomes from the extraction pipeline.
+    # Shape: {stage_name: {"status": "success"|"failed"|"skipped", ...}}
+    # Latest run wins (overwritten on re-analyze).
+    extraction_health: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    # Provenance for AI-extracted metadata fields: the source quote and
+    # confidence that backs each value the user sees. Populated by the
+    # metadata extraction agent; surfaced as info-tooltips in the UI.
+    # Shape: {field_name: {"raw_text": "...", "confidence": 0.92}}
+    metadata_provenance: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
     # Client association
     client_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("clients.id"),

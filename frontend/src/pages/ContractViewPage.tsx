@@ -17,7 +17,11 @@ import {
   PencilIcon,
   CheckIcon,
   XMarkIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  MinusCircleIcon,
 } from '@heroicons/react/24/outline'
+import type { ExtractionStageOutcome } from '@/types'
 import api from '@/lib/api'
 import { client as apiClient } from '@/lib/api/client'
 import { getIndustryProfiles } from '@/lib/api/admin'
@@ -55,6 +59,105 @@ const DEFAULT_TABS = [
   { id: 'documents', label: 'Documents', icon: 'folder' },
   { id: 'sharing', label: 'Sharing', icon: 'share' },
 ]
+
+// Friendly labels + display order for extraction pipeline stages
+const STAGE_DISPLAY: { key: string; label: string }[] = [
+  { key: 'metadata', label: 'Metadata' },
+  { key: 'risk', label: 'Risk Assessment' },
+  { key: 'custom_fields', label: 'Custom Fields' },
+  { key: 'contract_references', label: 'Contract References' },
+  { key: 'clause_extraction', label: 'Clauses' },
+  { key: 'obligation_detection', label: 'Obligations' },
+  { key: 'sla_extraction', label: 'SLAs' },
+  { key: 'highlight_extraction', label: 'PDF Highlights' },
+  { key: 'taxonomy_discovery', label: 'Taxonomy Suggestions' },
+  { key: 'renewal_analysis', label: 'Renewal Terms' },
+  { key: 'schema_extraction', label: 'Structured Schema Fields' },
+  { key: 'link_detection', label: 'Related Contract Detection' },
+  { key: 'compliance_check', label: 'Compliance Check' },
+  { key: 'regulatory_extraction', label: 'Regulatory Obligations' },
+  { key: 'hierarchy_detection', label: 'Hierarchy Detection' },
+  { key: 'governance_bridge', label: 'Governance Bridge' },
+]
+
+function ExtractionHealthPanel({
+  health,
+}: {
+  health: Record<string, ExtractionStageOutcome>
+}) {
+  const stages = STAGE_DISPLAY.filter((s) => health[s.key])
+  const counts = stages.reduce(
+    (acc, s) => {
+      const status = health[s.key]?.status
+      if (status === 'success') acc.success += 1
+      else if (status === 'failed') acc.failed += 1
+      else if (status === 'skipped' || status === 'not_applicable') acc.skipped += 1
+      return acc
+    },
+    { success: 0, failed: 0, skipped: 0 }
+  )
+
+  const headlineColor =
+    counts.failed > 0 ? 'text-red-700' : counts.skipped > 0 ? 'text-amber-700' : 'text-green-700'
+
+  return (
+    <div className="card">
+      <div className="card-header flex items-center justify-between">
+        <h2 className="text-sm font-medium text-gray-900">Extraction Health</h2>
+        <span className={cn('text-xs font-medium', headlineColor)}>
+          {counts.success} ok · {counts.failed} failed · {counts.skipped} skipped
+        </span>
+      </div>
+      <div className="card-body space-y-1.5">
+        {stages.map((s) => {
+          const outcome = health[s.key]
+          const status = outcome.status
+          const Icon =
+            status === 'success'
+              ? CheckCircleIcon
+              : status === 'failed'
+                ? ExclamationTriangleIcon
+                : MinusCircleIcon
+          const iconColor =
+            status === 'success'
+              ? 'text-green-500'
+              : status === 'failed'
+                ? 'text-red-500'
+                : 'text-gray-400'
+          const note = outcome.error || outcome.reason
+          const dropped = (outcome.details?.dropped_fields as Array<{
+            field: string
+            confidence: number
+            threshold: number
+          }> | undefined)
+          return (
+            <div key={s.key} className="flex items-start gap-2 text-xs">
+              <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', iconColor)} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-gray-900">{s.label}</span>
+                  <span className="text-gray-400 capitalize">{status.replace('_', ' ')}</span>
+                </div>
+                {note && (
+                  <p className="text-gray-500 truncate" title={note}>
+                    {note}
+                  </p>
+                )}
+                {dropped && dropped.length > 0 && (
+                  <p className="text-amber-600" title={dropped.map(d => `${d.field}: ${d.confidence} < ${d.threshold}`).join('\n')}>
+                    {dropped.length} field{dropped.length === 1 ? '' : 's'} below threshold:
+                    {' '}
+                    {dropped.map(d => d.field).join(', ')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export default function ContractViewPage() {
   const { id } = useParams<{ id: string }>()
@@ -381,6 +484,7 @@ export default function ContractViewPage() {
                     fieldName="counterparty"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.counterparty}
                   />
                   <EditableField
                     label={uiLabel('contract_value', 'Contract Value')}
@@ -390,6 +494,7 @@ export default function ContractViewPage() {
                     type="number"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: Number(val) })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.contract_value}
                   />
                   <EditableField
                     label="Contract Type"
@@ -398,6 +503,7 @@ export default function ContractViewPage() {
                     fieldName="contract_type"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.contract_type}
                   />
                   <EditableField
                     label="Effective Date"
@@ -407,6 +513,7 @@ export default function ContractViewPage() {
                     type="date"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.effective_date}
                   />
                   <EditableField
                     label="Expiration Date"
@@ -416,6 +523,7 @@ export default function ContractViewPage() {
                     type="date"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.expiration_date}
                   />
                   <EditableField
                     label="Jurisdiction"
@@ -423,6 +531,7 @@ export default function ContractViewPage() {
                     fieldName="jurisdiction"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.jurisdiction}
                   />
                   <div>
                     <p className="text-xs text-gray-500">Auto-Renewal</p>
@@ -531,6 +640,11 @@ export default function ContractViewPage() {
                 </div>
               </div>
 
+              {/* Extraction Health — surfaces silent pipeline failures */}
+              {isCompleted && contract.extraction_health && Object.keys(contract.extraction_health).length > 0 && (
+                <ExtractionHealthPanel health={contract.extraction_health} />
+              )}
+
               {/* Extraction Stats */}
               {isCompleted && (
                 <div className="card">
@@ -638,6 +752,7 @@ function EditableField({
   onSave,
   type = 'text',
   canEdit,
+  provenance,
 }: {
   label: string
   value: string | null | undefined
@@ -646,9 +761,11 @@ function EditableField({
   onSave: (field: string, val: string) => void
   type?: 'text' | 'date' | 'number'
   canEdit: boolean
+  provenance?: { raw_text: string; confidence: number } | null
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value || '')
+  const [showProvenance, setShowProvenance] = useState(false)
 
   const handleSave = () => {
     if (draft !== (value || '')) {
@@ -689,10 +806,23 @@ function EditableField({
   }
 
   return (
-    <div className="group">
+    <div className="group relative">
       <p className="text-xs text-gray-500">{label}</p>
       <div className="flex items-center gap-1">
         <p className="text-sm font-medium text-gray-900">{shown}</p>
+        {provenance && provenance.raw_text && (
+          <button
+            onClick={() => setShowProvenance((s) => !s)}
+            className={cn(
+              'p-0.5 text-gray-400 hover:text-primary-600 transition-colors',
+              showProvenance && 'text-primary-600'
+            )}
+            title="Show extraction source"
+            aria-label={`Show extraction source for ${label}`}
+          >
+            <InformationCircleIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
         {canEdit && (
           <button
             onClick={() => { setDraft(value || ''); setEditing(true) }}
@@ -703,6 +833,29 @@ function EditableField({
           </button>
         )}
       </div>
+      {showProvenance && provenance && (
+        <div className="absolute z-20 left-0 top-full mt-1 w-72 rounded-md border border-gray-200 bg-white shadow-lg p-3 text-xs">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="font-medium text-gray-700">AI extracted from</span>
+            <span
+              className={cn(
+                'px-1.5 py-0.5 rounded text-xs font-medium',
+                provenance.confidence >= 0.85 ? 'bg-green-50 text-green-700' :
+                provenance.confidence >= 0.6 ? 'bg-amber-50 text-amber-700' :
+                'bg-red-50 text-red-700'
+              )}
+              title="Extraction confidence"
+            >
+              {Math.round(provenance.confidence * 100)}%
+            </span>
+          </div>
+          <p className="text-gray-700 italic leading-snug">"{provenance.raw_text}"</p>
+          <p className="text-[10px] text-gray-400 mt-2">
+            Source quote from the contract. If you've edited this field manually, the quote
+            reflects the original AI extraction, not your current value.
+          </p>
+        </div>
+      )}
     </div>
   )
 }

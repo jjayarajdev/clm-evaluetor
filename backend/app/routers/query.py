@@ -269,7 +269,7 @@ async def analyze_contract(
         metadata = await extract_metadata(
             parsed.full_text, contract_id, str(current_user.id)
         )
-        await update_contract_metadata(db, contract, metadata)
+        await update_contract_metadata(db, contract, metadata)  # discards dropped fields list
         results["analyses"]["metadata"] = {
             "confidence": metadata.overall_confidence,
             "fields_extracted": len([f for f in [
