@@ -905,6 +905,46 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             logger.warning(f"[DEEP ANALYSIS] Governance bridge failed for {contract_id}: {e}")
             recorder.failed(ProcessingStage.GOVERNANCE_BRIDGE, error=str(e))
 
+        # --- Graph-Augmented Verification ---
+        tracker.update_progress(contract_id, "graph_verification", "Verifying metadata consistency...")
+        try:
+            from app.services.graph_consistency_engine import get_consistency_engine
+
+            async with async_session_maker() as session:
+                result = await session.execute(
+                    select(Contract).where(Contract.id == cid_uuid)
+                )
+                contract = result.scalar_one_or_none()
+                if contract:
+                    engine = await get_consistency_engine(session)
+                    verify_result = await engine.verify_contract(
+                        contract=contract,
+                        tenant_id=str(contract.tenant_id),
+                    )
+                    
+                    if not verify_result.is_consistent:
+                        # Store inconsistencies in contract metadata for UI display
+                        metadata = dict(contract.schema_data or {})
+                        metadata["_graph_inconsistencies"] = [
+                            inc.model_dump() for inc in verify_result.inconsistencies
+                        ]
+                        contract.schema_data = metadata
+                        await session.commit()
+                        logger.info(f"[DEEP ANALYSIS] Graph verification found {len(verify_result.inconsistencies)} issues for {contract_id}")
+                    
+                    recorder.success(
+                        "graph_verification",
+                        details={
+                            "is_consistent": verify_result.is_consistent,
+                            "issue_count": len(verify_result.inconsistencies),
+                        },
+                    )
+                else:
+                    recorder.skipped("graph_verification", reason="contract missing")
+        except Exception as e:
+            logger.warning(f"[DEEP ANALYSIS] Graph verification failed for {contract_id}: {e}")
+            recorder.failed("graph_verification", error=str(e))
+
         # Persist accumulated stage outcomes onto the contract, merging with
         # whatever the indexer wrote so the final dict reflects the full pipeline.
         try:

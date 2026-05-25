@@ -396,7 +396,83 @@ class KnowledgeGraphExtractor:
             await self.db.flush()
             logger.info(f"Pass 2: resolved {pass2_count} orphan relationships")
 
+        # Pass 3: Cross-contract entity resolution
+        pass3_count = await self._resolve_cross_contract_entities(
+            contract_uuid, tenant_uuid
+        )
+        if pass3_count > 0:
+            await self.db.flush()
+            logger.info(f"Pass 3: resolved {pass3_count} cross-contract master links")
+
         return len(entity_map), rel_count + pass2_count
+
+    async def _resolve_cross_contract_entities(
+        self,
+        contract_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> int:
+        """Pass 3: Link entities to master entities across the tenant portfolio.
+
+        This enables cross-contract reasoning by identifying that "Acme Corp"
+        in Contract A is the same as "Acme" in Contract B.
+        """
+        from app.models.knowledge_graph import KGMasterEntity
+
+        # Get all entities for this contract that are potential master candidates
+        # Focus on Parties and Jurisdictions first as they are most stable
+        entities_result = await self.db.execute(
+            select(KGEntity).where(
+                and_(
+                    KGEntity.contract_id == contract_id,
+                    KGEntity.entity_type.in_([KGEntityType.PARTY, KGEntityType.JURISDICTION])
+                )
+            )
+        )
+        entities = entities_result.scalars().all()
+
+        link_count = 0
+        for entity in entities:
+            # Skip if already linked (though unlikely in new extraction)
+            if entity.master_entity_id:
+                continue
+
+            # Look for existing master entity with same type and normalized name
+            master_result = await self.db.execute(
+                select(KGMasterEntity).where(
+                    and_(
+                        KGMasterEntity.tenant_id == tenant_id,
+                        KGMasterEntity.entity_type == entity.entity_type,
+                        KGMasterEntity.normalized_name == entity.normalized_name
+                    )
+                )
+            )
+            master = master_result.scalar_one_or_none()
+
+            if master:
+                # Link to existing master
+                entity.master_entity_id = master.id
+                master.entity_count += 1
+                master.last_seen_at = datetime.now()
+                # Merge properties (naive merge for now)
+                master.properties = {**master.properties, **entity.properties}
+                link_count += 1
+            else:
+                # Create new master entity
+                master = KGMasterEntity(
+                    tenant_id=tenant_id,
+                    entity_type=entity.entity_type,
+                    name=entity.name,
+                    normalized_name=entity.normalized_name,
+                    properties=entity.properties,
+                    entity_count=1,
+                    last_seen_at=datetime.now(),
+                )
+                self.db.add(master)
+                await self.db.flush()  # Get ID
+                entity.master_entity_id = master.id
+                link_count += 1
+
+        return link_count
 
     async def _cleanup_existing(self, contract_id: uuid.UUID) -> None:
         """Delete existing entities and relationships for a contract.

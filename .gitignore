@@ -138,3 +138,4 @@ playwright-report/
 claude-sdlc/
 research/
 tasks/
+deploy/environments.env

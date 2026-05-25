@@ -433,3 +433,22 @@ export async function reExtractMetadataField(
   )
   return response.data
 }
+
+// ============================================================================
+// Knowledge Graph endpoints
+// ============================================================================
+
+export async function extractKnowledgeGraph(
+  contractId: string,
+  forceReextract = false
+): Promise<{ status: string; entities_extracted: number; relationships_extracted: number }> {
+  const response = await client.post(`/knowledge-graph/contracts/${contractId}/extract`, null, {
+    params: { force_reextract: forceReextract }
+  })
+  return response.data
+}
+
+export async function getContractGraph(contractId: string): Promise<any> {
+  const response = await client.get(`/knowledge-graph/contracts/${contractId}`)
+  return response.data
+}

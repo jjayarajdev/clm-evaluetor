@@ -20,6 +20,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   MinusCircleIcon,
+  Square3Stack3DIcon,
 } from '@heroicons/react/24/outline'
 import type { ExtractionStageOutcome } from '@/types'
 import api from '@/lib/api'
@@ -34,6 +35,7 @@ import ContractSharing from '@/components/contracts/ContractSharing'
 import ContractDocumentsTab from '@/components/contracts/ContractDocumentsTab'
 import ContractReviewPane from '@/components/contracts/ContractReviewPane'
 import ContractPdfViewer from '@/components/contracts/ContractPdfViewer'
+import KnowledgeGraphTab from '@/components/contracts/KnowledgeGraphTab'
 import type { HighlightRect } from '@/lib/api/contracts'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
@@ -49,12 +51,14 @@ const TAB_ICON_MAP: Record<string, React.ComponentType<React.SVGProps<SVGSVGElem
   share: ShareIcon,
   shield: ShieldExclamationIcon,
   truck: DocumentTextIcon,
+  graph: Square3Stack3DIcon,
 }
 
 // Fallback tabs if config not loaded yet
 const DEFAULT_TABS = [
   { id: 'overview', label: 'Overview', icon: 'document' },
   { id: 'review', label: 'Review', icon: 'eye' },
+  { id: 'graph', label: 'Knowledge Graph', icon: 'graph' },
   { id: 'slas', label: 'SLAs', icon: 'chart' },
   { id: 'related', label: 'Related Docs', icon: 'link' },
   { id: 'documents', label: 'Documents', icon: 'folder' },
@@ -79,6 +83,7 @@ const STAGE_DISPLAY: { key: string; label: string }[] = [
   { key: 'regulatory_extraction', label: 'Regulatory Obligations' },
   { key: 'hierarchy_detection', label: 'Hierarchy Detection' },
   { key: 'governance_bridge', label: 'Governance Bridge' },
+  { key: 'graph_verification', label: 'Graph Verification' },
 ]
 
 function ExtractionHealthPanel({
@@ -467,6 +472,13 @@ export default function ContractViewPage() {
         </div>
       )}
 
+      {/* Knowledge Graph Tab - full-bleed, no padding */}
+      {activeTab === 'graph' && isCompleted && id && (
+        <div className="flex-1 overflow-hidden p-6 bg-gray-50">
+          <KnowledgeGraphTab contractId={id} tenantId={contract.tenant_id} />
+        </div>
+      )}
+
       {/* Quality Tab (Manufacturing) - full-bleed with PDF viewer */}
       {activeTab === 'quality' && isCompleted && id && (
         <div className="flex-1 overflow-hidden">
@@ -493,8 +505,8 @@ export default function ContractViewPage() {
         </div>
       )}
 
-      {/* Tab Content (all tabs except review, quality, supply_chain) */}
-      {activeTab !== 'review' && activeTab !== 'quality' && activeTab !== 'supply_chain' && (
+      {/* Tab Content (all tabs except review, quality, supply_chain, graph) */}
+      {activeTab !== 'review' && activeTab !== 'quality' && activeTab !== 'supply_chain' && activeTab !== 'graph' && (
       <div className="flex-1 overflow-auto p-6 bg-gray-50">
         {/* Processing error banner */}
         {contract.processing_error && (

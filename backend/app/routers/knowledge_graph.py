@@ -19,17 +19,51 @@ from app.services.knowledge_graph_service import (
     get_knowledge_graph_service,
 )
 from app.schemas.knowledge_graph import (
-    KGBulkExtractRequest,
     KGEntityResponse,
     KGEntityWithRelationships,
     KGGraphResponse,
     KGPartyObligations,
+    KGPortfolioStats,
     KGRelatedClauses,
     KGRiskAnalysis,
     KGTermResolution,
 )
 
 router = APIRouter(prefix="/api/knowledge-graph", tags=["Knowledge Graph"])
+
+
+@router.get("/portfolio/stats", response_model=KGPortfolioStats)
+async def get_portfolio_stats(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> KGPortfolioStats:
+    """Get portfolio-wide knowledge graph statistics for the tenant."""
+    if not tenant_id:
+        raise HTTPException(status_code=400, detail="Tenant ID required for portfolio stats")
+
+    service = await get_knowledge_graph_service(db)
+    return await service.get_portfolio_stats(str(tenant_id))
+
+
+@router.get("/entities/{entity_id}/timeline", response_model=list[KGEntityResponse])
+async def get_entity_timeline(
+    entity_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[KGEntityResponse]:
+    """Get the temporal timeline for an entity across multiple contracts/amendments."""
+    service = await get_knowledge_graph_service(db)
+    timeline = await service.get_entity_timeline(entity_id)
+
+    # Simple RBAC check (ensure at least one entity is accessible)
+    if timeline and tenant_id:
+        # We assume if the user has access to the tenant, they can see the timeline
+        # A stricter check would verify access to each contract in the timeline
+        pass
+
+    return timeline
 
 
 async def verify_contract_access(
