@@ -222,7 +222,6 @@ class Obligation(Base, UUIDMixin, TimestampMixin):
     category: Mapped[ObligationCategory | None] = mapped_column(
         Enum(ObligationCategory, name='obligationcategory', create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=True,
-        index=True,
     )
 
     # Frequency
@@ -237,7 +236,6 @@ class Obligation(Base, UUIDMixin, TimestampMixin):
         Enum(RAGStatus, name='ragstatus', create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=True,
         default=RAGStatus.NOT_ASSESSED,
-        index=True,
     )
 
     # Compliance tracking

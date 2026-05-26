@@ -5,6 +5,7 @@ Provides methods for traversing and querying the contract knowledge graph.
 
 import logging
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select, text

@@ -58,7 +58,6 @@ const TAB_ICON_MAP: Record<string, React.ComponentType<React.SVGProps<SVGSVGElem
 const DEFAULT_TABS = [
   { id: 'overview', label: 'Overview', icon: 'document' },
   { id: 'review', label: 'Review', icon: 'eye' },
-  { id: 'graph', label: 'Knowledge Graph', icon: 'graph' },
   { id: 'slas', label: 'SLAs', icon: 'chart' },
   { id: 'related', label: 'Related Docs', icon: 'link' },
   { id: 'documents', label: 'Documents', icon: 'folder' },
@@ -472,13 +471,6 @@ export default function ContractViewPage() {
         </div>
       )}
 
-      {/* Knowledge Graph Tab - full-bleed, no padding */}
-      {activeTab === 'graph' && isCompleted && id && (
-        <div className="flex-1 overflow-hidden p-6 bg-gray-50">
-          <KnowledgeGraphTab contractId={id} tenantId={contract.tenant_id} />
-        </div>
-      )}
-
       {/* Quality Tab (Manufacturing) - full-bleed with PDF viewer */}
       {activeTab === 'quality' && isCompleted && id && (
         <div className="flex-1 overflow-hidden">
@@ -505,8 +497,8 @@ export default function ContractViewPage() {
         </div>
       )}
 
-      {/* Tab Content (all tabs except review, quality, supply_chain, graph) */}
-      {activeTab !== 'review' && activeTab !== 'quality' && activeTab !== 'supply_chain' && activeTab !== 'graph' && (
+      {/* Tab Content (all tabs except review, quality, supply_chain) */}
+      {activeTab !== 'review' && activeTab !== 'quality' && activeTab !== 'supply_chain' && (
       <div className="flex-1 overflow-auto p-6 bg-gray-50">
         {/* Processing error banner */}
         {contract.processing_error && (
