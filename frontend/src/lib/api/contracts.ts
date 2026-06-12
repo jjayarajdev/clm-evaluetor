@@ -401,3 +401,54 @@ export async function createDocumentSection(contractId: string, docId: string, d
   const response = await client.post(`/contracts/${contractId}/documents/${docId}/sections`, data)
   return response.data
 }
+
+// ============ #30 — Re-extract single metadata field ============
+
+export type ReExtractableField =
+  | 'counterparty'
+  | 'contract_type'
+  | 'effective_date'
+  | 'expiration_date'
+  | 'contract_value'
+  | 'currency'
+  | 'jurisdiction'
+
+export interface ReExtractMetadataResponse {
+  field: string
+  applied: boolean
+  new_value?: string | number | null
+  raw_text?: string | null
+  confidence?: number | null
+  reason?: string | null
+}
+
+export async function reExtractMetadataField(
+  contractId: string,
+  field: ReExtractableField,
+  hint?: string,
+): Promise<ReExtractMetadataResponse> {
+  const response = await client.post<ReExtractMetadataResponse>(
+    `/contracts/${contractId}/re-extract-metadata`,
+    { field, hint: hint || null },
+  )
+  return response.data
+}
+
+// ============================================================================
+// Knowledge Graph endpoints
+// ============================================================================
+
+export async function extractKnowledgeGraph(
+  contractId: string,
+  forceReextract = false
+): Promise<{ status: string; entities_extracted: number; relationships_extracted: number }> {
+  const response = await client.post(`/knowledge-graph/contracts/${contractId}/extract`, null, {
+    params: { force_reextract: forceReextract }
+  })
+  return response.data
+}
+
+export async function getContractGraph(contractId: string): Promise<any> {
+  const response = await client.get(`/knowledge-graph/contracts/${contractId}`)
+  return response.data
+}

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 320" width="420" height="320">
+  <!-- OPTION B: Text fully inside bottom-right quadrant, white, clean -->
+  <g transform="translate(32, 32)">
+    <path d="M 0,72 A 72,72 0 0,1 72,0 L 166,0 L 166,114 L 0,114 Z" fill="#7C3AED"/>
+    <path d="M 184,0 L 280,0 A 72,72 0 0,1 352,72 L 352,114 L 184,114 Z" fill="#FB923C"/>
+    <path d="M 0,132 L 166,132 L 166,250 L 72,250 A 72,72 0 0,1 0,178 Z" fill="#FB923C"/>
+    <path d="M 184,132 L 352,132 L 352,178 A 72,72 0 0,1 280,250 L 184,250 Z" fill="#7C3AED"/>
+  </g>
+  <!-- Text cleanly inside bottom-right purple quadrant -->
+  <text x="300" y="218" font-family="Calibri, 'Segoe UI', sans-serif" font-size="26"
+        font-weight="700" font-style="italic" fill="white" letter-spacing="-0.3"
+        text-anchor="middle">Evaluetor</text>
+</svg>

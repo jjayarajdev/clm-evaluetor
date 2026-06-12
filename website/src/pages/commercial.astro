@@ -1,0 +1,1295 @@
+---
+import MarketingLayout from '../layouts/MarketingLayout.astro';
+
+// ─── Content ──────────────────────────────────────────────────────────────
+
+const leakages = [
+  ['Off-contract spend',         'Procurement bought outside negotiated terms.'],
+  ['Pricing & discount control', 'Discounts applied incorrectly or unchecked.'],
+  ['Unclaimed rebates',          'Volume rebates and credits never claimed.'],
+  ['Visibility gaps',            'No one knows what is in the contract base.'],
+  ['Scope creep',                'Additional work delivered, never repriced.'],
+  ['Unenforced SLAs',            'Breaches detected late, credits never billed.'],
+  ['Accidental renewals',        'Auto-renewals fired before notice given.'],
+  ['Forecast errors',            'Volume commitments missed or oversold.'],
+  ['Legal–commercial drift',     'Signed terms diverge from operational reality.'],
+  ['No single owner',            'No one accountable for value realisation.'],
+];
+
+const principles = [
+  ['Contract ≠ Document',                       'Data, obligations and risk — not a PDF.'],
+  ['Post-signature is the value zone',          '70–80% of leakage happens after signing.'],
+  ['Business owns value. Legal owns integrity.','Separated responsibilities, written down.'],
+  ['One contract truth',                        'A single source across every system.'],
+  ['No unmanaged deviations',                   'Every change priced, approved, logged.'],
+  ['Value is measured, not assumed',            'Realised outcomes against negotiated terms.'],
+];
+
+const timelineEvents = [
+  { at: 8,  label: 'Scope change',     loss: 'low' },
+  { at: 15, label: 'SLA breach',       loss: 'high' },
+  { at: 19, label: 'Missed deadline',  loss: 'mid' },
+  { at: 24, label: 'Volume miss',      loss: 'mid' },
+  { at: 28, label: 'Unclaimed credit', loss: 'high' },
+  { at: 33, label: 'Auto-renewal',     loss: 'mid' },
+];
+
+const connectors = [
+  {
+    title: 'Volumes', where: 'ERP', systems: 'SAP · Oracle · NetSuite',
+    desc: 'Compare actuals against committed volumes. Trigger rebate claims automatically.',
+    sample: [['Committed', '12,000'], ['Actual', '9,840'], ['Tier', '3'], ['At risk', '€184,200']],
+  },
+  {
+    title: 'SLA', where: 'ServiceNow', systems: 'ITSM · ticketing',
+    desc: 'Read incidents, response and resolution times. Detect breaches in real time.',
+    sample: [['Target', '15m'], ['Actual', '23m'], ['Breached', '7 / 12'], ['Credit', '4.2% MRR']],
+  },
+  {
+    title: 'FX', where: 'ECB', systems: 'European Central Bank',
+    desc: 'Pull live FX rates for indexed contracts. Flag the moment thresholds break.',
+    sample: [['Peg', '1.0850'], ['Today', '1.1024'], ['Δ', '+1.6%'], ['Status', 'Reprice']],
+  },
+];
+
+const capabilities = [
+  ['Contract Intelligence',   'Metadata · 30+ clause types · 10 risk categories · semantic search.', false],
+  ['Obligation Tracking',     'RAG status · owner assignment · escalation · evidence of completion.', false],
+  ['SLA Monitoring',          'Breach detection · automated credit math · A–F vendor scorecards.', false],
+  ['Renewal Management',      'Auto-renewal detection · notice periods · AI recommendations.', false],
+  ['Relationship Governance', 'Perception gap analysis · health scoring · improvement points.', true],
+  ['Enterprise Security',     'Encryption · role-based access · multi-tenant isolation · audit trails. Certifications on the roadmap.', false],
+];
+
+// Risk heatmap data — 10 categories × 4 severities (Low/Med/High/Crit)
+const riskCategories = ['Indemnity', 'Liability', 'IP', 'Termination', 'Confidentiality', 'Non-compete', 'Data', 'Insurance', 'Warranty', 'Force majeure'];
+const riskMatrix = [
+  [4, 12, 8,  2], [3, 9, 14, 5], [6, 11, 5, 1], [2, 7, 11, 3], [8, 14, 6, 0],
+  [5, 9, 4, 0],   [1, 6, 13, 7], [7, 10, 5, 1], [3, 8, 9, 2], [4, 6, 3, 1],
+];
+
+// Obligation RAG mock rows
+const obligations = [
+  { id: 'OB-241',  obj: 'Quarterly DPA review',          owner: 'A. Bakker',    due: 'in 4 d', status: 'amber' },
+  { id: 'OB-198',  obj: 'Notify of subprocessor change', owner: 'M. de Vries',  due: 'overdue 2 d', status: 'red' },
+  { id: 'OB-312',  obj: 'Annual SOC 2 evidence pack',    owner: 'J. Visser',    due: 'in 47 d', status: 'green' },
+  { id: 'OB-289',  obj: 'Volume commitment report',      owner: 'L. Smit',      due: 'in 12 d', status: 'amber' },
+  { id: 'OB-176',  obj: 'Insurance certificate refresh', owner: 'C. Janssen',   due: 'in 3 d',  status: 'amber' },
+];
+
+// SLA scorecard mock
+const slaScorecard = [
+  { v: 'Acme Telco',        grade: 'B+', compliance: '94.2%', breaches: 12, impact: '€8,400'  },
+  { v: 'Vertex Logistics',  grade: 'A-', compliance: '97.8%', breaches: 4,  impact: '€1,200'  },
+  { v: 'Lumen Cloud',       grade: 'D',  compliance: '81.3%', breaches: 38, impact: '€42,800' },
+  { v: 'Nordic Hosting',    grade: 'A',  compliance: '99.1%', breaches: 1,  impact: '€0'      },
+  { v: 'Pacific ITSM',      grade: 'C',  compliance: '88.0%', breaches: 21, impact: '€18,600' },
+];
+
+// Perception gap mock
+const perceptions = [
+  { k: 'Responsiveness',     us: 72, them: 88 },
+  { k: 'Quality of delivery', us: 65, them: 81 },
+  { k: 'Communication',      us: 70, them: 78 },
+  { k: 'Innovation',         us: 58, them: 76 },
+  { k: 'Commercial fairness', us: 80, them: 68 },
+];
+
+const disciplines = [
+  {
+    no: '01', title: 'Obligation Tracking',
+    summary: 'Every promise tracked, owned, evidenced.',
+    body: 'A contract is small promises — delivery, reporting, payment, notice, certification. Most are forgotten by Q3. We find them, hand each to a named owner, stamp the evidence when done.',
+    flow: ['Extract', 'Classify (7 types)', 'Assign owner', 'RAG status', 'Evidence & audit'],
+    mock: 'rag',
+  },
+  {
+    no: '02', title: 'Risk Detection',
+    summary: 'What is buried in the boilerplate.',
+    body: 'Indemnities without caps. Termination on twelve hours notice. Confidentiality outliving the deal. Every clause read, scored against ten dimensions, deviations from portfolio norms flagged.',
+    flow: ['Parse (OCR)', 'Classify (30+ clauses)', 'Categorise (10 risks)', 'Score severity', 'Portfolio alert'],
+    mock: 'heatmap',
+  },
+  {
+    no: '03', title: 'SLA Monitoring',
+    summary: 'Recover what you are owed.',
+    body: 'Most enterprises pay for service levels they do not actively measure. We extract every SLA term, ingest the real numbers, and count the credits owed before the vendor counts them for you.',
+    flow: ['Extract terms', 'Ingest actuals', 'Compare', 'Classify breach', 'Calculate credit'],
+    mock: 'scorecard',
+  },
+  {
+    no: '04', title: 'Relationship Governance',
+    summary: 'The view from both sides of the table.',
+    body: 'Every other CLM stops at the contract. We go into the relationship it is supposed to govern. Dual-perspective scoring reveals the gap between how you see them and how they see you.',
+    flow: ['Link orgs', 'Build relationship', 'Score KPIs', 'Detect gaps', 'Improvement points'],
+    mock: 'gap',
+  },
+];
+
+const metrics = [
+  { v: '90%',  l: 'Target reduction in contract review time',          w: 'Legal' },
+  { v: '3–5×', l: 'Service credits identifiable, vs current claiming', w: 'Procurement' },
+  { v: '95%',  l: 'Target reduction in missed deadlines',              w: 'Operations' },
+  { v: '$2M+', l: 'Recoverable credits in a typical mid-market portfolio', w: 'Finance' },
+];
+
+const compare = {
+  cols: ['Evaluetor', 'DocuSign CLM', 'Icertis', 'Ironclad'],
+  rows: [
+    ['Time to first outcome',   ['Within weeks',  '6–12 months',  '12–18 months', '3–6 months']],
+    ['Native AI agents',        ['Nine',          'Limited',      'Add-on',       'Limited']],
+    ['SLA monitoring',          ['Built-in',      'Not standard', 'Add-on',       'Not standard']],
+    ['Obligation tracking',     ['AI-extracted',  'Manual',       'Manual',       'Limited']],
+    ['Relationship governance', ['Built-in',      'Not standard', 'Not standard', 'Not standard']],
+    ['Knowledge graph',         ['Built-in',      'Not standard', 'Not standard', 'Not standard']],
+    ['Unlimited users',         ['Yes',           'Per-seat',     'Per-seat',     'Per-seat']],
+    ['LLM observability',       ['Langfuse',      'Not standard', 'Not standard', 'Not standard']],
+  ],
+};
+
+// Deployment timeline comparison (in weeks)
+const deploy = [
+  { vendor: 'Evaluetor',    weeks: 0.2 },
+  { vendor: 'Ironclad',     weeks: 16 },
+  { vendor: 'DocuSign CLM', weeks: 36 },
+  { vendor: 'Icertis',      weeks: 60 },
+];
+---
+
+<MarketingLayout
+  title="Post-signature contract value — Evaluetor"
+  description="Organisations lose 8–11% of contract value after signing. Evaluetor is AI-native CLM, built in Rotterdam, that catches the leakage every other tool misses."
+>
+
+<style is:global>
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap');
+
+  /* ─── Dutch B2B palette ─── */
+  :root {
+    --paper:    #F7F6F3;
+    --paper-2:  #EFEDE8;
+    --paper-3:  #E5E2D9;
+    --surface:  #FFFFFF;
+    --ink:      #0E0E10;
+    --ink-2:    #2D2F36;
+    --ink-3:    #6B6F78;
+    --ink-4:    #A0A4AB;
+    --rule:     #1A1A1C;
+    --rule-2:   #D8D5CD;
+    --rule-3:   #BDBAB1;
+    --orange:   #E94E1B;
+    --orange-2: #C73E0F;
+    --orange-w: #F8D9CB;
+    --red:      #B91C1C;
+    --amber:    #D97706;
+    --green:    #15803D;
+    --blue:     #1B3B5A;
+  }
+
+  body { background: var(--paper) !important; color: var(--ink); }
+
+  .dutch {
+    font-family: 'Geist', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+    color: var(--ink);
+    font-feature-settings: 'ss01' 1, 'kern' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .dutch .mono    { font-family: 'Geist Mono', 'IBM Plex Mono', ui-monospace, monospace; font-feature-settings: 'ss02' 1; }
+  .dutch .ink     { color: var(--ink); }
+  .dutch .ink-2   { color: var(--ink-2); }
+  .dutch .ink-3   { color: var(--ink-3); }
+  .dutch .ink-4   { color: var(--ink-4); }
+  .dutch .orange  { color: var(--orange); }
+
+  /* ─── Typography ─── */
+  .display   { font-family: 'Geist', sans-serif; font-weight: 500; letter-spacing: -0.025em; line-height: 1.0; }
+  .display-xl { font-size: clamp(40px, 5.4vw, 76px); }
+  .display-lg { font-size: clamp(34px, 4.6vw, 64px); }
+  .display-md { font-size: clamp(26px, 3.0vw, 40px); }
+
+  /* ─── Italic emphasis (Ironclad/Luminance punch-word pattern) ─── */
+  .emph {
+    font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  .emph-sans {
+    font-style: italic;
+    font-weight: 400;
+  }
+
+  /* ─── Huge discipline numeral ─── */
+  .numeral-huge {
+    font-family: 'Geist', sans-serif;
+    font-size: clamp(72px, 9vw, 132px);
+    font-weight: 300;
+    letter-spacing: -0.04em;
+    line-height: 0.82;
+    color: var(--orange);
+    font-variant-numeric: tabular-nums;
+  }
+  .display-sm { font-size: clamp(18px, 1.8vw, 22px); font-weight: 600; }
+
+  .lead { font-size: clamp(16px, 1.2vw, 18px); line-height: 1.55; color: var(--ink-2); }
+
+  .label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .label-ink    { color: var(--ink); }
+  .label-orange { color: var(--orange); }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* ─── Rules ─── */
+  .rule       { border-top: 1px solid var(--rule); }
+  .rule-soft  { border-top: 1px solid var(--rule-2); }
+  .rule-thick { border-top: 3px solid var(--rule); }
+  .rule-ora   { border-top: 3px solid var(--orange); }
+
+  /* ─── Section frame ─── */
+  .section       { padding: clamp(48px, 4.8vw, 72px) 0; }
+  .section-tight { padding: clamp(36px, 3.4vw, 56px) 0; }
+  .wrap { max-width: 84rem; padding-left: 20px; padding-right: 20px; margin-left: auto; margin-right: auto; }
+  @media (min-width: 768px) { .wrap { padding-left: 32px; padding-right: 32px; } }
+  @media (min-width: 1280px) { .wrap { padding-left: 48px; padding-right: 48px; } }
+
+  /* ─── Scroll reveal ─── */
+  .sr { opacity: 0; transform: translateY(10px); transition: opacity .6s cubic-bezier(.2,.7,.2,1), transform .6s cubic-bezier(.2,.7,.2,1); }
+  .sr.in { opacity: 1; transform: none; }
+
+  .stagger > * { opacity: 0; transform: translateY(8px); animation: in 0.7s cubic-bezier(.2,.7,.2,1) forwards; }
+  .stagger > *:nth-child(1) { animation-delay: .05s; }
+  .stagger > *:nth-child(2) { animation-delay: .12s; }
+  .stagger > *:nth-child(3) { animation-delay: .22s; }
+  .stagger > *:nth-child(4) { animation-delay: .34s; }
+  .stagger > *:nth-child(5) { animation-delay: .48s; }
+  @keyframes in { to { opacity: 1; transform: none; } }
+
+  /* ─── Sectionhead grammar ─── */
+  .sechead { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; align-items: baseline; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+  .sechead-num { grid-column: span 12; }
+  .sechead-h   { grid-column: span 12; }
+  @media (min-width: 768px) {
+    .sechead-num { grid-column: span 3; }
+    .sechead-h   { grid-column: span 9; }
+  }
+
+  /* ─── Hero leakage bar ─── */
+  .leak-bar {
+    display: flex; height: 56px;
+    border: 1px solid var(--rule); background: var(--surface);
+  }
+  .leak-fill { background: var(--ink); }
+  .leak-loss { background: var(--orange); position: relative; }
+  .leak-loss::after {
+    content: ''; position: absolute; inset: 0;
+    background-image: linear-gradient(135deg, transparent 0 49%, rgba(0,0,0,0.18) 49% 51%, transparent 51% 100%);
+    background-size: 8px 8px;
+  }
+
+  /* ─── Lifecycle timeline ─── */
+  .tl { position: relative; height: 140px; border: 1px solid var(--rule); background: var(--surface); }
+  .tl-region {
+    position: absolute; top: 0; bottom: 0;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 14px 18px;
+  }
+  .tl-region.exec {
+    background: var(--ink); color: var(--paper);
+    border-left: 1px solid var(--rule); border-right: 1px solid var(--rule);
+  }
+  .tl-region.exec::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--orange);
+  }
+  .tl-region .label { color: inherit; opacity: 0.6; }
+  .tl-region.exec .label { color: var(--orange); opacity: 1; }
+  .tl-event {
+    position: absolute; bottom: -38px;
+    transform: translateX(-50%);
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-3); white-space: nowrap;
+  }
+  .tl-event::before {
+    content: ''; display: block;
+    width: 1px; height: 14px; background: var(--ink-3);
+    margin: 0 auto 6px;
+  }
+  .tl-event.hi::before { background: var(--orange); height: 18px; }
+  .tl-event.hi { color: var(--orange); }
+  .tl-axis {
+    margin-top: 56px;
+    display: flex; justify-content: space-between;
+    font-family: 'Geist Mono', monospace; font-size: 10px;
+    color: var(--ink-3); letter-spacing: 0.06em;
+  }
+
+  /* ─── Connector card ─── */
+  .conn {
+    background: var(--surface);
+    border: 1px solid var(--rule-2);
+    border-top: 3px solid var(--orange);
+    padding: 18px 20px;
+  }
+  .conn-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  .conn-table td { padding: 7px 0; border-bottom: 1px solid var(--rule-2); font-size: 13px; }
+  .conn-table td:first-child { color: var(--ink-3); font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .conn-table td:last-child  { text-align: right; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .conn-table tr:last-child td { border-bottom: 0; }
+
+  /* ─── Capability list ─── */
+  .cap-row { display: grid; grid-template-columns: 28px 1fr; gap: 14px; padding: 14px 0; border-top: 1px solid var(--rule-2); }
+  .cap-row:last-child { border-bottom: 1px solid var(--rule-2); }
+  .cap-num { font-family: 'Geist Mono', monospace; font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.08em; padding-top: 3px; }
+  .cap-t { font-size: 16px; font-weight: 500; color: var(--ink); display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .cap-d { font-size: 13px; color: var(--ink-3); margin-top: 3px; line-height: 1.5; }
+  .ex-tag {
+    display: inline-block;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--orange);
+    padding: 1px 7px; border: 1px solid var(--orange);
+  }
+
+  /* ─── Comparison table ─── */
+  .ctable { width: 100%; border-collapse: collapse; }
+  .ctable thead th {
+    text-align: left;
+    font-family: 'Geist Mono', monospace; font-weight: 500;
+    font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-3); padding: 12px 14px 10px 0;
+    border-bottom: 1px solid var(--rule); vertical-align: bottom;
+  }
+  .ctable thead th.us {
+    color: var(--ink); font-family: 'Geist', sans-serif;
+    font-size: 15px; text-transform: none; letter-spacing: 0;
+    font-weight: 600; padding-right: 18px;
+  }
+  .ctable thead th.us::before {
+    content: ''; display: inline-block;
+    width: 6px; height: 6px; background: var(--orange);
+    margin-right: 8px; transform: translateY(-2px);
+  }
+  .ctable tbody td {
+    padding: 13px 14px 13px 0;
+    border-bottom: 1px solid var(--rule-2);
+    vertical-align: top; font-size: 14px;
+  }
+  .ctable tbody tr td:first-child { color: var(--ink); font-weight: 500; }
+  .ctable tbody td.us { color: var(--ink); font-weight: 600; padding-right: 18px; }
+  .ctable tbody td.them { color: var(--ink-3); }
+  .ctable tbody tr:last-child td { border-bottom: 0; }
+  .ctable tbody tr.zebra td { background: var(--paper-2); }
+
+  /* ═════ MOCK UI: RAG dashboard ═════ */
+  .mock { background: var(--surface); border: 1px solid var(--rule-2); padding: 0; }
+  .mock-head { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 14px; border-bottom: 1px solid var(--rule-2); background: var(--paper-2); }
+  .mock-head .ttl { font-size: 12px; font-weight: 600; }
+  .mock-head .meta { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.06em; }
+  .rag-row { display: grid; grid-template-columns: 8px 56px 1fr 100px 80px; gap: 10px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--rule-2); font-size: 12px; }
+  .rag-row:last-child { border-bottom: 0; }
+  .rag-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .rag-dot.red   { background: var(--red); }
+  .rag-dot.amber { background: var(--amber); }
+  .rag-dot.green { background: var(--green); }
+  .rag-id { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--ink-3); }
+  .rag-obj { color: var(--ink); }
+  .rag-owner { color: var(--ink-3); font-size: 11px; }
+  .rag-due { text-align: right; font-variant-numeric: tabular-nums; font-size: 11px; }
+  .rag-due.red { color: var(--red); font-weight: 600; }
+  .rag-due.amber { color: var(--amber); font-weight: 600; }
+  .rag-due.green { color: var(--green); }
+
+  /* ═════ MOCK UI: Risk heatmap ═════ */
+  .heat-wrap { padding: 14px; }
+  .heat-grid { display: grid; grid-template-columns: 110px repeat(4, 1fr); gap: 2px; }
+  .heat-h { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 8px; text-align: center; }
+  .heat-h.first { text-align: left; }
+  .heat-l { font-size: 11px; color: var(--ink); padding: 6px 8px; display: flex; align-items: center; background: var(--paper-2); }
+  .heat-c { font-family: 'Geist Mono', monospace; font-size: 11px; text-align: center; padding: 6px 4px; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* ═════ MOCK UI: SLA scorecard ═════ */
+  .sla-row { display: grid; grid-template-columns: 1fr 36px 64px 50px 80px; gap: 10px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--rule-2); font-size: 12px; }
+  .sla-row:last-child { border-bottom: 0; }
+  .sla-row.head { background: var(--paper-2); font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+  .sla-row.head > * { font-weight: 500; }
+  .sla-row.head > *:nth-child(n+2) { text-align: right; }
+  .sla-grade { font-weight: 700; text-align: right; }
+  .sla-grade.A { color: var(--green); }
+  .sla-grade.B { color: var(--ink); }
+  .sla-grade.C { color: var(--amber); }
+  .sla-grade.D { color: var(--red); }
+  .sla-num  { font-variant-numeric: tabular-nums; text-align: right; }
+
+  /* ═════ MOCK UI: Perception gap ═════ */
+  .gap-row { padding: 10px 14px; border-bottom: 1px solid var(--rule-2); }
+  .gap-row:last-child { border-bottom: 0; }
+  .gap-top { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; }
+  .gap-name { color: var(--ink); font-weight: 500; }
+  .gap-delta { font-family: 'Geist Mono', monospace; color: var(--orange); font-size: 10px; }
+  .gap-delta.pos { color: var(--green); }
+  .gap-track { position: relative; height: 8px; background: var(--paper-2); }
+  .gap-bar { position: absolute; top: 0; bottom: 0; }
+  .gap-us { background: var(--ink); }
+  .gap-them { background: var(--orange); opacity: 0.55; }
+  .gap-legend { display: flex; gap: 16px; font-family: 'Geist Mono', monospace; font-size: 10px; padding: 8px 14px; color: var(--ink-3); letter-spacing: 0.06em; }
+  .gap-legend .sw { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; }
+
+  /* ═════ Deployment timeline bars ═════ */
+  .dep-row { display: grid; grid-template-columns: 130px 1fr 70px; gap: 14px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--rule-2); }
+  .dep-row:last-child { border-bottom: 0; }
+  .dep-name { font-size: 13px; font-weight: 500; }
+  .dep-name.us { color: var(--ink); }
+  .dep-track { background: var(--paper-2); height: 10px; position: relative; }
+  .dep-fill { position: absolute; top: 0; bottom: 0; left: 0; }
+  .dep-fill.us { background: var(--orange); }
+  .dep-fill.them { background: var(--ink); }
+  .dep-num { font-family: 'Geist Mono', monospace; font-size: 11px; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* ─── CTA ─── */
+  .a-orange { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; border-bottom: 2px solid var(--orange); padding-bottom: 4px; font-weight: 500; transition: gap .25s ease; }
+  .a-orange:hover { gap: 16px; color: var(--orange); }
+  .a-orange .arr { color: var(--orange); }
+  .u-orange {
+    background-image: linear-gradient(transparent 76%, var(--orange) 76%, var(--orange) 92%, transparent 92%);
+    background-repeat: no-repeat; background-size: 100% 100%;
+  }
+
+  /* ─── Filled CTA button (Ironclad-style) ─── */
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--orange);
+    color: #fff;
+    padding: 14px 22px;
+    font-family: 'Geist', sans-serif;
+    font-weight: 500;
+    font-size: 15px;
+    text-decoration: none;
+    border: 1px solid var(--orange);
+    transition: background .2s ease, gap .25s ease;
+  }
+  .cta-btn:hover { background: var(--orange-2); border-color: var(--orange-2); gap: 16px; }
+  .cta-btn .arr { transition: transform .2s ease; }
+  .cta-btn:hover .arr { transform: translateX(2px); }
+  .cta-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--ink-3); font-size: 14px;
+    text-decoration: none; padding: 14px 4px;
+    transition: color .15s ease;
+  }
+  .cta-link:hover { color: var(--ink); }
+
+  /* ─── Hero "portfolio overview" product mock ─── */
+  .hero-mock {
+    background: var(--surface);
+    border: 1px solid var(--rule-2);
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+      0 0 0 1px var(--rule-2),
+      0 28px 60px -32px rgba(14,14,16,0.22),
+      0 2px 0 0 rgba(14,14,16,0.04);
+  }
+  .hm-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--rule-2);
+    background: var(--paper-2);
+  }
+  .hm-title { display: flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 600; color: var(--ink); }
+  .hm-title .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--orange);
+    box-shadow: 0 0 0 3px rgba(233,78,27,0.18);
+    animation: hm-pulse 2s ease-in-out infinite;
+  }
+  @keyframes hm-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(233,78,27,0.18); }
+    50%      { box-shadow: 0 0 0 6px rgba(233,78,27,0.08); }
+  }
+  .hm-title .sub { font-weight: 400; color: var(--ink-3); }
+  .hm-meta {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--ink-3);
+  }
+  .hm-illustr {
+    position: absolute;
+    top: 13px; right: 60px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-4);
+  }
+  .hm-body { padding: 16px 18px 18px; }
+  .hm-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+  }
+  .hm-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .hm-stat .v {
+    font-size: 28px; font-weight: 600;
+    letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink); line-height: 1;
+  }
+  .hm-stat .l { font-size: 11px; color: var(--ink-3); margin-top: 4px; }
+  .hm-stat.risk .v { color: var(--orange); }
+  .hm-divider { border-top: 1px solid var(--rule-2); margin: 16px -18px; }
+  .hm-alerts { display: flex; flex-direction: column; }
+  .hm-alert {
+    display: grid;
+    grid-template-columns: 10px 1fr auto;
+    gap: 12px;
+    align-items: start;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .hm-alert:last-child { border-bottom: 0; padding-bottom: 0; }
+  .hm-alert:first-child { padding-top: 0; }
+  .hm-alert .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    margin-top: 5px;
+  }
+  .hm-alert .dot.red    { background: var(--red); }
+  .hm-alert .dot.amber  { background: var(--amber); }
+  .hm-alert .dot.orange { background: var(--orange); }
+  .hm-alert .ttl {
+    font-size: 12.5px; font-weight: 500; color: var(--ink);
+    line-height: 1.3;
+  }
+  .hm-alert .sub2 {
+    font-size: 11px; color: var(--ink-3); margin-top: 2px;
+    font-family: 'Geist Mono', monospace; letter-spacing: 0.02em;
+  }
+  .hm-alert .imp {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--orange);
+    font-weight: 600;
+    white-space: nowrap;
+    align-self: center;
+  }
+
+  /* Soft-override header chrome */
+  header.fixed { background: rgba(247, 246, 243, 0.86) !important; backdrop-filter: blur(14px); border-bottom-color: rgba(14,14,16,0.08) !important; }
+</style>
+
+<article class="dutch">
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 01 · HERO + LEAKAGE VISUAL                                   -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="section">
+    <div class="wrap">
+      <div class="stagger">
+
+        <!-- Top label row -->
+        <div class="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2 pb-4 rule">
+          <div class="label label-ink">Evaluetor &nbsp;·&nbsp; Rotterdam, NL</div>
+          <div class="label">Post-signature contract intelligence</div>
+          <div class="label">© 2026 &nbsp;·&nbsp; Senority B.V.</div>
+        </div>
+
+        <!-- Hero · two-column · headline + product mock -->
+        <div class="grid grid-cols-12 gap-x-8 gap-y-12 pt-14 pb-12 items-start">
+
+          <!-- Left: headline + lead + CTA -->
+          <div class="col-span-12 lg:col-span-7">
+            <div class="label label-orange mb-6">01 / The problem</div>
+
+            <h1 class="display" style="font-size: clamp(44px, 6.8vw, 96px); line-height: 0.96; letter-spacing: -0.028em;">
+              After the ink dries,<br/>
+              <span class="u-orange tnum">eight to eleven percent</span><br/>
+              of every contract<br/>
+              <span class="emph">quietly leaves the building.</span><sup class="orange text-[18px] align-super">¹</sup>
+            </h1>
+
+            <p class="lead mt-8 max-w-2xl" style="font-size: clamp(17px, 1.3vw, 20px);">
+              The loss does not happen at the negotiating table. It happens during execution — in the gap between what the contract says and what actually gets done. Evaluetor closes the gap.
+            </p>
+
+            <div class="mt-9 flex flex-wrap items-center gap-x-3 gap-y-3">
+              <a href="/contact" class="cta-btn">
+                Schedule a 30-minute review <span class="arr">→</span>
+              </a>
+              <a href="#disciplines" class="cta-link">See the four disciplines &nbsp;→</a>
+            </div>
+          </div>
+
+          <!-- Right: product mock — portfolio overview -->
+          <aside class="col-span-12 lg:col-span-5">
+            <div class="hero-mock">
+              <div class="hm-head">
+                <div class="hm-title">
+                  <span class="dot"></span>
+                  Evaluetor <span class="sub">· portfolio overview</span>
+                </div>
+                <div class="hm-meta">20.05.26 · LIVE</div>
+              </div>
+              <div class="hm-illustr">illustrative</div>
+
+              <div class="hm-body">
+                <div class="hm-label">Portfolio at a glance</div>
+                <div class="hm-stats">
+                  <div class="hm-stat">
+                    <div class="v">142</div>
+                    <div class="l">contracts under management</div>
+                  </div>
+                  <div class="hm-stat">
+                    <div class="v">€48.2M</div>
+                    <div class="l">annual contract value</div>
+                  </div>
+                  <div class="hm-stat risk">
+                    <div class="v">€4.6M</div>
+                    <div class="l">value at risk (Q2 view)</div>
+                  </div>
+                </div>
+
+                <div class="hm-divider"></div>
+
+                <div class="hm-label">Active alerts · last 7 days</div>
+                <div class="hm-alerts">
+                  <div class="hm-alert">
+                    <span class="dot red"></span>
+                    <div>
+                      <div class="ttl">Acme Telco — Priority-1 SLA breach</div>
+                      <div class="sub2">5 incidents · 90-day window</div>
+                    </div>
+                    <div class="imp">€8,400</div>
+                  </div>
+                  <div class="hm-alert">
+                    <span class="dot orange"></span>
+                    <div>
+                      <div class="ttl">Vertex Logistics — Volume below tier 3</div>
+                      <div class="sub2">Q1 rebate at risk</div>
+                    </div>
+                    <div class="imp">€184,200</div>
+                  </div>
+                  <div class="hm-alert">
+                    <span class="dot amber"></span>
+                    <div>
+                      <div class="ttl">Nordic Hosting — Auto-renewal in 14 days</div>
+                      <div class="sub2">Notice deadline approaching</div>
+                    </div>
+                    <div class="imp">act now</div>
+                  </div>
+                  <div class="hm-alert">
+                    <span class="dot red"></span>
+                    <div>
+                      <div class="ttl">Lumen Cloud — 3 obligations overdue</div>
+                      <div class="sub2">2 amber · 1 escalation pending</div>
+                    </div>
+                    <div class="imp">review</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <!-- Footnote, full-width below -->
+        <p class="text-[11px] ink-3 max-w-4xl mono leading-relaxed pt-6 rule-soft">
+          <span class="ink">¹</span> &nbsp; Industry research has consistently reported post-signature contract value losses in this range. Active contract management programmes have been associated with meaningful recovery of identified leakage. Exact figures vary by sector, contract size and methodology — happy to share the studies we have drawn on under NDA.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 02 · TEN LEAKAGES + PRINCIPLES                               -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="section sr" style="background: var(--paper-2);">
+    <div class="wrap">
+      <header class="sechead">
+        <div class="sechead-num label label-ink">02 / Where it leaks</div>
+        <h2 class="sechead-h display display-lg">Ten places the money tends to <span class="emph">walk out the door</span>.</h2>
+      </header>
+
+      <div class="grid grid-cols-12 gap-x-8 gap-y-10 mt-10">
+        <!-- The ten as a tight ledger table -->
+        <div class="col-span-12 lg:col-span-7">
+          <div class="rule-thick"></div>
+          {leakages.map(([t, d], i) => (
+            <div class="grid grid-cols-12 gap-x-4 items-baseline py-3 rule-soft">
+              <div class="col-span-1 mono ink-3 text-[12px] tnum">{String(i+1).padStart(2,'0')}</div>
+              <div class="col-span-4 text-[15px] font-medium ink leading-tight">{t}</div>
+              <div class="col-span-7 text-[13px] ink-3 leading-snug">{d}</div>
+            </div>
+          ))}
+        </div>
+
+        <!-- Right: principles -->
+        <aside class="col-span-12 lg:col-span-5 lg:pl-8 lg:border-l" style="border-color: var(--rule-2);">
+          <div class="label mb-4">Target operating model · the six principles</div>
+          <div>
+            {principles.map(([t, d], i) => (
+              <div class="grid grid-cols-12 gap-x-4 items-baseline py-3 rule-soft" style={i === 0 ? 'border-top:1px solid var(--rule);' : ''}>
+                <div class="col-span-1 mono ink-3 text-[12px] tnum">{String(i+1).padStart(2,'0')}</div>
+                <div class="col-span-11">
+                  <div class="text-[14px] font-medium ink leading-tight">{t}</div>
+                  <div class="text-[12px] ink-3 mt-1 leading-snug">{d}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 03 · LIFECYCLE TIMELINE                                       -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="section sr">
+    <div class="wrap">
+      <header class="sechead">
+        <div class="sechead-num label label-ink">03 / Where value lives</div>
+        <h2 class="sechead-h display display-lg">Contracting matters. So does renewal. <span class="emph">But the long middle is where value is made — or quietly mislaid.</span></h2>
+      </header>
+
+      <!-- Value erosion chart — SVG -->
+      <div class="mt-10 mb-10">
+        <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 mb-3">
+          <div class="label">Realised value &nbsp;·&nbsp; per €100 signed, plotted over 36 months</div>
+          <div class="label flex items-center gap-4">
+            <span><span class="inline-block w-3 h-0.5 mr-1.5 align-middle" style="background:var(--ink);"></span>Negotiated</span>
+            <span><span class="inline-block w-3 h-0.5 mr-1.5 align-middle" style="background:var(--orange);"></span>Realised</span>
+            <span><span class="inline-block w-3 h-3 mr-1.5 align-middle" style="background:repeating-linear-gradient(135deg, transparent 0 3px, var(--orange) 3px 4px);"></span>Leakage</span>
+          </div>
+        </div>
+
+        <!-- The chart -->
+        <div style="background: var(--surface); border: 1px solid var(--rule);">
+          <svg viewBox="0 0 960 268" preserveAspectRatio="xMidYMid meet" style="display:block; width:100%; height:auto;">
+            <defs>
+              <pattern id="leakHatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(135)">
+                <rect width="6" height="6" fill="transparent"/>
+                <line x1="0" y1="0" x2="0" y2="6" stroke="#E94E1B" stroke-width="1.2" opacity="0.55"/>
+              </pattern>
+            </defs>
+
+            <!-- Phase region tints -->
+            <rect x="70"  y="46" width="67"  height="180" fill="#EFEDE8"/>
+            <rect x="137" y="46" width="666" height="180" fill="#0E0E10" opacity="0.045"/>
+            <rect x="803" y="46" width="67"  height="180" fill="#EFEDE8"/>
+
+            <!-- Phase divider lines -->
+            <line x1="137" y1="46" x2="137" y2="226" stroke="#0E0E10" stroke-width="1" stroke-dasharray="2 3"/>
+            <line x1="803" y1="46" x2="803" y2="226" stroke="#0E0E10" stroke-width="1" stroke-dasharray="2 3"/>
+
+            <!-- Phase labels -->
+            <text x="103" y="30" font-family="Geist, sans-serif" font-size="12" fill="#6B6F78" text-anchor="middle">Contracting</text>
+            <text x="470" y="30" font-family="Geist, sans-serif" font-size="12" fill="#0E0E10" text-anchor="middle" font-weight="600">Execution</text>
+            <text x="836" y="30" font-family="Geist, sans-serif" font-size="12" fill="#6B6F78" text-anchor="middle">Renewal</text>
+
+            <!-- Grid lines -->
+            <line x1="70" y1="46"  x2="870" y2="46"  stroke="#D8D5CD" stroke-width="1"/>
+            <line x1="70" y1="106" x2="870" y2="106" stroke="#D8D5CD" stroke-width="0.5" stroke-dasharray="2 3"/>
+            <line x1="70" y1="166" x2="870" y2="166" stroke="#D8D5CD" stroke-width="0.5" stroke-dasharray="2 3"/>
+            <line x1="70" y1="226" x2="870" y2="226" stroke="#1A1A1C" stroke-width="1"/>
+
+            <!-- Y-axis value anchors (head & tail) -->
+            <text x="62" y="50"  font-family="Geist Mono, monospace" font-size="10" fill="#6B6F78" text-anchor="end">100%</text>
+            <text x="62" y="170" font-family="Geist Mono, monospace" font-size="10" fill="#6B6F78" text-anchor="end">90%</text>
+
+            <!-- Leakage area (between negotiated baseline and realised step path) -->
+            <path d="
+              M 70 46 L 870 46 L 870 160 L 803 160 L 803 152 L 692 152
+              L 692 128 L 603 128 L 603 108 L 492 108 L 492 94 L 403 94
+              L 403 62 L 248 62 L 248 46 Z"
+              fill="url(#leakHatch)"/>
+
+            <!-- Negotiated value baseline -->
+            <line x1="70" y1="46" x2="870" y2="46" stroke="#0E0E10" stroke-width="2"/>
+            <text x="866" y="40" font-family="Geist, sans-serif" font-size="11" fill="#0E0E10" text-anchor="end">Negotiated value</text>
+
+            <!-- Realised value step curve -->
+            <path d="
+              M 70 46 L 248 46 L 248 62 L 403 62 L 403 94 L 492 94 L 492 108
+              L 603 108 L 603 128 L 692 128 L 692 152 L 803 152 L 803 160 L 870 160"
+              fill="none" stroke="#E94E1B" stroke-width="2.5"/>
+            <text x="612" y="124" font-family="Geist, sans-serif" font-size="11" fill="#E94E1B" font-weight="600">Realised value</text>
+
+            <!-- Endpoint -->
+            <circle cx="870" cy="160" r="4" fill="#E94E1B"/>
+
+            <!-- Numbered event markers -->
+            <g font-family="Geist, sans-serif" font-size="11" font-weight="600" fill="#FFFFFF" text-anchor="middle">
+              <circle cx="248" cy="62"  r="9" fill="#E94E1B"/><text x="248" y="65.5">1</text>
+              <circle cx="403" cy="94"  r="9" fill="#E94E1B"/><text x="403" y="97.5">2</text>
+              <circle cx="492" cy="108" r="9" fill="#E94E1B"/><text x="492" y="111.5">3</text>
+              <circle cx="603" cy="128" r="9" fill="#E94E1B"/><text x="603" y="131.5">4</text>
+              <circle cx="692" cy="152" r="9" fill="#E94E1B"/><text x="692" y="155.5">5</text>
+              <circle cx="803" cy="160" r="9" fill="#E94E1B"/><text x="803" y="163.5">6</text>
+            </g>
+
+            <!-- X-axis ticks + month labels -->
+            <g font-family="Geist Mono, monospace" font-size="10" fill="#6B6F78" text-anchor="middle">
+              <line x1="70"  y1="226" x2="70"  y2="231" stroke="#6B6F78" stroke-width="1"/><text x="70"  y="244">M0</text>
+              <line x1="203" y1="226" x2="203" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="203" y="244">M6</text>
+              <line x1="337" y1="226" x2="337" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="337" y="244">M12</text>
+              <line x1="470" y1="226" x2="470" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="470" y="244">M18</text>
+              <line x1="603" y1="226" x2="603" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="603" y="244">M24</text>
+              <line x1="737" y1="226" x2="737" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="737" y="244">M30</text>
+              <line x1="870" y1="226" x2="870" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="870" y="244">M36</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Numbered event key -->
+        <div class="mt-4 pt-4 rule-soft">
+          <div class="label mb-3">Leakage events &nbsp;·&nbsp; keyed to the curve above</div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-5 gap-y-3">
+            {[
+              ['1', 'Scope change',    'Month 8'],
+              ['2', 'SLA breach',      'Month 15'],
+              ['3', 'Missed deadline', 'Month 19'],
+              ['4', 'Volume miss',     'Month 24'],
+              ['5', 'Unclaimed credit','Month 28'],
+              ['6', 'Auto-renewal',    'Month 33'],
+            ].map(([n, name, when]) => (
+              <div class="flex items-start gap-2.5">
+                <span class="inline-flex items-center justify-center shrink-0 w-[19px] h-[19px] rounded-full text-white text-[10px] font-semibold" style="background: var(--orange);">{n}</span>
+                <div>
+                  <div class="text-[13px] font-medium ink leading-tight">{name}</div>
+                  <div class="mono text-[10px] ink-3 mt-0.5">{when}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <!-- Footnote -->
+        <p class="mt-4 text-[11px] mono ink-3 leading-relaxed max-w-3xl">
+          Illustrative model — a representative European enterprise contract with mid-band leakage events. Real portfolios vary. The shape — that value erodes during execution, in small steps, at predictable points — does not.
+        </p>
+      </div>
+
+      <!-- Field notes — denser -->
+      <div class="grid grid-cols-12 gap-x-6 gap-y-2 pt-6 rule">
+        <div class="col-span-12 md:col-span-3 label label-ink">Field notes &nbsp;·&nbsp; arrive during execution</div>
+        <div class="col-span-12 md:col-span-9 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1">
+          {['Scope changes', 'Dissatisfaction', 'Complaints', 'Disputes', 'Legislation changes', 'New requirements', 'Add-on requests', 'SLA breaches'].map((c, i) => (
+            <div class="flex items-baseline gap-2 py-1">
+              <span class="mono ink-3 text-[10px] tnum">{String(i+1).padStart(2,'0')}</span>
+              <span class="text-[13px] ink-2">{c}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 04 · CONNECTORS + PIPELINE                                    -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="section sr" style="background: var(--paper-2);">
+    <div class="wrap">
+      <header class="sechead">
+        <div class="sechead-num label label-ink">04 / Reality check</div>
+        <h2 class="sechead-h display display-lg">A contract is only as <span class="emph">enforceable</span> as the world you can measure against it.</h2>
+      </header>
+
+      <p class="lead mt-6 max-w-3xl">Three connector concepts — illustrative of how the platform reads operational data from the systems where the work happens, and surfaces the moment reality stops matching the paper. Integration scope is scoped per engagement.</p>
+
+      <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-5">
+        {connectors.map((c) => (
+          <div class="conn">
+            <div class="flex items-baseline justify-between">
+              <div class="text-[20px] font-medium ink leading-tight">{c.title}<span class="ink-3"> @ </span>{c.where}</div>
+              <span class="label ink-3">concept</span>
+            </div>
+            <div class="label mt-1.5">{c.systems}</div>
+            <p class="mt-3 text-[13px] ink-2 leading-snug">{c.desc}</p>
+            <table class="conn-table">
+              {c.sample.map(([k, v]) => (
+                <tr><td>{k}</td><td>{v}</td></tr>
+              ))}
+            </table>
+          </div>
+        ))}
+      </div>
+
+      <!-- Continuous loop tagline -->
+      <div class="mt-8 pt-5 rule grid grid-cols-12 gap-x-6 items-baseline">
+        <div class="col-span-12 md:col-span-3 label label-ink">Continuous control loop</div>
+        <div class="col-span-12 md:col-span-9 flex flex-wrap items-baseline gap-x-3 gap-y-1 label">
+          <span class="ink">Upload</span><span class="ink-4">→</span>
+          <span class="ink">Extract</span><span class="ink-4">→</span>
+          <span class="ink">Compare</span><span class="ink-4">→</span>
+          <span class="ink">Act</span>
+          <span class="ink-4">·</span>
+          <span>every contract, every cycle</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 05 · PLATFORM + CAPABILITIES                                  -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="section sr">
+    <div class="wrap">
+      <header class="sechead">
+        <div class="sechead-num label label-ink">05 / The platform</div>
+        <h2 class="sechead-h display display-lg">Nine agents. <span class="emph">One model.</span> Every contract.</h2>
+      </header>
+
+      <!-- Pipeline -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mt-10">
+        {[
+          ['01', 'Upload',      'PDF, DOCX, or ZIP. OCR for scans.'],
+          ['02', 'AI extracts', 'Nine specialised agents in parallel.'],
+          ['03', 'Dashboards',  'Risks, deadlines, breaches, scorecards.'],
+          ['04', 'Take action', 'Claim credits. Govern relationships.'],
+        ].map(([n, t, d]) => (
+          <div class="pt-4 rule-thick">
+            <div class="label label-ink tnum">{n}</div>
+            <div class="mt-2 display-sm">{t}</div>
+            <div class="mt-1 text-[13px] ink-3 leading-snug">{d}</div>
+          </div>
+        ))}
+      </div>
+
+      <!-- Capabilities -->
+      <div class="grid grid-cols-12 gap-x-8 pt-8 mt-8 rule">
+        <div class="col-span-12 md:col-span-3 mb-5 md:mb-0">
+          <div class="label label-ink">Built-in capabilities</div>
+          <p class="text-[13px] ink-3 mt-2 leading-snug">Six capabilities. None of them an add-on. None sold separately.</p>
+        </div>
+        <div class="col-span-12 md:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-x-8">
+          {capabilities.map(([t, d, ex], i) => (
+            <div class="cap-row">
+              <div class="cap-num tnum">{String(i + 1).padStart(2, '0')}</div>
+              <div>
+                <div class="cap-t">{t}{ex && <span class="ex-tag">Exclusive</span>}</div>
+                <div class="cap-d">{d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 06 · DISCIPLINES (with mock UIs)                              -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section id="disciplines" class="section sr" style="background: var(--paper-2);">
+    <div class="wrap">
+      <header class="sechead">
+        <div class="sechead-num label label-ink">06 / The four disciplines</div>
+        <h2 class="sechead-h display display-lg">Each discipline, examined — <span class="emph">with the dashboard it produces</span>.</h2>
+      </header>
+
+      {disciplines.map((d, i) => (
+        <article class={`grid grid-cols-12 gap-x-8 gap-y-6 py-10 ${i > 0 ? 'rule' : 'rule-thick mt-10'}`}>
+
+          <!-- Left: prose -->
+          <div class="col-span-12 lg:col-span-5">
+            <div class="flex items-start gap-6">
+              <div class="numeral-huge tnum">{d.no}</div>
+              <div class="pt-2 flex-1">
+                <div class="label label-ink">— discipline</div>
+                <h3 class="display display-md mt-2">{d.title}</h3>
+              </div>
+            </div>
+            <p class="text-[15px] ink-3 mt-5 leading-snug">{d.summary}</p>
+            <p class="text-[14px] ink-2 mt-4 leading-relaxed">{d.body}</p>
+
+            <!-- Flow -->
+            <div class="mt-5 pt-4 rule-soft">
+              <div class="label mb-2">Flow</div>
+              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1 label">
+                {d.flow.map((step, k) => (
+                  <>
+                    {k > 0 && <span class="ink-4">→</span>}
+                    <span class="ink">{step}</span>
+                  </>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: mock UI -->
+          <div class="col-span-12 lg:col-span-7">
+            {d.mock === 'rag' && (
+              <div class="mock">
+                <div class="mock-head">
+                  <span class="ttl">Obligations &nbsp;·&nbsp; RAG dashboard</span>
+                  <span class="meta">15 active &nbsp;·&nbsp; 2 overdue</span>
+                </div>
+                <div class="grid grid-cols-5 gap-2 px-3.5 py-2 mono text-[9.5px] ink-3 tracking-[0.06em] uppercase rule-soft" style="grid-template-columns: 8px 56px 1fr 100px 80px;">
+                  <span></span><span>ID</span><span>Obligation</span><span>Owner</span><span style="text-align:right;">Due</span>
+                </div>
+                {obligations.map((o) => (
+                  <div class="rag-row">
+                    <span class={`rag-dot ${o.status}`}></span>
+                    <span class="rag-id">{o.id}</span>
+                    <span class="rag-obj">{o.obj}</span>
+                    <span class="rag-owner">{o.owner}</span>
+                    <span class={`rag-due ${o.status}`}>{o.due}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {d.mock === 'heatmap' && (
+              <div class="mock">
+                <div class="mock-head">
+                  <span class="ttl">Portfolio risk &nbsp;·&nbsp; clauses × severity</span>
+                  <span class="meta">142 contracts</span>
+                </div>
+                <div class="heat-wrap">
+                  <div class="heat-grid">
+                    <div class="heat-h first">Category</div>
+                    <div class="heat-h">Low</div>
+                    <div class="heat-h">Med</div>
+                    <div class="heat-h">High</div>
+                    <div class="heat-h">Crit</div>
+                    {riskCategories.map((cat, ri) => (
+                      <>
+                        <div class="heat-l">{cat}</div>
+                        {riskMatrix[ri].map((v, ci) => {
+                          const max = 14;
+                          const intensity = v / max;
+                          const colors = [
+                            `rgba(21,128,61,${0.10 + intensity * 0.45})`,   // green tint Low
+                            `rgba(217,119,6,${0.10 + intensity * 0.55})`,   // amber tint Med
+                            `rgba(233,78,27,${0.12 + intensity * 0.7})`,    // orange tint High
+                            `rgba(185,28,28,${0.18 + intensity * 0.8})`,    // red tint Crit
+                          ];
+                          const isDark = ci >= 2 && intensity > 0.5;
+                          return (
+                            <div class="heat-c" style={`background: ${colors[ci]}; color: ${isDark ? 'white' : 'var(--ink)'};`}>{v}</div>
+                          );
+                        })}
+                      </>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {d.mock === 'scorecard' && (
+              <div class="mock">
+                <div class="mock-head">
+                  <span class="ttl">Vendor SLA scorecards</span>
+                  <span class="meta">trailing 90 days</span>
+                </div>
+                <div class="sla-row head">
+                  <span>Vendor</span><span>Grade</span><span>Compliance</span><span>Breach</span><span>Impact</span>
+                </div>
+                {slaScorecard.map((s) => (
+                  <div class="sla-row">
+                    <span style="font-weight: 500;">{s.v}</span>
+                    <span class={`sla-grade ${s.grade[0]}`}>{s.grade}</span>
+                    <span class="sla-num">{s.compliance}</span>
+                    <span class="sla-num">{s.breaches}</span>
+                    <span class="sla-num" style={s.impact !== '€0' ? 'color: var(--red); font-weight: 600;' : ''}>{s.impact}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {d.mock === 'gap' && (
+              <div class="mock">
+                <div class="mock-head">
+                  <span class="ttl">Perception gap &nbsp;·&nbsp; Acme Telco</span>
+                  <span class="meta">Q1 2026</span>
+                </div>
+                <div class="gap-legend rule-soft">
+                  <span><span class="sw" style="background: var(--ink);"></span>How we see them</span>
+                  <span><span class="sw" style="background: var(--orange); opacity: 0.55;"></span>How they see us</span>
+                </div>
+                {perceptions.map((p) => {
+                  const delta = p.them - p.us;
+                  const pos = delta < 0;
+                  return (
+                    <div class="gap-row">
+                      <div class="gap-top">
+                        <span class="gap-name">{p.k}</span>
+                        <span class={`gap-delta ${pos ? 'pos' : ''}`}>{delta > 0 ? '+' : ''}{delta} pts</span>
+                      </div>
+                      <div class="gap-track">
+                        <div class="gap-bar gap-us" style={`width: ${p.us}%;`}></div>
+                        <div class="gap-bar gap-them" style={`width: ${p.them}%;`}></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 07 · OUTCOMES                                                 -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="section-tight sr" style="background: var(--ink); color: var(--paper);">
+    <div class="wrap">
+      <header class="grid grid-cols-12 gap-x-6 items-baseline pb-6" style="border-bottom: 1px solid rgba(247,246,243,0.18);">
+        <div class="col-span-12 md:col-span-3 label" style="color: var(--orange);">07 / Targets</div>
+        <h2 class="col-span-12 md:col-span-9 display display-lg" style="color: var(--paper);">The outcomes we engineer for. <span class="emph" style="color: rgba(247,246,243,0.92);">Targets, not promises.</span></h2>
+      </header>
+
+      <div class="grid grid-cols-12 gap-x-6 mt-8">
+        {metrics.map((m, i) => (
+          <div class={`col-span-12 sm:col-span-6 lg:col-span-3 py-6 ${i > 0 ? 'lg:border-l' : ''}`} style="border-color: rgba(247,246,243,0.18);">
+            <div class={`${i > 0 ? 'lg:pl-6' : ''}`}>
+              <div class="label tnum" style="color: var(--orange);">{m.w}</div>
+              <div class="display tnum mt-4" style="font-size: clamp(56px, 7vw, 108px); line-height: 0.88; letter-spacing: -0.025em; color: var(--paper);">{m.v}</div>
+              <div class="text-[14px] mt-4" style="color: rgba(247,246,243,0.78); line-height: 1.45;">{m.l}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p class="mt-6 max-w-2xl text-[12px] mono" style="color: rgba(247,246,243,0.55);">
+        ² &nbsp; Projected target ranges based on industry research, the Evaluetor reference architecture, and pilot models. Realised outcomes vary by portfolio and are measured per engagement. We will not show these as &ldquo;achieved&rdquo; until we have customer data we can publish.
+      </p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 08 · COMPARED + DEPLOYMENT                                    -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="section sr">
+    <div class="wrap">
+      <header class="sechead">
+        <div class="sechead-num label label-ink">08 / Compared</div>
+        <h2 class="sechead-h display display-lg">What the legacy CLM tools <span class="emph">do not do</span>.</h2>
+      </header>
+
+      <p class="lead mt-6 max-w-3xl">The other vendors bolted AI onto products designed in the document-management era. Evaluetor was built model-first. The difference is visible in the cells of this table.</p>
+
+      <!-- Capability table, full width -->
+      <div class="mt-10 overflow-x-auto">
+        <table class="ctable">
+          <thead>
+            <tr>
+              <th style="min-width: 200px;"></th>
+              <th class="us">{compare.cols[0]}</th>
+              {compare.cols.slice(1).map((c) => (<th>{c}</th>))}
+            </tr>
+          </thead>
+          <tbody>
+            {compare.rows.map(([label, vals], i) => (
+              <tr class={i % 2 === 1 ? 'zebra' : ''}>
+                <td>{label}</td>
+                {vals.map((v, j) => (
+                  <td class={j === 0 ? 'us' : 'them'}>{v}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p class="text-[11px] mono ink-3 mt-4 leading-snug max-w-4xl">
+        Comparison reflects publicly documented capabilities of each platform at time of writing. Vendor pricing and packaging vary by region and customer size; figures in the &ldquo;time to first outcome&rdquo; row refer to median customer reports.
+      </p>
+
+      <!-- Honest framing instead of a verdict tagline -->
+      <div class="grid grid-cols-12 gap-x-6 gap-y-3 items-baseline pt-8 mt-10 rule">
+        <div class="col-span-12 md:col-span-3 label label-ink">What it means in practice</div>
+        <p class="col-span-12 md:col-span-9 text-[16px] ink-2 leading-relaxed max-w-3xl">
+          The legacy CLM tools bolted AI onto products designed in the document-management era. Evaluetor was built model-first, which is why obligations, SLAs, risks and relationship governance ship in the box rather than as add-ons. We do not promise instant outcomes — we promise that the first ones land in weeks, not quarters.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 09 · BEGIN                                                    -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="section sr" style="background: var(--paper-2);">
+    <div class="wrap">
+      <header class="sechead">
+        <div class="sechead-num label label-ink">09 / Begin</div>
+        <h2 class="sechead-h display display-lg">Bring five contracts. <span class="emph">We will show you, in thirty minutes, what your current CLM is missing.</span></h2>
+      </header>
+
+      <div class="mt-10 grid grid-cols-12 gap-x-8 gap-y-8">
+        <!-- Primary CTA -->
+        <div class="col-span-12 lg:col-span-7">
+          <div style="border: 1px solid var(--rule); padding: 32px 36px; background: var(--surface);">
+            <div class="label label-orange">Demonstration</div>
+            <div class="display display-md mt-3">Schedule a 30-minute review</div>
+            <p class="lead mt-4 max-w-xl">Bring five live contracts. We extract obligations, SLAs, risks and renewal terms in front of you — and show you what is missing from your current CLM.</p>
+
+            <div class="mt-6 pt-5 rule-soft grid grid-cols-3 gap-4">
+              <div><div class="label tnum">30 min</div><div class="text-[12px] ink-3 mt-1">Walkthrough</div></div>
+              <div><div class="label tnum">5 contracts</div><div class="text-[12px] ink-3 mt-1">Your real data</div></div>
+              <div><div class="label tnum">0 prep</div><div class="text-[12px] ink-3 mt-1">We do the work</div></div>
+            </div>
+
+            <div class="mt-7">
+              <a href="/contact" class="cta-btn">Book a review <span class="arr">→</span></a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Directory entry -->
+        <div class="col-span-12 lg:col-span-5">
+          <div class="label label-ink mb-3">Direct line</div>
+          <div class="pb-4 rule">
+            <div class="display display-md leading-none">Steven Visser</div>
+            <div class="text-[14px] ink-3 mt-2">Managing Partner &nbsp;·&nbsp; Evaluetor AI</div>
+          </div>
+
+          <div class="grid grid-cols-12 gap-x-6 gap-y-3 mt-5">
+            <div class="col-span-4 label tnum">Voice</div>
+            <a href="tel:+31631003495" class="col-span-8 mono text-[13px] ink hover:underline">+31 6 31 00 34 95</a>
+
+            <div class="col-span-4 label tnum">Email</div>
+            <a href="mailto:Steven.Visser@Evaluetor.com" class="col-span-8 mono text-[13px] ink break-all hover:underline">Steven.Visser@Evaluetor.com</a>
+
+            <div class="col-span-4 label tnum">Web</div>
+            <a href="https://www.Evaluetor.com" class="col-span-8 mono text-[13px] ink hover:underline">www.Evaluetor.com</a>
+
+            <div class="col-span-4 label tnum">Office</div>
+            <address class="col-span-8 not-italic text-[13px] ink-2 leading-snug">
+              Burgemeester Le Fevre de Montignylaan 264<br/>
+              3055 NK Rotterdam, NL
+            </address>
+          </div>
+        </div>
+      </div>
+
+      <!-- Colophon -->
+      <div class="mt-16 pt-5 rule grid grid-cols-12 gap-x-6 label">
+        <div class="col-span-12 md:col-span-4">Evaluetor &nbsp;·&nbsp; AI-powered contract intelligence</div>
+        <div class="col-span-12 md:col-span-4 md:text-center">Senority B.V. &nbsp;·&nbsp; Rotterdam, NL</div>
+        <div class="col-span-12 md:col-span-4 md:text-right">© 2026 &nbsp;·&nbsp; All rights reserved</div>
+      </div>
+    </div>
+  </section>
+
+</article>
+
+<script>
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+    }
+  }, { rootMargin: '0px 0px -6% 0px', threshold: 0.04 });
+  document.querySelectorAll('.sr').forEach((el) => io.observe(el));
+</script>
+
+</MarketingLayout>

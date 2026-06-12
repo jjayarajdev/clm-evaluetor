@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evaluetor - Contract Intelligence Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg-deep:#08090c;--bg:#0d0f14;--bg-card:#13161d;--bg-card-hover:#181c25;
+  --bg-elevated:#1a1e28;--bg-surface:#21262f;--bg-glass:rgba(19,22,29,.75);
+  --border:#1e2330;--border-hover:#2a3040;--border-active:#3a4258;
+  --text:#e8eaf0;--text-secondary:#8b92a5;--text-muted:#555d72;--text-dim:#3a4050;
+  --accent:#00d4aa;--accent-dim:rgba(0,212,170,.12);--accent-glow:rgba(0,212,170,.25);
+  --cyan:#06b6d4;--cyan-dim:rgba(6,182,212,.1);
+  --violet:#8b5cf6;--violet-dim:rgba(139,92,246,.1);
+  --amber:#f59e0b;--amber-dim:rgba(245,158,11,.1);--amber-text:#fbbf24;
+  --red:#ef4444;--red-dim:rgba(239,68,68,.08);--red-text:#f87171;
+  --green:#10b981;--green-dim:rgba(16,185,129,.1);--green-text:#34d399;
+  --blue:#3b82f6;--blue-dim:rgba(59,130,246,.1);
+  --font-display:'Outfit',sans-serif;
+  --font-body:'Plus Jakarta Sans',sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;--radius-lg:16px;--radius-xl:20px;
+  --shadow:0 4px 24px rgba(0,0,0,.3),0 0 0 1px var(--border);
+  --shadow-glow:0 0 30px rgba(0,212,170,.08);
+  --sidebar-w:260px;--header-h:60px;
+  --transition:all .2s cubic-bezier(.4,0,.2,1);
+}
+
+html{font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{font-family:var(--font-body);background:var(--bg-deep);color:var(--text);overflow:hidden;height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% -20%,rgba(0,212,170,.04),transparent),radial-gradient(ellipse 60% 40% at 80% 100%,rgba(139,92,246,.03),transparent);pointer-events:none;z-index:0}
+a{text-decoration:none;color:inherit}button{font:inherit;cursor:pointer;border:none;background:none}input,select{font:inherit}
+
+/* ═══ NOISE TEXTURE ═══ */
+.noise{position:fixed;inset:0;opacity:.025;pointer-events:none;z-index:9999;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ═══ LAYOUT ═══ */
+.app{display:flex;height:100vh;position:relative;z-index:1}
+
+/* ═══ SIDEBAR ═══ */
+.sidebar{width:var(--sidebar-w);background:var(--bg-card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;overflow-x:hidden;backdrop-filter:blur(20px);z-index:10}
+.sidebar::-webkit-scrollbar{width:3px}.sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+
+.s-logo{padding:18px 22px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.s-logo-mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--cyan));display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(0,212,170,.2)}
+.s-logo-mark svg{width:18px;height:18px}
+.s-logo-text{font-family:var(--font-display);font-size:1.25rem;font-weight:700;letter-spacing:-.03em;background:linear-gradient(135deg,var(--text),var(--text-secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+.s-section{padding:20px 14px 6px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted)}
+
+.s-item{display:flex;align-items:center;gap:11px;padding:9px 14px;margin:2px 10px;border-radius:var(--radius-sm);color:var(--text-secondary);font-size:.84rem;font-weight:500;transition:var(--transition);cursor:pointer;position:relative}
+.s-item:hover{background:var(--bg-elevated);color:var(--text)}
+.s-item.active{background:var(--accent-dim);color:var(--accent)}
+.s-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--accent);border-radius:0 4px 4px 0}
+.s-item svg{width:18px;height:18px;opacity:.6;flex-shrink:0}
+.s-item.active svg{opacity:1}
+.s-badge{margin-left:auto;font-family:var(--font-mono);font-size:.65rem;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--accent-dim);color:var(--accent)}
+.s-badge.warn{background:var(--red-dim);color:var(--red-text)}
+
+.s-user{margin-top:auto;padding:16px 18px;border-top:1px solid var(--border);display:flex;align-items:center;gap:11px}
+.s-avatar{width:34px;height:34px;border-radius:99px;background:linear-gradient(135deg,var(--violet),var(--cyan));display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:.75rem;color:white;flex-shrink:0}
+.s-user-info{flex:1;min-width:0}
+.s-user-name{font-size:.82rem;font-weight:600;color:var(--text)}
+.s-user-role{font-size:.65rem;color:var(--text-muted)}
+.s-user-dot{width:8px;height:8px;border-radius:99px;background:var(--green);box-shadow:0 0 6px rgba(16,185,129,.4);flex-shrink:0}
+
+/* ═══ MAIN ═══ */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+/* ═══ HEADER ═══ */
+.header{height:var(--header-h);background:var(--bg-card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;flex-shrink:0;backdrop-filter:blur(20px)}
+.h-search{display:flex;align-items:center;gap:10px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:8px 16px;width:380px;color:var(--text-muted);font-size:.84rem;transition:var(--transition)}
+.h-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+.h-search svg{width:16px;height:16px;flex-shrink:0;opacity:.5}
+.h-search input{background:none;border:none;outline:none;color:var(--text);font-size:.84rem;flex:1}
+.h-search input::placeholder{color:var(--text-muted)}
+.h-search kbd{font-family:var(--font-mono);font-size:.6rem;background:var(--bg-surface);border:1px solid var(--border);padding:2px 6px;border-radius:4px;color:var(--text-muted)}
+.h-actions{display:flex;align-items:center;gap:6px}
+.h-btn{width:38px;height:38px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);transition:var(--transition);position:relative}
+.h-btn:hover{background:var(--bg-elevated);color:var(--text)}
+.h-btn svg{width:19px;height:19px}
+.h-dot{position:absolute;top:7px;right:7px;width:7px;height:7px;background:var(--red);border-radius:99px;border:2px solid var(--bg-card);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 4px rgba(239,68,68,0)}}
+.h-tenant{display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);font-size:.78rem;font-weight:600;color:var(--text-secondary);margin-right:8px}
+.h-tenant-dot{width:6px;height:6px;border-radius:99px;background:var(--accent);box-shadow:0 0 6px var(--accent-glow)}
+
+/* ═══ CONTENT ═══ */
+.content{flex:1;overflow-y:auto;padding:28px;scroll-behavior:smooth}
+.content::-webkit-scrollbar{width:5px}.content::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+
+/* ═══ PAGES ═══ */
+.page{display:none;max-width:1400px}.page.active{display:block;animation:pageIn .5s ease both}
+@keyframes pageIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* ═══ HERO BANNER ═══ */
+.hero{position:relative;border-radius:var(--radius-xl);padding:36px 40px;margin-bottom:28px;overflow:hidden;border:1px solid var(--border)}
+.hero::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,212,170,.06) 0%,rgba(6,182,212,.04) 40%,rgba(139,92,246,.04) 100%);z-index:0}
+.hero::after{content:'';position:absolute;right:-60px;top:-60px;width:300px;height:300px;background:radial-gradient(circle,rgba(0,212,170,.08),transparent 70%);z-index:0}
+.hero>*{position:relative;z-index:1}
+.hero h1{font-family:var(--font-display);font-size:1.8rem;font-weight:800;letter-spacing:-.04em;margin-bottom:6px;background:linear-gradient(135deg,var(--text) 0%,var(--accent) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:.92rem;color:var(--text-secondary);max-width:520px;line-height:1.6}
+.hero-actions{display:flex;gap:10px;margin-top:18px}
+.btn{padding:9px 20px;border-radius:var(--radius-sm);font-size:.82rem;font-weight:600;transition:var(--transition);display:inline-flex;align-items:center;gap:7px}
+.btn-primary{background:var(--accent);color:var(--bg-deep);box-shadow:0 0 20px rgba(0,212,170,.15)}
+.btn-primary:hover{box-shadow:0 0 30px rgba(0,212,170,.3);transform:translateY(-1px)}
+.btn-ghost{background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--border-hover);color:var(--text);background:var(--bg-surface)}
+.btn svg{width:16px;height:16px}
+
+/* ═══ METRICS ═══ */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.metric{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;transition:var(--transition);position:relative;overflow:hidden}
+.metric:hover{border-color:var(--border-hover);transform:translateY(-2px);box-shadow:var(--shadow)}
+.metric-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.metric-icon{width:40px;height:40px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center}
+.metric-icon svg{width:20px;height:20px}
+.metric-icon.teal{background:var(--accent-dim);color:var(--accent)}
+.metric-icon.green{background:var(--green-dim);color:var(--green-text)}
+.metric-icon.amber{background:var(--amber-dim);color:var(--amber-text)}
+.metric-icon.red{background:var(--red-dim);color:var(--red-text)}
+.metric-icon.blue{background:var(--blue-dim);color:var(--blue)}
+.metric-icon.violet{background:var(--violet-dim);color:var(--violet)}
+.metric-delta{font-family:var(--font-mono);font-size:.7rem;font-weight:600;padding:3px 9px;border-radius:99px}
+.metric-delta.up{background:var(--green-dim);color:var(--green-text)}
+.metric-delta.down{background:var(--red-dim);color:var(--red-text)}
+.metric-value{font-family:var(--font-display);font-size:2rem;font-weight:800;letter-spacing:-.04em;line-height:1;margin-bottom:4px}
+.metric-label{font-size:.78rem;color:var(--text-muted);font-weight:500}
+.metric-spark{display:flex;align-items:flex-end;gap:2px;height:32px;margin-top:14px}
+.metric-spark i{display:block;flex:1;border-radius:2px;transition:height .6s cubic-bezier(.4,0,.2,1)}
+.metric-glow{position:absolute;bottom:-40px;left:50%;transform:translateX(-50%);width:120px;height:60px;border-radius:50%;filter:blur(30px);opacity:.15;pointer-events:none}
+
+/* ═══ CARDS ═══ */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;transition:var(--transition)}
+.card:hover{border-color:var(--border-hover)}
+.card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.card-t{font-family:var(--font-display);font-size:1rem;font-weight:700;color:var(--text);letter-spacing:-.02em}
+.card-sub{font-size:.75rem;color:var(--text-muted);margin-top:2px}
+.card-link{font-size:.75rem;color:var(--accent);font-weight:600;cursor:pointer;transition:var(--transition)}
+.card-link:hover{color:var(--text)}
+
+/* ═══ GRIDS ═══ */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+.g21{display:grid;grid-template-columns:5fr 3fr;gap:20px}
+.g12{display:grid;grid-template-columns:3fr 5fr;gap:20px}
+.gap-y{margin-bottom:20px}
+
+/* ═══ TABLE ═══ */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;padding:11px 16px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--bg-elevated)}
+.tbl td{padding:14px 16px;font-size:.84rem;border-bottom:1px solid var(--border);vertical-align:middle;transition:background .15s}
+.tbl tr:hover td{background:rgba(0,212,170,.02)}
+.tbl-name{font-weight:600;color:var(--text);display:block;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbl-sub{font-size:.7rem;color:var(--text-muted);margin-top:2px}
+.tbl-mono{font-family:var(--font-mono);font-weight:500;font-size:.82rem}
+.tbl-foot{padding:14px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:.75rem;color:var(--text-muted)}
+
+/* ═══ BADGES ═══ */
+.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:.68rem;font-weight:600;border:1px solid transparent}
+.tag-green{background:var(--green-dim);color:var(--green-text);border-color:rgba(16,185,129,.12)}
+.tag-amber{background:var(--amber-dim);color:var(--amber-text);border-color:rgba(245,158,11,.12)}
+.tag-red{background:var(--red-dim);color:var(--red-text);border-color:rgba(239,68,68,.12)}
+.tag-violet{background:var(--violet-dim);color:var(--violet);border-color:rgba(139,92,246,.12)}
+.tag-cyan{background:var(--cyan-dim);color:var(--cyan);border-color:rgba(6,182,212,.12)}
+.tag-muted{background:var(--bg-elevated);color:var(--text-secondary);border-color:var(--border)}
+.dot{width:6px;height:6px;border-radius:99px;flex-shrink:0}
+
+/* ═══ PROGRESS ═══ */
+.bar{height:5px;background:var(--bg-surface);border-radius:99px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+
+/* ═══ DONUT CHART ═══ */
+.donut{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.donut svg{transform:rotate(-90deg)}
+.donut circle{transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)}
+.donut-val{position:absolute;display:flex;flex-direction:column;align-items:center}
+.donut-num{font-family:var(--font-display);font-size:1.6rem;font-weight:800;line-height:1}
+.donut-label{font-size:.6rem;color:var(--text-muted);margin-top:2px}
+
+/* ═══ ACTIVITY ═══ */
+.act{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.act:last-child{border-bottom:none}
+.act-icon{width:34px;height:34px;border-radius:var(--radius-xs);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.act-icon svg{width:16px;height:16px}
+.act-body{flex:1;min-width:0}
+.act-title{font-size:.82rem;font-weight:600;color:var(--text)}
+.act-desc{font-size:.7rem;color:var(--text-muted);margin-top:1px}
+.act-time{font-family:var(--font-mono);font-size:.6rem;color:var(--text-dim);white-space:nowrap;margin-top:3px}
+
+/* ═══ OBLIGATION ROWS ═══ */
+.ob{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)}
+.ob:last-child{border-bottom:none}
+.ob-dot{width:8px;height:8px;border-radius:99px;flex-shrink:0;box-shadow:0 0 6px currentColor}
+.ob-info{flex:1;min-width:0}.ob-name{font-size:.82rem;font-weight:600}.ob-src{font-size:.7rem;color:var(--text-muted)}
+.ob-due{font-family:var(--font-mono);font-size:.72rem;font-weight:600;white-space:nowrap}
+
+/* ═══ SLA ROW ═══ */
+.sla-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border)}
+.sla-row:last-child{border-bottom:none}
+.sla-left{flex:1}.sla-metric{font-size:.82rem;font-weight:600}.sla-contract{font-size:.68rem;color:var(--text-muted)}
+.sla-right{text-align:right}.sla-val{font-family:var(--font-display);font-size:1.15rem;font-weight:800;line-height:1}.sla-target{font-family:var(--font-mono);font-size:.6rem;color:var(--text-muted);margin-top:2px}
+
+/* ═══ RENEWAL ═══ */
+.ren{display:flex;align-items:center;gap:16px;padding:14px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;transition:var(--transition)}
+.ren:hover{border-color:var(--border-hover);background:var(--bg-elevated);transform:translateX(4px)}
+.ren-date{width:54px;height:54px;border-radius:var(--radius-sm);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.ren-mo{font-size:.55rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}.ren-day{font-family:var(--font-display);font-size:1.3rem;font-weight:800;line-height:1}
+.ren-info{flex:1}.ren-name{font-size:.85rem;font-weight:600}.ren-detail{font-size:.7rem;color:var(--text-muted);margin-top:2px}
+
+/* ═══ CHAT ═══ */
+.chat-session{padding:11px 14px;border-radius:var(--radius-sm);cursor:pointer;margin-bottom:4px;transition:var(--transition)}
+.chat-session:hover{background:var(--bg-elevated)}
+.chat-session.active{background:var(--accent-dim);border-left:3px solid var(--accent)}
+.chat-session-t{font-size:.82rem;font-weight:600}.chat-session-sub{font-size:.65rem;color:var(--text-muted);margin-top:2px}
+.chat-msg{margin-bottom:18px;display:flex;gap:12px}
+.chat-user{justify-content:flex-end}
+.chat-user .chat-bubble{background:var(--accent-dim);border:1px solid rgba(0,212,170,.15);border-radius:var(--radius) var(--radius) var(--radius-xs) var(--radius);color:var(--text)}
+.chat-ai-avatar{width:30px;height:30px;border-radius:99px;background:linear-gradient(135deg,var(--accent),var(--cyan));display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.chat-bubble{max-width:78%;padding:14px 18px;border-radius:var(--radius-xs) var(--radius) var(--radius) var(--radius);font-size:.85rem;line-height:1.65;background:var(--bg-elevated);border:1px solid var(--border)}
+.chat-data{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin:10px 0;font-size:.8rem}
+.chat-data-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)}
+.chat-data-row:last-child{border-bottom:none}
+.chat-source{margin-top:10px;font-size:.68rem;color:var(--text-dim);font-style:italic}
+.chat-input-wrap{border-top:1px solid var(--border);padding-top:14px;display:flex;gap:10px}
+.chat-input{flex:1;padding:11px 18px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);font-size:.85rem;color:var(--text);outline:none;transition:var(--transition)}
+.chat-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+.chat-input::placeholder{color:var(--text-muted)}
+.chat-send{padding:11px 22px;background:var(--accent);color:var(--bg-deep);border-radius:var(--radius);font-weight:700;font-size:.85rem;transition:var(--transition)}
+.chat-send:hover{box-shadow:0 0 20px rgba(0,212,170,.3)}
+
+/* ═══ GOVERNANCE ═══ */
+.gov-row{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)}
+.gov-row:last-child{border-bottom:none}
+.gov-avatar{width:40px;height:40px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:800;font-size:.8rem;flex-shrink:0}
+.gov-info{flex:1}.gov-name{font-size:.85rem;font-weight:600}.gov-sub{font-size:.7rem;color:var(--text-muted)}
+.gov-score{font-family:var(--font-display);font-size:1.2rem;font-weight:800;line-height:1;text-align:right}
+.gov-score-label{font-size:.55rem;color:var(--text-muted)}
+
+.gap-card{padding:14px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:10px;transition:var(--transition)}
+.gap-card:hover{border-color:var(--border-hover);background:var(--bg-elevated)}
+.gap-head{display:flex;justify-content:space-between;margin-bottom:8px}
+.gap-title{font-size:.82rem;font-weight:600}.gap-sev{font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:99px}
+.gap-scores{display:flex;gap:20px;font-size:.75rem}
+
+/* ═══ FILTER BAR ═══ */
+.filters{display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.f-btn{padding:7px 16px;border-radius:99px;font-size:.78rem;font-weight:500;color:var(--text-secondary);border:1px solid var(--border);background:transparent;transition:var(--transition)}
+.f-btn:hover{border-color:var(--border-hover);color:var(--text)}
+.f-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.f-count{font-family:var(--font-mono);font-size:.65rem;margin-left:4px;opacity:.5}
+
+/* ═══ TABS ═══ */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:22px}
+.tab{padding:12px 20px;font-size:.85rem;font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:var(--transition);cursor:pointer}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+
+/* ═══ PAGE HEADER ═══ */
+.ph{margin-bottom:22px}
+.ph-title{font-family:var(--font-display);font-size:1.5rem;font-weight:800;letter-spacing:-.03em}
+.ph-desc{font-size:.88rem;color:var(--text-secondary);margin-top:3px}
+
+/* ═══ MINI CHART BARS ═══ */
+.chart-bars{display:flex;align-items:flex-end;gap:5px;height:160px;padding:0 2px}
+.chart-col{flex:1;border-radius:4px 4px 0 0;position:relative;transition:height .8s cubic-bezier(.4,0,.2,1);cursor:pointer}
+.chart-col:hover{opacity:.8}
+.chart-col span{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:.55rem;color:var(--text-dim);white-space:nowrap}
+
+/* ═══ CALLOUT ═══ */
+.callout{padding:14px 18px;border-radius:var(--radius-sm);font-size:.78rem;line-height:1.5;display:flex;align-items:flex-start;gap:10px;margin-top:14px}
+.callout svg{width:16px;height:16px;flex-shrink:0;margin-top:1px}
+.callout-red{background:var(--red-dim);color:var(--red-text);border:1px solid rgba(239,68,68,.1)}
+.callout-amber{background:var(--amber-dim);color:var(--amber-text);border:1px solid rgba(245,158,11,.1)}
+.callout-green{background:var(--green-dim);color:var(--green-text);border:1px solid rgba(16,185,129,.1)}
+
+/* ═══ COUNTER ANIMATION ═══ */
+.counter{display:inline-block}
+@keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.count-in{animation:countUp .6s ease both}
+
+/* ═══ STAGGER ═══ */
+.stagger>*{animation:pageIn .4s ease both}
+.stagger>*:nth-child(1){animation-delay:.05s}.stagger>*:nth-child(2){animation-delay:.1s}
+.stagger>*:nth-child(3){animation-delay:.15s}.stagger>*:nth-child(4){animation-delay:.2s}
+.stagger>*:nth-child(5){animation-delay:.25s}.stagger>*:nth-child(6){animation-delay:.3s}
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="app">
+
+<!-- ═══════════ SIDEBAR ═══════════ -->
+<aside class="sidebar">
+  <div class="s-logo">
+    <div class="s-logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M4 14l5-7 5 7 6-10"/><path d="M4 19h16" opacity=".4"/></svg></div>
+    <span class="s-logo-text">Evaluetor</span>
+  </div>
+  <div class="s-section">Platform</div>
+  <a class="s-item active" onclick="go('dashboard')" id="n-dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="4" rx="2"/><rect x="14" y="11" width="7" height="10" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/></svg>Dashboard</a>
+  <a class="s-item" onclick="go('contracts')" id="n-contracts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8m8 4H8m2-8H8"/></svg>Contracts<span class="s-badge">247</span></a>
+  <a class="s-item" onclick="go('compliance')" id="n-compliance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><path d="M9 14l2 2 4-4"/></svg>Compliance</a>
+  <a class="s-item" onclick="go('renewals')" id="n-renewals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Renewals<span class="s-badge warn">5</span></a>
+  <a class="s-item" onclick="go('vendors')" id="n-vendors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>Vendors</a>
+  <a class="s-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>Reports</a>
+  <a class="s-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14.899A7 7 0 1115.71 8h1.79a4.5 4.5 0 012.5 8.242M12 12v9m-3-3l3 3 3-3"/></svg>Upload</a>
+  <a class="s-item" onclick="go('query')" id="n-query"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01" stroke-width="2.5"/></svg>Ask AI</a>
+
+  <div class="s-section">Governance</div>
+  <a class="s-item" onclick="go('governance')" id="n-governance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4M4.22 4.22l2.83 2.83m9.9 9.9l2.83 2.83M1 12h4m14 0h4M4.22 19.78l2.83-2.83m9.9-9.9l2.83-2.83"/></svg>Organizations</a>
+  <a class="s-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>Relationships</a>
+  <a class="s-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><path d="M9 12h6M9 16h6"/></svg>Surveys</a>
+
+  <div class="s-section">System</div>
+  <a class="s-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Users</a>
+  <a class="s-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+
+  <div class="s-user">
+    <div class="s-avatar">AJ</div>
+    <div class="s-user-info"><div class="s-user-name">Admin User</div><div class="s-user-role">admin &middot; Acme Corp</div></div>
+    <div class="s-user-dot"></div>
+  </div>
+</aside>
+
+<!-- ═══════════ MAIN ═══════════ -->
+<div class="main">
+  <header class="header">
+    <div class="h-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input placeholder="Search contracts, clauses, obligations..." /><kbd>&#8984;K</kbd></div>
+    <div class="h-actions">
+      <div class="h-tenant"><div class="h-tenant-dot"></div>Acme Corp</div>
+      <button class="h-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg><span class="h-dot"></span></button>
+      <button class="h-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09"/></svg></button>
+    </div>
+  </header>
+  <div class="content">
+
+<!-- ════════════ DASHBOARD ════════════ -->
+<div class="page active" id="p-dashboard">
+  <div class="hero">
+    <h1>Good morning, Admin</h1>
+    <p>5 renewals due this month, 3 SLA breaches need attention, and 2 obligations are overdue. Your portfolio is 89.2% compliant.</p>
+    <div class="hero-actions">
+      <button class="btn btn-primary" onclick="go('compliance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4m0 4h.01"/></svg>Review Breaches</button>
+      <button class="btn btn-ghost" onclick="go('renewals')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>View Renewals</button>
+    </div>
+  </div>
+
+  <div class="metrics stagger">
+    <div class="metric"><div class="metric-top"><div class="metric-icon teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div><span class="metric-delta up">+12%</span></div><div class="metric-value counter" data-target="247">0</div><div class="metric-label">Total Contracts</div><div class="metric-spark"><i style="height:35%;background:rgba(0,212,170,.15)"></i><i style="height:50%;background:rgba(0,212,170,.2)"></i><i style="height:40%;background:rgba(0,212,170,.15)"></i><i style="height:65%;background:rgba(0,212,170,.25)"></i><i style="height:55%;background:rgba(0,212,170,.2)"></i><i style="height:80%;background:rgba(0,212,170,.35)"></i><i style="height:95%;background:var(--accent)"></i></div><div class="metric-glow" style="background:var(--accent)"></div></div>
+    <div class="metric"><div class="metric-top"><div class="metric-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg></div><span class="metric-delta up">+5.1%</span></div><div class="metric-value counter" data-target="89.2" data-suffix="%">0</div><div class="metric-label">SLA Compliance</div><div class="metric-spark"><i style="height:75%;background:rgba(16,185,129,.15)"></i><i style="height:70%;background:rgba(16,185,129,.12)"></i><i style="height:78%;background:rgba(16,185,129,.2)"></i><i style="height:72%;background:rgba(16,185,129,.15)"></i><i style="height:84%;background:rgba(16,185,129,.25)"></i><i style="height:80%;background:rgba(16,185,129,.2)"></i><i style="height:92%;background:var(--green)"></i></div><div class="metric-glow" style="background:var(--green)"></div></div>
+    <div class="metric"><div class="metric-top"><div class="metric-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4m0 4h.01"/></svg></div><span class="metric-delta down">+2</span></div><div class="metric-value counter" data-target="18">0</div><div class="metric-label">High-Risk Contracts</div><div class="metric-spark"><i style="height:25%;background:rgba(245,158,11,.1)"></i><i style="height:35%;background:rgba(245,158,11,.15)"></i><i style="height:30%;background:rgba(245,158,11,.1)"></i><i style="height:45%;background:rgba(245,158,11,.2)"></i><i style="height:50%;background:rgba(245,158,11,.25)"></i><i style="height:40%;background:rgba(245,158,11,.15)"></i><i style="height:60%;background:var(--amber)"></i></div><div class="metric-glow" style="background:var(--amber)"></div></div>
+    <div class="metric"><div class="metric-top"><div class="metric-icon violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div><span class="metric-delta up">$2.4M</span></div><div class="metric-value">$48.7M</div><div class="metric-label">Total Contract Value</div><div class="metric-spark"><i style="height:45%;background:rgba(139,92,246,.1)"></i><i style="height:55%;background:rgba(139,92,246,.15)"></i><i style="height:50%;background:rgba(139,92,246,.1)"></i><i style="height:70%;background:rgba(139,92,246,.2)"></i><i style="height:65%;background:rgba(139,92,246,.15)"></i><i style="height:78%;background:rgba(139,92,246,.25)"></i><i style="height:100%;background:var(--violet)"></i></div><div class="metric-glow" style="background:var(--violet)"></div></div>
+  </div>
+
+  <div class="g21 gap-y">
+    <div class="card">
+      <div class="card-h"><div><div class="card-t">Contract Distribution</div><div class="card-sub">Active contracts by type</div></div><span class="card-link">View All &rarr;</span></div>
+      <div class="chart-bars" style="height:150px;padding-bottom:24px"><div class="chart-col" style="height:82%;background:linear-gradient(to top,rgba(0,212,170,.3),var(--accent))"><span>MSA (62)</span></div><div class="chart-col" style="height:58%;background:linear-gradient(to top,rgba(6,182,212,.25),var(--cyan))"><span>SOW (44)</span></div><div class="chart-col" style="height:70%;background:linear-gradient(to top,rgba(139,92,246,.25),var(--violet))"><span>NDA (53)</span></div><div class="chart-col" style="height:37%;background:linear-gradient(to top,rgba(59,130,246,.2),var(--blue))"><span>Vendor (28)</span></div><div class="chart-col" style="height:48%;background:linear-gradient(to top,rgba(245,158,11,.2),var(--amber))"><span>Employ (37)</span></div><div class="chart-col" style="height:30%;background:linear-gradient(to top,rgba(239,68,68,.15),rgba(239,68,68,.5))"><span>Amend (23)</span></div></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div class="card-t">Compliance Overview</div><span class="card-link">Details &rarr;</span></div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:30px">
+        <div class="donut"><svg width="130" height="130" viewBox="0 0 130 130"><circle cx="65" cy="65" r="55" fill="none" stroke="var(--bg-surface)" stroke-width="10"/><circle cx="65" cy="65" r="55" fill="none" stroke="var(--green)" stroke-width="10" stroke-linecap="round" stroke-dasharray="345.58" stroke-dashoffset="37.56"/><circle cx="65" cy="65" r="55" fill="none" stroke="var(--amber)" stroke-width="10" stroke-dasharray="345.58" stroke-dashoffset="299.07" transform="rotate(282 65 65)"/><circle cx="65" cy="65" r="55" fill="none" stroke="var(--red)" stroke-width="10" stroke-dasharray="345.58" stroke-dashoffset="329.63" transform="rotate(330 65 65)"/></svg><div class="donut-val"><div class="donut-num" style="color:var(--green-text)">82%</div><div class="donut-label">compliant</div></div></div>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div class="dot" style="background:var(--green)"></div><span style="font-size:.8rem;width:70px">On Track</span><span class="tbl-mono" style="margin-left:auto">142</span></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div class="dot" style="background:var(--amber)"></div><span style="font-size:.8rem;width:70px">At Risk</span><span class="tbl-mono" style="margin-left:auto">23</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><div class="dot" style="background:var(--red)"></div><span style="font-size:.8rem;width:70px">Breached</span><span class="tbl-mono" style="margin-left:auto">8</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g21">
+    <div class="card">
+      <div class="card-h"><div class="card-t">Recent Activity</div><span class="card-link">See All &rarr;</span></div>
+      <div class="act"><div class="act-icon" style="background:var(--green-dim);color:var(--green-text)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg></div><div class="act-body"><div class="act-title">MSA_GlobalPartners processed</div><div class="act-desc">12 clauses, 8 obligations, 4 SLAs extracted</div></div><div class="act-time">2m ago</div></div>
+      <div class="act"><div class="act-icon" style="background:var(--red-dim);color:var(--red-text)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4m0 4h.01"/></svg></div><div class="act-body"><div class="act-title">SLA Breach: System Uptime 98.7%</div><div class="act-desc">TechVendor MSA &mdash; target 99.9%</div></div><div class="act-time">18m ago</div></div>
+      <div class="act"><div class="act-icon" style="background:var(--amber-dim);color:var(--amber-text)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div><div class="act-body"><div class="act-title">Renewal notice: 14 days remaining</div><div class="act-desc">CloudSoft License &mdash; auto-renews May 5</div></div><div class="act-time">1h ago</div></div>
+      <div class="act"><div class="act-icon" style="background:var(--cyan-dim);color:var(--cyan)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14.899A7 7 0 1115.71 8h1.79a4.5 4.5 0 012.5 8.242M12 12v9"/></svg></div><div class="act-body"><div class="act-title">3 contracts uploaded via batch</div><div class="act-desc">By legal@acme.com</div></div><div class="act-time">3h ago</div></div>
+      <div class="act"><div class="act-icon" style="background:var(--violet-dim);color:var(--violet)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div class="act-body"><div class="act-title">External user invited</div><div class="act-desc">vendor@globalpartners.com for MSA review</div></div><div class="act-time">5h ago</div></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div class="card-t">Risk Distribution</div></div>
+      <div style="display:flex;gap:4px;margin-bottom:16px;height:8px;border-radius:99px;overflow:hidden"><div style="flex:156;background:var(--green)"></div><div style="flex:54;background:var(--amber)"></div><div style="flex:28;background:var(--red)"></div><div style="flex:9;background:var(--violet)"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg-elevated);border-radius:var(--radius-sm)"><div class="dot" style="background:var(--green)"></div><div><div style="font-size:.75rem;color:var(--text-muted)">Low Risk</div><div style="font-family:var(--font-display);font-weight:800;font-size:1.1rem">156</div></div></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg-elevated);border-radius:var(--radius-sm)"><div class="dot" style="background:var(--amber)"></div><div><div style="font-size:.75rem;color:var(--text-muted)">Medium</div><div style="font-family:var(--font-display);font-weight:800;font-size:1.1rem">54</div></div></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg-elevated);border-radius:var(--radius-sm)"><div class="dot" style="background:var(--red)"></div><div><div style="font-size:.75rem;color:var(--text-muted)">High</div><div style="font-family:var(--font-display);font-weight:800;font-size:1.1rem">28</div></div></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg-elevated);border-radius:var(--radius-sm)"><div class="dot" style="background:var(--violet)"></div><div><div style="font-size:.75rem;color:var(--text-muted)">Critical</div><div style="font-family:var(--font-display);font-weight:800;font-size:1.1rem">9</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ CONTRACTS ════════════ -->
+<div class="page" id="p-contracts">
+  <div class="ph"><div class="ph-title">Contracts</div><div class="ph-desc">Manage and analyze your contract portfolio</div></div>
+  <div class="filters"><button class="f-btn active">All<span class="f-count">247</span></button><button class="f-btn">MSA<span class="f-count">62</span></button><button class="f-btn">SOW<span class="f-count">44</span></button><button class="f-btn">NDA<span class="f-count">53</span></button><button class="f-btn">Vendor<span class="f-count">28</span></button><button class="f-btn">Employment<span class="f-count">37</span></button><div style="margin-left:auto"><button class="btn btn-primary" style="padding:8px 18px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14m-7-7h14"/></svg>Upload</button></div></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="tbl"><thead><tr><th>Contract</th><th>Type</th><th>Counterparty</th><th>Value</th><th>Risk</th><th>Status</th><th>Expiry</th><th style="text-align:center">CL</th><th style="text-align:center">SLA</th></tr></thead><tbody>
+      <tr><td><span class="tbl-name">MSA_GlobalPartners_2025.pdf</span><span class="tbl-sub">Apr 18, 2026</span></td><td><span class="tag tag-violet">MSA</span></td><td>Global Partners Inc.</td><td class="tbl-mono">$2,400,000</td><td><span class="tag tag-red"><span class="dot" style="background:var(--red)"></span>High</span></td><td><span class="tag tag-green">Completed</span></td><td class="tbl-mono">Dec 31, 2027</td><td class="tbl-mono" style="text-align:center">14</td><td class="tbl-mono" style="text-align:center">6</td></tr>
+      <tr><td><span class="tbl-name">NDA_StrategicAdvisors_2025.docx</span><span class="tbl-sub">Apr 16, 2026</span></td><td><span class="tag tag-cyan">NDA</span></td><td>Strategic Advisors LLC</td><td class="tbl-mono">&mdash;</td><td><span class="tag tag-green"><span class="dot" style="background:var(--green)"></span>Low</span></td><td><span class="tag tag-green">Completed</span></td><td class="tbl-mono">Apr 15, 2027</td><td class="tbl-mono" style="text-align:center">8</td><td class="tbl-mono" style="text-align:center">0</td></tr>
+      <tr><td><span class="tbl-name">CloudSoft_License_Agreement.pdf</span><span class="tbl-sub">Apr 14, 2026</span></td><td><span class="tag tag-muted">Vendor</span></td><td>CloudSoft Technologies</td><td class="tbl-mono">$180,000</td><td><span class="tag tag-amber"><span class="dot" style="background:var(--amber)"></span>Medium</span></td><td><span class="tag tag-green">Completed</span></td><td class="tbl-mono" style="color:var(--red-text)">May 5, 2026</td><td class="tbl-mono" style="text-align:center">11</td><td class="tbl-mono" style="text-align:center">3</td></tr>
+      <tr><td><span class="tbl-name">TechVendor_MSA_Enterprise.pdf</span><span class="tbl-sub">Apr 12, 2026</span></td><td><span class="tag tag-violet">MSA</span></td><td>TechVendor Corp</td><td class="tbl-mono">$5,800,000</td><td><span class="tag tag-red"><span class="dot" style="background:var(--red)"></span>High</span></td><td><span class="tag tag-green">Completed</span></td><td class="tbl-mono">Jun 30, 2028</td><td class="tbl-mono" style="text-align:center">22</td><td class="tbl-mono" style="text-align:center">9</td></tr>
+      <tr><td><span class="tbl-name">SOW_DataMigration_Phase2.pdf</span><span class="tbl-sub">Apr 10, 2026</span></td><td><span class="tag tag-cyan">SOW</span></td><td>DataForce Analytics</td><td class="tbl-mono">$425,000</td><td><span class="tag tag-green"><span class="dot" style="background:var(--green)"></span>Low</span></td><td><span class="tag tag-green">Completed</span></td><td class="tbl-mono">Sep 30, 2026</td><td class="tbl-mono" style="text-align:center">9</td><td class="tbl-mono" style="text-align:center">2</td></tr>
+      <tr><td><span class="tbl-name">Employment_Rodriguez_Senior.pdf</span><span class="tbl-sub">Apr 8, 2026</span></td><td><span class="tag tag-muted">Employ</span></td><td>Maria Rodriguez</td><td class="tbl-mono">$165,000</td><td><span class="tag tag-green"><span class="dot" style="background:var(--green)"></span>Low</span></td><td><span class="tag tag-green">Completed</span></td><td class="tbl-mono">&mdash;</td><td class="tbl-mono" style="text-align:center">7</td><td class="tbl-mono" style="text-align:center">0</td></tr>
+      <tr><td><span class="tbl-name">Consulting_McKinley_Advisory.docx</span><span class="tbl-sub">Apr 5, 2026</span></td><td><span class="tag tag-cyan">SOW</span></td><td>McKinley & Associates</td><td class="tbl-mono">$750,000</td><td><span class="tag tag-amber"><span class="dot" style="background:var(--amber)"></span>Medium</span></td><td><span class="tag tag-green">Completed</span></td><td class="tbl-mono">Mar 31, 2027</td><td class="tbl-mono" style="text-align:center">13</td><td class="tbl-mono" style="text-align:center">4</td></tr>
+    </tbody></table>
+    <div class="tbl-foot"><span>Showing 1&ndash;7 of 247</span><div style="display:flex;gap:4px"><button class="f-btn" style="padding:5px 12px;font-size:.72rem">Prev</button><button class="f-btn active" style="padding:5px 12px;font-size:.72rem">1</button><button class="f-btn" style="padding:5px 12px;font-size:.72rem">2</button><button class="f-btn" style="padding:5px 12px;font-size:.72rem">3</button><button class="f-btn" style="padding:5px 12px;font-size:.72rem">Next</button></div></div>
+  </div>
+</div>
+
+<!-- ════════════ COMPLIANCE ════════════ -->
+<div class="page" id="p-compliance">
+  <div class="ph"><div class="ph-title">Post-Signing Compliance</div><div class="ph-desc">Monitor obligations, SLAs, and milestones across your portfolio</div></div>
+  <div class="tabs"><div class="tab active">Obligations</div><div class="tab">SLA Monitoring</div><div class="tab">Milestones</div><div class="tab">Reports</div></div>
+  <div class="metrics stagger" style="grid-template-columns:repeat(5,1fr)"><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem">173</div><div class="metric-label">Total</div></div><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem;color:var(--green-text)">142</div><div class="metric-label">On Track</div></div><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem;color:var(--amber-text)">23</div><div class="metric-label">At Risk</div></div><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem;color:var(--red-text)">8</div><div class="metric-label">Breached</div></div><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem;color:var(--accent)">82.1%</div><div class="metric-label">Compliance</div></div></div>
+  <div class="g2 gap-y">
+    <div class="card"><div class="card-h"><div class="card-t">Urgent Obligations</div><span class="tag tag-red">Action Required</span></div>
+      <div class="ob"><div class="ob-dot" style="color:var(--red)"></div><div class="ob-info"><div class="ob-name">Submit quarterly compliance report</div><div class="ob-src">TechVendor MSA &mdash; Section 8.2</div></div><div class="ob-due" style="color:var(--red-text)">Overdue 3d</div></div>
+      <div class="ob"><div class="ob-dot" style="color:var(--red)"></div><div class="ob-info"><div class="ob-name">Provide security audit certificate</div><div class="ob-src">GlobalPartners MSA &mdash; Section 12.1</div></div><div class="ob-due" style="color:var(--red-text)">Overdue 1d</div></div>
+      <div class="ob"><div class="ob-dot" style="color:var(--amber)"></div><div class="ob-info"><div class="ob-name">Deliver Phase 2 data migration report</div><div class="ob-src">DataForce SOW &mdash; Milestone 4</div></div><div class="ob-due" style="color:var(--amber-text)">Due in 2d</div></div>
+      <div class="ob"><div class="ob-dot" style="color:var(--amber)"></div><div class="ob-info"><div class="ob-name">Review and approve change order #12</div><div class="ob-src">McKinley Advisory &mdash; Section 5.3</div></div><div class="ob-due" style="color:var(--amber-text)">Due in 5d</div></div>
+      <div class="ob"><div class="ob-dot" style="color:var(--green)"></div><div class="ob-info"><div class="ob-name">Monthly SLA performance review</div><div class="ob-src">CloudSoft License &mdash; Schedule B</div></div><div class="ob-due" style="color:var(--green-text)">Due in 12d</div></div>
+    </div>
+    <div class="card"><div class="card-h"><div class="card-t">SLA Breach Summary</div><span class="tag tag-red">3 Active</span></div>
+      <div class="sla-row"><div class="sla-left"><div class="sla-metric">System Uptime</div><div class="sla-contract">TechVendor MSA &mdash; Target: 99.9%</div></div><div class="sla-right"><div class="sla-val" style="color:var(--red-text)">98.7%</div><div class="sla-target">-1.2% deviation</div></div></div>
+      <div class="sla-row"><div class="sla-left"><div class="sla-metric">Response Time (P1)</div><div class="sla-contract">TechVendor MSA &mdash; Target: &le;4 hours</div></div><div class="sla-right"><div class="sla-val" style="color:var(--red-text)">6.2h</div><div class="sla-target">55% over target</div></div></div>
+      <div class="sla-row"><div class="sla-left"><div class="sla-metric">First Call Resolution</div><div class="sla-contract">CloudSoft License &mdash; Target: &ge;75%</div></div><div class="sla-right"><div class="sla-val" style="color:var(--amber-text)">71.3%</div><div class="sla-target">-3.7% deviation</div></div></div>
+      <div class="sla-row"><div class="sla-left"><div class="sla-metric">Monthly Availability</div><div class="sla-contract">DataForce SOW &mdash; Target: 99.5%</div></div><div class="sla-right"><div class="sla-val" style="color:var(--green-text)">99.8%</div><div class="sla-target">Compliant</div></div></div>
+      <div class="callout callout-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg><div><strong>Penalty exposure: $127,500</strong> across 3 breached SLAs. Service credits of $42,000 may apply under at-risk pool provisions.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ RENEWALS ════════════ -->
+<div class="page" id="p-renewals">
+  <div class="ph"><div class="ph-title">Renewal Management</div><div class="ph-desc">Track upcoming renewals and notice periods</div></div>
+  <div class="metrics stagger" style="grid-template-columns:repeat(4,1fr)"><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem;color:var(--red-text)">5</div><div class="metric-label">Due This Month</div></div><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem;color:var(--amber-text)">12</div><div class="metric-label">Next 90 Days</div></div><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem;color:var(--accent)">31</div><div class="metric-label">Auto-Renewal</div></div><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem">$8.2M</div><div class="metric-label">At-Risk Value</div></div></div>
+  <div class="card"><div class="card-h"><div class="card-t">Upcoming Renewals</div><span class="tag tag-amber">Action Required</span></div>
+    <div class="ren"><div class="ren-date" style="background:var(--red-dim);color:var(--red-text)"><div class="ren-mo">Apr</div><div class="ren-day">28</div></div><div class="ren-info"><div class="ren-name">CloudSoft License Agreement</div><div class="ren-detail">Auto-renews &middot; Notice: 30 days &middot; <strong style="color:var(--red-text)">7 days left to cancel</strong></div></div><span class="tag tag-red">Urgent</span></div>
+    <div class="ren"><div class="ren-date" style="background:var(--amber-dim);color:var(--amber-text)"><div class="ren-mo">May</div><div class="ren-day">05</div></div><div class="ren-info"><div class="ren-name">DataSync Integration License</div><div class="ren-detail">Auto-renews &middot; Notice: 60 days &middot; <strong style="color:var(--amber-text)">14 days left</strong></div></div><span class="tag tag-amber">Soon</span></div>
+    <div class="ren"><div class="ren-date" style="background:var(--amber-dim);color:var(--amber-text)"><div class="ren-mo">May</div><div class="ren-day">15</div></div><div class="ren-info"><div class="ren-name">Office Space Lease &mdash; Floor 3</div><div class="ren-detail">Manual renewal &middot; $480K/year &middot; 24 days left</div></div><span class="tag tag-amber">Soon</span></div>
+    <div class="ren"><div class="ren-date" style="background:var(--accent-dim);color:var(--accent)"><div class="ren-mo">Jun</div><div class="ren-day">01</div></div><div class="ren-info"><div class="ren-name">Cybersecurity Monitoring Service</div><div class="ren-detail">Auto-renews &middot; Notice: 90 days &middot; 41 days left</div></div><span class="tag tag-muted">Tracking</span></div>
+    <div class="ren"><div class="ren-date" style="background:var(--blue-dim);color:var(--blue)"><div class="ren-mo">Jun</div><div class="ren-day">30</div></div><div class="ren-info"><div class="ren-name">HR Benefits Platform Subscription</div><div class="ren-detail">Manual renewal &middot; $95K/year &middot; 70 days left</div></div><span class="tag tag-muted">Tracking</span></div>
+  </div>
+</div>
+
+<!-- ════════════ VENDORS ════════════ -->
+<div class="page" id="p-vendors">
+  <div class="ph"><div class="ph-title">Vendor Management</div><div class="ph-desc">Counterparty performance and relationship health</div></div>
+  <div class="card" style="padding:0;overflow:hidden"><table class="tbl"><thead><tr><th>Vendor</th><th>Contracts</th><th>Total Value</th><th>SLA Compliance</th><th>Risk</th><th>Health Score</th><th>Status</th></tr></thead><tbody>
+    <tr><td><span class="tbl-name">TechVendor Corp</span><span class="tbl-sub">IT Services Provider</span></td><td class="tbl-mono">4</td><td class="tbl-mono">$8,200,000</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="width:80px"><div class="bar-fill" style="width:72%;background:var(--amber)"></div></div><span class="tbl-mono">72%</span></div></td><td><span class="tag tag-red">High</span></td><td><span style="font-family:var(--font-display);font-weight:800;color:var(--amber-text)">6.2</span><span style="font-size:.65rem;color:var(--text-muted)">/10</span></td><td><span class="tag tag-green">Active</span></td></tr>
+    <tr><td><span class="tbl-name">Global Partners Inc.</span><span class="tbl-sub">Strategic Vendor</span></td><td class="tbl-mono">3</td><td class="tbl-mono">$5,120,000</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="width:80px"><div class="bar-fill" style="width:94%;background:var(--green)"></div></div><span class="tbl-mono">94%</span></div></td><td><span class="tag tag-amber">Medium</span></td><td><span style="font-family:var(--font-display);font-weight:800;color:var(--green-text)">8.4</span><span style="font-size:.65rem;color:var(--text-muted)">/10</span></td><td><span class="tag tag-green">Active</span></td></tr>
+    <tr><td><span class="tbl-name">CloudSoft Technologies</span><span class="tbl-sub">SaaS Vendor</span></td><td class="tbl-mono">2</td><td class="tbl-mono">$360,000</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="width:80px"><div class="bar-fill" style="width:88%;background:var(--green)"></div></div><span class="tbl-mono">88%</span></div></td><td><span class="tag tag-amber">Medium</span></td><td><span style="font-family:var(--font-display);font-weight:800;color:var(--green-text)">7.8</span><span style="font-size:.65rem;color:var(--text-muted)">/10</span></td><td><span class="tag tag-green">Active</span></td></tr>
+    <tr><td><span class="tbl-name">DataForce Analytics</span><span class="tbl-sub">Data Services</span></td><td class="tbl-mono">1</td><td class="tbl-mono">$425,000</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="width:80px"><div class="bar-fill" style="width:99%;background:var(--green)"></div></div><span class="tbl-mono">99%</span></div></td><td><span class="tag tag-green">Low</span></td><td><span style="font-family:var(--font-display);font-weight:800;color:var(--green-text)">9.1</span><span style="font-size:.65rem;color:var(--text-muted)">/10</span></td><td><span class="tag tag-green">Active</span></td></tr>
+    <tr><td><span class="tbl-name">McKinley & Associates</span><span class="tbl-sub">Consulting</span></td><td class="tbl-mono">1</td><td class="tbl-mono">$750,000</td><td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="width:80px"><div class="bar-fill" style="width:91%;background:var(--green)"></div></div><span class="tbl-mono">91%</span></div></td><td><span class="tag tag-green">Low</span></td><td><span style="font-family:var(--font-display);font-weight:800;color:var(--green-text)">8.7</span><span style="font-size:.65rem;color:var(--text-muted)">/10</span></td><td><span class="tag tag-green">Active</span></td></tr>
+  </tbody></table></div>
+</div>
+
+<!-- ════════════ GOVERNANCE ════════════ -->
+<div class="page" id="p-governance">
+  <div class="ph"><div class="ph-title">Relationship Governance</div><div class="ph-desc">KPI perception scoring and business relationship health</div></div>
+  <div class="metrics stagger" style="grid-template-columns:repeat(4,1fr)"><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem">12</div><div class="metric-label">Organizations</div></div><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem">8</div><div class="metric-label">Relationships</div></div><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem;color:var(--green-text)">7.6</div><div class="metric-label">Avg Health</div></div><div class="metric" style="padding:16px"><div class="metric-value" style="font-size:1.3rem;color:var(--amber-text)">3</div><div class="metric-label">Perception Gaps</div></div></div>
+  <div class="g2 gap-y">
+    <div class="card"><div class="card-h"><div class="card-t">Relationship Health</div></div>
+      <div class="gov-row"><div class="gov-avatar" style="background:var(--blue-dim);color:var(--blue)">GP</div><div class="gov-info"><div class="gov-name">Global Partners Inc.</div><div class="gov-sub">Strategic Vendor &middot; 3 contracts</div></div><div><div class="gov-score" style="color:var(--green-text)">8.4</div><div class="gov-score-label">/10</div></div></div>
+      <div class="gov-row"><div class="gov-avatar" style="background:var(--red-dim);color:var(--red-text)">TV</div><div class="gov-info"><div class="gov-name">TechVendor Corp</div><div class="gov-sub">IT Services &middot; 4 contracts</div></div><div><div class="gov-score" style="color:var(--amber-text)">6.2</div><div class="gov-score-label">/10</div></div></div>
+      <div class="gov-row"><div class="gov-avatar" style="background:var(--green-dim);color:var(--green-text)">DF</div><div class="gov-info"><div class="gov-name">DataForce Analytics</div><div class="gov-sub">Data Services &middot; 1 contract</div></div><div><div class="gov-score" style="color:var(--green-text)">9.1</div><div class="gov-score-label">/10</div></div></div>
+      <div class="gov-row"><div class="gov-avatar" style="background:var(--violet-dim);color:var(--violet)">CS</div><div class="gov-info"><div class="gov-name">CloudSoft Technologies</div><div class="gov-sub">SaaS Vendor &middot; 2 contracts</div></div><div><div class="gov-score" style="color:var(--green-text)">7.8</div><div class="gov-score-label">/10</div></div></div>
+    </div>
+    <div class="card"><div class="card-h"><div class="card-t">Perception Gap Analysis</div><span class="tag tag-amber">3 Gaps</span></div>
+      <div class="gap-card"><div class="gap-head"><span class="gap-title">TechVendor &mdash; Service Quality</span><span class="gap-sev" style="background:var(--red-dim);color:var(--red-text)">Critical</span></div><div class="gap-scores"><div>Internal: <strong style="color:var(--red-text)">4.2</strong>/10</div><div>External: <strong style="color:var(--green-text)">8.1</strong>/10</div><div>Gap: <strong style="color:var(--red-text)">-3.9</strong></div></div></div>
+      <div class="gap-card"><div class="gap-head"><span class="gap-title">CloudSoft &mdash; Communication</span><span class="gap-sev" style="background:var(--amber-dim);color:var(--amber-text)">Moderate</span></div><div class="gap-scores"><div>Internal: <strong style="color:var(--amber-text)">5.8</strong>/10</div><div>External: <strong style="color:var(--green-text)">7.5</strong>/10</div><div>Gap: <strong style="color:var(--amber-text)">-1.7</strong></div></div></div>
+      <div class="gap-card"><div class="gap-head"><span class="gap-title">TechVendor &mdash; Innovation</span><span class="gap-sev" style="background:var(--amber-dim);color:var(--amber-text)">Moderate</span></div><div class="gap-scores"><div>Internal: <strong style="color:var(--amber-text)">5.0</strong>/10</div><div>External: <strong style="color:var(--green-text)">7.2</strong>/10</div><div>Gap: <strong style="color:var(--amber-text)">-2.2</strong></div></div></div>
+      <div class="callout callout-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg><div><strong>Governance Bridge:</strong> 5 improvement points auto-generated from perception gaps. 2 assigned to relationship owners.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ ASK AI ════════════ -->
+<div class="page" id="p-query">
+  <div class="ph"><div class="ph-title">Ask AI</div><div class="ph-desc">Query your contracts using natural language</div></div>
+  <div class="g12">
+    <div class="card"><div class="card-h"><div class="card-t">Sessions</div></div>
+      <div class="chat-session active"><div class="chat-session-t">TechVendor SLA Analysis</div><div class="chat-session-sub">4 messages &middot; Today</div></div>
+      <div class="chat-session"><div class="chat-session-t">Renewal Risk Assessment</div><div class="chat-session-sub">6 messages &middot; Yesterday</div></div>
+      <div class="chat-session"><div class="chat-session-t">Liability Cap Comparison</div><div class="chat-session-sub">3 messages &middot; Apr 19</div></div>
+      <div class="chat-session"><div class="chat-session-t">Termination Clause Review</div><div class="chat-session-sub">5 messages &middot; Apr 17</div></div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;min-height:480px">
+      <div style="flex:1;overflow-y:auto;padding-bottom:12px">
+        <div class="chat-msg chat-user"><div class="chat-bubble">What are all the SLA targets in the TechVendor MSA and which ones are currently breached?</div></div>
+        <div class="chat-msg"><div class="chat-ai-avatar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M4 14l5-7 5 7 6-10"/></svg></div><div class="chat-bubble"><p style="margin-bottom:10px">The <strong>TechVendor Enterprise MSA</strong> contains <strong>9 SLA metrics</strong> across 3 service towers:</p><div class="chat-data"><div class="chat-data-row"><span>System Uptime</span><span><strong style="color:var(--red-text)">98.7%</strong> / 99.9%</span></div><div class="chat-data-row"><span>P1 Response Time</span><span><strong style="color:var(--red-text)">6.2h</strong> / &le;4h</span></div><div class="chat-data-row"><span>P2 Response Time</span><span><strong style="color:var(--green-text)">7.1h</strong> / &le;8h</span></div><div class="chat-data-row"><span>Resolution Time (P1)</span><span><strong style="color:var(--green-text)">22h</strong> / &le;24h</span></div><div class="chat-data-row"><span>Change Success Rate</span><span><strong style="color:var(--green-text)">99.1%</strong> / &ge;98%</span></div></div><p><strong>2 SLAs breached</strong> with estimated penalty of <strong style="color:var(--red-text)">$85,000</strong> under Schedule C at-risk pool.</p><div class="chat-source">Sources: TechVendor_MSA_Enterprise.pdf (pp. 34&ndash;38, Schedule C)</div></div></div>
+      </div>
+      <div class="chat-input-wrap"><input class="chat-input" placeholder="Ask about your contracts..." /><button class="chat-send">Send</button></div>
+    </div>
+  </div>
+</div>
+
+  </div>
+</div>
+</div>
+
+<script>
+function go(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.s-item').forEach(n=>n.classList.remove('active'));
+  const p=document.getElementById('p-'+name);
+  const n=document.getElementById('n-'+name);
+  if(p){p.classList.add('active');animateCounters(p)}
+  if(n)n.classList.add('active');
+}
+function animateCounters(container){
+  container.querySelectorAll('.counter').forEach(el=>{
+    const target=parseFloat(el.dataset.target);
+    const suffix=el.dataset.suffix||'';
+    const isDecimal=String(target).includes('.');
+    let current=0;const step=target/40;
+    const timer=setInterval(()=>{
+      current+=step;
+      if(current>=target){current=target;clearInterval(timer)}
+      el.textContent=(isDecimal?current.toFixed(1):Math.floor(current))+suffix;
+    },25);
+  });
+}
+// Initial counter animation
+setTimeout(()=>animateCounters(document.getElementById('p-dashboard')),300);
+</script>
+</body>
+</html>

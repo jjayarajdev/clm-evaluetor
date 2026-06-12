@@ -46,6 +46,61 @@ class KGRelationshipType(str, enum.Enum):
     GOVERNED_BY = "governed_by"  # Contract governed by jurisdiction
     AMENDS = "amends"  # Amendment modifies original
     EXPIRES_ON = "expires_on"  # Contract/obligation expires on date
+    SAME_AS = "same_as"  # Cross-contract entity identity
+
+
+class KGMasterEntity(Base, UUIDMixin, TimestampMixin):
+    """Canonical representation of an entity at the tenant level.
+
+    Aggregates multiple KGEntity instances from different contracts
+    into a single business entity (e.g., "Acme Corp" across 50 contracts).
+    """
+
+    __tablename__ = "kg_master_entities"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id"),
+        nullable=False,
+        index=True,
+    )
+
+    entity_type: Mapped[KGEntityType] = mapped_column(
+        Enum(
+            KGEntityType,
+            values_callable=lambda x: [e.value for e in x],
+            native_enum=True,
+            name='kgentitytype',
+            create_type=False,
+        ),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(500), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(
+        String(500), nullable=False, index=True
+    )
+
+    # Consolidated properties from all linked entities
+    properties: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, server_default="{}"
+    )
+
+    # Metadata
+    entity_count: Mapped[int] = mapped_column(Integer, server_default="0")
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default="now()",
+    )
+
+    # Relationships
+    entities: Mapped[list["KGEntity"]] = relationship(
+        "KGEntity",
+        back_populates="master_entity",
+    )
+
+    def __repr__(self) -> str:
+        return f"<KGMasterEntity {self.entity_type.value}: {self.name}>"
 
 
 class KGEntity(Base, UUIDMixin, TimestampMixin):
@@ -66,6 +121,11 @@ class KGEntity(Base, UUIDMixin, TimestampMixin):
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("tenants.id"),
         nullable=False,
+        index=True,
+    )
+    master_entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("kg_master_entities.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
 
@@ -89,15 +149,6 @@ class KGEntity(Base, UUIDMixin, TimestampMixin):
     )
 
     # Flexible attributes stored as JSON
-    # Examples:
-    #   party: {"role": "provider", "address": "..."}
-    #   clause: {"section_number": "8.1", "title": "Indemnification"}
-    #   obligation: {"type": "payment", "amount": 5000}
-    #   term: {"definition": "..."}
-    #   date: {"date_type": "effective", "value": "2024-01-01"}
-    #   amount: {"value": 1000000, "currency": "USD"}
-    #   jurisdiction: {"state": "Delaware"}
-    #   sla_metric: {"metric": "uptime", "target": "99.9%"}
     properties: Mapped[dict] = mapped_column(
         JSONB, nullable=False, server_default="{}"
     )
@@ -113,6 +164,10 @@ class KGEntity(Base, UUIDMixin, TimestampMixin):
     )
 
     # Relationships
+    master_entity: Mapped[KGMasterEntity | None] = relationship(
+        "KGMasterEntity",
+        back_populates="entities",
+    )
     outgoing_relationships: Mapped[list["KGRelationship"]] = relationship(
         "KGRelationship",
         foreign_keys="KGRelationship.source_entity_id",

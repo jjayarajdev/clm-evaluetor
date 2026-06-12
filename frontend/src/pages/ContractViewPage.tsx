@@ -17,9 +17,15 @@ import {
   PencilIcon,
   CheckIcon,
   XMarkIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  MinusCircleIcon,
+  Square3Stack3DIcon,
 } from '@heroicons/react/24/outline'
+import type { ExtractionStageOutcome } from '@/types'
 import api from '@/lib/api'
 import { client as apiClient } from '@/lib/api/client'
+import { reExtractMetadataField, type ReExtractableField } from '@/lib/api/contracts'
 import { getIndustryProfiles } from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import SLASummary from '@/components/dashboard/SLASummary'
@@ -29,6 +35,7 @@ import ContractSharing from '@/components/contracts/ContractSharing'
 import ContractDocumentsTab from '@/components/contracts/ContractDocumentsTab'
 import ContractReviewPane from '@/components/contracts/ContractReviewPane'
 import ContractPdfViewer from '@/components/contracts/ContractPdfViewer'
+import KnowledgeGraphTab from '@/components/contracts/KnowledgeGraphTab'
 import type { HighlightRect } from '@/lib/api/contracts'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
@@ -44,6 +51,7 @@ const TAB_ICON_MAP: Record<string, React.ComponentType<React.SVGProps<SVGSVGElem
   share: ShareIcon,
   shield: ShieldExclamationIcon,
   truck: DocumentTextIcon,
+  graph: Square3Stack3DIcon,
 }
 
 // Fallback tabs if config not loaded yet
@@ -55,6 +63,106 @@ const DEFAULT_TABS = [
   { id: 'documents', label: 'Documents', icon: 'folder' },
   { id: 'sharing', label: 'Sharing', icon: 'share' },
 ]
+
+// Friendly labels + display order for extraction pipeline stages
+const STAGE_DISPLAY: { key: string; label: string }[] = [
+  { key: 'metadata', label: 'Metadata' },
+  { key: 'risk', label: 'Risk Assessment' },
+  { key: 'custom_fields', label: 'Custom Fields' },
+  { key: 'contract_references', label: 'Contract References' },
+  { key: 'clause_extraction', label: 'Clauses' },
+  { key: 'obligation_detection', label: 'Obligations' },
+  { key: 'sla_extraction', label: 'SLAs' },
+  { key: 'highlight_extraction', label: 'PDF Highlights' },
+  { key: 'taxonomy_discovery', label: 'Taxonomy Suggestions' },
+  { key: 'renewal_analysis', label: 'Renewal Terms' },
+  { key: 'schema_extraction', label: 'Structured Schema Fields' },
+  { key: 'link_detection', label: 'Related Contract Detection' },
+  { key: 'compliance_check', label: 'Compliance Check' },
+  { key: 'regulatory_extraction', label: 'Regulatory Obligations' },
+  { key: 'hierarchy_detection', label: 'Hierarchy Detection' },
+  { key: 'governance_bridge', label: 'Governance Bridge' },
+  { key: 'graph_verification', label: 'Graph Verification' },
+]
+
+function ExtractionHealthPanel({
+  health,
+}: {
+  health: Record<string, ExtractionStageOutcome>
+}) {
+  const stages = STAGE_DISPLAY.filter((s) => health[s.key])
+  const counts = stages.reduce(
+    (acc, s) => {
+      const status = health[s.key]?.status
+      if (status === 'success') acc.success += 1
+      else if (status === 'failed') acc.failed += 1
+      else if (status === 'skipped' || status === 'not_applicable') acc.skipped += 1
+      return acc
+    },
+    { success: 0, failed: 0, skipped: 0 }
+  )
+
+  const headlineColor =
+    counts.failed > 0 ? 'text-red-700' : counts.skipped > 0 ? 'text-amber-700' : 'text-green-700'
+
+  return (
+    <div className="card">
+      <div className="card-header flex items-center justify-between">
+        <h2 className="text-sm font-medium text-gray-900">Extraction Health</h2>
+        <span className={cn('text-xs font-medium', headlineColor)}>
+          {counts.success} ok · {counts.failed} failed · {counts.skipped} skipped
+        </span>
+      </div>
+      <div className="card-body space-y-1.5">
+        {stages.map((s) => {
+          const outcome = health[s.key]
+          const status = outcome.status
+          const Icon =
+            status === 'success'
+              ? CheckCircleIcon
+              : status === 'failed'
+                ? ExclamationTriangleIcon
+                : MinusCircleIcon
+          const iconColor =
+            status === 'success'
+              ? 'text-green-500'
+              : status === 'failed'
+                ? 'text-red-500'
+                : 'text-gray-400'
+          const note = outcome.error || outcome.reason
+          const dropped = (outcome.details?.dropped_fields as Array<{
+            field: string
+            confidence: number
+            threshold: number
+          }> | undefined)
+          return (
+            <div key={s.key} className="flex items-start gap-2 text-xs">
+              <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', iconColor)} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-gray-900">{s.label}</span>
+                  <span className="text-gray-400 capitalize">{status.replace('_', ' ')}</span>
+                </div>
+                {note && (
+                  <p className="text-gray-500 truncate" title={note}>
+                    {note}
+                  </p>
+                )}
+                {dropped && dropped.length > 0 && (
+                  <p className="text-amber-600" title={dropped.map(d => `${d.field}: ${d.confidence} < ${d.threshold}`).join('\n')}>
+                    {dropped.length} field{dropped.length === 1 ? '' : 's'} below threshold:
+                    {' '}
+                    {dropped.map(d => d.field).join(', ')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export default function ContractViewPage() {
   const { id } = useParams<{ id: string }>()
@@ -111,6 +219,42 @@ export default function ContractViewPage() {
       queryClient.invalidateQueries({ queryKey: ['contracts'] })
     },
   })
+
+  // #30 — Per-field re-extract state. Keyed by field name so multiple
+  // popovers can show their own pending/result state independently.
+  const [reExtractPending, setReExtractPending] = useState<Record<string, boolean>>({})
+  const [reExtractResult, setReExtractResult] = useState<
+    Record<string, { applied: boolean; reason?: string | null } | null>
+  >({})
+
+  const handleReExtract = (field: ReExtractableField, hint: string | undefined) => {
+    if (!id) return
+    setReExtractPending((p) => ({ ...p, [field]: true }))
+    setReExtractResult((r) => ({ ...r, [field]: null }))
+    reExtractMetadataField(id, field, hint)
+      .then((resp) => {
+        setReExtractResult((r) => ({
+          ...r,
+          [field]: { applied: resp.applied, reason: resp.reason },
+        }))
+        if (resp.applied) {
+          // Pull the fresh value + provenance into the contract data
+          queryClient.invalidateQueries({ queryKey: ['contract', id] })
+        }
+      })
+      .catch((err: any) => {
+        setReExtractResult((r) => ({
+          ...r,
+          [field]: {
+            applied: false,
+            reason: err?.response?.data?.detail || err?.message || 'Re-extract failed',
+          },
+        }))
+      })
+      .finally(() => {
+        setReExtractPending((p) => ({ ...p, [field]: false }))
+      })
+  }
 
   // Industry profiles for per-contract assignment
   const { data: industryProfiles = [] } = useQuery({
@@ -381,6 +525,10 @@ export default function ContractViewPage() {
                     fieldName="counterparty"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.counterparty}
+                    onReExtract={canEditCustomFields ? (h) => handleReExtract('counterparty', h) : undefined}
+                    reExtracting={reExtractPending.counterparty}
+                    reExtractResult={reExtractResult.counterparty}
                   />
                   <EditableField
                     label={uiLabel('contract_value', 'Contract Value')}
@@ -390,6 +538,10 @@ export default function ContractViewPage() {
                     type="number"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: Number(val) })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.contract_value}
+                    onReExtract={canEditCustomFields ? (h) => handleReExtract('contract_value', h) : undefined}
+                    reExtracting={reExtractPending.contract_value}
+                    reExtractResult={reExtractResult.contract_value}
                   />
                   <EditableField
                     label="Contract Type"
@@ -398,6 +550,10 @@ export default function ContractViewPage() {
                     fieldName="contract_type"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.contract_type}
+                    onReExtract={canEditCustomFields ? (h) => handleReExtract('contract_type', h) : undefined}
+                    reExtracting={reExtractPending.contract_type}
+                    reExtractResult={reExtractResult.contract_type}
                   />
                   <EditableField
                     label="Effective Date"
@@ -407,6 +563,10 @@ export default function ContractViewPage() {
                     type="date"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.effective_date}
+                    onReExtract={canEditCustomFields ? (h) => handleReExtract('effective_date', h) : undefined}
+                    reExtracting={reExtractPending.effective_date}
+                    reExtractResult={reExtractResult.effective_date}
                   />
                   <EditableField
                     label="Expiration Date"
@@ -416,6 +576,10 @@ export default function ContractViewPage() {
                     type="date"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.expiration_date}
+                    onReExtract={canEditCustomFields ? (h) => handleReExtract('expiration_date', h) : undefined}
+                    reExtracting={reExtractPending.expiration_date}
+                    reExtractResult={reExtractResult.expiration_date}
                   />
                   <EditableField
                     label="Jurisdiction"
@@ -423,6 +587,10 @@ export default function ContractViewPage() {
                     fieldName="jurisdiction"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
                     canEdit={canEditCustomFields}
+                    provenance={contract.metadata_provenance?.jurisdiction}
+                    onReExtract={canEditCustomFields ? (h) => handleReExtract('jurisdiction', h) : undefined}
+                    reExtracting={reExtractPending.jurisdiction}
+                    reExtractResult={reExtractResult.jurisdiction}
                   />
                   <div>
                     <p className="text-xs text-gray-500">Auto-Renewal</p>
@@ -531,6 +699,11 @@ export default function ContractViewPage() {
                 </div>
               </div>
 
+              {/* Extraction Health — surfaces silent pipeline failures */}
+              {isCompleted && contract.extraction_health && Object.keys(contract.extraction_health).length > 0 && (
+                <ExtractionHealthPanel health={contract.extraction_health} />
+              )}
+
               {/* Extraction Stats */}
               {isCompleted && (
                 <div className="card">
@@ -638,6 +811,10 @@ function EditableField({
   onSave,
   type = 'text',
   canEdit,
+  provenance,
+  onReExtract,
+  reExtracting,
+  reExtractResult,
 }: {
   label: string
   value: string | null | undefined
@@ -646,9 +823,17 @@ function EditableField({
   onSave: (field: string, val: string) => void
   type?: 'text' | 'date' | 'number'
   canEdit: boolean
+  provenance?: { raw_text: string; confidence: number } | null
+  /** When provided, the provenance popover gets a "Re-extract" button. */
+  onReExtract?: (hint: string | undefined) => void
+  reExtracting?: boolean
+  reExtractResult?: { applied: boolean; reason?: string | null } | null
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value || '')
+  const [showProvenance, setShowProvenance] = useState(false)
+  const [showHint, setShowHint] = useState(false)
+  const [hint, setHint] = useState('')
 
   const handleSave = () => {
     if (draft !== (value || '')) {
@@ -689,10 +874,23 @@ function EditableField({
   }
 
   return (
-    <div className="group">
+    <div className="group relative">
       <p className="text-xs text-gray-500">{label}</p>
       <div className="flex items-center gap-1">
         <p className="text-sm font-medium text-gray-900">{shown}</p>
+        {provenance && provenance.raw_text && (
+          <button
+            onClick={() => setShowProvenance((s) => !s)}
+            className={cn(
+              'p-0.5 text-gray-400 hover:text-primary-600 transition-colors',
+              showProvenance && 'text-primary-600'
+            )}
+            title="Show extraction source"
+            aria-label={`Show extraction source for ${label}`}
+          >
+            <InformationCircleIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
         {canEdit && (
           <button
             onClick={() => { setDraft(value || ''); setEditing(true) }}
@@ -703,6 +901,106 @@ function EditableField({
           </button>
         )}
       </div>
+      {showProvenance && provenance && (
+        <div className="absolute z-20 left-0 top-full mt-1 w-80 rounded-md border border-gray-200 bg-white shadow-lg p-3 text-xs">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="font-medium text-gray-700">AI extracted from</span>
+            <span
+              className={cn(
+                'px-1.5 py-0.5 rounded text-xs font-medium',
+                provenance.confidence >= 0.85 ? 'bg-green-50 text-green-700' :
+                provenance.confidence >= 0.6 ? 'bg-amber-50 text-amber-700' :
+                'bg-red-50 text-red-700'
+              )}
+              title="Extraction confidence"
+            >
+              {Math.round(provenance.confidence * 100)}%
+            </span>
+          </div>
+          <p className="text-gray-700 italic leading-snug">"{provenance.raw_text}"</p>
+          <p className="text-[10px] text-gray-400 mt-2">
+            Source quote from the contract. If you've edited this field manually, the quote
+            reflects the original AI extraction, not your current value.
+          </p>
+
+          {/* Re-extract action — only available for the 7 metadata fields */}
+          {onReExtract && (
+            <div className="mt-3 pt-2 border-t border-gray-100">
+              {!showHint ? (
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => onReExtract(undefined)}
+                    disabled={reExtracting}
+                    className={cn(
+                      'inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium',
+                      reExtracting
+                        ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                        : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+                    )}
+                  >
+                    {reExtracting ? (
+                      <>
+                        <ArrowPathIcon className="h-3 w-3 animate-spin" />
+                        Re-extracting…
+                      </>
+                    ) : (
+                      <>
+                        <ArrowPathIcon className="h-3 w-3" />
+                        Re-extract this field
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowHint(true)}
+                    disabled={reExtracting}
+                    className="text-xs text-gray-500 hover:text-gray-700 underline"
+                  >
+                    add hint
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-[11px] text-gray-600">
+                    Hint for the AI (optional):
+                  </label>
+                  <textarea
+                    value={hint}
+                    onChange={(e) => setHint(e.target.value)}
+                    placeholder="e.g. the right answer is in section 3, not the preamble"
+                    rows={2}
+                    className="w-full text-xs border border-gray-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { onReExtract(hint.trim() || undefined); setShowHint(false); setHint('') }}
+                      disabled={reExtracting}
+                      className="px-2 py-1 rounded text-xs font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
+                    >
+                      Re-extract
+                    </button>
+                    <button
+                      onClick={() => { setShowHint(false); setHint('') }}
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+              {reExtractResult && !reExtracting && (
+                <p className={cn(
+                  'mt-1.5 text-[11px]',
+                  reExtractResult.applied ? 'text-green-700' : 'text-amber-700'
+                )}>
+                  {reExtractResult.applied
+                    ? '✓ Updated. Refresh to see latest value.'
+                    : reExtractResult.reason || 'AI did not apply a new value.'}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

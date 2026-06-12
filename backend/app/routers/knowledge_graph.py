@@ -19,17 +19,48 @@ from app.services.knowledge_graph_service import (
     get_knowledge_graph_service,
 )
 from app.schemas.knowledge_graph import (
-    KGBulkExtractRequest,
     KGEntityResponse,
     KGEntityWithRelationships,
     KGGraphResponse,
     KGPartyObligations,
+    KGPortfolioStats,
     KGRelatedClauses,
     KGRiskAnalysis,
     KGTermResolution,
 )
 
 router = APIRouter(prefix="/api/knowledge-graph", tags=["Knowledge Graph"])
+
+
+@router.get("/portfolio/stats", response_model=KGPortfolioStats)
+async def get_portfolio_stats(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> KGPortfolioStats:
+    """Get portfolio-wide knowledge graph statistics for the tenant."""
+    if not tenant_id:
+        raise HTTPException(status_code=400, detail="Tenant ID required for portfolio stats")
+
+    service = await get_knowledge_graph_service(db)
+    return await service.get_portfolio_stats(str(tenant_id))
+
+
+@router.get("/entities/{entity_id}/timeline", response_model=list[KGEntityResponse])
+async def get_entity_timeline(
+    entity_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[KGEntityResponse]:
+    """Get the temporal timeline for an entity across multiple contracts/amendments."""
+    service = await get_knowledge_graph_service(db)
+    # Tenant filter happens inside the service query — an entity belonging to
+    # another tenant comes back as an empty list (no existence leak).
+    # tenant_id is None only for super admin, who sees everything.
+    timeline = await service.get_entity_timeline(entity_id, tenant_id=tenant_id)
+
+    return timeline
 
 
 async def verify_contract_access(

@@ -99,6 +99,13 @@ class ContractResponse(BaseModel):
     # Custom fields (tenant-defined)
     custom_fields: dict[str, Any] = {}
 
+    # Per-stage extraction outcomes (success/failed/skipped) — surfaces silent failures
+    extraction_health: dict[str, Any] | None = None
+
+    # Per-field source quotes for AI-extracted metadata — surfaces provenance
+    # ("the AI got 'counterparty=Acme' from this exact phrase in the document")
+    metadata_provenance: dict[str, Any] | None = None
+
     # Relationships
     business_relationship_id: str | None = None
     uploaded_by: str

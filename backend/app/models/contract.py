@@ -80,7 +80,6 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
     contract_type: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
-        index=True,
     )
     counterparty: Mapped[str | None] = mapped_column(
         String(255),
@@ -94,7 +93,6 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
     expiration_date: Mapped[date | None] = mapped_column(
         Date,
         nullable=True,
-        index=True,
     )
     contract_value: Mapped[Decimal | None] = mapped_column(
         Numeric(15, 2),
@@ -117,7 +115,6 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
     risk_level: Mapped[RiskLevel | None] = mapped_column(
         Enum(RiskLevel, name='risklevel', create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=True,
-        index=True,
     )
 
     # Industry and compliance (Industry-Aware Compliance Module)
@@ -129,7 +126,6 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
             values_callable=lambda x: [e.value for e in x],
         ),
         nullable=True,
-        index=True,
     )
     industry_confidence: Mapped[float | None] = mapped_column(
         nullable=True,
@@ -188,7 +184,6 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         Enum(ContractStatus, name='contractstatus', create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=ContractStatus.PENDING,
-        index=True,
     )
     processing_error: Mapped[str | None] = mapped_column(
         Text,
@@ -217,6 +212,23 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         nullable=False,
         default=dict,
         server_default='{}',
+    )
+
+    # Per-stage outcomes from the extraction pipeline.
+    # Shape: {stage_name: {"status": "success"|"failed"|"skipped", ...}}
+    # Latest run wins (overwritten on re-analyze).
+    extraction_health: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    # Provenance for AI-extracted metadata fields: the source quote and
+    # confidence that backs each value the user sees. Populated by the
+    # metadata extraction agent; surfaced as info-tooltips in the UI.
+    # Shape: {field_name: {"raw_text": "...", "confidence": 0.92}}
+    metadata_provenance: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
     )
 
     # Client association

@@ -1,0 +1,550 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Sales Pitch Deck" description="Evaluetor — AI-Powered Contract Intelligence. Making your contracts Transparent, Measurable and Actionable.">
+
+  <!-- Progress Bar -->
+  <div id="progress-bar" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-primary-500 via-purple-500 to-pink-500 z-50 transition-all duration-500" style="width: 14.28%"></div>
+
+  <!-- Slide Counter -->
+  <div id="slide-counter" class="fixed top-6 right-8 text-sm font-medium text-white/60 z-50 backdrop-blur-sm bg-white/5 px-3 py-1 rounded-full border border-white/10">
+    1 / 7
+  </div>
+
+  <!-- Navigation Hint -->
+  <div id="nav-hint" class="fixed bottom-8 right-8 z-50 flex items-center gap-3 text-white/40 text-sm transition-opacity duration-1000">
+    <span>Use arrow keys or click arrows</span>
+    <div class="flex gap-1">
+      <button onclick="prevSlide()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-all">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+      </button>
+      <button onclick="nextSlide()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-all">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Slide Container -->
+  <div id="deck" class="h-screen overflow-hidden">
+
+    <!-- ============================================ -->
+    <!-- SLIDE 1: TITLE -->
+    <!-- ============================================ -->
+    <section class="slide h-screen w-full flex items-center justify-center bg-gray-950 relative overflow-hidden" data-slide="1">
+      <!-- Background Effects -->
+      <div class="absolute inset-0">
+        <div class="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full bg-primary-600/10 blur-[120px]"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-purple-500/8 blur-[100px]"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-pink-500/5 blur-[150px]"></div>
+      </div>
+      <div class="absolute inset-0 dot-grid opacity-30"></div>
+
+      <div class="relative z-10 text-center max-w-5xl mx-auto px-8">
+        <!-- Logo -->
+        <div class="mb-10 inline-flex items-center gap-2 px-5 py-2 rounded-full border border-primary-500/30 bg-primary-500/10">
+          <svg class="w-5 h-5 text-primary-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" /></svg>
+          <span class="text-primary-300 font-semibold tracking-wide text-sm uppercase">Evaluetor</span>
+        </div>
+
+        <h1 class="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-[1.1] mb-8">
+          Nobody reads contracts.<br/>
+          <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary-400 via-purple-400 to-pink-400">We built an AI that does.</span>
+        </h1>
+
+        <p class="text-xl sm:text-2xl text-gray-400 max-w-3xl mx-auto leading-relaxed mb-12">
+          AI-native contract intelligence that makes your contracts transparent, measurable, and actionable — in minutes, not months.
+        </p>
+
+        <div class="flex items-center justify-center gap-6 text-sm text-gray-500">
+          <span class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-primary-400"></span>
+            Contract Intelligence
+          </span>
+          <span class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+            Relationship Governance
+          </span>
+          <span class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-pink-400"></span>
+            Enterprise Security
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- SLIDE 2: THE PROBLEM -->
+    <!-- ============================================ -->
+    <section class="slide h-screen w-full flex items-center justify-center bg-gray-950 relative overflow-hidden" data-slide="2">
+      <div class="absolute inset-0">
+        <div class="absolute top-0 right-0 w-[400px] h-[400px] rounded-full bg-red-500/8 blur-[120px]"></div>
+        <div class="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full bg-orange-500/6 blur-[100px]"></div>
+      </div>
+
+      <div class="relative z-10 max-w-6xl mx-auto px-8 w-full">
+        <div class="mb-4">
+          <span class="inline-block text-xs font-semibold tracking-widest uppercase text-red-400 bg-red-500/10 px-4 py-1.5 rounded-full border border-red-500/20">The Problem</span>
+        </div>
+        <h2 class="text-4xl sm:text-5xl font-bold text-white mb-4">Contracts are broken.</h2>
+        <p class="text-lg text-gray-400 mb-12 max-w-2xl">Contracts are negotiated extensively, then filed and forgotten. Nobody reads them, tracks obligations, or claims credits.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- Stat 1 -->
+          <div class="glass-card p-8 rounded-2xl group hover:border-red-500/20 transition-all duration-500">
+            <div class="text-5xl font-bold text-red-400 mb-3">60%</div>
+            <div class="text-lg font-semibold text-white mb-2">Blind Spots</div>
+            <p class="text-sm text-gray-400 leading-relaxed">of enterprises can't tell you what's actually in their contracts. Critical terms, obligations, and risks remain invisible.</p>
+          </div>
+          <!-- Stat 2 -->
+          <div class="glass-card p-8 rounded-2xl group hover:border-red-500/20 transition-all duration-500">
+            <div class="text-5xl font-bold text-red-400 mb-3">$2M+</div>
+            <div class="text-lg font-semibold text-white mb-2">Lost Annually</div>
+            <p class="text-sm text-gray-400 leading-relaxed">to missed obligations, auto-renewals, and overlooked penalties. Money leaking from contracts nobody is watching.</p>
+          </div>
+          <!-- Stat 3 -->
+          <div class="glass-card p-8 rounded-2xl group hover:border-red-500/20 transition-all duration-500">
+            <div class="text-5xl font-bold text-red-400 mb-3">15-30%</div>
+            <div class="text-lg font-semibold text-white mb-2">Unclaimed Credits</div>
+            <p class="text-sm text-gray-400 leading-relaxed">of SLA service credits go unclaimed. Vendors breach their commitments and nobody notices — or follows up.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- SLIDE 3: THE SOLUTION -->
+    <!-- ============================================ -->
+    <section class="slide h-screen w-full flex items-center justify-center bg-gray-950 relative overflow-hidden" data-slide="3">
+      <div class="absolute inset-0">
+        <div class="absolute top-1/3 left-0 w-[400px] h-[400px] rounded-full bg-primary-600/10 blur-[120px]"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-purple-500/8 blur-[100px]"></div>
+      </div>
+
+      <div class="relative z-10 max-w-6xl mx-auto px-8 w-full">
+        <div class="mb-4">
+          <span class="inline-block text-xs font-semibold tracking-widest uppercase text-primary-400 bg-primary-500/10 px-4 py-1.5 rounded-full border border-primary-500/20">The Solution</span>
+        </div>
+        <h2 class="text-4xl sm:text-5xl font-bold text-white mb-4">One platform. Complete intelligence.</h2>
+        <p class="text-lg text-gray-400 mb-10 max-w-2xl">9 specialized AI agents extract, analyze, and monitor everything in your contracts — automatically.</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <!-- Capability 1 -->
+          <div class="glass-card p-6 rounded-xl glow-border">
+            <div class="w-10 h-10 rounded-lg bg-primary-500/20 flex items-center justify-center mb-4">
+              <svg class="w-5 h-5 text-primary-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" /></svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-2">Contract Intelligence</h3>
+            <p class="text-sm text-gray-400">AI extracts metadata, 30+ clause types, and risks across 10 categories. Full semantic search.</p>
+          </div>
+          <!-- Capability 2 -->
+          <div class="glass-card p-6 rounded-xl glow-border">
+            <div class="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center mb-4">
+              <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-2">Obligation Tracking</h3>
+            <p class="text-sm text-gray-400">RAG status indicators, owner assignment, escalation paths, and automated deadline alerts.</p>
+          </div>
+          <!-- Capability 3 -->
+          <div class="glass-card p-6 rounded-xl glow-border">
+            <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center mb-4">
+              <svg class="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-2">SLA Monitoring</h3>
+            <p class="text-sm text-gray-400">Real-time breach detection, service credit calculation, vendor scorecards with A-F grades.</p>
+          </div>
+          <!-- Capability 4 -->
+          <div class="glass-card p-6 rounded-xl glow-border">
+            <div class="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center mb-4">
+              <svg class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-2">Renewal Management</h3>
+            <p class="text-sm text-gray-400">Auto-renewal detection, notice period tracking, and AI-powered renewal recommendations.</p>
+          </div>
+          <!-- Capability 5 -->
+          <div class="glass-card p-6 rounded-xl glow-border">
+            <div class="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center mb-4">
+              <svg class="w-5 h-5 text-pink-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" /></svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-2">Relationship Governance</h3>
+            <p class="text-sm text-gray-400">KPI perception gap analysis, vendor health scores, surveys, and improvement tracking.</p>
+          </div>
+          <!-- Capability 6 -->
+          <div class="glass-card p-6 rounded-xl glow-border">
+            <div class="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-4">
+              <svg class="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-2">Enterprise Security</h3>
+            <p class="text-sm text-gray-400">SOC 2 Type II, GDPR-ready, AES-256, SSO/SAML, role-based access, full audit trails.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- SLIDE 4: HOW IT WORKS -->
+    <!-- ============================================ -->
+    <section class="slide h-screen w-full flex items-center justify-center bg-gray-950 relative overflow-hidden" data-slide="4">
+      <div class="absolute inset-0">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary-600/8 blur-[150px]"></div>
+      </div>
+      <div class="absolute inset-0 dot-grid opacity-20"></div>
+
+      <div class="relative z-10 max-w-6xl mx-auto px-8 w-full">
+        <div class="mb-4">
+          <span class="inline-block text-xs font-semibold tracking-widest uppercase text-purple-400 bg-purple-500/10 px-4 py-1.5 rounded-full border border-purple-500/20">How It Works</span>
+        </div>
+        <h2 class="text-4xl sm:text-5xl font-bold text-white mb-4">From upload to intelligence in minutes</h2>
+        <p class="text-lg text-gray-400 mb-14 max-w-2xl">No templates. No pre-configuration. No training required. Just upload and go.</p>
+
+        <!-- Pipeline Steps -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 relative">
+          <!-- Connecting line -->
+          <div class="hidden md:block absolute top-12 left-[12.5%] right-[12.5%] h-px bg-gradient-to-r from-primary-500/50 via-purple-500/50 to-pink-500/50"></div>
+
+          <!-- Step 1 -->
+          <div class="relative text-center">
+            <div class="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-primary-500/20 to-primary-600/10 border border-primary-500/30 flex items-center justify-center mb-6 relative z-10">
+              <svg class="w-10 h-10 text-primary-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+            </div>
+            <div class="text-xs font-bold text-primary-400 uppercase tracking-wider mb-2">Step 1</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Upload</h3>
+            <p class="text-sm text-gray-400">Drop any PDF, DOCX, or batch upload a ZIP. OCR handles scanned documents automatically.</p>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="relative text-center">
+            <div class="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30 flex items-center justify-center mb-6 relative z-10">
+              <svg class="w-10 h-10 text-purple-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg>
+            </div>
+            <div class="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">Step 2</div>
+            <h3 class="text-lg font-semibold text-white mb-2">AI Extracts</h3>
+            <p class="text-sm text-gray-400">9 specialized agents extract metadata, clauses, obligations, SLAs, risks, and renewal terms.</p>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="relative text-center">
+            <div class="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-pink-500/20 to-pink-600/10 border border-pink-500/30 flex items-center justify-center mb-6 relative z-10">
+              <svg class="w-10 h-10 text-pink-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5m.75-9 3-3 2.148 2.148A12.061 12.061 0 0 1 16.5 7.605" /></svg>
+            </div>
+            <div class="text-xs font-bold text-pink-400 uppercase tracking-wider mb-2">Step 3</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Dashboards</h3>
+            <p class="text-sm text-gray-400">Real-time dashboards surface risks, deadlines, SLA breaches, and vendor performance scores.</p>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="relative text-center">
+            <div class="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 flex items-center justify-center mb-6 relative z-10">
+              <svg class="w-10 h-10 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" /></svg>
+            </div>
+            <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">Step 4</div>
+            <h3 class="text-lg font-semibold text-white mb-2">Take Action</h3>
+            <p class="text-sm text-gray-400">Claim credits, meet deadlines, renegotiate terms, and govern relationships with data.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- SLIDE 5: WHY EVALUETOR (COMPARISON) -->
+    <!-- ============================================ -->
+    <section class="slide h-screen w-full flex items-center justify-center bg-gray-950 relative overflow-hidden" data-slide="5">
+      <div class="absolute inset-0">
+        <div class="absolute top-0 left-1/3 w-[400px] h-[400px] rounded-full bg-primary-600/8 blur-[120px]"></div>
+      </div>
+
+      <div class="relative z-10 max-w-6xl mx-auto px-8 w-full">
+        <div class="mb-4">
+          <span class="inline-block text-xs font-semibold tracking-widest uppercase text-primary-400 bg-primary-500/10 px-4 py-1.5 rounded-full border border-primary-500/20">Why Evaluetor</span>
+        </div>
+        <h2 class="text-4xl sm:text-5xl font-bold text-white mb-4">AI-native. Not AI-bolted-on.</h2>
+        <p class="text-lg text-gray-400 mb-10 max-w-2xl">Legacy CLM tools added AI as an afterthought. We built intelligence into the foundation.</p>
+
+        <!-- Comparison Table -->
+        <div class="glass-card rounded-2xl overflow-hidden">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-white/10">
+                <th class="px-6 py-4 text-sm font-semibold text-gray-400 uppercase tracking-wider">Capability</th>
+                <th class="px-6 py-4 text-sm font-bold text-primary-400 uppercase tracking-wider text-center">Evaluetor</th>
+                <th class="px-6 py-4 text-sm font-semibold text-gray-500 uppercase tracking-wider text-center">DocuSign CLM</th>
+                <th class="px-6 py-4 text-sm font-semibold text-gray-500 uppercase tracking-wider text-center">Icertis</th>
+                <th class="px-6 py-4 text-sm font-semibold text-gray-500 uppercase tracking-wider text-center">Ironclad</th>
+              </tr>
+            </thead>
+            <tbody class="text-sm">
+              <tr class="border-b border-white/5">
+                <td class="px-6 py-3.5 text-gray-300 font-medium">Time to Value</td>
+                <td class="px-6 py-3.5 text-center font-bold text-primary-400">Hours</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">6-12 months</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">12-18 months</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">3-6 months</td>
+              </tr>
+              <tr class="border-b border-white/5">
+                <td class="px-6 py-3.5 text-gray-300 font-medium">Pricing Model</td>
+                <td class="px-6 py-3.5 text-center font-bold text-primary-400">Contract volume</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">Per-seat</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">Per-seat</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">Per-seat</td>
+              </tr>
+              <tr class="border-b border-white/5">
+                <td class="px-6 py-3.5 text-gray-300 font-medium">AI Extraction</td>
+                <td class="px-6 py-3.5 text-center font-bold text-primary-400">9 native agents</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">Limited</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">Add-on</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">Limited</td>
+              </tr>
+              <tr class="border-b border-white/5">
+                <td class="px-6 py-3.5 text-gray-300 font-medium">SLA Monitoring</td>
+                <td class="px-6 py-3.5 text-center font-bold text-primary-400">Built-in</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">No</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">Add-on</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">No</td>
+              </tr>
+              <tr class="border-b border-white/5">
+                <td class="px-6 py-3.5 text-gray-300 font-medium">Relationship Governance</td>
+                <td class="px-6 py-3.5 text-center font-bold text-primary-400">Built-in</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">No</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">No</td>
+                <td class="px-6 py-3.5 text-center text-gray-500">No</td>
+              </tr>
+              <tr>
+                <td class="px-6 py-3.5 text-gray-300 font-medium">Unlimited Users</td>
+                <td class="px-6 py-3.5 text-center">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-500/20">
+                    <svg class="w-4 h-4 text-primary-400" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                  </span>
+                </td>
+                <td class="px-6 py-3.5 text-center text-gray-600">&#x2715;</td>
+                <td class="px-6 py-3.5 text-center text-gray-600">&#x2715;</td>
+                <td class="px-6 py-3.5 text-center text-gray-600">&#x2715;</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- SLIDE 6: RESULTS & ROI -->
+    <!-- ============================================ -->
+    <section class="slide h-screen w-full flex items-center justify-center bg-gray-950 relative overflow-hidden" data-slide="6">
+      <div class="absolute inset-0">
+        <div class="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full bg-emerald-500/8 blur-[120px]"></div>
+        <div class="absolute top-1/4 left-0 w-[300px] h-[300px] rounded-full bg-primary-500/8 blur-[100px]"></div>
+      </div>
+
+      <div class="relative z-10 max-w-6xl mx-auto px-8 w-full">
+        <div class="mb-4">
+          <span class="inline-block text-xs font-semibold tracking-widest uppercase text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20">Results</span>
+        </div>
+        <h2 class="text-4xl sm:text-5xl font-bold text-white mb-4">Measurable impact from day one</h2>
+        <p class="text-lg text-gray-400 mb-12 max-w-2xl">Not months of implementation. Not someday-ROI. Immediate, quantifiable results.</p>
+
+        <!-- Big Metrics -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          <div class="glass-card p-8 rounded-2xl text-center">
+            <div class="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-primary-400 to-purple-400 mb-2">90%</div>
+            <div class="text-sm text-gray-400">Less time reviewing contracts</div>
+          </div>
+          <div class="glass-card p-8 rounded-2xl text-center">
+            <div class="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-purple-400 to-pink-400 mb-2">3-5x</div>
+            <div class="text-sm text-gray-400">More SLA credits recovered</div>
+          </div>
+          <div class="glass-card p-8 rounded-2xl text-center">
+            <div class="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-pink-400 to-red-400 mb-2">95%</div>
+            <div class="text-sm text-gray-400">Fewer missed deadlines</div>
+          </div>
+          <div class="glass-card p-8 rounded-2xl text-center">
+            <div class="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-emerald-400 to-cyan-400 mb-2">$2M+</div>
+            <div class="text-sm text-gray-400">Credits recovered across customers</div>
+          </div>
+        </div>
+
+        <!-- Value Pillars -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="glass-card p-6 rounded-xl">
+            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              <svg class="w-5 h-5 text-primary-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+              For Legal
+            </h3>
+            <p class="text-sm text-gray-400">Days of contract review compressed to minutes. Automated risk scoring across 10 categories. Portfolio-wide semantic search.</p>
+          </div>
+          <div class="glass-card p-6 rounded-xl">
+            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              <svg class="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" /></svg>
+              For Procurement
+            </h3>
+            <p class="text-sm text-gray-400">Real-time SLA monitoring. Detect breaches the moment they happen. Recover every service credit owed. Turn procurement strategic.</p>
+          </div>
+          <div class="glass-card p-6 rounded-xl">
+            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
+              For Finance
+            </h3>
+            <p class="text-sm text-gray-400">Track every obligation and deadline. Detect auto-renewal traps before they trigger. Understand true financial exposure across the portfolio.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- SLIDE 7: GET STARTED -->
+    <!-- ============================================ -->
+    <section class="slide h-screen w-full flex items-center justify-center bg-gray-950 relative overflow-hidden" data-slide="7">
+      <div class="absolute inset-0">
+        <div class="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full bg-primary-600/12 blur-[120px]"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-purple-500/10 blur-[100px]"></div>
+        <div class="absolute top-1/2 right-0 w-[300px] h-[300px] rounded-full bg-pink-500/8 blur-[100px]"></div>
+      </div>
+      <div class="absolute inset-0 dot-grid opacity-20"></div>
+
+      <div class="relative z-10 max-w-5xl mx-auto px-8 w-full text-center">
+        <div class="mb-6">
+          <span class="inline-block text-xs font-semibold tracking-widest uppercase text-primary-400 bg-primary-500/10 px-4 py-1.5 rounded-full border border-primary-500/20">Get Started</span>
+        </div>
+        <h2 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+          Ready to see what's in<br/>
+          <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary-400 via-purple-400 to-pink-400">your contracts?</span>
+        </h2>
+        <p class="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
+          Upload a real contract. Watch our AI extract everything in minutes. No setup. No sales pitch. Just results.
+        </p>
+
+        <!-- Pricing Summary -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12 max-w-4xl mx-auto">
+          <div class="glass-card p-6 rounded-xl">
+            <div class="text-sm text-gray-400 mb-1">Starter</div>
+            <div class="text-2xl font-bold text-white mb-1">&euro;1,500<span class="text-sm font-normal text-gray-500">/mo</span></div>
+            <div class="text-xs text-gray-500">Up to 100 contracts</div>
+          </div>
+          <div class="relative p-6 rounded-xl border-2 border-primary-500/50 bg-primary-500/5">
+            <div class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-primary-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full">Popular</div>
+            <div class="text-sm text-primary-300 mb-1">Professional</div>
+            <div class="text-2xl font-bold text-white mb-1">&euro;4,000<span class="text-sm font-normal text-gray-500">/mo</span></div>
+            <div class="text-xs text-gray-500">Up to 500 contracts</div>
+          </div>
+          <div class="glass-card p-6 rounded-xl">
+            <div class="text-sm text-gray-400 mb-1">Enterprise</div>
+            <div class="text-2xl font-bold text-white mb-1">&euro;10,000<span class="text-sm font-normal text-gray-500">/mo</span></div>
+            <div class="text-xs text-gray-500">Up to 2,000 contracts</div>
+          </div>
+        </div>
+
+        <p class="text-sm text-gray-500 mb-8">All plans include unlimited users. No per-seat fees.</p>
+
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a href="/contact" class="btn-primary text-lg px-10 py-4">
+            Book a Demo
+            <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+          </a>
+          <a href="/product" class="btn-primary-dark text-lg px-10 py-4">See the Product</a>
+        </div>
+
+        <div class="mt-12 flex items-center justify-center gap-8 text-xs text-gray-600">
+          <span class="flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+            14-day free trial
+          </span>
+          <span class="flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+            No credit card required
+          </span>
+          <span class="flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+            Cancel anytime
+          </span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Slide Navigation Script -->
+  <script is:inline>
+    let currentSlide = 1;
+    const totalSlides = 7;
+    let isTransitioning = false;
+
+    function goToSlide(n) {
+      if (isTransitioning || n < 1 || n > totalSlides || n === currentSlide) return;
+      isTransitioning = true;
+      currentSlide = n;
+
+      const deck = document.getElementById('deck');
+      deck.style.transform = `translateY(-${(n - 1) * 100}vh)`;
+
+      // Update progress bar
+      document.getElementById('progress-bar').style.width = `${(n / totalSlides) * 100}%`;
+
+      // Update counter
+      document.getElementById('slide-counter').textContent = `${n} / ${totalSlides}`;
+
+      setTimeout(() => { isTransitioning = false; }, 600);
+    }
+
+    function nextSlide() { goToSlide(currentSlide + 1); }
+    function prevSlide() { goToSlide(currentSlide - 1); }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        goToSlide(1);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        goToSlide(totalSlides);
+      }
+    });
+
+    // Mouse wheel navigation
+    let wheelTimeout;
+    document.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      clearTimeout(wheelTimeout);
+      wheelTimeout = setTimeout(() => {
+        if (e.deltaY > 0) nextSlide();
+        else prevSlide();
+      }, 50);
+    }, { passive: false });
+
+    // Touch navigation
+    let touchStartY = 0;
+    document.addEventListener('touchstart', (e) => {
+      touchStartY = e.changedTouches[0].screenY;
+    });
+    document.addEventListener('touchend', (e) => {
+      const diff = touchStartY - e.changedTouches[0].screenY;
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) nextSlide();
+        else prevSlide();
+      }
+    });
+
+    // Fade out nav hint after a few seconds
+    setTimeout(() => {
+      const hint = document.getElementById('nav-hint');
+      if (hint) hint.querySelector('span').style.opacity = '0';
+    }, 5000);
+  </script>
+
+  <style is:global>
+    body {
+      overflow: hidden;
+      background: #030712;
+    }
+    #deck {
+      transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    .slide {
+      flex-shrink: 0;
+    }
+  </style>
+
+</BaseLayout>

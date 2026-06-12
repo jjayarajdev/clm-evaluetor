@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Cog6ToothIcon,
@@ -11,15 +11,20 @@ import {
   SwatchIcon,
   CheckCircleIcon,
   SparklesIcon,
+  AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
-import { getIndustryProfiles, setMyIndustryProfile, getTenantOverrides, updateTenantOverrides } from '@/lib/api/admin'
+import {
+  getIndustryProfiles, setMyIndustryProfile, getTenantOverrides, updateTenantOverrides,
+  getExtractionThresholds, updateExtractionThresholds,
+  getPromptAddenda, updatePromptAddenda,
+} from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
-type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance'
+type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance' | 'extraction'
 
 interface SettingsSection {
   id: SettingsTab
@@ -59,10 +64,22 @@ const sections: SettingsSection[] = [
     icon: PaintBrushIcon,
     description: 'Customize the look and feel',
   },
+  {
+    id: 'extraction',
+    name: 'AI Extraction',
+    icon: AdjustmentsHorizontalIcon,
+    description: 'Confidence thresholds and prompt customization for AI extraction (admin only)',
+  },
 ]
 
 export default function SettingsPage() {
+  const { isAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+
+  const visibleSections = useMemo(
+    () => sections.filter((s) => s.id !== 'extraction' || isAdmin),
+    [isAdmin]
+  )
 
   return (
     <div className="space-y-6">
@@ -78,7 +95,7 @@ export default function SettingsPage() {
         {/* Sidebar */}
         <div className="w-64 shrink-0">
           <nav className="space-y-1">
-            {sections.map((section) => (
+            {visibleSections.map((section) => (
               <button
                 key={section.id}
                 onClick={() => setActiveTab(section.id)}
@@ -113,6 +130,14 @@ export default function SettingsPage() {
               {activeTab === 'security' && <SecuritySettings />}
               {activeTab === 'integrations' && <IntegrationSettings />}
               {activeTab === 'appearance' && <AppearanceSettings />}
+              {activeTab === 'extraction' && isAdmin && (
+                <div className="space-y-8">
+                  <ExtractionThresholdsSettings />
+                  <div className="pt-6 border-t border-gray-200">
+                    <PromptAddendaSettings />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -823,6 +848,356 @@ function AppearanceSettings() {
           </select>
           <span className="text-xs text-gray-400">Coming soon</span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// Friendly labels for extraction threshold fields
+const EXTRACTION_FIELD_LABELS: Record<string, string> = {
+  contract_type: 'Contract Type',
+  counterparty: 'Counterparty',
+  effective_date: 'Effective Date',
+  expiration_date: 'Expiration Date',
+  contract_value: 'Contract Value',
+  currency: 'Currency',
+  jurisdiction: 'Jurisdiction',
+}
+
+function ExtractionThresholdsSettings() {
+  const queryClient = useQueryClient()
+  const { data, isLoading } = useQuery({
+    queryKey: ['extraction-thresholds'],
+    queryFn: getExtractionThresholds,
+  })
+
+  const [defaultThreshold, setDefaultThreshold] = useState<number>(0.7)
+  const [fields, setFields] = useState<Record<string, number>>({})
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Sync local state when server data arrives or refreshes
+  useEffect(() => {
+    if (data) {
+      setDefaultThreshold(data.default)
+      setFields({ ...data.fields })
+    }
+  }, [data])
+
+  const mutation = useMutation({
+    mutationFn: updateExtractionThresholds,
+    onSuccess: (resp) => {
+      setDefaultThreshold(resp.default)
+      setFields({ ...resp.fields })
+      setSaved(true)
+      setError(null)
+      setTimeout(() => setSaved(false), 2000)
+      queryClient.invalidateQueries({ queryKey: ['extraction-thresholds'] })
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.detail || err?.message || 'Failed to save thresholds')
+    },
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <LoadingSpinner size="md" />
+      </div>
+    )
+  }
+
+  const availableFields = data?.available_fields || Object.keys(EXTRACTION_FIELD_LABELS)
+  const unsetFields = availableFields.filter((f) => !(f in fields))
+
+  const updateField = (field: string, raw: string) => {
+    const v = parseFloat(raw)
+    if (Number.isNaN(v)) return
+    if (v < 0 || v > 1) return
+    setFields((prev) => ({ ...prev, [field]: v }))
+  }
+
+  const removeField = (field: string) => {
+    setFields((prev) => {
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  const addField = (field: string) => {
+    if (!field) return
+    setFields((prev) => ({ ...prev, [field]: defaultThreshold }))
+  }
+
+  const handleSave = () => {
+    setError(null)
+    mutation.mutate({ default: defaultThreshold, fields })
+  }
+
+  const isDirty =
+    !!data &&
+    (data.default !== defaultThreshold ||
+      JSON.stringify(data.fields) !== JSON.stringify(fields))
+
+  return (
+    <div className="space-y-6">
+      <div className="text-sm text-gray-600">
+        AI metadata extraction returns a confidence score (0–1) for each field. Fields below the
+        applicable threshold are dropped instead of overwriting existing values. Raise thresholds
+        on critical fields if you'd rather have a blank than a low-confidence guess.
+      </div>
+
+      {/* Default threshold */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Default Threshold
+        </label>
+        <p className="text-xs text-gray-500 mb-2">
+          Applied to any field without a specific override below.
+        </p>
+        <div className="flex items-center gap-3 max-w-xs">
+          <input
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={defaultThreshold}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              if (!Number.isNaN(v) && v >= 0 && v <= 1) setDefaultThreshold(v)
+            }}
+            className="input"
+          />
+          <span className="text-sm text-gray-500">{(defaultThreshold * 100).toFixed(0)}%</span>
+        </div>
+      </div>
+
+      {/* Per-field overrides */}
+      <div>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Per-Field Overrides</h3>
+        {Object.keys(fields).length === 0 ? (
+          <p className="text-sm text-gray-400 italic mb-3">
+            No overrides yet. All fields use the default threshold.
+          </p>
+        ) : (
+          <div className="space-y-2 mb-3">
+            {Object.entries(fields).map(([field, value]) => (
+              <div key={field} className="flex items-center gap-3">
+                <span className="w-40 text-sm text-gray-700">
+                  {EXTRACTION_FIELD_LABELS[field] || field}
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={value}
+                  onChange={(e) => updateField(field, e.target.value)}
+                  className="input w-32"
+                />
+                <span className="text-xs text-gray-500 w-12">
+                  {(value * 100).toFixed(0)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeField(field)}
+                  className="text-gray-400 hover:text-red-600"
+                  title="Remove override (use default)"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {unsetFields.length > 0 && (
+          <div className="flex items-center gap-2">
+            <select
+              className="input max-w-xs"
+              value=""
+              onChange={(e) => {
+                addField(e.target.value)
+                e.currentTarget.value = ''
+              }}
+            >
+              <option value="">+ Add field override…</option>
+              {unsetFields.map((f) => (
+                <option key={f} value={f}>
+                  {EXTRACTION_FIELD_LABELS[f] || f}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Save row */}
+      <div className="pt-4 border-t border-gray-200 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!isDirty || mutation.isPending}
+          className={cn(
+            'btn btn-primary',
+            (!isDirty || mutation.isPending) && 'opacity-60 cursor-not-allowed'
+          )}
+        >
+          {mutation.isPending ? 'Saving…' : 'Save Thresholds'}
+        </button>
+        {saved && (
+          <span className="text-sm text-green-600 inline-flex items-center gap-1">
+            <CheckCircleIcon className="h-4 w-4" /> Saved
+          </span>
+        )}
+        {error && <span className="text-sm text-red-600">{error}</span>}
+      </div>
+    </div>
+  )
+}
+
+// #27 — Per-tenant prompt addenda. Labels match the keys used by the backend's
+// PROMPT_ADDENDA_AGENTS tuple in admin_settings.py.
+const PROMPT_ADDENDA_LABELS: Record<string, { label: string; placeholder: string }> = {
+  metadata: {
+    label: 'Metadata extraction',
+    placeholder: "e.g. Treat 'Client' as our company, not the counterparty.",
+  },
+  clauses: {
+    label: 'Clause extraction',
+    placeholder: 'e.g. Always flag references to HIPAA or HITRUST.',
+  },
+  obligations: {
+    label: 'Obligation detection',
+    placeholder: "e.g. Health-system contracts often phrase obligations as 'shall ensure'.",
+  },
+  slas: {
+    label: 'SLA extraction',
+    placeholder: 'e.g. Uptime is reported as a quarterly average, not monthly.',
+  },
+  risks: {
+    label: 'Risk assessment',
+    placeholder: 'e.g. Liability caps below $1M are a hard no for us.',
+  },
+}
+const PROMPT_ADDENDA_ORDER = ['metadata', 'clauses', 'obligations', 'slas', 'risks']
+
+function PromptAddendaSettings() {
+  const queryClient = useQueryClient()
+  const { data, isLoading } = useQuery({
+    queryKey: ['prompt-addenda'],
+    queryFn: getPromptAddenda,
+  })
+
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (data?.addenda) setDraft({ ...data.addenda })
+  }, [data])
+
+  const mutation = useMutation({
+    mutationFn: (payload: Record<string, string>) => updatePromptAddenda(payload),
+    onSuccess: (resp) => {
+      setDraft({ ...resp.addenda })
+      setSaved(true)
+      setError(null)
+      setTimeout(() => setSaved(false), 2000)
+      queryClient.invalidateQueries({ queryKey: ['prompt-addenda'] })
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.detail || err?.message || 'Failed to save prompt addenda')
+    },
+  })
+
+  if (isLoading) {
+    return <div className="py-4 flex justify-center"><LoadingSpinner size="md" /></div>
+  }
+
+  const maxChars = data?.max_chars ?? 2000
+  const isDirty = !!data && JSON.stringify(draft) !== JSON.stringify(data.addenda || {})
+
+  const handleChange = (agent: string, value: string) => {
+    setDraft((prev) => ({ ...prev, [agent]: value }))
+  }
+
+  const handleSave = () => {
+    setError(null)
+    // Only send non-empty values; empty strings clear the entry on the backend
+    const cleaned: Record<string, string> = {}
+    for (const [k, v] of Object.entries(draft)) {
+      if (v && v.trim()) cleaned[k] = v.trim()
+    }
+    mutation.mutate(cleaned)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-base font-medium text-gray-900">Prompt Customization</h3>
+        <p className="text-sm text-gray-600 mt-1">
+          Extra instructions appended to the AI prompts for every contract in your
+          tenant. Use this to give the AI domain knowledge it couldn't otherwise know
+          — your terminology, your industry quirks, what to flag. Keep each
+          instruction tight; max {maxChars} characters per agent.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {PROMPT_ADDENDA_ORDER.map((agent) => {
+          const info = PROMPT_ADDENDA_LABELS[agent]
+          const value = draft[agent] || ''
+          const over = value.length > maxChars
+          return (
+            <div key={agent}>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-gray-700">
+                  {info.label}
+                </label>
+                <span className={cn(
+                  'text-xs',
+                  over ? 'text-red-600 font-medium' : 'text-gray-400'
+                )}>
+                  {value.length} / {maxChars}
+                </span>
+              </div>
+              <textarea
+                value={value}
+                onChange={(e) => handleChange(agent, e.target.value)}
+                placeholder={info.placeholder}
+                rows={3}
+                className={cn(
+                  'w-full text-sm border rounded-md p-2 focus:outline-none focus:ring-1',
+                  over
+                    ? 'border-red-300 focus:ring-red-400'
+                    : 'border-gray-200 focus:ring-primary-400'
+                )}
+              />
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="pt-2 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!isDirty || mutation.isPending || Object.values(draft).some(v => (v || '').length > maxChars)}
+          className={cn(
+            'btn btn-primary',
+            (!isDirty || mutation.isPending) && 'opacity-60 cursor-not-allowed'
+          )}
+        >
+          {mutation.isPending ? 'Saving…' : 'Save Prompt Addenda'}
+        </button>
+        {saved && (
+          <span className="text-sm text-green-600 inline-flex items-center gap-1">
+            <CheckCircleIcon className="h-4 w-4" /> Saved
+          </span>
+        )}
+        {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
     </div>
   )

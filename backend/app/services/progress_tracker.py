@@ -324,3 +324,67 @@ def get_progress_tracker() -> ProgressTracker:
     if _tracker is None:
         _tracker = ProgressTracker()
     return _tracker
+
+
+# -----------------------------------------------------------------------------
+# Extraction health recorder
+# -----------------------------------------------------------------------------
+#
+# The progress tracker above is in-memory and lives only for the duration of a
+# processing run. Once a contract is processed, its per-stage outcomes are gone.
+# The recorder below accumulates outcomes during a run and is written to
+# `Contract.extraction_health` (JSONB) at the end so tenants can audit which
+# optional stages succeeded / failed / were skipped.
+
+class StageOutcome(str, Enum):
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+    NOT_APPLICABLE = "not_applicable"
+
+
+@dataclass
+class HealthRecorder:
+    """Accumulates per-stage outcomes for one contract processing run."""
+
+    stages: dict[str, dict] = field(default_factory=dict)
+
+    def record(
+        self,
+        stage: ProcessingStage | str,
+        status: StageOutcome | str,
+        *,
+        error: str | None = None,
+        reason: str | None = None,
+        duration_ms: int | None = None,
+        details: dict | None = None,
+    ) -> None:
+        stage_key = stage.value if isinstance(stage, ProcessingStage) else stage
+        status_value = status.value if isinstance(status, StageOutcome) else status
+        entry: dict = {"status": status_value, "at": datetime.utcnow().isoformat()}
+        if error:
+            entry["error"] = error[:500]
+        if reason:
+            entry["reason"] = reason
+        if duration_ms is not None:
+            entry["duration_ms"] = duration_ms
+        if details:
+            entry["details"] = details
+        self.stages[stage_key] = entry
+
+    def success(self, stage: ProcessingStage | str, **kwargs) -> None:
+        self.record(stage, StageOutcome.SUCCESS, **kwargs)
+
+    def failed(self, stage: ProcessingStage | str, error: str, **kwargs) -> None:
+        self.record(stage, StageOutcome.FAILED, error=error, **kwargs)
+
+    def skipped(self, stage: ProcessingStage | str, reason: str, **kwargs) -> None:
+        self.record(stage, StageOutcome.SKIPPED, reason=reason, **kwargs)
+
+    def to_dict(self) -> dict:
+        return dict(self.stages)
+
+
+def new_health_recorder() -> HealthRecorder:
+    """Factory for a fresh per-run recorder."""
+    return HealthRecorder()
