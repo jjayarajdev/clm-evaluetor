@@ -55,13 +55,10 @@ async def get_entity_timeline(
 ) -> list[KGEntityResponse]:
     """Get the temporal timeline for an entity across multiple contracts/amendments."""
     service = await get_knowledge_graph_service(db)
-    timeline = await service.get_entity_timeline(entity_id)
-
-    # Simple RBAC check (ensure at least one entity is accessible)
-    if timeline and tenant_id:
-        # We assume if the user has access to the tenant, they can see the timeline
-        # A stricter check would verify access to each contract in the timeline
-        pass
+    # Tenant filter happens inside the service query — an entity belonging to
+    # another tenant comes back as an empty list (no existence leak).
+    # tenant_id is None only for super admin, who sees everything.
+    timeline = await service.get_entity_timeline(entity_id, tenant_id=tenant_id)
 
     return timeline
 

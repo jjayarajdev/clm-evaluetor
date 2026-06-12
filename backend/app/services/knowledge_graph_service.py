@@ -702,35 +702,45 @@ class KnowledgeGraphService:
     async def get_entity_timeline(
         self,
         entity_id: str,
+        tenant_id: str | uuid.UUID | None = None,
     ) -> list[KGEntityResponse]:
         """Get the temporal timeline for an entity (amendments/versions).
 
         Args:
             entity_id: UUID of the entity.
+            tenant_id: When provided, both the entity lookup and the timeline
+                are restricted to this tenant. An entity belonging to another
+                tenant returns an empty list (no existence leak). None means
+                no tenant filter (super admin).
 
         Returns:
             List of entities representing the timeline, sorted by date.
         """
         entity_uuid = uuid.UUID(entity_id)
+        tenant_uuid = uuid.UUID(str(tenant_id)) if tenant_id else None
 
         # Traverse 'amends' relationships to build timeline
         # This is a bit complex as we might need to go both ways
         # For now, let's find all entities in the same master group
-        entity_result = await self.db.execute(
-            select(KGEntity).where(KGEntity.id == entity_uuid)
-        )
+        entity_query = select(KGEntity).where(KGEntity.id == entity_uuid)
+        if tenant_uuid:
+            entity_query = entity_query.where(KGEntity.tenant_id == tenant_uuid)
+        entity_result = await self.db.execute(entity_query)
         entity = entity_result.scalar_one_or_none()
 
         if not entity or not entity.master_entity_id:
             # If not linked to master, just return itself
             return [self._entity_to_response(entity)] if entity else []
 
-        # Find all entities linked to the same master
-        timeline_result = await self.db.execute(
+        # Find all entities linked to the same master, within the same tenant
+        timeline_query = (
             select(KGEntity)
             .where(KGEntity.master_entity_id == entity.master_entity_id)
             .order_by(KGEntity.created_at.asc())
         )
+        if tenant_uuid:
+            timeline_query = timeline_query.where(KGEntity.tenant_id == tenant_uuid)
+        timeline_result = await self.db.execute(timeline_query)
         timeline = timeline_result.scalars().all()
 
         return [self._entity_to_response(e) for e in timeline]

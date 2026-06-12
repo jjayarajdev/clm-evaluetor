@@ -2476,6 +2476,14 @@ async def analyze_contract(
             detail=f"Contract not found: {contract_id}",
         )
 
+    # Tenant scoping — without this, any authenticated user could trigger
+    # expensive AI analysis on any tenant's contract by knowing its UUID.
+    if current_user.tenant_id and contract.tenant_id != current_user.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden",
+        )
+
     # Queue deep analysis in background
     async def run_deep_analysis():
         from app.services.parser import get_parser
