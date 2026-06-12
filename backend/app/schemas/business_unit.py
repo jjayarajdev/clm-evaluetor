@@ -22,6 +22,7 @@ class BusinessUnitCreate(BusinessUnitBase):
     """Schema for creating a business unit."""
     parent_id: Optional[UUID] = None
     head_user_id: Optional[UUID] = None
+    industry_profile_id: Optional[UUID] = None
 
 
 class BusinessUnitUpdate(BaseModel):
@@ -31,6 +32,7 @@ class BusinessUnitUpdate(BaseModel):
     description: Optional[str] = None
     parent_id: Optional[UUID] = None
     head_user_id: Optional[UUID] = None
+    industry_profile_id: Optional[UUID] = None
     is_active: Optional[bool] = None
 
 
@@ -53,6 +55,8 @@ class BusinessUnitResponse(BusinessUnitBase):
     tenant_id: UUID
     parent_id: Optional[UUID] = None
     head_user_id: Optional[UUID] = None
+    industry_profile_id: Optional[UUID] = None
+    effective_profile_name: Optional[str] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -88,6 +92,8 @@ class BusinessUnitTree(BaseModel):
     description: Optional[str] = None
     is_active: bool
     head_user_id: Optional[UUID] = None
+    industry_profile_id: Optional[UUID] = None
+    effective_profile_name: Optional[str] = None
     children: List["BusinessUnitTree"] = []
 
     class Config:

@@ -28,6 +28,10 @@ from app.routers import (
     sso,
     # Extraction Quality
     extraction_quality,
+    # Industry Profiles (Multi-Domain CLM)
+    industry_profiles,
+    # Taxonomy Suggestions
+    taxonomy_suggestions,
 )
 from app.services.vector_store import get_vector_store
 from app.services.orchestrator import get_orchestrator, initialize_default_agents
@@ -325,3 +329,9 @@ app.include_router(sso.router)
 
 # Extraction Quality
 app.include_router(extraction_quality.router)
+
+# Industry Profiles (Multi-Domain CLM)
+app.include_router(industry_profiles.router)
+
+# Taxonomy Suggestions
+app.include_router(taxonomy_suggestions.router)

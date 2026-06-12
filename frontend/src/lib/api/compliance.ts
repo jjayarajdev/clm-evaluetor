@@ -27,6 +27,11 @@ export async function getPostSigningSLAs(filters?: { breached_only?: boolean }):
   return response.data
 }
 
+export async function getPostSigningMilestones(): Promise<unknown[]> {
+  const response = await client.get('/dashboard/postsigning/milestones')
+  return response.data
+}
+
 // ============ RENEWAL ENDPOINTS ============
 
 export async function getRenewalCalendar(): Promise<RenewalCalendar> {

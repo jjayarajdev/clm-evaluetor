@@ -396,9 +396,16 @@ async def get_kg_context_for_query(
                         resolved_terms.append(
                             f"- \"{term.title()}\" refers to: {resolution.definition or resolution.resolved_entity.name}"
                         )
+                        # If it's a resolved entity, check for portfolio-wide context
+                        if resolution.resolved_entity and resolution.resolved_entity.id:
+                            timeline = await service.get_entity_timeline(resolution.resolved_entity.id)
+                            if len(timeline) > 1:
+                                resolved_terms.append(
+                                    f"  (This entity appears in {len(timeline)} contracts/amendments in this portfolio)"
+                                )
 
             if resolved_terms:
-                context_parts.append("TERM DEFINITIONS:\n" + "\n".join(resolved_terms))
+                context_parts.append("TERM DEFINITIONS & PORTFOLIO CONTEXT:\n" + "\n".join(resolved_terms))
 
             # Get party obligations if query mentions obligations or parties
             if any(word in query_lower for word in ["obligation", "must", "shall", "duty", "responsible", "liability"]):

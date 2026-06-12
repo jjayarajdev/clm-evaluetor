@@ -5,11 +5,15 @@ training examples, and compiles optimized modules using BootstrapFewShot.
 
 Compilation can be triggered:
 - Manually by admin via API endpoint
-- Automatically after N new verifications (future)
+- Automatically after N new verifications (when tenant has dspy_auto_recompile.enabled=true)
 """
 
 import json
 import logging
+import os
+import time
+from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID
 
 import dspy
@@ -36,6 +40,58 @@ from app.services.dspy_extractor import (
 logger = logging.getLogger(__name__)
 
 MIN_EXAMPLES_FOR_COMPILATION = 3
+
+# Agents we know how to compile, in canonical order
+DSPY_AGENT_TYPES: list[str] = ["metadata", "clause", "obligation", "sla"]
+
+# Mapping from agent_type → ExtractionVerification.entity_type
+# (the verification table uses "metadata_field" for what compile calls "metadata")
+AGENT_TO_ENTITY_TYPE: dict[str, str] = {
+    "metadata": "metadata_field",
+    "clause": "clause",
+    "obligation": "obligation",
+    "sla": "sla",
+}
+
+# A stale compile-lock older than this is assumed to be from a crashed worker
+LOCK_STALE_AFTER_SECONDS = 30 * 60
+
+
+def _lock_path(tenant_id: UUID | None, agent_type: str) -> Path:
+    """Sentinel file path used to prevent concurrent compiles for the same (tenant, agent)."""
+    from app.services.dspy_extractor import _program_path
+    program_path = _program_path(tenant_id, agent_type)
+    return program_path.with_suffix(".compiling")
+
+
+def acquire_compile_lock(tenant_id: UUID | None, agent_type: str) -> bool:
+    """Try to acquire the per-(tenant, agent) compile lock.
+
+    Returns True if acquired, False if another compile is already in progress.
+    A lock older than LOCK_STALE_AFTER_SECONDS is considered abandoned.
+    """
+    path = _lock_path(tenant_id, agent_type)
+    if path.exists():
+        age = time.time() - path.stat().st_mtime
+        if age < LOCK_STALE_AFTER_SECONDS:
+            return False
+        logger.warning(f"Reclaiming stale compile lock ({age:.0f}s old): {path}")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
+            f.write(str(os.getpid()))
+        return True
+    except OSError as e:
+        logger.warning(f"Failed to acquire compile lock {path}: {e}")
+        return False
+
+
+def release_compile_lock(tenant_id: UUID | None, agent_type: str) -> None:
+    path = _lock_path(tenant_id, agent_type)
+    try:
+        path.unlink(missing_ok=True)
+    except OSError as e:
+        logger.warning(f"Failed to release compile lock {path}: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -439,6 +495,15 @@ async def compile_for_tenant(
             results[agent_type] = {"status": "error", "message": f"Unknown agent type: {agent_type}"}
             continue
 
+        # Per-agent lock so a manual compile and an auto-recompile can't
+        # race for the same compiled file.
+        if not acquire_compile_lock(tenant_id, agent_type):
+            results[agent_type] = {
+                "status": "in_progress",
+                "message": "Another compile is already running for this agent",
+            }
+            continue
+
         build_fn, module_cls, metric_fn = builders[agent_type]
 
         try:
@@ -478,27 +543,142 @@ async def compile_for_tenant(
                 "status": "error",
                 "message": str(e),
             }
+        finally:
+            release_compile_lock(tenant_id, agent_type)
 
     return results
 
 
 async def get_compilation_status(tenant_id: UUID | None) -> dict:
-    """Check which compiled programs exist for a tenant."""
+    """Check which compiled programs exist for a tenant.
+
+    Returns a dict mapping agent_type → status dict with ``compiled`` /
+    ``compiled_at`` / ``size_bytes`` / ``path``.
+    """
     from app.services.dspy_extractor import _program_path
 
     status = {}
-    for agent_type in ["metadata", "clause", "obligation", "sla"]:
+    for agent_type in DSPY_AGENT_TYPES:
         path = _program_path(tenant_id, agent_type)
         if path.exists():
-            import os
             stat = os.stat(path)
             status[agent_type] = {
                 "compiled": True,
                 "path": str(path),
                 "size_bytes": stat.st_size,
                 "compiled_at": stat.st_mtime,
+                "compiling": _lock_path(tenant_id, agent_type).exists(),
             }
         else:
-            status[agent_type] = {"compiled": False}
+            status[agent_type] = {
+                "compiled": False,
+                "compiling": _lock_path(tenant_id, agent_type).exists(),
+            }
 
     return status
+
+
+async def get_compilation_status_with_counts(
+    db: AsyncSession, tenant_id: UUID | None
+) -> dict:
+    """Like get_compilation_status, but enriched with the number of
+    ``status='correct'`` verifications added since each program was last
+    compiled. For uncompiled agents the count is total verified examples
+    available.
+    """
+    base = await get_compilation_status(tenant_id)
+
+    # Build the visibility predicate once (tenant-specific or global)
+    if tenant_id is None:
+        visibility = GoldenSetContract.tenant_id.is_(None)
+    else:
+        visibility = or_(
+            GoldenSetContract.tenant_id == tenant_id,
+            GoldenSetContract.tenant_id.is_(None),
+        )
+
+    for agent_type, info in base.items():
+        entity_type = AGENT_TO_ENTITY_TYPE.get(agent_type, agent_type)
+
+        conditions = [
+            ExtractionVerification.entity_type == entity_type,
+            ExtractionVerification.status == "correct",
+        ]
+        if info.get("compiled") and info.get("compiled_at"):
+            cutoff = datetime.fromtimestamp(info["compiled_at"], tz=timezone.utc)
+            conditions.append(ExtractionVerification.verified_at > cutoff)
+
+        count_query = (
+            select(func.count())
+            .select_from(ExtractionVerification)
+            .join(GoldenSetContract, ExtractionVerification.golden_set_id == GoldenSetContract.id)
+            .where(and_(visibility, *conditions))
+        )
+        count = await db.scalar(count_query) or 0
+        info["verifications_since_last_compile"] = int(count)
+
+    return base
+
+
+async def maybe_auto_recompile(
+    db: AsyncSession,
+    tenant_id: UUID | None,
+    config: dict | None = None,
+) -> dict:
+    """Trigger a background compile for any agent whose verification growth
+    has crossed the tenant's configured threshold.
+
+    The caller is responsible for loading the tenant's
+    ``config_overrides["dspy_auto_recompile"]`` and passing it in; if
+    ``config`` is None this is a no-op (treated as disabled).
+
+    Skips any agent that already has an in-flight compile lock. Returns a
+    summary dict for logging / observability — never raises (auto-recompile
+    is best-effort by design).
+    """
+    if not config or not config.get("enabled"):
+        return {"skipped": "disabled"}
+
+    threshold = int(config.get("threshold", 5))
+    if threshold < 1:
+        return {"skipped": "invalid_threshold"}
+
+    summary: dict[str, str] = {}
+    try:
+        status = await get_compilation_status_with_counts(db, tenant_id)
+    except Exception as e:
+        logger.warning(f"Auto-recompile status query failed for tenant {tenant_id}: {e}")
+        return {"skipped": "status_query_failed"}
+
+    agents_to_compile: list[str] = []
+    for agent_type in DSPY_AGENT_TYPES:
+        info = status.get(agent_type, {})
+        new_verifications = info.get("verifications_since_last_compile", 0)
+        if info.get("compiling"):
+            summary[agent_type] = "lock_held"
+            continue
+        if new_verifications < threshold:
+            summary[agent_type] = f"below_threshold ({new_verifications}/{threshold})"
+            continue
+        agents_to_compile.append(agent_type)
+        summary[agent_type] = f"queued ({new_verifications} new)"
+
+    if not agents_to_compile:
+        return summary
+
+    # Compile each qualifying agent. compile_for_tenant manages its own
+    # per-agent lock so concurrent manual + auto compiles can't collide.
+    for agent_type in agents_to_compile:
+        try:
+            result = await compile_for_tenant(db, tenant_id, [agent_type])
+            agent_result = result.get(agent_type, {})
+            summary[agent_type] = f"auto: {agent_result.get('status', 'unknown')}"
+            logger.info(
+                f"Auto-recompile completed for tenant={tenant_id} agent={agent_type}: "
+                f"{agent_result}"
+            )
+        except Exception as e:
+            summary[agent_type] = f"failed: {e}"
+            logger.warning(f"Auto-recompile failed for tenant={tenant_id} agent={agent_type}: {e}")
+
+    return summary

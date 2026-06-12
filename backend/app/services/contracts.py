@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.logging import get_logger
 from app.models.clause import Clause
-from app.models.contract import Contract, ContractStatus, ContractType, RiskLevel
+from app.models.contract import Contract, ContractStatus, RiskLevel
 from app.models.obligation import Obligation
 from app.services.vector_store import get_vector_store
 
@@ -127,7 +127,7 @@ class ContractService:
         self,
         page: int = 1,
         page_size: int = 20,
-        contract_type: ContractType | None = None,
+        contract_type: str | None = None,
         counterparty: str | None = None,
         risk_level: RiskLevel | None = None,
         status: ContractStatus | None = None,

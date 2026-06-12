@@ -2,8 +2,8 @@
 import enum
 import uuid
 
-from sqlalchemy import Boolean, Enum, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Boolean, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -78,6 +78,23 @@ class Tenant(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
 
+    # Industry profile — defines contract types, risk categories, UI config, etc.
+    industry_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("industry_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # Tenant-specific overrides to the industry profile
+    # Same top-level keys as IndustryProfile JSONB columns; merged at runtime
+    config_overrides: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default='{}',
+    )
+
     # Custom field definitions for dynamic fields
     # Schema: {entity_type: [{name, label, field_type, required, options, extraction_hints, ...}]}
     custom_field_definitions: Mapped[dict] = mapped_column(
@@ -95,6 +112,11 @@ class Tenant(Base, UUIDMixin, TimestampMixin):
     )
 
     # Relationships
+    industry_profile: Mapped["IndustryProfile | None"] = relationship(
+        "IndustryProfile",
+        back_populates="tenants",
+        lazy="selectin",
+    )
     users: Mapped[list["User"]] = relationship(
         "User",
         back_populates="tenant",
@@ -113,6 +135,16 @@ class Tenant(Base, UUIDMixin, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<Tenant {self.name} ({self.slug})>"
+
+    def get_industry_config(self) -> dict:
+        """Get merged industry config (profile defaults + tenant overrides).
+
+        Returns the IT Services default config if no profile is assigned.
+        """
+        if self.industry_profile:
+            return self.industry_profile.get_merged_config(self.config_overrides or None)
+        # No profile assigned — return empty config (frontend will use its defaults)
+        return {"industry": None, "industry_name": None}
 
     def get_contract_limit(self) -> int | None:
         """Get the contract limit for this tenant based on plan or override."""

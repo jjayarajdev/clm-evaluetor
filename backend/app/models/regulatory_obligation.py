@@ -130,7 +130,6 @@ class RegulatoryObligation(Base, UUIDMixin, TimestampMixin):
             values_callable=lambda x: [e.value for e in x],
         ),
         nullable=False,
-        index=True,
     )
     regulation_type: Mapped[RegulationType] = mapped_column(
         Enum(
@@ -140,7 +139,6 @@ class RegulatoryObligation(Base, UUIDMixin, TimestampMixin):
             values_callable=lambda x: [e.value for e in x],
         ),
         nullable=False,
-        index=True,
     )
     regulation_reference: Mapped[str | None] = mapped_column(
         String(255),

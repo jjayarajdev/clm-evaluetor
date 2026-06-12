@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { useState, useMemo, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -13,12 +13,16 @@ import {
   XMarkIcon,
   ShieldCheckIcon,
   FunnelIcon,
+  ArrowDownTrayIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import PageHeader from '@/components/ui/PageHeader'
 import StatCard from '@/components/ui/StatCard'
 import { cn } from '@/lib/utils'
+import type { PriorityAction } from '@/types/postsigning'
+import type { ContractRenewalInfo, VendorListItem } from '@/types/postsigning'
 
 interface SLABreachDetail {
   sla_id: string
@@ -50,6 +54,32 @@ interface ObligationRow {
   due_date: string | null
   status: string
   rag_status: string | null
+}
+
+interface SLARow {
+  id: string
+  contract_id: string
+  contract_filename: string
+  counterparty: string | null
+  sla_name: string
+  metric_type: string | null
+  target_value: number | null
+  compliance_rate: number | null
+  consecutive_breaches: number
+  severity: string
+  has_penalty: boolean
+}
+
+interface MilestoneRow {
+  id: string
+  contract_id: string
+  contract_filename: string
+  counterparty: string | null
+  title: string
+  due_date: string | null
+  status: string
+  category: string | null
+  owner: string | null
 }
 
 function RAGBadge({ status }: { status: string | null }) {
@@ -216,14 +246,20 @@ function SLABreachDetailModal({
   )
 }
 
-function PriorityActionItem({ action }: { action: { type: string; severity: string; title: string; action: string } }) {
+function PriorityActionItem({ action }: { action: PriorityAction }) {
   const severityColors: Record<string, string> = {
     critical: 'border-l-red-500 bg-red-50',
     high: 'border-l-amber-500 bg-amber-50',
     medium: 'border-l-blue-500 bg-blue-50',
   }
 
-  return (
+  const linkTarget = action.type === 'obligation' && action.obligation_id
+    ? `/obligations/${action.obligation_id}`
+    : (action.type === 'sla' || action.type === 'renewal') && action.contract_id
+    ? `/contracts/${action.contract_id}`
+    : null
+
+  const content = (
     <div className={cn('border-l-4 p-3 rounded-r', severityColors[action.severity] || 'border-l-gray-300 bg-gray-50')}>
       <div className="flex items-start justify-between">
         <div>
@@ -241,13 +277,40 @@ function PriorityActionItem({ action }: { action: { type: string; severity: stri
       </div>
     </div>
   )
+
+  if (linkTarget) {
+    return <Link to={linkTarget} className="block hover:opacity-80 transition-opacity">{content}</Link>
+  }
+  return content
 }
 
 export default function PostSigningPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<'overview' | 'obligations' | 'slas' | 'renewals' | 'vendors' | 'milestones'>('overview')
   const [selectedBreach, setSelectedBreach] = useState<SLABreachDetail | null>(null)
   const [oblStatusFilter, setOblStatusFilter] = useState<string>('')
   const [oblRagFilter, setOblRagFilter] = useState<string>('')
+  const [slaSeverityFilter, setSlaSeverityFilter] = useState<string>('')
+  const [slaBreachFilter, setSlaBreachFilter] = useState<string>('')
+  const [msStatusFilter, setMsStatusFilter] = useState<string>('')
+  const [isExporting, setIsExporting] = useState(false)
+  const queryClient = useQueryClient()
+
+  // Read URL params on mount (e.g. /compliance?tab=obligations&status=overdue)
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    const status = searchParams.get('status')
+    const rag = searchParams.get('rag')
+    if (tab && ['overview', 'obligations', 'slas', 'renewals', 'vendors', 'milestones'].includes(tab)) {
+      setActiveTab(tab as typeof activeTab)
+    }
+    if (status) setOblStatusFilter(status)
+    if (rag) setOblRagFilter(rag)
+    // Clear params after applying so they don't persist on tab switches
+    if (tab || status || rag) {
+      setSearchParams({}, { replace: true })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: dashboard, isLoading, error } = useQuery({
     queryKey: ['postsigning-dashboard'],
@@ -270,6 +333,44 @@ export default function PostSigningPage() {
     enabled: activeTab === 'obligations',
   })
 
+  // Fetch full SLA list when on SLAs tab
+  const { data: allSLAs, isLoading: slasLoading } = useQuery({
+    queryKey: ['postsigning-slas'],
+    queryFn: () => api.getPostSigningSLAs(),
+    enabled: activeTab === 'slas',
+  })
+
+  // Fetch full milestones list when on milestones tab
+  const { data: allMilestones, isLoading: milestonesLoading } = useQuery({
+    queryKey: ['postsigning-milestones'],
+    queryFn: () => api.getPostSigningMilestones(),
+    enabled: activeTab === 'milestones',
+  })
+
+  // Fetch renewal calendar when on renewals tab
+  const { data: renewalCalendar, isLoading: renewalsLoading } = useQuery({
+    queryKey: ['renewal-calendar'],
+    queryFn: () => api.getRenewalCalendar(),
+    enabled: activeTab === 'renewals',
+  })
+
+  // Fetch full vendor list when on vendors tab
+  const { data: vendorData, isLoading: vendorsLoading } = useQuery({
+    queryKey: ['vendor-list'],
+    queryFn: () => api.getVendors({ sort_by: 'performance_score', sort_order: 'desc' }),
+    enabled: activeTab === 'vendors',
+  })
+
+  // Renewal status update mutation
+  const renewalStatusMutation = useMutation({
+    mutationFn: ({ contractId, status }: { contractId: string; status: string }) =>
+      api.updateRenewalStatus(contractId, { renewal_status: status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['renewal-calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['postsigning-dashboard'] })
+    },
+  })
+
   // Build sparkline data from trend
   const complianceChart = useMemo(() => {
     if (!trendData?.data_points?.length) return undefined
@@ -290,6 +391,63 @@ export default function PostSigningPage() {
     if (!trendData?.data_points?.length) return undefined
     return trendData.data_points.map(p => p.sla_breaches)
   }, [trendData])
+
+  // Filter SLAs locally
+  const filteredSLAs = useMemo(() => {
+    const slas = ((allSLAs || []) as SLARow[])
+    return slas.filter(sla => {
+      if (slaSeverityFilter && sla.severity !== slaSeverityFilter) return false
+      if (slaBreachFilter === 'breached' && sla.consecutive_breaches === 0) return false
+      if (slaBreachFilter === 'compliant' && sla.consecutive_breaches > 0) return false
+      return true
+    })
+  }, [allSLAs, slaSeverityFilter, slaBreachFilter])
+
+  // Filter milestones locally
+  const filteredMilestones = useMemo(() => {
+    const ms = ((allMilestones || []) as MilestoneRow[])
+    if (!msStatusFilter) return ms
+    return ms.filter(m => m.status === msStatusFilter)
+  }, [allMilestones, msStatusFilter])
+
+  // Flatten renewal calendar buckets into sorted list
+  const allRenewals = useMemo((): ContractRenewalInfo[] => {
+    if (!renewalCalendar) return []
+    const items = [
+      ...(renewalCalendar.expired || []),
+      ...(renewalCalendar.critical || []),
+      ...(renewalCalendar.within_30_days || []),
+      ...(renewalCalendar.within_60_days || []),
+      ...(renewalCalendar.within_90_days || []),
+    ]
+    return items.sort((a, b) => (a.days_until_expiration ?? 999) - (b.days_until_expiration ?? 999))
+  }, [renewalCalendar])
+
+  // Calendar export handler
+  const handleExportCalendar = async () => {
+    setIsExporting(true)
+    try {
+      const blob = await api.exportCalendarICS({
+        include_expirations: true,
+        include_notice_deadlines: true,
+        include_obligations: true,
+        include_key_dates: true,
+        days_ahead: 365,
+      })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `clm-calendar-${new Date().toISOString().split('T')[0]}.ics`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error('Failed to export calendar:', err)
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -423,8 +581,14 @@ export default function PostSigningPage() {
           <div className="space-y-4">
             {/* Obligations Summary */}
             <div className="card">
-              <div className="card-header">
+              <div className="card-header flex items-center justify-between">
                 <h3 className="font-medium text-gray-900">Obligations</h3>
+                <button
+                  onClick={() => setActiveTab('obligations')}
+                  className="text-xs text-primary-600 hover:underline"
+                >
+                  View all
+                </button>
               </div>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
@@ -467,8 +631,14 @@ export default function PostSigningPage() {
 
             {/* SLA Summary */}
             <div className="card">
-              <div className="card-header">
+              <div className="card-header flex items-center justify-between">
                 <h3 className="font-medium text-gray-900">SLA Performance</h3>
+                <button
+                  onClick={() => setActiveTab('slas')}
+                  className="text-xs text-primary-600 hover:underline"
+                >
+                  View all
+                </button>
               </div>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
@@ -673,75 +843,194 @@ export default function PostSigningPage() {
             <StatCard title="Penalties MTD" value={`$${dashboard.slas.total_penalties_mtd.toLocaleString()}`} icon={ChartBarIcon} color="warning" variant="filled" />
           </div>
 
+          {/* All Active SLAs */}
           <div className="card">
             <div className="card-header flex items-center justify-between">
-              <h3 className="font-medium text-gray-900">Recent SLA Breaches</h3>
-              <span className="text-sm text-red-600">{dashboard.slas.critical_breaches} critical</span>
+              <h3 className="font-medium text-gray-900">All Active SLAs</h3>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <FunnelIcon className="h-4 w-4 text-gray-400" />
+                  <select
+                    value={slaSeverityFilter}
+                    onChange={(e) => setSlaSeverityFilter(e.target.value)}
+                    className="text-sm border-gray-300 rounded-md py-1 pl-2 pr-7"
+                  >
+                    <option value="">All Severities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+                <select
+                  value={slaBreachFilter}
+                  onChange={(e) => setSlaBreachFilter(e.target.value)}
+                  className="text-sm border-gray-300 rounded-md py-1 pl-2 pr-7"
+                >
+                  <option value="">All SLAs</option>
+                  <option value="breached">Breached Only</option>
+                  <option value="compliant">No Breaches</option>
+                </select>
+                <span className="text-sm text-gray-500">{filteredSLAs.length} SLAs</span>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SLA Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Target</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actual</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consec. Fails</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {dashboard.slas.recent_breaches.map((breach) => (
-                    <tr
-                      key={breach.sla_id}
-                      className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() => setSelectedBreach({
-                        sla_id: breach.sla_id,
-                        sla_name: breach.sla_name,
-                        contract_id: breach.contract_id,
-                        contract_filename: breach.contract,
-                        metric_type: breach.metric_type || 'custom',
-                        metric_unit: breach.metric_unit || 'percentage',
-                        target_value: breach.target_value || 0,
-                        actual_value: breach.actual_value || 0,
-                        target_display: breach.target_display || '',
-                        actual_display: breach.actual_display || '',
-                        deviation_percentage: breach.deviation || 0,
-                        breach_severity: breach.severity,
-                        measured_at: breach.measured_at || new Date().toISOString(),
-                        penalty_amount: breach.penalty_amount || null,
-                        consecutive_breaches: breach.breaches,
-                      })}
-                    >
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{breach.sla_name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">{breach.contract}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {breach.target_display || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-red-600">
-                        {breach.actual_display || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-red-600">{breach.breaches}</td>
-                      <td className="px-4 py-3">
-                        <span className={cn(
-                          'px-2 py-0.5 rounded-full text-xs font-medium',
-                          breach.severity === 'critical' ? 'bg-red-100 text-red-800' :
-                          breach.severity === 'high' ? 'bg-amber-100 text-amber-800' :
-                          breach.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        )}>
-                          {breach.severity}
-                        </span>
-                      </td>
+            {slasLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <LoadingSpinner size="md" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SLA Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metric</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Target</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Compliance</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Breaches</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="p-3 border-t bg-gray-50 text-xs text-gray-500">
-              Click on a row to view detailed breach information
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredSLAs.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
+                          No active SLAs found
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredSLAs.map((sla) => (
+                        <tr key={sla.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            <Link to={`/contracts/${sla.contract_id}`} className="hover:text-primary-600 hover:underline">
+                              {sla.sla_name}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">
+                            <Link to={`/contracts/${sla.contract_id}`} className="text-primary-600 hover:underline">
+                              {sla.contract_filename}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            {sla.metric_type?.replace(/_/g, ' ') || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 font-medium">
+                            {sla.target_value != null ? sla.target_value : '-'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {sla.compliance_rate != null ? (
+                              <span className={cn(
+                                'text-sm font-medium',
+                                sla.compliance_rate >= 90 ? 'text-green-600' :
+                                sla.compliance_rate >= 70 ? 'text-amber-600' :
+                                'text-red-600'
+                              )}>
+                                {sla.compliance_rate.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-400">N/A</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {sla.consecutive_breaches > 0 ? (
+                              <span className="text-sm font-medium text-red-600">{sla.consecutive_breaches}</span>
+                            ) : (
+                              <span className="text-sm text-green-600">0</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={cn(
+                              'px-2 py-0.5 rounded-full text-xs font-medium',
+                              sla.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                              sla.severity === 'high' ? 'bg-amber-100 text-amber-800' :
+                              sla.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                            )}>
+                              {sla.severity}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
+
+          {/* Recent SLA Breaches (only show if there are breaches) */}
+          {dashboard.slas.recent_breaches.length > 0 && (
+            <div className="card">
+              <div className="card-header flex items-center justify-between">
+                <h3 className="font-medium text-gray-900">Recent SLA Breaches</h3>
+                <span className="text-sm text-red-600">{dashboard.slas.critical_breaches} critical</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SLA Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Target</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actual</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consec. Fails</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {dashboard.slas.recent_breaches.map((breach) => (
+                      <tr
+                        key={breach.sla_id}
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => setSelectedBreach({
+                          sla_id: breach.sla_id,
+                          sla_name: breach.sla_name,
+                          contract_id: breach.contract_id,
+                          contract_filename: breach.contract,
+                          metric_type: breach.metric_type || 'custom',
+                          metric_unit: breach.metric_unit || 'percentage',
+                          target_value: breach.target_value || 0,
+                          actual_value: breach.actual_value || 0,
+                          target_display: breach.target_display || '',
+                          actual_display: breach.actual_display || '',
+                          deviation_percentage: breach.deviation || 0,
+                          breach_severity: breach.severity,
+                          measured_at: breach.measured_at || new Date().toISOString(),
+                          penalty_amount: breach.penalty_amount || null,
+                          consecutive_breaches: breach.breaches,
+                        })}
+                      >
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{breach.sla_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">{breach.contract}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {breach.target_display || '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-red-600">
+                          {breach.actual_display || '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-red-600">{breach.breaches}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn(
+                            'px-2 py-0.5 rounded-full text-xs font-medium',
+                            breach.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                            breach.severity === 'high' ? 'bg-amber-100 text-amber-800' :
+                            breach.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          )}>
+                            {breach.severity}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="p-3 border-t bg-gray-50 text-xs text-gray-500">
+                Click on a row to view detailed breach information
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -820,51 +1109,86 @@ export default function PostSigningPage() {
             </div>
           </div>
 
-          {/* Due This Week */}
+          {/* All Milestones */}
           <div className="card">
-            <div className="card-header">
-              <h3 className="font-medium text-gray-900">Due This Week</h3>
+            <div className="card-header flex items-center justify-between">
+              <h3 className="font-medium text-gray-900">All Milestones</h3>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <FunnelIcon className="h-4 w-4 text-gray-400" />
+                  <select
+                    value={msStatusFilter}
+                    onChange={(e) => setMsStatusFilter(e.target.value)}
+                    className="text-sm border-gray-300 rounded-md py-1 pl-2 pr-7"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </div>
+                <span className="text-sm text-gray-500">{filteredMilestones.length} milestones</span>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {dashboard.milestones.due_this_week.length === 0 ? (
+            {milestonesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <LoadingSpinner size="md" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-500">
-                        No milestones due this week
-                      </td>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Owner</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     </tr>
-                  ) : (
-                    dashboard.milestones.due_this_week.map((ms) => (
-                      <tr key={ms.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{ms.title}</td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          {ms.due_date ? new Date(ms.due_date).toLocaleDateString() : '-'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={cn(
-                            'px-2 py-0.5 rounded-full text-xs font-medium',
-                            ms.status === 'overdue' ? 'bg-red-100 text-red-800' :
-                            ms.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            ms.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                            'bg-amber-100 text-amber-800'
-                          )}>
-                            {ms.status.replace(/_/g, ' ')}
-                          </span>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredMilestones.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
+                          No milestones found
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      filteredMilestones.map((ms) => (
+                        <tr key={ms.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            <Link to={`/obligations/${ms.id}`} className="hover:text-primary-600 hover:underline">
+                              {ms.title}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">
+                            <Link to={`/contracts/${ms.contract_id}`} className="text-primary-600 hover:underline">
+                              {ms.contract_filename}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{ms.owner || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            {ms.due_date ? new Date(ms.due_date).toLocaleDateString() : '-'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={cn(
+                              'px-2 py-0.5 rounded-full text-xs font-medium',
+                              ms.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                              ms.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              ms.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                              'bg-amber-100 text-amber-800'
+                            )}>
+                              {ms.status.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -885,55 +1209,120 @@ export default function PostSigningPage() {
           </div>
 
           <div className="card">
-            <div className="card-header">
-              <h3 className="font-medium text-gray-900">Upcoming Renewals</h3>
+            <div className="card-header flex items-center justify-between">
+              <h3 className="font-medium text-gray-900">Renewal Calendar</h3>
+              <div className="flex items-center gap-3">
+                <Link to="/renewals" className="inline-flex items-center gap-1 text-sm text-primary-600 hover:underline">
+                  View Full Calendar
+                  <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+                </Link>
+                <button
+                  onClick={handleExportCalendar}
+                  disabled={isExporting}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
+                  {isExporting ? 'Exporting...' : 'Export Calendar'}
+                </button>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Counterparty</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expiration</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Auto-Renew</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {dashboard.renewals.upcoming_renewals.length === 0 ? (
+            {renewalsLoading ? (
+              <div className="flex items-center justify-center py-8"><LoadingSpinner size="md" /></div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
-                        No contracts expiring in the next 90 days
-                      </td>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Counterparty</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expiration</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Left</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Risk</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Auto-Renew</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     </tr>
-                  ) : (
-                    dashboard.renewals.upcoming_renewals.map((renewal) => (
-                      <tr key={renewal.contract_id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <Link to={`/contracts/${renewal.contract_id}`} className="text-sm font-medium text-primary-600 hover:underline">
-                            {renewal.filename}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500">{renewal.counterparty || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          {renewal.expiration_date ? new Date(renewal.expiration_date).toLocaleDateString() : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {renewal.value ? `$${renewal.value.toLocaleString()}` : '-'}
-                        </td>
-                        <td className="px-4 py-3">
-                          {renewal.auto_renewal ? (
-                            <span className="text-green-600 text-sm">Yes</span>
-                          ) : (
-                            <span className="text-gray-400 text-sm">No</span>
-                          )}
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {allRenewals.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">
+                          No contracts approaching renewal
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      allRenewals.map((r) => (
+                        <tr key={r.contract_id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <Link to={`/contracts/${r.contract_id}`} className="text-sm font-medium text-primary-600 hover:underline">
+                              {r.filename}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{r.counterparty || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500 capitalize">{r.contract_type?.replace(/_/g, ' ') || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            {r.expiration_date ? new Date(r.expiration_date).toLocaleDateString() : '-'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={cn(
+                              'text-sm font-medium',
+                              (r.days_until_expiration ?? 999) <= 0 ? 'text-red-700' :
+                              (r.days_until_expiration ?? 999) <= 30 ? 'text-red-600' :
+                              (r.days_until_expiration ?? 999) <= 60 ? 'text-amber-600' :
+                              'text-gray-700'
+                            )}>
+                              {r.days_until_expiration != null
+                                ? r.days_until_expiration <= 0
+                                  ? `${Math.abs(r.days_until_expiration)}d overdue`
+                                  : `${r.days_until_expiration}d`
+                                : '-'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {r.risk_level ? (
+                              <span className={cn(
+                                'px-2 py-0.5 rounded-full text-xs font-medium',
+                                r.risk_level === 'critical' ? 'bg-red-100 text-red-800' :
+                                r.risk_level === 'high' ? 'bg-amber-100 text-amber-800' :
+                                r.risk_level === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              )}>
+                                {r.risk_level}
+                              </span>
+                            ) : <span className="text-sm text-gray-400">-</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {r.auto_renewal ? (
+                              <span className="text-green-600 text-sm">Yes</span>
+                            ) : (
+                              <span className="text-gray-400 text-sm">No</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={r.renewal_status || 'pending_review'}
+                              onChange={(e) => renewalStatusMutation.mutate({ contractId: r.contract_id, status: e.target.value })}
+                              className={cn(
+                                'text-xs font-medium rounded-md py-1 pl-2 pr-6 border',
+                                r.renewal_status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' :
+                                r.renewal_status === 'declined' ? 'bg-red-50 text-red-700 border-red-200' :
+                                r.renewal_status === 'renegotiating' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                'bg-gray-50 text-gray-700 border-gray-200'
+                              )}
+                            >
+                              <option value="pending_review">Pending Review</option>
+                              <option value="approved">Approved</option>
+                              <option value="declined">Declined</option>
+                              <option value="renegotiating">Renegotiating</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -952,52 +1341,113 @@ export default function PostSigningPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Top Performers */}
-            <div className="card">
-              <div className="card-header">
-                <h3 className="font-medium text-gray-900">Top Performers</h3>
-              </div>
-              <div className="divide-y divide-gray-200">
-                {dashboard.vendors.top_performers.map((vendor, idx) => (
-                  <div key={vendor.name} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-medium">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{vendor.name}</p>
-                        <p className="text-xs text-gray-500">{vendor.contracts} contracts</p>
-                      </div>
-                    </div>
-                    <span className="text-lg font-semibold text-green-600">{vendor.score.toFixed(1)}</span>
-                  </div>
-                ))}
+          <div className="card">
+            <div className="card-header flex items-center justify-between">
+              <h3 className="font-medium text-gray-900">All Vendors & Counterparties</h3>
+              <div className="flex items-center gap-3">
+                <Link to="/vendors" className="inline-flex items-center gap-1 text-sm text-primary-600 hover:underline">
+                  View Details
+                  <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+                </Link>
+                <span className="text-sm text-gray-500">
+                  {vendorsLoading ? '...' : `${(vendorData?.vendors || []).length} vendors`}
+                </span>
               </div>
             </div>
-
-            {/* Needs Attention */}
-            <div className="card">
-              <div className="card-header">
-                <h3 className="font-medium text-gray-900">Needs Attention</h3>
+            {vendorsLoading ? (
+              <div className="flex items-center justify-center py-8"><LoadingSpinner size="md" /></div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Risk</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contracts</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exposure</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Obl %</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SLA %</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Breaches</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {(vendorData?.vendors || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">
+                          No vendor data available
+                        </td>
+                      </tr>
+                    ) : (
+                      (vendorData?.vendors || []).map((v: VendorListItem) => (
+                        <tr key={v.vendor_name} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <Link to="/vendors" className="text-sm font-medium text-primary-600 hover:underline">
+                              {v.vendor_name}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={cn(
+                              'text-sm font-semibold',
+                              v.performance_score >= 80 ? 'text-green-600' :
+                              v.performance_score >= 60 ? 'text-amber-600' :
+                              'text-red-600'
+                            )}>
+                              {v.performance_score.toFixed(1)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={cn(
+                              'px-2 py-0.5 rounded-full text-xs font-medium',
+                              v.risk_level === 'high' ? 'bg-red-100 text-red-800' :
+                              v.risk_level === 'medium' ? 'bg-amber-100 text-amber-800' :
+                              'bg-green-100 text-green-800'
+                            )}>
+                              {v.risk_level}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{v.contract_count}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {v.total_exposure ? `$${(v.total_exposure / 1000).toFixed(0)}k` : '-'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {v.obligation_compliance_rate != null ? (
+                              <span className={cn(
+                                'text-sm font-medium',
+                                v.obligation_compliance_rate >= 90 ? 'text-green-600' :
+                                v.obligation_compliance_rate >= 70 ? 'text-amber-600' :
+                                'text-red-600'
+                              )}>
+                                {v.obligation_compliance_rate.toFixed(0)}%
+                              </span>
+                            ) : <span className="text-sm text-gray-400">N/A</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {v.sla_compliance_rate != null ? (
+                              <span className={cn(
+                                'text-sm font-medium',
+                                v.sla_compliance_rate >= 90 ? 'text-green-600' :
+                                v.sla_compliance_rate >= 70 ? 'text-amber-600' :
+                                'text-red-600'
+                              )}>
+                                {v.sla_compliance_rate.toFixed(0)}%
+                              </span>
+                            ) : <span className="text-sm text-gray-400">N/A</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {v.active_breaches > 0 ? (
+                              <span className="text-sm font-medium text-red-600">{v.active_breaches}</span>
+                            ) : (
+                              <span className="text-sm text-green-600">0</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div className="divide-y divide-gray-200">
-                {dashboard.vendors.bottom_performers.map((vendor, idx) => (
-                  <div key={vendor.name} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-xs font-medium">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{vendor.name}</p>
-                        <p className="text-xs text-gray-500">{vendor.contracts} contracts</p>
-                      </div>
-                    </div>
-                    <span className="text-lg font-semibold text-red-600">{vendor.score.toFixed(1)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}

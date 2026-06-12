@@ -11,7 +11,7 @@ from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.contract import Contract, ContractType, ContractStatus
+from app.models.contract import Contract, ContractStatus
 from app.models.contract_link import LinkType
 from app.models.suggested_link import SuggestedContractLink, SuggestionStatus
 from app.services.vector_store import VectorStore, get_vector_store
@@ -58,13 +58,21 @@ SIGNAL_WEIGHTS = {
 # Excludes boilerplate: preamble, definitions, signatures, general, termination
 LINKING_SECTION_TYPES = ["scope", "sla", "governance", "compliance", "ip", "exhibits"]
 
-# Contract type hierarchies (parent → children)
-TYPE_HIERARCHY = {
-    ContractType.MSA: [ContractType.SOW, ContractType.AMENDMENT],
-    ContractType.NDA: [ContractType.AMENDMENT],
-    ContractType.SOW: [ContractType.AMENDMENT],
-    ContractType.VENDOR_AGREEMENT: [ContractType.SOW, ContractType.AMENDMENT],
-    ContractType.EMPLOYMENT_CONTRACT: [ContractType.AMENDMENT],
+# Contract type hierarchies (parent → children) — uses string values for data-driven types
+TYPE_HIERARCHY: dict[str, list[str]] = {
+    "msa": ["sow", "amendment"],
+    "nda": ["amendment"],
+    "sow": ["amendment"],
+    "vendor_agreement": ["sow", "amendment"],
+    "employment_contract": ["amendment"],
+    # Manufacturing types
+    "supply_agreement": ["quality_agreement", "amendment", "blanket_po"],
+    "quality_agreement": ["amendment"],
+    "blanket_po": ["amendment"],
+    # Pharma types
+    "csa": ["quality_agreement", "amendment"],
+    "cmo_agreement": ["quality_agreement", "amendment"],
+    "cro_agreement": ["amendment"],
 }
 
 # Filename patterns that indicate relationship types
@@ -104,25 +112,35 @@ SCHEDULE_PATTERNS = [
 ]
 
 
-# Map AI-extracted agreement type strings to ContractType enum
-REFERENCE_TYPE_MAP = {
-    "MSA": ContractType.MSA,
-    "MASTER SERVICES AGREEMENT": ContractType.MSA,
-    "MASTER SERVICE AGREEMENT": ContractType.MSA,
-    "MASTER AGREEMENT": ContractType.MSA,
-    "NDA": ContractType.NDA,
-    "NON-DISCLOSURE AGREEMENT": ContractType.NDA,
-    "CONFIDENTIALITY AGREEMENT": ContractType.NDA,
-    "SOW": ContractType.SOW,
-    "STATEMENT OF WORK": ContractType.SOW,
-    "VENDOR_AGREEMENT": ContractType.VENDOR_AGREEMENT,
-    "VENDOR AGREEMENT": ContractType.VENDOR_AGREEMENT,
-    "SERVICES AGREEMENT": ContractType.VENDOR_AGREEMENT,
-    "SERVICE AGREEMENT": ContractType.VENDOR_AGREEMENT,
-    "EMPLOYMENT_CONTRACT": ContractType.EMPLOYMENT_CONTRACT,
-    "EMPLOYMENT CONTRACT": ContractType.EMPLOYMENT_CONTRACT,
-    "EMPLOYMENT AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-    "AMENDMENT": ContractType.AMENDMENT,
+# Map AI-extracted agreement type strings to contract type codes (string values)
+REFERENCE_TYPE_MAP: dict[str, str] = {
+    "MSA": "msa",
+    "MASTER SERVICES AGREEMENT": "msa",
+    "MASTER SERVICE AGREEMENT": "msa",
+    "MASTER AGREEMENT": "msa",
+    "NDA": "nda",
+    "NON-DISCLOSURE AGREEMENT": "nda",
+    "CONFIDENTIALITY AGREEMENT": "nda",
+    "SOW": "sow",
+    "STATEMENT OF WORK": "sow",
+    "VENDOR_AGREEMENT": "vendor_agreement",
+    "VENDOR AGREEMENT": "vendor_agreement",
+    "SERVICES AGREEMENT": "vendor_agreement",
+    "SERVICE AGREEMENT": "vendor_agreement",
+    "EMPLOYMENT_CONTRACT": "employment_contract",
+    "EMPLOYMENT CONTRACT": "employment_contract",
+    "EMPLOYMENT AGREEMENT": "employment_contract",
+    "AMENDMENT": "amendment",
+    # Manufacturing types
+    "SUPPLY AGREEMENT": "supply_agreement",
+    "QUALITY AGREEMENT": "quality_agreement",
+    "BLANKET PO": "blanket_po",
+    "BLANKET PURCHASE ORDER": "blanket_po",
+    # Pharma types
+    "CSA": "csa",
+    "CLINICAL SUPPLY AGREEMENT": "csa",
+    "CMO AGREEMENT": "cmo_agreement",
+    "CRO AGREEMENT": "cro_agreement",
 }
 
 
@@ -420,7 +438,7 @@ class AutoLinkDetector:
                     candidates[key].signals["type_hierarchy"] = weight
                     cp_note = "" if has_cp else " (no counterparty overlap)"
                     candidates[key].reasoning_parts.append(
-                        f"Type hierarchy: {contract.contract_type.value} typically falls under {parent_type.value}{cp_note}"
+                        f"Type hierarchy: {contract.contract_type} typically falls under {parent_type}{cp_note}"
                     )
 
         # Check if source could be a parent of existing contracts
@@ -450,7 +468,7 @@ class AutoLinkDetector:
                 candidates[key].signals["type_hierarchy"] = weight
                 cp_note = "" if has_cp else " (no counterparty overlap)"
                 candidates[key].reasoning_parts.append(
-                    f"Type hierarchy: {child.contract_type.value} typically falls under {contract.contract_type.value}{cp_note}"
+                    f"Type hierarchy: {child.contract_type} typically falls under {contract.contract_type}{cp_note}"
                 )
 
     async def _find_by_semantic_similarity(
@@ -608,7 +626,7 @@ class AutoLinkDetector:
         for pattern in SOW_PATTERNS:
             if re.search(pattern, filename, re.IGNORECASE):
                 for key, candidate in candidates.items():
-                    if candidate.contract.contract_type == ContractType.MSA:
+                    if candidate.contract.contract_type == "msa":
                         candidate.signals["filename_pattern"] = SIGNAL_WEIGHTS["filename_pattern"]
                         candidate.link_type = LinkType.SOW
                         candidate.direction = "source_is_child"
@@ -630,7 +648,7 @@ class AutoLinkDetector:
 
                 # Update existing candidates (prefer MSA parents)
                 for key, candidate in candidates.items():
-                    if candidate.contract.contract_type == ContractType.MSA:
+                    if candidate.contract.contract_type == "msa":
                         candidate.signals["filename_pattern"] = SIGNAL_WEIGHTS["filename_pattern"]
                         candidate.link_type = link_type
                         candidate.direction = "source_is_child"
@@ -640,7 +658,7 @@ class AutoLinkDetector:
 
                 # Also search for MSA parents in same tenant if none found yet
                 if not any(
-                    c.contract.contract_type == ContractType.MSA
+                    c.contract.contract_type == "msa"
                     for c in candidates.values()
                 ):
                     self._schedule_needs_parent = True
@@ -809,7 +827,7 @@ class AutoLinkDetector:
                         for p in SCHEDULE_PATTERNS
                     )
                     other_is_msa = (
-                        other.contract_type == ContractType.MSA
+                        other.contract_type == "msa"
                         or bool(re.search(r'\bMSA\b', other.filename or "", re.IGNORECASE))
                     ) and not other_is_schedule
 
@@ -852,7 +870,7 @@ class AutoLinkDetector:
             Contract.id != contract.id,
             Contract.status == ContractStatus.COMPLETED,
             or_(
-                Contract.contract_type == ContractType.MSA,
+                Contract.contract_type == "msa",
                 Contract.filename.ilike("%MSA%"),
             ),
         )
@@ -933,7 +951,7 @@ class AutoLinkDetector:
             return
 
         # Extract AI-detected reference details
-        referenced_types: set[ContractType] = set()
+        referenced_types: set[str] = set()
         mentioned_parties: list[str] = []
         reference_texts: list[str] = []
         reference_ids: list[str] = []
@@ -1030,7 +1048,7 @@ class AutoLinkDetector:
         # exhibits ("GlobalPharma").
 
         # Pre-compute how many contracts of each referenced type exist
-        type_counts: dict[ContractType, int] = {}
+        type_counts: dict[str, int] = {}
         for ref_type in referenced_types:
             type_counts[ref_type] = sum(
                 1 for c in all_tenant_contracts
@@ -1067,14 +1085,14 @@ class AutoLinkDetector:
                     # Party + type = strong signal
                     ref_score += 0.10
                     reasons.append(
-                        f"AI: references {other.contract_type.value} agreement"
+                        f"AI: references {other.contract_type} agreement"
                     )
                 elif type_count <= 3:
                     # Few contracts of this type in tenant — type alone is meaningful
                     # (e.g., "references MSA" and there's only 1 MSA)
                     ref_score += 0.20
                     reasons.append(
-                        f"AI: references {other.contract_type.value} (only {type_count} in tenant)"
+                        f"AI: references {other.contract_type} (only {type_count} in tenant)"
                     )
 
             # Boost if AI extraction was high confidence
@@ -1172,9 +1190,9 @@ class AutoLinkDetector:
 
     def _infer_child_link_type(self, contract: Contract) -> LinkType:
         """Infer link type for a child contract based on its filename and type."""
-        if contract.contract_type == ContractType.SOW:
+        if contract.contract_type == "sow":
             return LinkType.SOW
-        if contract.contract_type == ContractType.AMENDMENT:
+        if contract.contract_type == "amendment":
             return LinkType.AMENDMENT
 
         fname = (contract.filename or "").lower()
@@ -1190,11 +1208,11 @@ class AutoLinkDetector:
             return LinkType.SOW
         return LinkType.RELATED
 
-    def _infer_link_type(self, contract_type: ContractType | None) -> LinkType:
+    def _infer_link_type(self, contract_type: str | None) -> LinkType:
         """Infer the appropriate link type based on contract type."""
-        if contract_type == ContractType.SOW:
+        if contract_type == "sow":
             return LinkType.SOW
-        elif contract_type == ContractType.AMENDMENT:
+        elif contract_type == "amendment":
             return LinkType.AMENDMENT
         else:
             return LinkType.RELATED

@@ -18,10 +18,181 @@ from app.agents.metadata_extraction import extract_metadata_with_fallback, updat
 from app.agents.risk_detection import assess_risk, update_contract_risk
 from app.services.custom_field_extraction import extract_custom_fields
 from app.services.few_shot_service import get_few_shot_context
-from app.services.progress_tracker import get_progress_tracker, ProcessingStage
+from app.services.progress_tracker import (
+    HealthRecorder,
+    ProcessingStage,
+    get_progress_tracker,
+    new_health_recorder,
+)
 from app.models.tenant import Tenant
 
 logger = logging.getLogger(__name__)
+
+
+def _merge_prompt_addenda(hints: dict[str, str], tenant) -> dict[str, str]:
+    """Append tenant-level prompt addenda (#27) onto the industry hints.
+
+    Storage: ``tenant.config_overrides["prompt_addenda"]`` is a dict mapping
+    agent-type keys (``metadata`` / ``clauses`` / ``obligations`` / ``slas``
+    / ``risks``) to free-text instructions. Each addendum is appended to the
+    corresponding entry in ``hints`` so every contract processed under this
+    tenant sees the extra guidance, regardless of industry profile.
+    """
+    if not tenant or not tenant.config_overrides:
+        return hints
+    addenda = tenant.config_overrides.get("prompt_addenda") or {}
+    if not isinstance(addenda, dict) or not addenda:
+        return hints
+    merged = dict(hints)
+    for agent_key in ("metadata", "clauses", "obligations", "slas", "risks"):
+        addendum = addenda.get(agent_key)
+        if not addendum or not isinstance(addendum, str):
+            continue
+        addendum = addendum.strip()
+        if not addendum:
+            continue
+        existing = merged.get(agent_key, "") or ""
+        merged[agent_key] = (existing + "\n\n" + addendum).strip() if existing else addendum
+    return merged
+
+
+async def _load_extraction_hints(
+    db: AsyncSession, tenant_id, contract_profile_id=None
+) -> dict[str, str]:
+    """Load industry-specific extraction hints.
+
+    Resolution: contract profile → tenant profile, merged with tenant overrides
+    AND per-tenant prompt addenda (#27).
+    Returns dict like {"metadata": "...", "clauses": "...", "risks": "...", ...}
+    or empty dict if nothing is configured.
+    """
+    if not tenant_id:
+        return {}
+    try:
+        from sqlalchemy import select
+        from app.models.industry_profile import IndustryProfile
+
+        tenant = await db.get(Tenant, tenant_id)
+        if not tenant:
+            return {}
+
+        # Contract-level profile takes priority
+        profile_id = contract_profile_id or (
+            tenant.industry_profile_id if tenant else None
+        )
+
+        hints: dict[str, str] = {}
+        if profile_id:
+            profile = await db.get(IndustryProfile, profile_id)
+            if profile:
+                # Merge with tenant overrides so custom hints are included
+                merged = profile.get_merged_config(tenant.config_overrides)
+                hints = merged.get("extraction_hints", {}) or {}
+
+        # Tenant prompt addenda apply regardless of whether a profile is set
+        return _merge_prompt_addenda(hints, tenant)
+    except Exception as e:
+        logger.debug(f"Extraction hints loading skipped: {e}")
+    return {}
+
+
+async def _resolve_hints_for_contract(
+    db: AsyncSession,
+    tenant_id,
+    contract_type: str | None,
+    contract_profile_id=None,
+) -> dict[str, str]:
+    """Resolve the best extraction hints based on contract profile or detected type.
+
+    Resolution order:
+    1. Contract-level profile (if set) — always wins
+    2. Best-matching profile by contract_type across all profiles
+    3. Tenant's default profile
+
+    All results are merged with tenant overrides so custom hints apply.
+    """
+    from sqlalchemy import select
+    from app.models.industry_profile import IndustryProfile
+
+    if not tenant_id:
+        return {}
+
+    # 1. Contract-level profile takes priority
+    if contract_profile_id:
+        return await _load_extraction_hints(db, tenant_id, contract_profile_id)
+
+    # 2. Try to match contract_type against all profiles
+    if not contract_type:
+        return await _load_extraction_hints(db, tenant_id)
+
+    try:
+        result = await db.execute(select(IndustryProfile))
+        all_profiles = result.scalars().all()
+    except Exception as e:
+        logger.debug(f"Profile resolution skipped: {e}")
+        return await _load_extraction_hints(db, tenant_id)
+
+    if not all_profiles:
+        return await _load_extraction_hints(db, tenant_id)
+
+    ct_lower = contract_type.strip().lower()
+    tenant = await db.get(Tenant, tenant_id)
+    tenant_profile_id = tenant.industry_profile_id if tenant else None
+    best_profile = None
+
+    for profile in all_profiles:
+        if not profile.contract_types:
+            continue
+        profile_codes = {
+            ct.get("code", "").lower() for ct in profile.contract_types
+        }
+        profile_labels = {
+            ct.get("label", "").lower() for ct in profile.contract_types
+        }
+        profile_descriptions = {
+            ct.get("description", "").lower() for ct in profile.contract_types
+        }
+
+        if ct_lower in profile_codes:
+            best_profile = profile
+            break
+
+        for code in profile_codes:
+            if ct_lower in code or code in ct_lower:
+                best_profile = profile
+                break
+        if best_profile:
+            break
+
+        if ct_lower in profile_labels:
+            best_profile = profile
+            break
+
+        for desc in profile_descriptions:
+            if ct_lower in desc:
+                best_profile = profile
+                break
+        if best_profile:
+            break
+
+    if best_profile and best_profile.extraction_hints:
+        if best_profile.id != tenant_profile_id:
+            logger.info(
+                f"Contract type '{contract_type}' matched profile "
+                f"'{best_profile.name}' (tenant default: "
+                f"{tenant_profile_id})"
+            )
+        # Merge with tenant overrides
+        if tenant and tenant.config_overrides:
+            merged = best_profile.get_merged_config(tenant.config_overrides)
+            hints = merged.get("extraction_hints", {}) or {}
+        else:
+            hints = best_profile.extraction_hints or {}
+        # Always apply tenant prompt addenda (#27) regardless of the profile path
+        return _merge_prompt_addenda(hints, tenant)
+
+    # 3. Fall back to tenant's assigned profile
+    return await _load_extraction_hints(db, tenant_id)
 
 
 class IndexingError(Exception):
@@ -71,6 +242,7 @@ class IndexingService:
         """
         contract_id = str(contract.id)
         tracker = get_progress_tracker()
+        recorder = new_health_recorder()
 
         try:
             # Start progress tracking
@@ -124,7 +296,7 @@ class IndexingService:
             logger.info(f"Extracting metadata for contract {contract.id}")
             full_text = parsed.full_text or ""
 
-            # Build excluded parties list from tenant/client names
+            # Build excluded parties list from tenant/client names + party aliases
             # so the AI doesn't set the uploader's own org as the counterparty
             excluded_parties: list[str] = []
             if contract.tenant_id:
@@ -132,6 +304,13 @@ class IndexingService:
                     tenant = await self.db.get(Tenant, contract.tenant_id)
                     if tenant and tenant.name:
                         excluded_parties.append(tenant.name)
+                    # Load party aliases from tenant config_overrides
+                    if tenant and tenant.config_overrides:
+                        aliases = tenant.config_overrides.get("party_aliases", [])
+                        if isinstance(aliases, list):
+                            for alias in aliases:
+                                if alias and alias not in excluded_parties:
+                                    excluded_parties.append(alias)
                 except Exception:
                     pass
             if contract.client_id:
@@ -142,6 +321,11 @@ class IndexingService:
                         excluded_parties.append(client.name)
                 except Exception:
                     pass
+
+            # Load industry-specific extraction hints (contract profile → tenant profile)
+            extraction_hints = await _load_extraction_hints(
+                self.db, contract.tenant_id, contract.industry_profile_id
+            )
 
             # Build few-shot context from golden set
             meta_few_shot = ""
@@ -155,6 +339,27 @@ class IndexingService:
                 except Exception as e:
                     logger.debug(f"Few-shot context skipped: {e}")
 
+            # Load per-field confidence thresholds from tenant config.
+            # Shape: tenant.config_overrides["confidence_thresholds"] = {
+            #   "default": 0.7,
+            #   "fields": {"counterparty": 0.85, "contract_value": 0.9, ...}
+            # }
+            field_thresholds: dict[str, float] | None = None
+            default_threshold = 0.7
+            if contract.tenant_id:
+                try:
+                    tenant_for_thresholds = await self.db.get(Tenant, contract.tenant_id)
+                    overrides = (tenant_for_thresholds.config_overrides or {}) if tenant_for_thresholds else {}
+                    ct_cfg = overrides.get("confidence_thresholds") or {}
+                    if isinstance(ct_cfg.get("default"), (int, float)):
+                        default_threshold = float(ct_cfg["default"])
+                    fields_cfg = ct_cfg.get("fields") or {}
+                    if isinstance(fields_cfg, dict) and fields_cfg:
+                        field_thresholds = {k: float(v) for k, v in fields_cfg.items()
+                                           if isinstance(v, (int, float))}
+                except Exception:
+                    pass
+
             try:
                 metadata = await extract_metadata_with_fallback(
                     contract_text=full_text,
@@ -164,16 +369,45 @@ class IndexingService:
                     excluded_parties=excluded_parties if excluded_parties else None,
                     few_shot_context=meta_few_shot,
                     tenant_id=str(contract.tenant_id) if contract.tenant_id else None,
+                    industry_hint=extraction_hints.get("metadata", ""),
                 )
-                await update_contract_metadata(self.db, contract, metadata, excluded_parties=excluded_parties if excluded_parties else None)
+                _, dropped_fields = await update_contract_metadata(
+                    self.db, contract, metadata,
+                    confidence_threshold=default_threshold,
+                    excluded_parties=excluded_parties if excluded_parties else None,
+                    field_thresholds=field_thresholds,
+                )
+                if dropped_fields:
+                    logger.info(
+                        f"Metadata thresholds dropped {len(dropped_fields)} field(s) for "
+                        f"{contract.id}: {[d['field'] for d in dropped_fields]}"
+                    )
                 logger.info(f"Metadata extracted for contract {contract.id} (confidence: {metadata.overall_confidence:.2f})")
                 tracker.update_progress(
                     contract_id, ProcessingStage.METADATA,
                     f"Metadata extracted (confidence: {metadata.overall_confidence:.0%})",
                     details={"counterparty": metadata.counterparty.value if metadata.counterparty else None}
                 )
+                meta_details: dict = {"confidence": round(metadata.overall_confidence, 2)}
+                if dropped_fields:
+                    meta_details["dropped_fields"] = dropped_fields
+                recorder.success(ProcessingStage.METADATA, details=meta_details)
             except Exception as e:
                 logger.warning(f"Metadata extraction failed for {contract.id}: {e}")
+                recorder.failed(ProcessingStage.METADATA, error=str(e))
+
+            # Re-resolve extraction hints based on detected contract type.
+            # The initial hints came from the tenant's default profile, but now
+            # that we know the contract type we can pick the best-fit profile.
+            if contract.contract_type:
+                resolved_hints = await _resolve_hints_for_contract(
+                    self.db,
+                    contract.tenant_id,
+                    contract.contract_type,
+                    contract_profile_id=contract.industry_profile_id,
+                )
+                if resolved_hints:
+                    extraction_hints = resolved_hints
 
             # Extract custom fields if tenant has them defined
             if contract.tenant_id:
@@ -193,8 +427,18 @@ class IndexingService:
                             logger.info(
                                 f"Custom fields extracted for contract {contract.id}: {list(custom_fields.keys())}"
                             )
+                        recorder.success(
+                            ProcessingStage.CUSTOM_FIELDS,
+                            details={"field_count": len(custom_fields) if custom_fields else 0},
+                        )
+                    else:
+                        recorder.skipped(
+                            ProcessingStage.CUSTOM_FIELDS,
+                            reason="no custom field definitions on tenant",
+                        )
                 except Exception as e:
                     logger.warning(f"Custom field extraction failed for {contract.id}: {e}")
+                    recorder.failed(ProcessingStage.CUSTOM_FIELDS, error=str(e))
 
             # Flush metadata changes before optional stages so they survive failures
             await self.db.flush()
@@ -207,6 +451,7 @@ class IndexingService:
                     contract_text=full_text,
                     contract_id=str(contract.id),
                     user_id=user_id,
+                    industry_hint=extraction_hints.get("risks", ""),
                 )
                 await update_contract_risk(self.db, contract, risk_result)
                 logger.info(f"Risk assessed for contract {contract.id}: {risk_result.risk_level}")
@@ -215,8 +460,13 @@ class IndexingService:
                     f"Risk level: {risk_result.risk_level}",
                     details={"risk_level": risk_result.risk_level}
                 )
+                recorder.success(
+                    ProcessingStage.RISK,
+                    details={"risk_level": risk_result.risk_level},
+                )
             except Exception as e:
                 logger.warning(f"Risk assessment failed for {contract.id}: {e}")
+                recorder.failed(ProcessingStage.RISK, error=str(e))
 
             # NOTE: Knowledge graph extraction is deferred to deep_analysis to avoid
             # FK violation errors that can poison the session and rollback metadata changes.
@@ -239,14 +489,17 @@ class IndexingService:
                     user_id=user_id,
                 )
                 await store_contract_references(self.db, contract, ref_result)
+                ref_count = len(ref_result.parent_references) + len(ref_result.child_references)
                 if ref_result.parent_references or ref_result.child_references:
                     logger.info(
                         f"Extracted references for {contract.id}: "
                         f"{len(ref_result.parent_references)} parent, "
                         f"{len(ref_result.child_references)} child"
                     )
+                recorder.success("contract_references", details={"count": ref_count})
             except Exception as e:
                 logger.warning(f"Contract reference extraction failed for {contract.id}: {e}")
+                recorder.failed("contract_references", error=str(e))
 
             # Mark as completed
             contract.status = ContractStatus.COMPLETED
@@ -282,8 +535,20 @@ class IndexingService:
                     if num_suggestions:
                         await self.db.flush()
                         logger.info(f"Hierarchy detection created {num_suggestions} suggestions for {contract.id}")
+                    recorder.success("hierarchy_detection", details={"suggestions": num_suggestions or 0})
+                else:
+                    recorder.skipped(
+                        "hierarchy_detection",
+                        reason="fewer than 2 completed contracts to compare",
+                    )
             except Exception as e:
                 logger.warning(f"Hierarchy detection failed for {contract.id}: {e}")
+                recorder.failed("hierarchy_detection", error=str(e))
+
+            # Persist per-stage outcomes so silent failures are visible to tenants.
+            # Deep analysis will augment this dict with its own stages later.
+            contract.extraction_health = recorder.to_dict()
+            await self.db.flush()
 
             # Update progress — indexer phase done, deep analysis will continue
             tracker.update_progress(

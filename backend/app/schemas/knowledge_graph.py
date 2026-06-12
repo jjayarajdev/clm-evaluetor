@@ -13,40 +13,36 @@ EntityType = Literal[
 # Relationship type literals matching KGRelationshipType enum
 RelationshipType = Literal[
     "has_party", "has_obligation", "benefits_from", "references", "limited_by",
-    "defined_as", "triggered_by", "governed_by", "amends", "expires_on"
+    "defined_as", "triggered_by", "governed_by", "amends", "expires_on", "same_as"
 ]
 
 
-# Request schemas
-class KGEntityCreate(BaseModel):
-    """Request to create a knowledge graph entity."""
+# Master Entity schemas
+class KGMasterEntityResponse(BaseModel):
+    """Response model for a tenant-level master entity."""
 
+    id: str
+    tenant_id: str
     entity_type: EntityType
-    name: str = Field(..., max_length=500)
-    normalized_name: str | None = Field(None, max_length=500)
-    properties: dict = Field(default_factory=dict)
-    source_text: str | None = None
-    source_section: str | None = Field(None, max_length=50)
-    source_page: int | None = None
-    confidence: float = Field(1.0, ge=0.0, le=1.0)
+    name: str
+    normalized_name: str
+    properties: dict
+    entity_count: int
+    last_seen_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
-class KGRelationshipCreate(BaseModel):
-    """Request to create a knowledge graph relationship."""
+class KGPortfolioStats(BaseModel):
+    """Portfolio-wide knowledge graph statistics."""
 
-    source_entity_id: str
-    target_entity_id: str
-    relationship_type: RelationshipType
-    properties: dict = Field(default_factory=dict)
-    source_text: str | None = None
-    confidence: float = Field(1.0, ge=0.0, le=1.0)
-
-
-class KGBulkExtractRequest(BaseModel):
-    """Request to extract knowledge graph from contract text."""
-
-    contract_id: str
-    force_reextract: bool = Field(False, description="Delete existing entities and re-extract")
+    total_master_entities: int
+    total_linked_entities: int
+    entities_by_type: dict[str, int]
+    top_entities: list[KGMasterEntityResponse]
 
 
 # Response schemas
@@ -69,6 +65,12 @@ class KGEntityResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class KGMasterEntityWithDetails(KGMasterEntityResponse):
+    """Master entity with linked contract-specific entities."""
+
+    entities: list[KGEntityResponse] = []
 
 
 class KGRelationshipResponse(BaseModel):

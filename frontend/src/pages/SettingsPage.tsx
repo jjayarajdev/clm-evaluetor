@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Cog6ToothIcon,
@@ -8,13 +8,23 @@ import {
   PaintBrushIcon,
   PlusIcon,
   TrashIcon,
+  SwatchIcon,
+  CheckCircleIcon,
+  SparklesIcon,
+  AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTenantConfig } from '@/contexts/TenantConfigContext'
+import {
+  getIndustryProfiles, setMyIndustryProfile, getTenantOverrides, updateTenantOverrides,
+  getExtractionThresholds, updateExtractionThresholds,
+  getPromptAddenda, updatePromptAddenda,
+} from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
-type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance'
+type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance' | 'extraction'
 
 interface SettingsSection {
   id: SettingsTab
@@ -54,10 +64,22 @@ const sections: SettingsSection[] = [
     icon: PaintBrushIcon,
     description: 'Customize the look and feel',
   },
+  {
+    id: 'extraction',
+    name: 'AI Extraction',
+    icon: AdjustmentsHorizontalIcon,
+    description: 'Confidence thresholds and prompt customization for AI extraction (admin only)',
+  },
 ]
 
 export default function SettingsPage() {
+  const { isAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+
+  const visibleSections = useMemo(
+    () => sections.filter((s) => s.id !== 'extraction' || isAdmin),
+    [isAdmin]
+  )
 
   return (
     <div className="space-y-6">
@@ -73,7 +95,7 @@ export default function SettingsPage() {
         {/* Sidebar */}
         <div className="w-64 shrink-0">
           <nav className="space-y-1">
-            {sections.map((section) => (
+            {visibleSections.map((section) => (
               <button
                 key={section.id}
                 onClick={() => setActiveTab(section.id)}
@@ -108,6 +130,14 @@ export default function SettingsPage() {
               {activeTab === 'security' && <SecuritySettings />}
               {activeTab === 'integrations' && <IntegrationSettings />}
               {activeTab === 'appearance' && <AppearanceSettings />}
+              {activeTab === 'extraction' && isAdmin && (
+                <div className="space-y-8">
+                  <ExtractionThresholdsSettings />
+                  <div className="pt-6 border-t border-gray-200">
+                    <PromptAddendaSettings />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -117,7 +147,9 @@ export default function SettingsPage() {
 }
 
 function GeneralSettings() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
+  const { config, refresh: refreshConfig } = useTenantConfig()
+  const queryClient = useQueryClient()
   const [settings, setSettings] = useState({
     orgName: user?.tenant_name || 'My Organization',
     currency: 'USD',
@@ -125,15 +157,136 @@ function GeneralSettings() {
   })
   const [saved, setSaved] = useState(false)
 
+  const { data: profiles } = useQuery({
+    queryKey: ['industry-profiles'],
+    queryFn: getIndustryProfiles,
+    enabled: isAdmin,
+  })
+
+  const assignMutation = useMutation({
+    mutationFn: (slug: string | null) => setMyIndustryProfile(slug),
+    onSuccess: () => {
+      refreshConfig()
+      queryClient.invalidateQueries({ queryKey: ['industry-profiles'] })
+    },
+  })
+
   const handleSave = () => {
-    // Settings are stored locally for now — backend tenant settings API can be wired up later
     localStorage.setItem('clm_settings', JSON.stringify(settings))
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
+  const currentSlug = config?.industry
+
   return (
     <div className="space-y-6">
+      {/* Industry Profile Selector */}
+      {isAdmin && (
+        <div className="pb-6 border-b border-gray-200">
+          <div className="flex items-center gap-2 mb-3">
+            <SwatchIcon className="h-5 w-5 text-violet-500" />
+            <h3 className="text-sm font-medium text-gray-900">Industry Profile</h3>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">
+            Choose an industry profile to configure AI extraction, contract types, risk categories, and SLA metrics for your organization.
+          </p>
+
+          {/* Current profile display */}
+          {currentSlug && config?.industry_name ? (
+            <div className="mb-4 p-3 bg-violet-50 border border-violet-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <CheckCircleIcon className="h-4 w-4 text-violet-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-violet-900">
+                    {config.industry_name}
+                  </span>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-violet-600">
+                    <span>{config.contract_types?.length || 0} contract types</span>
+                    <span>{config.clause_types?.length || 0} clause types</span>
+                    <span>{config.risk_categories?.length || 0} risk categories</span>
+                    <span>{config.sla_metrics?.length || 0} SLA metrics</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <SparklesIcon className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                <span className="text-sm text-amber-800">
+                  No industry profile selected. AI extraction will use generic defaults.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Profile selector grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {profiles?.map((profile: any) => {
+              const isActive = profile.slug === currentSlug
+              return (
+                <button
+                  key={profile.id}
+                  onClick={() => {
+                    if (!isActive) {
+                      assignMutation.mutate(profile.slug)
+                    }
+                  }}
+                  disabled={assignMutation.isPending}
+                  className={cn(
+                    'text-left p-3 rounded-lg border-2 transition-all',
+                    isActive
+                      ? 'border-violet-500 bg-violet-50/50 ring-1 ring-violet-200'
+                      : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/30',
+                    assignMutation.isPending && 'opacity-60 cursor-wait'
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-semibold text-gray-900">
+                      {profile.name}
+                    </span>
+                    {isActive && (
+                      <CheckCircleIcon className="h-4 w-4 text-violet-600" />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mb-2 line-clamp-2">
+                    {profile.description}
+                  </p>
+                  <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                    <span>{profile.contract_type_count} types</span>
+                    <span className="text-gray-300">|</span>
+                    <span>{profile.clause_type_count} clauses</span>
+                    <span className="text-gray-300">|</span>
+                    <span>{profile.risk_category_count} risks</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Clear profile option */}
+          {currentSlug && (
+            <button
+              onClick={() => assignMutation.mutate(null)}
+              disabled={assignMutation.isPending}
+              className="mt-2 text-xs text-gray-500 hover:text-red-600 transition-colors"
+            >
+              Clear industry profile
+            </button>
+          )}
+
+          {assignMutation.isError && (
+            <p className="mt-2 text-xs text-red-600">
+              {(assignMutation.error as any)?.response?.data?.detail || 'Failed to update profile'}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Party Aliases */}
+      {isAdmin && <PartyAliasesSection />}
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Organization Name
@@ -177,6 +330,103 @@ function GeneralSettings() {
         <button className="btn-primary" onClick={handleSave}>Save Changes</button>
         {saved && <span className="text-sm text-green-600">Settings saved</span>}
       </div>
+    </div>
+  )
+}
+
+function PartyAliasesSection() {
+  const queryClient = useQueryClient()
+  const [newAlias, setNewAlias] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const { data: overrides, isLoading } = useQuery({
+    queryKey: ['tenant-overrides'],
+    queryFn: getTenantOverrides,
+  })
+
+  const aliases: string[] = overrides?.party_aliases || []
+
+  const saveAliases = async (updated: string[]) => {
+    setSaving(true)
+    try {
+      await updateTenantOverrides({ party_aliases: updated })
+      queryClient.invalidateQueries({ queryKey: ['tenant-overrides'] })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const addAlias = async () => {
+    const trimmed = newAlias.trim()
+    if (!trimmed || aliases.includes(trimmed)) return
+    await saveAliases([...aliases, trimmed])
+    setNewAlias('')
+  }
+
+  const removeAlias = async (alias: string) => {
+    await saveAliases(aliases.filter((a) => a !== alias))
+  }
+
+  return (
+    <div className="pb-6 border-b border-gray-200">
+      <div className="flex items-center gap-2 mb-1">
+        <ShieldCheckIcon className="h-5 w-5 text-violet-500" />
+        <h3 className="text-sm font-medium text-gray-900">Legal Entity Names</h3>
+      </div>
+      <p className="text-xs text-gray-500 mb-4">
+        Register your organization's legal entity names (e.g. holding companies, subsidiaries, trading names).
+        The AI uses these to correctly identify the counterparty when extracting contract metadata — any name listed here
+        will be recognized as <em>your</em> organization, not the vendor.
+      </p>
+
+      {isLoading ? (
+        <LoadingSpinner size="sm" />
+      ) : (
+        <>
+          {/* Existing aliases */}
+          {aliases.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {aliases.map((alias) => (
+                <span
+                  key={alias}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 border border-violet-200 rounded-full text-sm text-violet-800"
+                >
+                  {alias}
+                  <button
+                    onClick={() => removeAlias(alias)}
+                    disabled={saving}
+                    className="text-violet-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                    title="Remove"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Add new alias */}
+          <div className="flex items-center gap-2 max-w-md">
+            <input
+              type="text"
+              value={newAlias}
+              onChange={(e) => setNewAlias(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addAlias()}
+              placeholder="e.g. Acme Holdings Ltd."
+              className="input flex-1"
+              disabled={saving}
+            />
+            <button
+              onClick={addAlias}
+              disabled={saving || !newAlias.trim()}
+              className="btn-primary flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Add
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -598,6 +848,356 @@ function AppearanceSettings() {
           </select>
           <span className="text-xs text-gray-400">Coming soon</span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// Friendly labels for extraction threshold fields
+const EXTRACTION_FIELD_LABELS: Record<string, string> = {
+  contract_type: 'Contract Type',
+  counterparty: 'Counterparty',
+  effective_date: 'Effective Date',
+  expiration_date: 'Expiration Date',
+  contract_value: 'Contract Value',
+  currency: 'Currency',
+  jurisdiction: 'Jurisdiction',
+}
+
+function ExtractionThresholdsSettings() {
+  const queryClient = useQueryClient()
+  const { data, isLoading } = useQuery({
+    queryKey: ['extraction-thresholds'],
+    queryFn: getExtractionThresholds,
+  })
+
+  const [defaultThreshold, setDefaultThreshold] = useState<number>(0.7)
+  const [fields, setFields] = useState<Record<string, number>>({})
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Sync local state when server data arrives or refreshes
+  useEffect(() => {
+    if (data) {
+      setDefaultThreshold(data.default)
+      setFields({ ...data.fields })
+    }
+  }, [data])
+
+  const mutation = useMutation({
+    mutationFn: updateExtractionThresholds,
+    onSuccess: (resp) => {
+      setDefaultThreshold(resp.default)
+      setFields({ ...resp.fields })
+      setSaved(true)
+      setError(null)
+      setTimeout(() => setSaved(false), 2000)
+      queryClient.invalidateQueries({ queryKey: ['extraction-thresholds'] })
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.detail || err?.message || 'Failed to save thresholds')
+    },
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <LoadingSpinner size="md" />
+      </div>
+    )
+  }
+
+  const availableFields = data?.available_fields || Object.keys(EXTRACTION_FIELD_LABELS)
+  const unsetFields = availableFields.filter((f) => !(f in fields))
+
+  const updateField = (field: string, raw: string) => {
+    const v = parseFloat(raw)
+    if (Number.isNaN(v)) return
+    if (v < 0 || v > 1) return
+    setFields((prev) => ({ ...prev, [field]: v }))
+  }
+
+  const removeField = (field: string) => {
+    setFields((prev) => {
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  const addField = (field: string) => {
+    if (!field) return
+    setFields((prev) => ({ ...prev, [field]: defaultThreshold }))
+  }
+
+  const handleSave = () => {
+    setError(null)
+    mutation.mutate({ default: defaultThreshold, fields })
+  }
+
+  const isDirty =
+    !!data &&
+    (data.default !== defaultThreshold ||
+      JSON.stringify(data.fields) !== JSON.stringify(fields))
+
+  return (
+    <div className="space-y-6">
+      <div className="text-sm text-gray-600">
+        AI metadata extraction returns a confidence score (0–1) for each field. Fields below the
+        applicable threshold are dropped instead of overwriting existing values. Raise thresholds
+        on critical fields if you'd rather have a blank than a low-confidence guess.
+      </div>
+
+      {/* Default threshold */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Default Threshold
+        </label>
+        <p className="text-xs text-gray-500 mb-2">
+          Applied to any field without a specific override below.
+        </p>
+        <div className="flex items-center gap-3 max-w-xs">
+          <input
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={defaultThreshold}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              if (!Number.isNaN(v) && v >= 0 && v <= 1) setDefaultThreshold(v)
+            }}
+            className="input"
+          />
+          <span className="text-sm text-gray-500">{(defaultThreshold * 100).toFixed(0)}%</span>
+        </div>
+      </div>
+
+      {/* Per-field overrides */}
+      <div>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Per-Field Overrides</h3>
+        {Object.keys(fields).length === 0 ? (
+          <p className="text-sm text-gray-400 italic mb-3">
+            No overrides yet. All fields use the default threshold.
+          </p>
+        ) : (
+          <div className="space-y-2 mb-3">
+            {Object.entries(fields).map(([field, value]) => (
+              <div key={field} className="flex items-center gap-3">
+                <span className="w-40 text-sm text-gray-700">
+                  {EXTRACTION_FIELD_LABELS[field] || field}
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={value}
+                  onChange={(e) => updateField(field, e.target.value)}
+                  className="input w-32"
+                />
+                <span className="text-xs text-gray-500 w-12">
+                  {(value * 100).toFixed(0)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeField(field)}
+                  className="text-gray-400 hover:text-red-600"
+                  title="Remove override (use default)"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {unsetFields.length > 0 && (
+          <div className="flex items-center gap-2">
+            <select
+              className="input max-w-xs"
+              value=""
+              onChange={(e) => {
+                addField(e.target.value)
+                e.currentTarget.value = ''
+              }}
+            >
+              <option value="">+ Add field override…</option>
+              {unsetFields.map((f) => (
+                <option key={f} value={f}>
+                  {EXTRACTION_FIELD_LABELS[f] || f}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Save row */}
+      <div className="pt-4 border-t border-gray-200 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!isDirty || mutation.isPending}
+          className={cn(
+            'btn btn-primary',
+            (!isDirty || mutation.isPending) && 'opacity-60 cursor-not-allowed'
+          )}
+        >
+          {mutation.isPending ? 'Saving…' : 'Save Thresholds'}
+        </button>
+        {saved && (
+          <span className="text-sm text-green-600 inline-flex items-center gap-1">
+            <CheckCircleIcon className="h-4 w-4" /> Saved
+          </span>
+        )}
+        {error && <span className="text-sm text-red-600">{error}</span>}
+      </div>
+    </div>
+  )
+}
+
+// #27 — Per-tenant prompt addenda. Labels match the keys used by the backend's
+// PROMPT_ADDENDA_AGENTS tuple in admin_settings.py.
+const PROMPT_ADDENDA_LABELS: Record<string, { label: string; placeholder: string }> = {
+  metadata: {
+    label: 'Metadata extraction',
+    placeholder: "e.g. Treat 'Client' as our company, not the counterparty.",
+  },
+  clauses: {
+    label: 'Clause extraction',
+    placeholder: 'e.g. Always flag references to HIPAA or HITRUST.',
+  },
+  obligations: {
+    label: 'Obligation detection',
+    placeholder: "e.g. Health-system contracts often phrase obligations as 'shall ensure'.",
+  },
+  slas: {
+    label: 'SLA extraction',
+    placeholder: 'e.g. Uptime is reported as a quarterly average, not monthly.',
+  },
+  risks: {
+    label: 'Risk assessment',
+    placeholder: 'e.g. Liability caps below $1M are a hard no for us.',
+  },
+}
+const PROMPT_ADDENDA_ORDER = ['metadata', 'clauses', 'obligations', 'slas', 'risks']
+
+function PromptAddendaSettings() {
+  const queryClient = useQueryClient()
+  const { data, isLoading } = useQuery({
+    queryKey: ['prompt-addenda'],
+    queryFn: getPromptAddenda,
+  })
+
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (data?.addenda) setDraft({ ...data.addenda })
+  }, [data])
+
+  const mutation = useMutation({
+    mutationFn: (payload: Record<string, string>) => updatePromptAddenda(payload),
+    onSuccess: (resp) => {
+      setDraft({ ...resp.addenda })
+      setSaved(true)
+      setError(null)
+      setTimeout(() => setSaved(false), 2000)
+      queryClient.invalidateQueries({ queryKey: ['prompt-addenda'] })
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.detail || err?.message || 'Failed to save prompt addenda')
+    },
+  })
+
+  if (isLoading) {
+    return <div className="py-4 flex justify-center"><LoadingSpinner size="md" /></div>
+  }
+
+  const maxChars = data?.max_chars ?? 2000
+  const isDirty = !!data && JSON.stringify(draft) !== JSON.stringify(data.addenda || {})
+
+  const handleChange = (agent: string, value: string) => {
+    setDraft((prev) => ({ ...prev, [agent]: value }))
+  }
+
+  const handleSave = () => {
+    setError(null)
+    // Only send non-empty values; empty strings clear the entry on the backend
+    const cleaned: Record<string, string> = {}
+    for (const [k, v] of Object.entries(draft)) {
+      if (v && v.trim()) cleaned[k] = v.trim()
+    }
+    mutation.mutate(cleaned)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-base font-medium text-gray-900">Prompt Customization</h3>
+        <p className="text-sm text-gray-600 mt-1">
+          Extra instructions appended to the AI prompts for every contract in your
+          tenant. Use this to give the AI domain knowledge it couldn't otherwise know
+          — your terminology, your industry quirks, what to flag. Keep each
+          instruction tight; max {maxChars} characters per agent.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {PROMPT_ADDENDA_ORDER.map((agent) => {
+          const info = PROMPT_ADDENDA_LABELS[agent]
+          const value = draft[agent] || ''
+          const over = value.length > maxChars
+          return (
+            <div key={agent}>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-gray-700">
+                  {info.label}
+                </label>
+                <span className={cn(
+                  'text-xs',
+                  over ? 'text-red-600 font-medium' : 'text-gray-400'
+                )}>
+                  {value.length} / {maxChars}
+                </span>
+              </div>
+              <textarea
+                value={value}
+                onChange={(e) => handleChange(agent, e.target.value)}
+                placeholder={info.placeholder}
+                rows={3}
+                className={cn(
+                  'w-full text-sm border rounded-md p-2 focus:outline-none focus:ring-1',
+                  over
+                    ? 'border-red-300 focus:ring-red-400'
+                    : 'border-gray-200 focus:ring-primary-400'
+                )}
+              />
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="pt-2 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!isDirty || mutation.isPending || Object.values(draft).some(v => (v || '').length > maxChars)}
+          className={cn(
+            'btn btn-primary',
+            (!isDirty || mutation.isPending) && 'opacity-60 cursor-not-allowed'
+          )}
+        >
+          {mutation.isPending ? 'Saving…' : 'Save Prompt Addenda'}
+        </button>
+        {saved && (
+          <span className="text-sm text-green-600 inline-flex items-center gap-1">
+            <CheckCircleIcon className="h-4 w-4" /> Saved
+          </span>
+        )}
+        {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
     </div>
   )

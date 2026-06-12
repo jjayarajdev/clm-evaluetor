@@ -13,7 +13,12 @@ from app.models.industry import Industry
 
 
 class ContractType(str, enum.Enum):
-    """Supported contract types."""
+    """Legacy contract type enum — kept for backward compatibility.
+
+    The database column is now VARCHAR(100), not a PostgreSQL enum.
+    New contract types are defined in IndustryProfile.contract_types (JSONB).
+    Use these constants for common comparisons but any string value is valid.
+    """
 
     NDA = "nda"
     MSA = "msa"
@@ -21,6 +26,9 @@ class ContractType(str, enum.Enum):
     AMENDMENT = "amendment"
     VENDOR_AGREEMENT = "vendor_agreement"
     EMPLOYMENT_CONTRACT = "employment_contract"
+    # Extended types (data-driven, no PG enum needed)
+    LICENSE = "license"
+    LEASE = "lease"
 
 
 class ContractStatus(str, enum.Enum):
@@ -68,11 +76,10 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         index=True,
     )
 
-    # Extracted metadata
-    contract_type: Mapped[ContractType | None] = mapped_column(
-        Enum(ContractType, name='contracttype', create_type=False, values_callable=lambda x: [e.value for e in x]),
+    # Extracted metadata — now VARCHAR, not PG enum; accepts any industry profile type
+    contract_type: Mapped[str | None] = mapped_column(
+        String(100),
         nullable=True,
-        index=True,
     )
     counterparty: Mapped[str | None] = mapped_column(
         String(255),
@@ -86,7 +93,6 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
     expiration_date: Mapped[date | None] = mapped_column(
         Date,
         nullable=True,
-        index=True,
     )
     contract_value: Mapped[Decimal | None] = mapped_column(
         Numeric(15, 2),
@@ -109,7 +115,6 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
     risk_level: Mapped[RiskLevel | None] = mapped_column(
         Enum(RiskLevel, name='risklevel', create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=True,
-        index=True,
     )
 
     # Industry and compliance (Industry-Aware Compliance Module)
@@ -121,7 +126,6 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
             values_callable=lambda x: [e.value for e in x],
         ),
         nullable=True,
-        index=True,
     )
     industry_confidence: Mapped[float | None] = mapped_column(
         nullable=True,
@@ -180,7 +184,6 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         Enum(ContractStatus, name='contractstatus', create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=ContractStatus.PENDING,
-        index=True,
     )
     processing_error: Mapped[str | None] = mapped_column(
         Text,
@@ -211,9 +214,33 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         server_default='{}',
     )
 
+    # Per-stage outcomes from the extraction pipeline.
+    # Shape: {stage_name: {"status": "success"|"failed"|"skipped", ...}}
+    # Latest run wins (overwritten on re-analyze).
+    extraction_health: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    # Provenance for AI-extracted metadata fields: the source quote and
+    # confidence that backs each value the user sees. Populated by the
+    # metadata extraction agent; surfaced as info-tooltips in the UI.
+    # Shape: {field_name: {"raw_text": "...", "confidence": 0.92}}
+    metadata_provenance: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
     # Client association
     client_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("clients.id"),
+        nullable=True,
+        index=True,
+    )
+
+    # Industry profile override (per-contract, overrides tenant/BU default)
+    industry_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("industry_profiles.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -258,6 +285,10 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
     business_unit: Mapped["BusinessUnit | None"] = relationship(
         "BusinessUnit",
         back_populates="contracts",
+        lazy="noload",
+    )
+    industry_profile: Mapped["IndustryProfile | None"] = relationship(
+        "IndustryProfile",
         lazy="noload",
     )
     business_relationship: Mapped["BusinessRelationship | None"] = relationship(

@@ -59,3 +59,14 @@ async def get_sla_details(
     """Get detailed SLA list with optional filters."""
     svc = _service(current_user, tenant_id, db)
     return await svc.get_sla_details(breached_only=breached_only)
+
+
+@router.get("/milestones")
+async def get_milestone_details(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all obligations with deadlines (milestones)."""
+    svc = _service(current_user, tenant_id, db)
+    return await svc.get_milestone_details()

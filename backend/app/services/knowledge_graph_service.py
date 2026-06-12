@@ -5,6 +5,7 @@ Provides methods for traversing and querying the contract knowledge graph.
 
 import logging
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select, text
@@ -23,8 +24,10 @@ from app.schemas.knowledge_graph import (
     KGEntityWithRelationships,
     KGGraphResponse,
     KGGraphStats,
+    KGMasterEntityResponse,
     KGObligationDetail,
     KGPartyObligations,
+    KGPortfolioStats,
     KGRelatedClauses,
     KGRelationshipResponse,
     KGRiskAnalysis,
@@ -639,6 +642,123 @@ class KnowledgeGraphService:
         entities = result.scalars().all()
 
         return [self._entity_to_response(e) for e in entities]
+
+    async def get_portfolio_stats(
+        self,
+        tenant_id: str,
+    ) -> KGPortfolioStats:
+        """Get portfolio-wide statistics for the tenant's knowledge graph.
+
+        Args:
+            tenant_id: UUID of the tenant.
+
+        Returns:
+            KGPortfolioStats with master entity and link counts.
+        """
+        from app.models.knowledge_graph import KGMasterEntity
+        tenant_uuid = uuid.UUID(tenant_id)
+
+        # Count master entities
+        master_count_result = await self.db.execute(
+            select(func.count(KGMasterEntity.id)).where(KGMasterEntity.tenant_id == tenant_uuid)
+        )
+        total_master = master_count_result.scalar() or 0
+
+        # Count total linked entities
+        linked_count_result = await self.db.execute(
+            select(func.count(KGEntity.id)).where(
+                and_(
+                    KGEntity.tenant_id == tenant_uuid,
+                    KGEntity.master_entity_id.is_not(None)
+                )
+            )
+        )
+        total_linked = linked_count_result.scalar() or 0
+
+        # Master entities by type
+        type_counts_result = await self.db.execute(
+            select(KGMasterEntity.entity_type, func.count(KGMasterEntity.id))
+            .where(KGMasterEntity.tenant_id == tenant_uuid)
+            .group_by(KGMasterEntity.entity_type)
+        )
+        type_counts = {row[0].value: row[1] for row in type_counts_result.all()}
+
+        # Top entities by link count
+        top_result = await self.db.execute(
+            select(KGMasterEntity)
+            .where(KGMasterEntity.tenant_id == tenant_uuid)
+            .order_by(KGMasterEntity.entity_count.desc())
+            .limit(10)
+        )
+        top_masters = top_result.scalars().all()
+
+        return KGPortfolioStats(
+            total_master_entities=total_master,
+            total_linked_entities=total_linked,
+            entities_by_type=type_counts,
+            top_entities=[self._master_entity_to_response(e) for e in top_masters],
+        )
+
+    async def get_entity_timeline(
+        self,
+        entity_id: str,
+        tenant_id: str | uuid.UUID | None = None,
+    ) -> list[KGEntityResponse]:
+        """Get the temporal timeline for an entity (amendments/versions).
+
+        Args:
+            entity_id: UUID of the entity.
+            tenant_id: When provided, both the entity lookup and the timeline
+                are restricted to this tenant. An entity belonging to another
+                tenant returns an empty list (no existence leak). None means
+                no tenant filter (super admin).
+
+        Returns:
+            List of entities representing the timeline, sorted by date.
+        """
+        entity_uuid = uuid.UUID(entity_id)
+        tenant_uuid = uuid.UUID(str(tenant_id)) if tenant_id else None
+
+        # Traverse 'amends' relationships to build timeline
+        # This is a bit complex as we might need to go both ways
+        # For now, let's find all entities in the same master group
+        entity_query = select(KGEntity).where(KGEntity.id == entity_uuid)
+        if tenant_uuid:
+            entity_query = entity_query.where(KGEntity.tenant_id == tenant_uuid)
+        entity_result = await self.db.execute(entity_query)
+        entity = entity_result.scalar_one_or_none()
+
+        if not entity or not entity.master_entity_id:
+            # If not linked to master, just return itself
+            return [self._entity_to_response(entity)] if entity else []
+
+        # Find all entities linked to the same master, within the same tenant
+        timeline_query = (
+            select(KGEntity)
+            .where(KGEntity.master_entity_id == entity.master_entity_id)
+            .order_by(KGEntity.created_at.asc())
+        )
+        if tenant_uuid:
+            timeline_query = timeline_query.where(KGEntity.tenant_id == tenant_uuid)
+        timeline_result = await self.db.execute(timeline_query)
+        timeline = timeline_result.scalars().all()
+
+        return [self._entity_to_response(e) for e in timeline]
+
+    def _master_entity_to_response(self, entity: Any) -> KGMasterEntityResponse:
+        """Convert KGMasterEntity to response model."""
+        return KGMasterEntityResponse(
+            id=str(entity.id),
+            tenant_id=str(entity.tenant_id),
+            entity_type=entity.entity_type.value,
+            name=entity.name,
+            normalized_name=entity.normalized_name,
+            properties=entity.properties,
+            entity_count=entity.entity_count,
+            last_seen_at=entity.last_seen_at,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+        )
 
     def _entity_to_response(self, entity: KGEntity) -> KGEntityResponse:
         """Convert KGEntity to response model."""

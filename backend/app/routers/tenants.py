@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import SuperAdminUser, AdminUser, CurrentUser
 from app.database import get_db
 from app.models import Tenant, TenantPlan
+from app.models.industry_profile import IndustryProfile
 from app.models.contract import Contract
 from app.models.organization import Organization, OrganizationType, OrganizationLevel
 from app.services import tenant_service
@@ -258,6 +259,105 @@ async def get_current_tenant_stats(
 
     stats = await tenant_service.get_tenant_stats(db, current_user.tenant_id)
     return TenantStatsResponse(**stats)
+
+
+@router.get("/current/config")
+async def get_current_tenant_config(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Get the merged industry config for the current user's tenant.
+
+    Returns industry profile defaults merged with tenant-specific overrides.
+    Used by the frontend to dynamically adapt contract types, clause types,
+    risk categories, SLA metrics, table columns, dashboard widgets, etc.
+    """
+    if current_user.tenant_id is None:
+        # Super admin — return list of all profiles for selection
+        result = await db.execute(
+            select(IndustryProfile).where(IndustryProfile.is_active.is_(True))
+        )
+        profiles = result.scalars().all()
+        return {
+            "industry": None,
+            "industry_name": None,
+            "available_profiles": [
+                {"slug": p.slug, "name": p.name, "description": p.description}
+                for p in profiles
+            ],
+        }
+
+    tenant = await tenant_service.get_tenant_by_id(db, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tenant not found",
+        )
+
+    config = tenant.get_industry_config()
+    config["tenant_id"] = str(tenant.id)
+    config["tenant_name"] = tenant.name
+    return config
+
+
+@router.get("/current/overrides")
+async def get_current_tenant_overrides(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Get the tenant's custom taxonomy overrides."""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="No tenant context")
+    tenant = await tenant_service.get_tenant_by_id(db, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return tenant.config_overrides or {}
+
+
+@router.patch("/current/overrides")
+async def update_current_tenant_overrides(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    overrides: dict,
+) -> dict:
+    """Update the tenant's custom taxonomy overrides.
+
+    Accepts partial updates — only keys provided are merged.
+    Valid keys: contract_types, clause_types, risk_categories,
+    sla_metrics, extraction_hints, field_definitions.
+
+    List values contain only the tenant's CUSTOM additions
+    (base profile items are never stored here).
+    """
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="No tenant context")
+
+    allowed_keys = {
+        "contract_types", "clause_types", "risk_categories",
+        "sla_metrics", "extraction_hints", "field_definitions",
+        "party_aliases",
+    }
+    invalid_keys = set(overrides.keys()) - allowed_keys
+    if invalid_keys:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid keys: {invalid_keys}. Allowed: {allowed_keys}",
+        )
+
+    tenant = await tenant_service.get_tenant_by_id(db, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    # Merge with existing overrides
+    current = dict(tenant.config_overrides or {})
+    for key, value in overrides.items():
+        current[key] = value
+
+    tenant.config_overrides = current
+    await db.commit()
+
+    logger.info(f"Tenant {tenant.name} updated taxonomy overrides: {list(overrides.keys())}")
+    return tenant.get_industry_config()
 
 
 @router.get("/{tenant_id}", response_model=TenantResponse)

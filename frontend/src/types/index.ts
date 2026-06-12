@@ -70,7 +70,7 @@ export interface ClientCreate {
 }
 
 // Contract types
-export type ContractType = 'nda' | 'msa' | 'sow' | 'amendment' | 'vendor' | 'employment'
+export type ContractType = string
 export type ContractStatus = 'pending' | 'processing' | 'completed' | 'failed'
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 
@@ -84,6 +84,7 @@ export interface ContractSummary {
   contract_value: number | null
   currency: string | null
   expiration_date: string | null
+  industry_profile_id: string | null
   uploaded_at: string
 }
 
@@ -103,8 +104,26 @@ export interface Contract extends ContractSummary {
   obligation_count: number
   sla_count: number
   custom_fields: Record<string, unknown>
+  extraction_health?: Record<string, ExtractionStageOutcome> | null
+  metadata_provenance?: Record<string, MetadataProvenance> | null
   created_at: string
   updated_at: string
+}
+
+export interface MetadataProvenance {
+  raw_text: string
+  confidence: number
+}
+
+export type ExtractionStageStatus = 'success' | 'failed' | 'skipped' | 'not_applicable'
+
+export interface ExtractionStageOutcome {
+  status: ExtractionStageStatus
+  at?: string
+  error?: string
+  reason?: string
+  duration_ms?: number
+  details?: Record<string, unknown>
 }
 
 export interface ContractListResponse {

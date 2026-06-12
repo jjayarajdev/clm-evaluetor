@@ -16,6 +16,7 @@ import {
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ContractTreeView from '@/components/contracts/ContractTreeView'
+import { useTenantConfig } from '@/contexts/TenantConfigContext'
 import { cn } from '@/lib/utils'
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -79,22 +80,10 @@ function RiskBadge({ level }: { level: string }) {
   )
 }
 
-// ── Type filter pills ────────────────────────────────────────────
-
-const typeLabels: Record<string, string> = {
-  msa: 'MSA',
-  nda: 'NDA',
-  sow: 'SOW',
-  amendment: 'Amendment',
-  vendor_agreement: 'Vendor',
-  employment: 'Employment',
-  consulting: 'Consulting',
-  license: 'License',
-}
-
 // ── Page Component ───────────────────────────────────────────────
 
 export default function ContractsPage() {
+  const { contractTypeLabel, uiLabel } = useTenantConfig()
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -331,7 +320,7 @@ export default function ContractsPage() {
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
               )}
             >
-              {typeLabels[type] || type.toUpperCase()}
+              {contractTypeLabel(type)}
             </button>
           ))}
         </div>
@@ -505,9 +494,9 @@ export default function ContractsPage() {
                 </th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Contract Name</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Counterparty</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{uiLabel('counterparty', 'Counterparty')}</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Value</th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{uiLabel('contract_value', 'Value')}</th>
                 <th className="px-4 py-3 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Risk</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Expiry</th>
               </tr>
@@ -539,7 +528,7 @@ export default function ContractsPage() {
                   </td>
                   <td className="px-4 py-3.5">
                     <span className="text-sm text-gray-600">
-                      {contract.contract_type?.toUpperCase() || '\u2014'}
+                      {contract.contract_type ? contractTypeLabel(contract.contract_type) : '\u2014'}
                     </span>
                   </td>
                   <td className="px-4 py-3.5">

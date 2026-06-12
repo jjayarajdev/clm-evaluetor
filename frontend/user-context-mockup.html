@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Context Mockup — Evaluetor CLM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', system-ui, sans-serif; background: #f5f5f7; -webkit-font-smoothing: antialiased; }
+
+  /* ===== Layout shell ===== */
+  .shell { display: flex; height: 100vh; overflow: hidden; }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    width: 220px;
+    background: #1e1b2e;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: width 0.2s;
+  }
+
+  .sidebar-logo {
+    padding: 20px 16px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .sidebar-logo .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #7c3aed, #a78bfa);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 14px;
+  }
+  .sidebar-logo .logo-text {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .sidebar-nav { flex: 1; overflow-y: auto; padding: 12px 8px; }
+
+  .nav-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: rgba(255,255,255,0.3);
+    padding: 12px 12px 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 1px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); }
+  .nav-item.active { background: rgba(124,58,237,0.25); color: #fff; }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; }
+  .nav-item.active svg { opacity: 1; }
+
+  /* ===== Sidebar User Footer — CURRENT (Option A baseline) ===== */
+  .sidebar-user {
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 16px 12px;
+  }
+  .sidebar-user .user-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .sidebar-user .user-row:hover { background: rgba(255,255,255,0.06); }
+  .sidebar-user .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: #7c3aed;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 14px;
+    flex-shrink: 0;
+  }
+  .sidebar-user .user-info { flex: 1; min-width: 0; }
+  .sidebar-user .user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sidebar-user .user-role {
+    font-size: 11px;
+    color: rgba(255,255,255,0.45);
+    text-transform: capitalize;
+  }
+  /* NEW: tenant line */
+  .sidebar-user .user-tenant {
+    font-size: 10px;
+    color: rgba(124,58,237,0.8);
+    font-weight: 600;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ===== Main Content Area ===== */
+  .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ===== Header ===== */
+  .header {
+    height: 56px;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    flex-shrink: 0;
+  }
+  .header-left { display: flex; align-items: center; gap: 8px; }
+  .header-breadcrumb { font-size: 14px; color: #6b7280; font-weight: 500; }
+  .header-breadcrumb strong { color: #111827; font-weight: 600; }
+
+  .header-right { display: flex; align-items: center; gap: 12px; }
+
+  .header-bell {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #6b7280;
+    position: relative;
+  }
+  .header-bell svg { width: 20px; height: 20px; }
+  .header-bell .dot {
+    position: absolute; top: 7px; right: 7px;
+    width: 7px; height: 7px;
+    background: #ef4444; border-radius: 50%;
+    border: 2px solid #fff;
+  }
+
+  /* NEW: User identity in header */
+  .header-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 10px 5px 5px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .header-user:hover { background: #f3f4f6; }
+  .header-user .h-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: #ede9fe;
+    display: flex; align-items: center; justify-content: center;
+    color: #7c3aed; font-weight: 700; font-size: 13px;
+  }
+  .header-user .h-info { text-align: right; }
+  .header-user .h-name { font-size: 13px; font-weight: 600; color: #111827; }
+  .header-user .h-meta { font-size: 11px; color: #6b7280; }
+  .header-user .h-meta .role-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+  }
+  .header-user .h-meta .role-badge.admin { background: #ede9fe; color: #7c3aed; }
+  .header-user .h-meta .role-badge.legal { background: #dbeafe; color: #2563eb; }
+  .header-user .h-meta .role-badge.superadmin { background: #fce7f3; color: #db2777; }
+  .header-user .h-meta .role-badge.viewer { background: #f3f4f6; color: #4b5563; }
+  .header-user .chevron { width: 14px; height: 14px; color: #9ca3af; }
+
+  /* ===== Content area (faked) ===== */
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  .welcome-card {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    border-radius: 16px;
+    padding: 28px 32px;
+    color: white;
+    margin-bottom: 20px;
+  }
+  .welcome-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .welcome-card p { font-size: 14px; opacity: 0.8; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .stat-card .stat-label { font-size: 12px; color: #6b7280; font-weight: 500; margin-bottom: 6px; }
+  .stat-card .stat-value { font-size: 24px; font-weight: 700; color: #111827; }
+  .stat-card.primary { border-top: 3px solid #7c3aed; }
+  .stat-card.danger { border-top: 3px solid #ef4444; }
+  .stat-card.success { border-top: 3px solid #10b981; }
+  .stat-card.blue { border-top: 3px solid #3b82f6; }
+
+  .placeholder-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #d1d5db;
+    font-size: 14px;
+  }
+
+  /* ===== Switcher controls ===== */
+  .demo-controls {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #1e1b2e;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    z-index: 100;
+    min-width: 220px;
+  }
+  .demo-controls .ctrl-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 10px;
+  }
+  .demo-controls .ctrl-btn {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.6);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+  }
+  .demo-controls .ctrl-btn:hover { background: rgba(255,255,255,0.06); color: #fff; }
+  .demo-controls .ctrl-btn.active { background: rgba(124,58,237,0.3); color: #fff; font-weight: 600; }
+  .demo-controls .ctrl-btn .ctrl-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.35);
+    font-weight: 400;
+  }
+
+  .content-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">E</div>
+      <div class="logo-text">Evaluetor</div>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Contracts
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        Compliance
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Renewals
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+        Upload
+      </div>
+
+      <div class="nav-label">Governance</div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        Organizations
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/><path d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101"/></svg>
+        Relationships
+      </div>
+    </div>
+
+    <!-- Sidebar user footer -->
+    <div class="sidebar-user" id="sidebar-user">
+      <div class="user-row">
+        <div class="avatar" id="sb-avatar">A</div>
+        <div class="user-info">
+          <div class="user-name" id="sb-name">Admin User</div>
+          <div class="user-role" id="sb-role">admin</div>
+          <div class="user-tenant" id="sb-tenant">Acme Corp</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main area -->
+  <div class="main-area">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <div class="header-breadcrumb"><strong>Dashboard</strong></div>
+      </div>
+      <div class="header-right">
+        <div class="header-bell">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <div class="dot"></div>
+        </div>
+        <div class="header-user" id="header-user">
+          <div class="h-info">
+            <div class="h-name" id="hd-name">Admin User</div>
+            <div class="h-meta">
+              <span class="role-badge admin" id="hd-badge">Admin</span>
+              <span id="hd-tenant">Acme Corp</span>
+            </div>
+          </div>
+          <div class="h-avatar" id="hd-avatar">A</div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 9l-7 7-7-7"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page content -->
+    <div class="content">
+      <div class="welcome-card">
+        <h2 id="welcome-text">Good morning, Admin</h2>
+        <p id="welcome-sub">Admin Portfolio Overview &middot; Tuesday, April 22, 2026</p>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card primary">
+          <div class="stat-label">Total Contracts</div>
+          <div class="stat-value">24</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-label">At Risk</div>
+          <div class="stat-value">3</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-label">Compliance</div>
+          <div class="stat-value">91.2%</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">Contract Value</div>
+          <div class="stat-value">$4.8M</div>
+        </div>
+      </div>
+
+      <div class="content-grid">
+        <div class="placeholder-card">Recent Contracts</div>
+        <div class="placeholder-card">AI Insights</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Demo role switcher -->
+<div class="demo-controls">
+  <div class="ctrl-title">Switch User Login</div>
+  <button class="ctrl-btn active" onclick="switchUser('admin')">
+    Admin User <br><span class="ctrl-sub">admin &middot; Acme Corp</span>
+  </button>
+  <button class="ctrl-btn" onclick="switchUser('legal')">
+    Legal Counsel <br><span class="ctrl-sub">legal &middot; Acme Corp</span>
+  </button>
+  <button class="ctrl-btn" onclick="switchUser('techstart')">
+    TechStart Admin <br><span class="ctrl-sub">techstart_admin &middot; TechStart</span>
+  </button>
+  <button class="ctrl-btn" onclick="switchUser('superadmin')">
+    Super Admin <br><span class="ctrl-sub">superadmin &middot; System</span>
+  </button>
+</div>
+
+<script>
+const users = {
+  admin: {
+    name: 'Admin User',
+    initial: 'A',
+    role: 'admin',
+    roleBadgeClass: 'admin',
+    roleBadgeText: 'Admin',
+    tenant: 'Acme Corp',
+    tenantColor: 'rgba(124,58,237,0.8)',
+    welcome: 'Good morning, Admin',
+    welcomeSub: 'Admin Portfolio Overview',
+    avatarBg: '#7c3aed',
+    badgeBg: '#ede9fe',
+    badgeColor: '#7c3aed',
+  },
+  legal: {
+    name: 'Legal Counsel',
+    initial: 'L',
+    role: 'legal',
+    roleBadgeClass: 'legal',
+    roleBadgeText: 'Legal',
+    tenant: 'Acme Corp',
+    tenantColor: 'rgba(124,58,237,0.8)',
+    welcome: 'Good morning, Legal',
+    welcomeSub: 'Legal Portfolio Overview',
+    avatarBg: '#2563eb',
+    badgeBg: '#dbeafe',
+    badgeColor: '#2563eb',
+  },
+  techstart: {
+    name: 'TechStart Admin',
+    initial: 'T',
+    role: 'admin',
+    roleBadgeClass: 'admin',
+    roleBadgeText: 'Admin',
+    tenant: 'TechStart Inc.',
+    tenantColor: '#f59e0b',
+    welcome: 'Good morning, TechStart',
+    welcomeSub: 'Admin Portfolio Overview',
+    avatarBg: '#f59e0b',
+    badgeBg: '#ede9fe',
+    badgeColor: '#7c3aed',
+  },
+  superadmin: {
+    name: 'Super Admin',
+    initial: 'S',
+    role: 'super_admin',
+    roleBadgeClass: 'superadmin',
+    roleBadgeText: 'Super Admin',
+    tenant: 'All Tenants',
+    tenantColor: '#db2777',
+    welcome: 'Good morning, Super Admin',
+    welcomeSub: 'System Administration',
+    avatarBg: '#db2777',
+    badgeBg: '#fce7f3',
+    badgeColor: '#db2777',
+  },
+};
+
+function switchUser(key) {
+  const u = users[key];
+
+  // Sidebar
+  document.getElementById('sb-avatar').textContent = u.initial;
+  document.getElementById('sb-avatar').style.background = u.avatarBg;
+  document.getElementById('sb-name').textContent = u.name;
+  document.getElementById('sb-role').textContent = u.role;
+  document.getElementById('sb-tenant').textContent = u.tenant;
+  document.getElementById('sb-tenant').style.color = u.tenantColor;
+
+  // Header
+  document.getElementById('hd-avatar').textContent = u.initial;
+  document.getElementById('hd-avatar').style.color = u.avatarBg;
+  document.getElementById('hd-name').textContent = u.name;
+  document.getElementById('hd-badge').textContent = u.roleBadgeText;
+  document.getElementById('hd-badge').className = 'role-badge ' + u.roleBadgeClass;
+  document.getElementById('hd-tenant').textContent = u.tenant;
+
+  // Welcome
+  document.getElementById('welcome-text').textContent = u.welcome;
+  document.getElementById('welcome-sub').innerHTML = u.welcomeSub + ' &middot; Tuesday, April 22, 2026';
+
+  // Buttons
+  document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  // Quick flash animation
+  const header = document.getElementById('header-user');
+  header.style.background = '#ede9fe';
+  setTimeout(() => { header.style.background = ''; }, 400);
+
+  const sbUser = document.getElementById('sidebar-user');
+  sbUser.style.background = 'rgba(124,58,237,0.15)';
+  setTimeout(() => { sbUser.style.background = ''; }, 400);
+}
+</script>
+
+</body>
+</html>

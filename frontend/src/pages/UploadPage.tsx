@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTenantConfig } from '@/contexts/TenantConfigContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import PageHeader from '@/components/ui/PageHeader'
 import { ProcessingStatusIndicator } from '@/components/contracts/ProcessingStatusIndicator'
@@ -63,6 +64,7 @@ export default function UploadPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user, isSuperAdmin } = useAuth()
+  const { config } = useTenantConfig()
   const [files, setFiles] = useState<FileUpload[]>([])
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [showClientDropdown, setShowClientDropdown] = useState(false)
@@ -383,6 +385,27 @@ export default function UploadPage() {
               <p className="text-sm font-semibold text-gray-900">{user.tenant_name}</p>
               <p className="text-xs text-gray-500">Uploading contracts to your organization</p>
             </div>
+          </div>
+        )}
+
+        {/* Industry profile context */}
+        {config?.industry_name && (
+          <div className="flex items-center gap-2.5 p-2.5 bg-violet-50 rounded-lg border border-violet-100 mb-3">
+            <SparklesIcon className="h-4 w-4 text-violet-500 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-violet-800">
+                <span className="font-semibold">{config.industry_name}</span> profile active
+              </p>
+              <p className="text-[10px] text-violet-600 mt-0.5">
+                {config.contract_types?.length || 0} contract types, {config.clause_types?.length || 0} clause categories, {config.sla_metrics?.length || 0} SLA metrics analyzed
+              </p>
+            </div>
+            <a
+              href="/admin/industry-profiles"
+              className="text-[10px] text-violet-500 hover:text-violet-700 font-medium whitespace-nowrap"
+            >
+              View profile
+            </a>
           </div>
         )}
 

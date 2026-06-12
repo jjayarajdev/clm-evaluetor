@@ -26,7 +26,7 @@ from app.agents.base import (
     inject_context,
 )
 from app.config import settings
-from app.models.contract import Contract, ContractType
+from app.models.contract import Contract
 from app.services.orchestrator import get_orchestrator
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,20 @@ CONTRACT_TYPES = [
     ("AMENDMENT", "Contract Amendment"),
     ("VENDOR", "Vendor Agreement"),
     ("EMPLOYMENT", "Employment Contract"),
+    ("LICENSE", "Software/IP License Agreement"),
+    ("LEASE", "Equipment or Facility Lease"),
+    ("PROCUREMENT", "Procurement / Purchase Agreement"),
+    ("SUPPLY_AGREEMENT", "Supply Agreement"),
+    ("QUALITY_AGREEMENT", "Quality Agreement"),
+    ("DISTRIBUTION", "Distribution Agreement"),
+    ("CONSULTING", "Consulting Agreement"),
+    ("MAINTENANCE", "Maintenance / AMC Agreement"),
+    ("PARTNERSHIP", "Partnership / JV Agreement"),
+    ("LOAN", "Loan / Credit Agreement"),
+    ("INSURANCE", "Insurance Policy / Agreement"),
+    ("CONSTRUCTION", "Construction / EPC Contract"),
+    ("FRANCHISE", "Franchise Agreement"),
+    ("SETTLEMENT", "Settlement Agreement"),
 ]
 
 
@@ -82,14 +96,25 @@ IF THIS IS A TEMPLATE: Set counterparty to null with confidence 0.0. Set parties
 
 Extract the following fields from the provided contract text:
 
-1. **contract_type**: Classify the contract as one of:
+1. **contract_type**: Classify the contract. Common types include:
    - NDA (Non-Disclosure Agreement)
    - MSA (Master Service Agreement)
    - SOW (Statement of Work)
    - AMENDMENT (Contract Amendment)
    - VENDOR (Vendor Agreement)
    - EMPLOYMENT (Employment Contract)
-   - OTHER (if none of the above)
+   - LICENSE (Software/IP License)
+   - LEASE (Equipment or Facility Lease)
+   - PROCUREMENT (Procurement / Purchase Agreement — for supply of goods, equipment, hardware)
+   - SUPPLY_AGREEMENT (Supply of materials or components)
+   - QUALITY_AGREEMENT (Quality standards and inspection)
+   - DISTRIBUTION (Distribution Agreement)
+   - CONSULTING (Consulting Agreement)
+   - MAINTENANCE (Maintenance / AMC / Support Agreement)
+   - PARTNERSHIP (Partnership / Joint Venture)
+   - CONSTRUCTION (Construction / EPC Contract)
+   - OTHER (if none of the above match)
+   Choose the MOST SPECIFIC type. For hardware/equipment purchases, use PROCUREMENT.
 
 2. **counterparty**: Extract the VENDOR/SUPPLIER/SERVICE PROVIDER party — the party providing services.
    STEP-BY-STEP PROCESS:
@@ -249,6 +274,7 @@ async def extract_metadata(
     user_role: str | None = None,
     excluded_parties: list[str] | None = None,
     few_shot_context: str = "",
+    industry_hint: str = "",
 ) -> ExtractedMetadata:
     """Extract metadata from contract text using the AI agent.
 
@@ -299,8 +325,13 @@ The counterparty must be the OTHER party — the external vendor, supplier, or p
 If the document mentions "between {excluded_parties[0]} and [OtherCompany]", the counterparty is [OtherCompany].
 """
 
+    # Build industry-specific hint
+    industry_context = ""
+    if industry_hint:
+        industry_context = f"\nINDUSTRY-SPECIFIC GUIDANCE:\n{industry_hint}\n"
+
     query = f"""Extract metadata from the following contract text:
-{filename_hint}{exclusion_hint}{few_shot_context}
+{filename_hint}{exclusion_hint}{industry_context}{few_shot_context}
 ---
 {text_sample}
 ---
@@ -612,112 +643,191 @@ async def update_contract_metadata(
     metadata: ExtractedMetadata,
     confidence_threshold: float = 0.7,
     excluded_parties: list[str] | None = None,
-) -> Contract:
+    field_thresholds: dict[str, float] | None = None,
+    merge_provenance: bool = False,
+) -> tuple[Contract, list[dict]]:
     """Update a contract with extracted metadata.
 
     Args:
         db: Database session.
         contract: Contract to update.
         metadata: Extracted metadata.
-        confidence_threshold: Minimum confidence to apply a field.
+        confidence_threshold: Default minimum confidence to apply a field
+            (used when no per-field threshold is configured).
+        excluded_parties: Names that must not be set as the counterparty
+            (typically the uploader's own org and aliases).
+        field_thresholds: Optional per-field minimum confidence overrides.
+            Keys are field names ("counterparty", "contract_value",
+            "effective_date", "expiration_date", "currency", "jurisdiction",
+            "contract_type"). Values are floats in [0.0, 1.0]. A field not
+            present here uses ``confidence_threshold`` as fallback.
+        merge_provenance: When True, only updates provenance entries for
+            fields actually attempted in this call (i.e. non-None on the
+            ``metadata`` argument). Used by the single-field re-extract
+            endpoint so re-extracting one field doesn't wipe the others'
+            source quotes. Default False keeps the legacy "this run
+            replaces everything" behavior used by the full-pipeline indexer.
 
     Returns:
-        Updated contract.
+        Tuple of (updated_contract, dropped_fields). Each entry in
+        ``dropped_fields`` is a dict with ``field``, ``confidence``, and
+        ``threshold`` keys describing a field rejected for being below
+        its applicable threshold.
     """
+    dropped: list[dict] = []
+    # Collected per-field provenance for fields that pass their threshold.
+    # Written to contract.metadata_provenance at the end. The persistence
+    # strategy depends on merge_provenance:
+    #   - False (default): replace the whole dict with this run's results.
+    #   - True: only update entries for fields we actually attempted.
+    provenance: dict[str, dict] = {}
+    attempted_fields: set[str] = set()
+
+    def _threshold_for(field_name: str) -> float:
+        if field_thresholds and field_name in field_thresholds:
+            try:
+                return float(field_thresholds[field_name])
+            except (TypeError, ValueError):
+                pass
+        return confidence_threshold
+
+    def _check(field_name: str, field) -> bool:
+        """Return True if the field passes its threshold, else record drop.
+
+        On pass, also captures provenance (raw_text + confidence) for UI display.
+        """
+        if not field:
+            return False
+        attempted_fields.add(field_name)
+        threshold = _threshold_for(field_name)
+        if field.confidence >= threshold:
+            raw_text = getattr(field, "raw_text", None)
+            if raw_text:
+                provenance[field_name] = {
+                    "raw_text": str(raw_text)[:500],
+                    "confidence": round(float(field.confidence), 3),
+                }
+            return True
+        dropped.append({
+            "field": field_name,
+            "confidence": round(float(field.confidence), 3),
+            "threshold": threshold,
+        })
+        return False
+
     # Map contract type
-    if metadata.contract_type and metadata.contract_type.confidence >= confidence_threshold:
+    if metadata.contract_type and _check("contract_type", metadata.contract_type):
         type_value = str(metadata.contract_type.value).upper().strip()
-        type_map = {
+        type_map: dict[str, str] = {
             # NDA variants
-            "NDA": ContractType.NDA,
-            "NON-DISCLOSURE AGREEMENT": ContractType.NDA,
-            "NON DISCLOSURE AGREEMENT": ContractType.NDA,
-            "NONDISCLOSURE AGREEMENT": ContractType.NDA,
-            "MUTUAL NON-DISCLOSURE AGREEMENT": ContractType.NDA,
-            "MUTUAL NDA": ContractType.NDA,
-            "CONFIDENTIALITY AGREEMENT": ContractType.NDA,
-            "MUTUAL CONFIDENTIALITY AGREEMENT": ContractType.NDA,
-            "CONFIDENTIAL DISCLOSURE AGREEMENT": ContractType.NDA,
-            "CDA": ContractType.NDA,
+            "NDA": "nda",
+            "NON-DISCLOSURE AGREEMENT": "nda",
+            "NON DISCLOSURE AGREEMENT": "nda",
+            "NONDISCLOSURE AGREEMENT": "nda",
+            "MUTUAL NON-DISCLOSURE AGREEMENT": "nda",
+            "MUTUAL NDA": "nda",
+            "CONFIDENTIALITY AGREEMENT": "nda",
+            "MUTUAL CONFIDENTIALITY AGREEMENT": "nda",
+            "CONFIDENTIAL DISCLOSURE AGREEMENT": "nda",
+            "CDA": "nda",
             # MSA variants
-            "MSA": ContractType.MSA,
-            "MASTER SERVICES AGREEMENT": ContractType.MSA,
-            "MASTER SERVICE AGREEMENT": ContractType.MSA,
-            "MASTER AGREEMENT": ContractType.MSA,
-            "FRAMEWORK AGREEMENT": ContractType.MSA,
-            "SERVICES AGREEMENT": ContractType.MSA,
-            "SERVICE AGREEMENT": ContractType.MSA,
-            "PROFESSIONAL SERVICES AGREEMENT": ContractType.MSA,
-            "CONSULTING AGREEMENT": ContractType.MSA,
-            "CONSULTING SERVICES AGREEMENT": ContractType.MSA,
-            "BUSINESS PROCESS OUTSOURCING AGREEMENT": ContractType.MSA,
-            "BPO AGREEMENT": ContractType.MSA,
-            "OUTSOURCING AGREEMENT": ContractType.MSA,
+            "MSA": "msa",
+            "MASTER SERVICES AGREEMENT": "msa",
+            "MASTER SERVICE AGREEMENT": "msa",
+            "MASTER AGREEMENT": "msa",
+            "FRAMEWORK AGREEMENT": "msa",
+            "SERVICES AGREEMENT": "msa",
+            "SERVICE AGREEMENT": "msa",
+            "PROFESSIONAL SERVICES AGREEMENT": "msa",
+            "CONSULTING AGREEMENT": "msa",
+            "CONSULTING SERVICES AGREEMENT": "msa",
+            "BUSINESS PROCESS OUTSOURCING AGREEMENT": "msa",
+            "BPO AGREEMENT": "msa",
+            "OUTSOURCING AGREEMENT": "msa",
             # SOW variants
-            "SOW": ContractType.SOW,
-            "STATEMENT OF WORK": ContractType.SOW,
-            "SCOPE OF WORK": ContractType.SOW,
-            "WORK ORDER": ContractType.SOW,
-            "PURCHASE ORDER": ContractType.SOW,
-            "TASK ORDER": ContractType.SOW,
-            "PROJECT ORDER": ContractType.SOW,
-            "SCHEDULE": ContractType.SOW,
-            "SERVICE ORDER": ContractType.SOW,
-            "ORDER FORM": ContractType.SOW,
-            "CSOW": ContractType.SOW,
-            "CHANGE SOW": ContractType.SOW,
-            "CHANGE STATEMENT OF WORK": ContractType.SOW,
+            "SOW": "sow",
+            "STATEMENT OF WORK": "sow",
+            "SCOPE OF WORK": "sow",
+            "WORK ORDER": "sow",
+            "PURCHASE ORDER": "sow",
+            "TASK ORDER": "sow",
+            "PROJECT ORDER": "sow",
+            "SCHEDULE": "sow",
+            "SERVICE ORDER": "sow",
+            "ORDER FORM": "sow",
+            "CSOW": "sow",
+            "CHANGE SOW": "sow",
+            "CHANGE STATEMENT OF WORK": "sow",
             # Amendment variants
-            "AMENDMENT": ContractType.AMENDMENT,
-            "ADDENDUM": ContractType.AMENDMENT,
-            "CONTRACT AMENDMENT": ContractType.AMENDMENT,
-            "FIRST AMENDMENT": ContractType.AMENDMENT,
-            "SECOND AMENDMENT": ContractType.AMENDMENT,
-            "THIRD AMENDMENT": ContractType.AMENDMENT,
-            "MODIFICATION": ContractType.AMENDMENT,
-            "CONTRACT MODIFICATION": ContractType.AMENDMENT,
-            "SUPPLEMENT": ContractType.AMENDMENT,
-            "SUPPLEMENTAL AGREEMENT": ContractType.AMENDMENT,
-            "CHANGE ORDER": ContractType.AMENDMENT,
-            "SIDE LETTER": ContractType.AMENDMENT,
-            "LETTER AMENDMENT": ContractType.AMENDMENT,
+            "AMENDMENT": "amendment",
+            "ADDENDUM": "amendment",
+            "CONTRACT AMENDMENT": "amendment",
+            "FIRST AMENDMENT": "amendment",
+            "SECOND AMENDMENT": "amendment",
+            "THIRD AMENDMENT": "amendment",
+            "MODIFICATION": "amendment",
+            "CONTRACT MODIFICATION": "amendment",
+            "SUPPLEMENT": "amendment",
+            "SUPPLEMENTAL AGREEMENT": "amendment",
+            "CHANGE ORDER": "amendment",
+            "SIDE LETTER": "amendment",
+            "LETTER AMENDMENT": "amendment",
             # Vendor agreement variants
-            "VENDOR": ContractType.VENDOR_AGREEMENT,
-            "VENDOR_AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "VENDOR AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SUPPLIER AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SUPPLY AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "PROCUREMENT AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "LICENSE AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SOFTWARE LICENSE AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SAAS AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SAAS SUBSCRIPTION AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "SUBSCRIPTION AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "RESELLER AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "DISTRIBUTION AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "PARTNERSHIP AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "JOINT VENTURE AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "LEASE AGREEMENT": ContractType.VENDOR_AGREEMENT,
-            "LEASE": ContractType.VENDOR_AGREEMENT,
-            "RENTAL AGREEMENT": ContractType.VENDOR_AGREEMENT,
+            "VENDOR": "vendor_agreement",
+            "VENDOR_AGREEMENT": "vendor_agreement",
+            "VENDOR AGREEMENT": "vendor_agreement",
+            "SUPPLIER AGREEMENT": "vendor_agreement",
+            "PROCUREMENT AGREEMENT": "vendor_agreement",
+            # License / SaaS (now distinct types)
+            "LICENSE AGREEMENT": "license",
+            "SOFTWARE LICENSE AGREEMENT": "license",
+            "SAAS AGREEMENT": "license",
+            "SAAS SUBSCRIPTION AGREEMENT": "license",
+            "SUBSCRIPTION AGREEMENT": "license",
+            "RESELLER AGREEMENT": "vendor_agreement",
+            "DISTRIBUTION AGREEMENT": "vendor_agreement",
+            "PARTNERSHIP AGREEMENT": "vendor_agreement",
+            "JOINT VENTURE AGREEMENT": "vendor_agreement",
+            # Lease
+            "LEASE AGREEMENT": "lease",
+            "LEASE": "lease",
+            "RENTAL AGREEMENT": "lease",
             # Employment variants
-            "EMPLOYMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "EMPLOYMENT_CONTRACT": ContractType.EMPLOYMENT_CONTRACT,
-            "EMPLOYMENT CONTRACT": ContractType.EMPLOYMENT_CONTRACT,
-            "EMPLOYMENT AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "OFFER LETTER": ContractType.EMPLOYMENT_CONTRACT,
-            "INDEPENDENT CONTRACTOR AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "CONTRACTOR AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "FREELANCE AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "SEPARATION AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "NON-COMPETE AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "NON COMPETE AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
-            "NONCOMPETE AGREEMENT": ContractType.EMPLOYMENT_CONTRACT,
+            "EMPLOYMENT": "employment_contract",
+            "EMPLOYMENT_CONTRACT": "employment_contract",
+            "EMPLOYMENT CONTRACT": "employment_contract",
+            "EMPLOYMENT AGREEMENT": "employment_contract",
+            "OFFER LETTER": "employment_contract",
+            "INDEPENDENT CONTRACTOR AGREEMENT": "employment_contract",
+            "CONTRACTOR AGREEMENT": "employment_contract",
+            "FREELANCE AGREEMENT": "employment_contract",
+            "SEPARATION AGREEMENT": "employment_contract",
+            "NON-COMPETE AGREEMENT": "employment_contract",
+            "NON COMPETE AGREEMENT": "employment_contract",
+            "NONCOMPETE AGREEMENT": "employment_contract",
+            # Manufacturing types
+            "SUPPLY AGREEMENT": "supply_agreement",
+            "QUALITY AGREEMENT": "quality_agreement",
+            "BLANKET PURCHASE ORDER": "blanket_po",
+            "BLANKET PO": "blanket_po",
+            "TOOLING AGREEMENT": "tooling_agreement",
+            "TOLL MANUFACTURING AGREEMENT": "toll_manufacturing",
+            # Pharma types
+            "CLINICAL SUPPLY AGREEMENT": "csa",
+            "CSA": "csa",
+            "CMO AGREEMENT": "cmo_agreement",
+            "CONTRACT MANUFACTURING AGREEMENT": "cmo_agreement",
+            "CRO AGREEMENT": "cro_agreement",
+            "CLINICAL RESEARCH AGREEMENT": "cro_agreement",
+            "PHARMACOVIGILANCE AGREEMENT": "pharmacovigilance",
         }
         mapped_type = type_map.get(type_value)
         if mapped_type:
             contract.contract_type = mapped_type
-        # Don't clear existing contract_type if AI returns unrecognized value
+        elif type_value:
+            # For unrecognized types, store as lowercase slug
+            slug = type_value.lower().replace(" ", "_").replace("-", "_")
+            contract.contract_type = slug
 
     # Helper to check if a value matches any excluded party (the uploader's org)
     def _is_excluded_party(value: str) -> bool:
@@ -746,7 +856,7 @@ async def update_contract_metadata(
 
     # Update counterparty
     counterparty_set = False
-    if metadata.counterparty and metadata.counterparty.confidence >= confidence_threshold:
+    if metadata.counterparty and _check("counterparty", metadata.counterparty):
         counterparty_value = str(metadata.counterparty.value)
         if not _is_generic_counterparty(counterparty_value) and not _is_excluded_party(counterparty_value):
             contract.counterparty = counterparty_value
@@ -769,26 +879,26 @@ async def update_contract_metadata(
                     break
 
     # Update dates
-    if metadata.effective_date and metadata.effective_date.confidence >= confidence_threshold:
+    if metadata.effective_date and _check("effective_date", metadata.effective_date):
         try:
             contract.effective_date = _parse_date(metadata.effective_date.value)
         except Exception:
             pass
 
-    if metadata.expiration_date and metadata.expiration_date.confidence >= confidence_threshold:
+    if metadata.expiration_date and _check("expiration_date", metadata.expiration_date):
         try:
             contract.expiration_date = _parse_date(metadata.expiration_date.value)
         except Exception:
             pass
 
     # Update value
-    if metadata.contract_value and metadata.contract_value.confidence >= confidence_threshold:
+    if metadata.contract_value and _check("contract_value", metadata.contract_value):
         try:
             contract.contract_value = Decimal(str(metadata.contract_value.value))
         except Exception:
             pass
 
-    if metadata.currency and metadata.currency.confidence >= confidence_threshold:
+    if metadata.currency and _check("currency", metadata.currency):
         currency_val = str(metadata.currency.value).upper().strip()
         # Map common currency names to ISO codes (VARCHAR(3) column)
         currency_map = {
@@ -801,11 +911,31 @@ async def update_contract_metadata(
             contract.currency = currency_val
 
     # Update jurisdiction
-    if metadata.jurisdiction and metadata.jurisdiction.confidence >= confidence_threshold:
+    if metadata.jurisdiction and _check("jurisdiction", metadata.jurisdiction):
         contract.jurisdiction = str(metadata.jurisdiction.value)
 
+    # Persist provenance.
+    # Replace mode (full pipeline): the dict reflects only this run, so we
+    # overwrite — stale entries from previous extractions don't linger.
+    # Merge mode (single-field re-extract): only update entries for the
+    # fields we actually attempted; leave everything else alone.
+    if merge_provenance:
+        existing = dict(contract.metadata_provenance or {})
+        for f in attempted_fields:
+            if f in provenance:
+                existing[f] = provenance[f]
+            elif f in existing:
+                # Field was attempted but dropped — clear its stale entry
+                del existing[f]
+        contract.metadata_provenance = existing or None
+    else:
+        if provenance:
+            contract.metadata_provenance = provenance
+        elif contract.metadata_provenance is not None:
+            contract.metadata_provenance = None
+
     await db.flush()
-    return contract
+    return contract, dropped
 
 
 def _parse_date(value: Any) -> date | None:
@@ -1071,6 +1201,7 @@ async def extract_metadata_with_fallback(
     excluded_parties: list[str] | None = None,
     few_shot_context: str = "",
     tenant_id: str | None = None,
+    industry_hint: str = "",
 ) -> ExtractedMetadata:
     """Extract metadata using AI with regex fallback.
 
@@ -1098,7 +1229,7 @@ async def extract_metadata_with_fallback(
             logger.debug(f"DSPy metadata extraction unavailable, falling back: {e}")
 
     # Try AI extraction first
-    ai_metadata = await extract_metadata(contract_text, contract_id, user_id, user_role, excluded_parties, few_shot_context=few_shot_context)
+    ai_metadata = await extract_metadata(contract_text, contract_id, user_id, user_role, excluded_parties, few_shot_context=few_shot_context, industry_hint=industry_hint)
 
     # If AI extraction got good results, use it
     if ai_metadata.overall_confidence >= 0.6:

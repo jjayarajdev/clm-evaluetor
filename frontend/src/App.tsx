@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 
 // Force unique build hash
-if (typeof window !== 'undefined') (window as any).__BUILD = '20260422v4'
+if (typeof window !== 'undefined') (window as any).__BUILD = '20260423v3'
 import { useAuth } from './contexts/AuthContext'
 import { SidebarProvider } from './contexts/SidebarContext'
+import { TenantConfigProvider } from './contexts/TenantConfigContext'
 import MainLayout from './components/layout/MainLayout'
 import LoginPage from './pages/LoginPage'
 import ModernDashboardPage from './pages/ModernDashboardPage'
@@ -23,6 +24,7 @@ import ExternalUsersPage from './pages/admin/ExternalUsersPage'
 import SnowIntegrationPage from './pages/admin/SnowIntegrationPage'
 import SharePointIntegrationPage from './pages/admin/SharePointIntegrationPage'
 import ExtractionQualityPage from './pages/admin/ExtractionQualityPage'
+import IndustryProfilesPage from './pages/admin/IndustryProfilesPage'
 import SSOConfigPage from './pages/admin/SSOConfigPage'
 import ExternalContractPage from './pages/ExternalContractPage'
 import ExternalGovernancePage from './pages/ExternalGovernancePage'
@@ -75,9 +77,11 @@ function App() {
         path="/"
         element={
           <ProtectedRoute>
-            <SidebarProvider>
-              <MainLayout />
-            </SidebarProvider>
+            <TenantConfigProvider>
+              <SidebarProvider>
+                <MainLayout />
+              </SidebarProvider>
+            </TenantConfigProvider>
           </ProtectedRoute>
         }
       >
@@ -117,6 +121,7 @@ function App() {
         <Route path="admin/integrations/sharepoint" element={<SharePointIntegrationPage />} />
         <Route path="admin/sso" element={<SSOConfigPage />} />
         <Route path="admin/extraction-quality" element={<ExtractionQualityPage />} />
+        <Route path="admin/industry-profiles" element={<IndustryProfilesPage />} />
         {/* Super Admin Routes */}
         <Route path="super-admin" element={<SuperAdminDashboardPage />} />
         <Route path="super-admin/tenants" element={<TenantManagementPage />} />

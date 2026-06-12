@@ -202,7 +202,28 @@
       "Bash(for schema in audit business_unit external_user contract organization relationship improvement)",
       "Bash(do echo \"=== $schema ===\")",
       "Read(//Users/jjayaraj/workspaces/studios/clm/backend/app/schemas/**)",
-      "Bash(__NEW_LINE_b5960b995c67b40c__ echo:*)"
+      "Bash(__NEW_LINE_b5960b995c67b40c__ echo:*)",
+      "Bash(chmod +x:*)",
+      "WebFetch(domain:www.atticusprojectai.org)",
+      "WebFetch(domain:arxiv.org)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(do grep:*)",
+      "Bash(pip3 show:*)",
+      "WebFetch(domain:evaluetor.com)",
+      "WebFetch(domain:www.evaluetor.com)",
+      "Bash(cp -R /Users/jjayaraj/workspaces/studios/clm/website/* /tmp/clm-website/)",
+      "Bash(cp /Users/jjayaraj/workspaces/studios/clm/website/.gitignore /tmp/clm-website/)",
+      "Read(//private/tmp/clm-website/**)",
+      "Bash(for file in src/index.css src/styles/personio-theme.ts tailwind.config.js)",
+      "Read(//Users/jjayaraj/workspaces/studios/clm/**)",
+      "Bash(/tmp/list_org.py:*)",
+      "Bash(__NEW_LINE_90af5c3267af2741__ scp:*)",
+      "Bash(PYTHONPATH=/Users/jjayaraj/workspaces/studios/clm/backend uv run --project /Users/jjayaraj/workspaces/studios/clm/backend python -c ' *)",
+      "Bash(awk -F: '$2 > 2399 && $2 < 2900 {print}')",
+      "Read(//private/tmp/pptx_verify/ppt/slides/**)",
+      "Skill(frontend-design:frontend-design)",
+      "WebFetch(domain:www.luminance.com)",
+      "WebFetch(domain:ironcladapp.com)"
     ]
   }
 }

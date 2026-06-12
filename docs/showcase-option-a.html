@@ -1,0 +1,3066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evaluetor — Contract Lifecycle Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   RESET & BASE
+   ========================================================= */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --paper: #faf8f5;
+  --paper-dark: #f3f0eb;
+  --paper-darker: #ece8e1;
+  --charcoal: #1a1a1a;
+  --charcoal-light: #3d3d3d;
+  --charcoal-muted: #6b6b6b;
+  --terracotta: #c2410c;
+  --terracotta-light: #ea580c;
+  --terracotta-faint: rgba(194, 65, 12, 0.08);
+  --sage: #6b7c5e;
+  --sage-light: #8a9b7d;
+  --sage-faint: rgba(107, 124, 94, 0.1);
+  --white: #ffffff;
+  --border: #e5e1db;
+  --border-light: #efece7;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+  --sidebar-width: 240px;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Instrument Sans', -apple-system, sans-serif;
+  --transition: 0.2s ease;
+}
+
+html {
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--charcoal);
+  background-color: var(--paper);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* Subtle paper noise texture */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* =========================================================
+   LAYOUT
+   ========================================================= */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background: var(--white);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: relative;
+  z-index: 10;
+}
+
+.sidebar-brand {
+  padding: 28px 24px 24px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.sidebar-brand-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-monogram {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--white);
+  background: var(--terracotta);
+  letter-spacing: -0.5px;
+}
+
+.brand-text {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 18px;
+  color: var(--charcoal);
+  letter-spacing: -0.3px;
+}
+
+.brand-subtitle {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--charcoal-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-top: 2px;
+}
+
+/* Navigation */
+.sidebar-nav {
+  flex: 1;
+  padding: 16px 0;
+  overflow-y: auto;
+}
+
+.nav-section-label {
+  padding: 12px 24px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--charcoal-muted);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--charcoal-muted);
+  border-left: 3px solid transparent;
+  transition: all var(--transition);
+  user-select: none;
+}
+
+.nav-item:hover {
+  color: var(--charcoal);
+  background: var(--paper);
+}
+
+.nav-item.active {
+  color: var(--terracotta);
+  border-left-color: var(--terracotta);
+  background: var(--terracotta-faint);
+  font-weight: 600;
+}
+
+.nav-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.nav-item.active .nav-icon {
+  opacity: 1;
+}
+
+.nav-badge {
+  margin-left: auto;
+  background: var(--terracotta);
+  color: var(--white);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 16px;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-light);
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 34px;
+  height: 34px;
+  background: var(--sage);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--charcoal);
+  line-height: 1.3;
+}
+
+.user-role {
+  font-size: 11px;
+  color: var(--charcoal-muted);
+  line-height: 1.3;
+}
+
+.user-tenant {
+  font-size: 10px;
+  color: var(--sage);
+  font-weight: 500;
+}
+
+/* =========================================================
+   MAIN CONTENT
+   ========================================================= */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0;
+  background: var(--paper);
+}
+
+.page {
+  display: none;
+  opacity: 0;
+  padding: 40px 48px 60px;
+  min-height: 100vh;
+  animation: fadeIn 0.25s ease forwards;
+}
+
+.page.active {
+  display: block;
+  opacity: 1;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Page Headers */
+.page-header {
+  margin-bottom: 36px;
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 28px;
+  color: var(--charcoal);
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: var(--charcoal-muted);
+  margin-top: 6px;
+  max-width: 600px;
+}
+
+.page-header-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+/* =========================================================
+   CARDS
+   ========================================================= */
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--charcoal);
+  margin-bottom: 16px;
+  letter-spacing: -0.2px;
+}
+
+.card-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--charcoal-muted);
+}
+
+/* Stat Cards */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+  position: relative;
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+}
+
+.stat-card.accent-terracotta::after { background: var(--terracotta); }
+.stat-card.accent-sage::after { background: var(--sage); }
+.stat-card.accent-charcoal::after { background: var(--charcoal); }
+.stat-card.accent-warm::after { background: #b8860b; }
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--charcoal-muted);
+  margin-bottom: 10px;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 500;
+  color: var(--charcoal);
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.stat-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.stat-change.positive { color: var(--sage); }
+.stat-change.negative { color: var(--terracotta); }
+
+/* =========================================================
+   TABLES
+   ========================================================= */
+.table-wrapper {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.table-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 16px;
+  letter-spacing: -0.2px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead th {
+  text-align: left;
+  padding: 12px 24px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--charcoal-muted);
+  border-bottom: 2px solid var(--terracotta);
+  background: var(--white);
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border-light);
+  transition: background var(--transition);
+}
+
+tbody tr:nth-child(even) {
+  background: var(--paper);
+}
+
+tbody tr:hover {
+  background: var(--paper-dark);
+}
+
+tbody td {
+  padding: 14px 24px;
+  font-size: 13.5px;
+  color: var(--charcoal-light);
+}
+
+tbody td:first-child {
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+/* =========================================================
+   BADGES & STATUS
+   ========================================================= */
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-active {
+  background: var(--sage-faint);
+  color: var(--sage);
+  border: 1px solid rgba(107, 124, 94, 0.2);
+}
+
+.badge-draft {
+  background: rgba(107, 114, 128, 0.08);
+  color: #6b7280;
+  border: 1px solid rgba(107, 114, 128, 0.15);
+}
+
+.badge-review {
+  background: var(--terracotta-faint);
+  color: var(--terracotta);
+  border: 1px solid rgba(194, 65, 12, 0.15);
+}
+
+.badge-expired {
+  background: rgba(120, 113, 108, 0.08);
+  color: #78716c;
+  border: 1px solid rgba(120, 113, 108, 0.15);
+}
+
+.badge-pending {
+  background: rgba(180, 140, 20, 0.08);
+  color: #92700c;
+  border: 1px solid rgba(180, 140, 20, 0.15);
+}
+
+.badge-overdue {
+  background: rgba(185, 28, 28, 0.08);
+  color: #b91c1c;
+  border: 1px solid rgba(185, 28, 28, 0.15);
+}
+
+.badge-auto {
+  background: rgba(107, 124, 94, 0.08);
+  color: var(--sage);
+  border: 1px solid rgba(107, 124, 94, 0.15);
+}
+
+/* =========================================================
+   SEARCH / FILTER BAR
+   ========================================================= */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.search-input {
+  flex: 1;
+  max-width: 360px;
+  padding: 10px 16px 10px 38px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--charcoal);
+  outline: none;
+  transition: border-color var(--transition);
+  position: relative;
+}
+
+.search-input:focus {
+  border-color: var(--terracotta);
+}
+
+.search-input::placeholder {
+  color: #b5b0a8;
+}
+
+.search-wrapper {
+  position: relative;
+  flex: 1;
+  max-width: 360px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #b5b0a8;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.filter-btn {
+  padding: 10px 18px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--charcoal-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.filter-btn:hover {
+  border-color: var(--charcoal-muted);
+  color: var(--charcoal);
+}
+
+.filter-btn.active {
+  border-color: var(--terracotta);
+  color: var(--terracotta);
+  background: var(--terracotta-faint);
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition);
+}
+
+.btn-primary {
+  background: var(--terracotta);
+  color: var(--white);
+}
+
+.btn-primary:hover {
+  background: var(--terracotta-light);
+}
+
+.btn-secondary {
+  background: var(--white);
+  color: var(--charcoal);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  border-color: var(--charcoal-muted);
+}
+
+/* =========================================================
+   PROGRESS BARS
+   ========================================================= */
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--paper-dark);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.progress-fill.green { background: var(--sage); }
+.progress-fill.terracotta { background: var(--terracotta); }
+.progress-fill.amber { background: #b8860b; }
+.progress-fill.charcoal { background: var(--charcoal-light); }
+
+/* =========================================================
+   TABS
+   ========================================================= */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+
+.tab-item {
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--charcoal-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition);
+  user-select: none;
+  margin-bottom: -1px;
+}
+
+.tab-item:hover {
+  color: var(--charcoal);
+}
+
+.tab-item.active {
+  color: var(--terracotta);
+  border-bottom-color: var(--terracotta);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+  animation: fadeIn 0.2s ease forwards;
+}
+
+/* =========================================================
+   DASHBOARD SPECIFIC
+   ========================================================= */
+.welcome-banner {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 32px;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.welcome-text h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 24px;
+  color: var(--charcoal);
+  letter-spacing: -0.3px;
+}
+
+.welcome-text p {
+  font-size: 14px;
+  color: var(--charcoal-muted);
+  margin-top: 4px;
+}
+
+.welcome-date {
+  font-size: 13px;
+  color: var(--charcoal-muted);
+  text-align: right;
+}
+
+.welcome-date strong {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--charcoal);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+}
+
+.activity-feed {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+}
+
+.activity-item {
+  display: flex;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.activity-dot.green { background: var(--sage); }
+.activity-dot.terracotta { background: var(--terracotta); }
+.activity-dot.amber { background: #b8860b; }
+
+.activity-text {
+  font-size: 13.5px;
+  color: var(--charcoal-light);
+  line-height: 1.5;
+}
+
+.activity-text strong {
+  color: var(--charcoal);
+  font-weight: 600;
+}
+
+.activity-time {
+  font-size: 11.5px;
+  color: #b5b0a8;
+  margin-top: 2px;
+}
+
+/* Chart Area */
+.chart-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+}
+
+.mini-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 120px;
+  padding-top: 12px;
+}
+
+.chart-bar {
+  flex: 1;
+  background: var(--sage);
+  opacity: 0.7;
+  transition: opacity var(--transition);
+  position: relative;
+}
+
+.chart-bar:hover {
+  opacity: 1;
+}
+
+.chart-bar.highlight {
+  background: var(--terracotta);
+  opacity: 0.85;
+}
+
+.chart-bar.highlight:hover {
+  opacity: 1;
+}
+
+.chart-labels {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chart-labels span {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  color: var(--charcoal-muted);
+  font-weight: 500;
+}
+
+/* Quick Stats Sidebar */
+.quick-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.quick-stat-item {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+}
+
+.quick-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.quick-stat-val {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--charcoal);
+  letter-spacing: -0.5px;
+}
+
+/* =========================================================
+   COMPLIANCE SPECIFIC
+   ========================================================= */
+.obligation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.obligation-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.obligation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.obligation-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--charcoal);
+  line-height: 1.4;
+}
+
+.obligation-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--charcoal-muted);
+}
+
+.obligation-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sla-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.sla-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  text-align: center;
+}
+
+.sla-value {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  margin: 8px 0;
+}
+
+.sla-value.good { color: var(--sage); }
+.sla-value.warning { color: #b8860b; }
+.sla-value.critical { color: var(--terracotta); }
+
+.sla-target {
+  font-size: 12px;
+  color: var(--charcoal-muted);
+}
+
+/* =========================================================
+   RENEWALS SPECIFIC
+   ========================================================= */
+.renewal-timeline {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.renewal-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.renewal-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.renewal-card.urgent::before { background: var(--terracotta); }
+.renewal-card.upcoming::before { background: #b8860b; }
+.renewal-card.safe::before { background: var(--sage); }
+
+.renewal-date {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--terracotta);
+  margin-bottom: 8px;
+}
+
+.renewal-card.safe .renewal-date { color: var(--sage); }
+.renewal-card.upcoming .renewal-date { color: #92700c; }
+
+.renewal-name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--charcoal);
+  margin-bottom: 4px;
+}
+
+.renewal-party {
+  font-size: 13px;
+  color: var(--charcoal-muted);
+  margin-bottom: 14px;
+}
+
+.renewal-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.renewal-detail-row {
+  display: flex;
+  justify-content: space-between;
+  color: var(--charcoal-muted);
+}
+
+.renewal-detail-row span:last-child {
+  font-weight: 600;
+  color: var(--charcoal-light);
+}
+
+/* =========================================================
+   GOVERNANCE SPECIFIC
+   ========================================================= */
+.relationship-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.relationship-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+}
+
+.relationship-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.relationship-name {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 17px;
+  color: var(--charcoal);
+  letter-spacing: -0.2px;
+}
+
+.relationship-type {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--charcoal-muted);
+  margin-top: 3px;
+}
+
+.health-score {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+}
+
+.health-score.high { color: var(--sage); }
+.health-score.medium { color: #b8860b; }
+.health-score.low { color: var(--terracotta); }
+
+.gap-analysis {
+  margin-top: 16px;
+}
+
+.gap-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13px;
+}
+
+.gap-row:last-child {
+  border-bottom: none;
+}
+
+.gap-label {
+  width: 120px;
+  font-weight: 500;
+  color: var(--charcoal-muted);
+  flex-shrink: 0;
+}
+
+.gap-bar-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 20px;
+}
+
+.gap-bar {
+  height: 6px;
+  background: var(--paper-dark);
+  flex: 1;
+  position: relative;
+  overflow: visible;
+}
+
+.gap-bar-self {
+  position: absolute;
+  top: -2px;
+  height: 10px;
+  background: var(--sage);
+  opacity: 0.7;
+}
+
+.gap-bar-partner {
+  position: absolute;
+  top: -2px;
+  height: 10px;
+  background: var(--terracotta);
+  opacity: 0.5;
+}
+
+.gap-scores {
+  display: flex;
+  gap: 6px;
+  font-size: 11.5px;
+  flex-shrink: 0;
+  width: 80px;
+  justify-content: flex-end;
+}
+
+.gap-scores .self { color: var(--sage); font-weight: 600; }
+.gap-scores .partner { color: var(--terracotta); font-weight: 600; }
+.gap-scores .sep { color: var(--charcoal-muted); }
+
+/* =========================================================
+   ASK AI / CHAT SPECIFIC
+   ========================================================= */
+.chat-container {
+  max-width: 760px;
+}
+
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.chat-message {
+  display: flex;
+  gap: 14px;
+}
+
+.chat-avatar {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.chat-avatar.user {
+  background: var(--sage);
+  color: var(--white);
+}
+
+.chat-avatar.ai {
+  background: var(--terracotta);
+  color: var(--white);
+}
+
+.chat-bubble {
+  flex: 1;
+}
+
+.chat-bubble-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--charcoal-muted);
+  margin-bottom: 6px;
+}
+
+.chat-bubble-content {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--charcoal-light);
+}
+
+.chat-bubble-content p {
+  margin-bottom: 12px;
+}
+
+.chat-bubble-content p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-bubble-content strong {
+  color: var(--charcoal);
+}
+
+.chat-bubble-content .reference {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--terracotta-faint);
+  color: var(--terracotta);
+  font-size: 12px;
+  font-weight: 600;
+  margin: 2px 2px;
+  cursor: pointer;
+}
+
+.chat-bubble-content ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.chat-bubble-content li {
+  margin-bottom: 4px;
+}
+
+.chat-bubble-content .ai-section {
+  border-left: 2px solid var(--terracotta);
+  padding-left: 14px;
+  margin: 14px 0;
+}
+
+.chat-bubble-content .ai-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--terracotta);
+  margin-bottom: 6px;
+}
+
+.chat-input-area {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.chat-input {
+  flex: 1;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--charcoal);
+  outline: none;
+  resize: none;
+  min-height: 48px;
+  transition: border-color var(--transition);
+}
+
+.chat-input:focus {
+  border-color: var(--terracotta);
+}
+
+.chat-input::placeholder {
+  color: #b5b0a8;
+}
+
+.chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.chat-suggestion {
+  padding: 8px 14px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--charcoal-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.chat-suggestion:hover {
+  border-color: var(--terracotta);
+  color: var(--terracotta);
+}
+
+/* =========================================================
+   RISK SCORE INDICATORS
+   ========================================================= */
+.risk-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.risk-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.risk-dot.low { background: var(--sage); }
+.risk-dot.medium { background: #b8860b; }
+.risk-dot.high { background: var(--terracotta); }
+
+/* =========================================================
+   VENDOR TABLE HEALTH BARS
+   ========================================================= */
+.health-bar-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.health-bar-track {
+  width: 80px;
+  height: 6px;
+  background: var(--paper-dark);
+}
+
+.health-bar-fill {
+  height: 100%;
+}
+
+.health-bar-label {
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 32px;
+}
+
+/* =========================================================
+   RISK OVERVIEW
+   ========================================================= */
+.risk-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+.risk-category-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+  text-align: center;
+}
+
+.risk-count {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+  margin: 6px 0;
+  letter-spacing: -0.5px;
+}
+
+.risk-count.low-risk { color: var(--sage); }
+.risk-count.med-risk { color: #b8860b; }
+.risk-count.high-risk { color: var(--terracotta); }
+
+.risk-category-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--charcoal-muted);
+}
+
+/* =========================================================
+   GOVERNANCE LEGEND
+   ========================================================= */
+.gap-legend {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  font-size: 12px;
+  color: var(--charcoal-muted);
+}
+
+.gap-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gap-legend-swatch {
+  width: 12px;
+  height: 6px;
+}
+
+.gap-legend-swatch.self { background: var(--sage); opacity: 0.7; }
+.gap-legend-swatch.partner { background: var(--terracotta); opacity: 0.5; }
+
+/* =========================================================
+   IMPROVEMENT TRACKER
+   ========================================================= */
+.improvement-list {
+  margin-top: 14px;
+}
+
+.improvement-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--charcoal-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.improvement-item:last-child {
+  border-bottom: none;
+}
+
+.improvement-status {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.improvement-status.done {
+  background: var(--sage-faint);
+  color: var(--sage);
+}
+
+.improvement-status.pending {
+  background: var(--terracotta-faint);
+  color: var(--terracotta);
+}
+
+.improvement-status.in-progress {
+  background: rgba(180, 140, 20, 0.1);
+  color: #92700c;
+}
+
+/* =========================================================
+   SCROLLBAR STYLING
+   ========================================================= */
+.main-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.main-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+  background: var(--charcoal-muted);
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 1200px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .renewal-timeline {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .sla-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .risk-overview-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .relationship-grid {
+    grid-template-columns: 1fr;
+  }
+  .obligation-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <!-- =====================================================
+       SIDEBAR
+       ===================================================== -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-inner">
+        <div class="brand-monogram">E</div>
+        <div>
+          <div class="brand-text">Evaluetor</div>
+          <div class="brand-subtitle">Contract Intelligence</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Overview</div>
+      <div class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6"/><rect x="9" y="1" width="6" height="6"/><rect x="1" y="9" width="6" height="6"/><rect x="9" y="9" width="6" height="6"/></svg>
+        </span>
+        Dashboard
+      </div>
+      <div class="nav-item" data-page="contracts">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1h7l3 3v11H3V1z"/><path d="M10 1v3h3"/><line x1="5" y1="7" x2="11" y2="7"/><line x1="5" y1="10" x2="11" y2="10"/></svg>
+        </span>
+        Contracts
+        <span class="nav-badge">247</span>
+      </div>
+
+      <div class="nav-section-label">Intelligence</div>
+      <div class="nav-item" data-page="compliance">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1L2 4v4c0 4 3 6.5 6 7.5 3-1 6-3.5 6-7.5V4L8 1z"/><path d="M5.5 8l2 2 3.5-4"/></svg>
+        </span>
+        Compliance
+        <span class="nav-badge">3</span>
+      </div>
+      <div class="nav-item" data-page="renewals">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="13"/><line x1="1" y1="6" x2="15" y2="6"/><line x1="5" y1="2" x2="5" y2="0.5"/><line x1="11" y1="2" x2="11" y2="0.5"/></svg>
+        </span>
+        Renewals
+      </div>
+
+      <div class="nav-section-label">Relationships</div>
+      <div class="nav-item" data-page="vendors">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+        </span>
+        Vendors
+      </div>
+      <div class="nav-item" data-page="governance">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4v4l3 2"/></svg>
+        </span>
+        Governance
+      </div>
+
+      <div class="nav-section-label">AI</div>
+      <div class="nav-item" data-page="askai">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 11l2-8h2l2 8"/><line x1="1.8" y1="8" x2="5.2" y2="8"/><circle cx="12" cy="7" r="3"/><line x1="12" y1="10" x2="12" y2="14"/></svg>
+        </span>
+        Ask AI
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="user-avatar">JM</div>
+        <div class="user-info">
+          <div class="user-name">James Mitchell</div>
+          <div class="user-role">Legal Operations</div>
+          <div class="user-tenant">Acme Corp</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- =====================================================
+       MAIN CONTENT
+       ===================================================== -->
+  <main class="main-content">
+
+    <!-- ===========================================
+         PAGE: DASHBOARD
+         =========================================== -->
+    <section class="page active" id="page-dashboard">
+      <div class="welcome-banner">
+        <div class="welcome-text">
+          <h2>Good morning, James</h2>
+          <p>You have 4 contracts requiring attention and 3 overdue obligations.</p>
+        </div>
+        <div class="welcome-date">
+          <strong>Monday, April 21</strong>
+          Q2 2026 &mdash; Week 17
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card accent-terracotta">
+          <div class="stat-label">Active Contracts</div>
+          <div class="stat-value">247</div>
+          <div class="stat-change positive">+12 this month</div>
+        </div>
+        <div class="stat-card accent-warm">
+          <div class="stat-label">Pending Review</div>
+          <div class="stat-value">18</div>
+          <div class="stat-change negative">+3 since Friday</div>
+        </div>
+        <div class="stat-card accent-sage">
+          <div class="stat-label">Compliance Score</div>
+          <div class="stat-value">94.2%</div>
+          <div class="stat-change positive">+1.8% vs last quarter</div>
+        </div>
+        <div class="stat-card accent-charcoal">
+          <div class="stat-label">Monthly Savings</div>
+          <div class="stat-value">$1.2M</div>
+          <div class="stat-change positive">+$180K identified</div>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="activity-feed">
+          <div class="card-title">Recent Activity</div>
+
+          <div class="activity-item">
+            <div class="activity-dot green"></div>
+            <div>
+              <div class="activity-text"><strong>Sarah Chen</strong> approved <strong>Vendor MSA &mdash; CloudSoft Inc.</strong></div>
+              <div class="activity-time">12 minutes ago</div>
+            </div>
+          </div>
+
+          <div class="activity-item">
+            <div class="activity-dot terracotta"></div>
+            <div>
+              <div class="activity-text">AI flagged <strong>unusual indemnification clause</strong> in Meridian NDA</div>
+              <div class="activity-time">47 minutes ago</div>
+            </div>
+          </div>
+
+          <div class="activity-item">
+            <div class="activity-dot amber"></div>
+            <div>
+              <div class="activity-text"><strong>Auto-renewal notice</strong>: TechVendor SaaS License expires in 28 days</div>
+              <div class="activity-time">1 hour ago</div>
+            </div>
+          </div>
+
+          <div class="activity-item">
+            <div class="activity-dot green"></div>
+            <div>
+              <div class="activity-text"><strong>Michael Park</strong> uploaded <strong>3 new contracts</strong> for Q2 review</div>
+              <div class="activity-time">2 hours ago</div>
+            </div>
+          </div>
+
+          <div class="activity-item">
+            <div class="activity-dot terracotta"></div>
+            <div>
+              <div class="activity-text"><strong>SLA breach detected</strong>: DataPipe response time exceeded 99.9% threshold</div>
+              <div class="activity-time">3 hours ago</div>
+            </div>
+          </div>
+
+          <div class="activity-item">
+            <div class="activity-dot green"></div>
+            <div>
+              <div class="activity-text"><strong>Obligation completed</strong>: Quarterly compliance report submitted to RegulatoryCo</div>
+              <div class="activity-time">5 hours ago</div>
+            </div>
+          </div>
+
+          <div class="activity-item">
+            <div class="activity-dot amber"></div>
+            <div>
+              <div class="activity-text"><strong>Contract extracted</strong>: AI identified 14 clauses and 6 obligations in GlobalPartners SOW</div>
+              <div class="activity-time">Yesterday at 4:32 PM</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="quick-stats">
+          <div class="chart-card">
+            <div class="card-label">Contracts by Month</div>
+            <div class="mini-chart">
+              <div class="chart-bar" style="height: 45%"></div>
+              <div class="chart-bar" style="height: 62%"></div>
+              <div class="chart-bar" style="height: 55%"></div>
+              <div class="chart-bar" style="height: 78%"></div>
+              <div class="chart-bar" style="height: 70%"></div>
+              <div class="chart-bar highlight" style="height: 92%"></div>
+            </div>
+            <div class="chart-labels">
+              <span>Nov</span>
+              <span>Dec</span>
+              <span>Jan</span>
+              <span>Feb</span>
+              <span>Mar</span>
+              <span>Apr</span>
+            </div>
+          </div>
+
+          <div class="quick-stat-item">
+            <div class="card-label">Upcoming Renewals</div>
+            <div class="quick-stat-row">
+              <div class="quick-stat-val">14</div>
+              <span class="badge badge-review">Next 30 Days</span>
+            </div>
+          </div>
+
+          <div class="quick-stat-item">
+            <div class="card-label">AI Queries Today</div>
+            <div class="quick-stat-row">
+              <div class="quick-stat-val">36</div>
+              <span class="stat-change positive">92% accuracy</span>
+            </div>
+          </div>
+
+          <div class="quick-stat-item">
+            <div class="card-label">Risk Alerts</div>
+            <div class="quick-stat-row">
+              <div class="quick-stat-val">7</div>
+              <span class="badge badge-overdue">Action Needed</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         PAGE: CONTRACTS
+         =========================================== -->
+    <section class="page" id="page-contracts">
+      <div class="page-header">
+        <div class="page-header-row">
+          <div>
+            <div class="page-title">Contracts</div>
+            <div class="page-subtitle">Manage and monitor your entire contract portfolio with AI-powered intelligence.</div>
+          </div>
+          <button class="btn btn-primary">+ New Contract</button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="search-wrapper">
+          <span class="search-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="5"/><line x1="10" y1="10" x2="15" y2="15"/></svg>
+          </span>
+          <input type="text" class="search-input" placeholder="Search contracts by name, party, or type..." style="padding-left: 38px;">
+        </div>
+        <button class="filter-btn active">All</button>
+        <button class="filter-btn">Active</button>
+        <button class="filter-btn">Draft</button>
+        <button class="filter-btn">Under Review</button>
+        <button class="filter-btn">Expired</button>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Contract Name</th>
+              <th>Type</th>
+              <th>Counterparty</th>
+              <th>Status</th>
+              <th>Value</th>
+              <th>Expiry</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Master Services Agreement</td>
+              <td>MSA</td>
+              <td>CloudSoft Inc.</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td>$2,400,000</td>
+              <td>Dec 15, 2026</td>
+            </tr>
+            <tr>
+              <td>Enterprise SaaS License</td>
+              <td>License</td>
+              <td>DataPipe Solutions</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td>$840,000</td>
+              <td>May 19, 2026</td>
+            </tr>
+            <tr>
+              <td>Non-Disclosure Agreement</td>
+              <td>NDA</td>
+              <td>Meridian Analytics</td>
+              <td><span class="badge badge-review">Under Review</span></td>
+              <td>&mdash;</td>
+              <td>Mar 01, 2027</td>
+            </tr>
+            <tr>
+              <td>Professional Services SOW</td>
+              <td>SOW</td>
+              <td>GlobalPartners Ltd.</td>
+              <td><span class="badge badge-draft">Draft</span></td>
+              <td>$560,000</td>
+              <td>Sep 30, 2026</td>
+            </tr>
+            <tr>
+              <td>Cloud Infrastructure Agreement</td>
+              <td>SaaS</td>
+              <td>NexGen Cloud</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td>$1,200,000</td>
+              <td>Aug 22, 2026</td>
+            </tr>
+            <tr>
+              <td>IT Support &amp; Maintenance</td>
+              <td>MSA</td>
+              <td>TechServe Pro</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td>$380,000</td>
+              <td>Nov 10, 2026</td>
+            </tr>
+            <tr>
+              <td>Data Processing Agreement</td>
+              <td>DPA</td>
+              <td>SecureVault Corp.</td>
+              <td><span class="badge badge-review">Under Review</span></td>
+              <td>&mdash;</td>
+              <td>Jan 15, 2027</td>
+            </tr>
+            <tr>
+              <td>Marketing Services Contract</td>
+              <td>Services</td>
+              <td>BrightWave Agency</td>
+              <td><span class="badge badge-expired">Expired</span></td>
+              <td>$210,000</td>
+              <td>Feb 28, 2026</td>
+            </tr>
+            <tr>
+              <td>Equipment Lease Agreement</td>
+              <td>Lease</td>
+              <td>PrimeAsset Leasing</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td>$95,000</td>
+              <td>Jul 01, 2027</td>
+            </tr>
+            <tr>
+              <td>Consulting Framework Agreement</td>
+              <td>MSA</td>
+              <td>StrategicAdvisors LLC</td>
+              <td><span class="badge badge-draft">Draft</span></td>
+              <td>$720,000</td>
+              <td>Oct 31, 2026</td>
+            </tr>
+            <tr>
+              <td>Employment Agreement</td>
+              <td>Employment</td>
+              <td>Elena Rodriguez</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td>$185,000</td>
+              <td>Indefinite</td>
+            </tr>
+            <tr>
+              <td>Software Licensing &amp; Support</td>
+              <td>License</td>
+              <td>OracleWise Systems</td>
+              <td><span class="badge badge-pending">Pending</span></td>
+              <td>$450,000</td>
+              <td>Jun 30, 2026</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         PAGE: COMPLIANCE
+         =========================================== -->
+    <section class="page" id="page-compliance">
+      <div class="page-header">
+        <div class="page-title">Compliance</div>
+        <div class="page-subtitle">Track obligations, monitor SLA performance, and manage contract risk across your portfolio.</div>
+      </div>
+
+      <div class="tab-bar" data-tab-group="compliance">
+        <div class="tab-item active" data-tab="obligations">Obligations (15)</div>
+        <div class="tab-item" data-tab="sla">SLA Monitoring</div>
+        <div class="tab-item" data-tab="risk">Risk Overview</div>
+      </div>
+
+      <!-- Tab: Obligations -->
+      <div class="tab-content active" id="tab-obligations">
+        <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+          <div class="stat-card accent-warm" style="flex: 1;">
+            <div class="stat-label">Upcoming (30 days)</div>
+            <div class="stat-value">12</div>
+          </div>
+          <div class="stat-card accent-terracotta" style="flex: 1;">
+            <div class="stat-label">Overdue</div>
+            <div class="stat-value">3</div>
+          </div>
+          <div class="stat-card accent-sage" style="flex: 1;">
+            <div class="stat-label">Completed This Month</div>
+            <div class="stat-value">28</div>
+          </div>
+        </div>
+
+        <div class="card-title" style="margin-bottom: 16px; color: var(--terracotta);">Overdue Obligations</div>
+        <div class="obligation-grid">
+          <div class="obligation-card" style="border-left: 3px solid var(--terracotta);">
+            <div class="obligation-header">
+              <div class="obligation-title">Submit Q1 Audit Documentation</div>
+              <span class="badge badge-overdue">Overdue</span>
+            </div>
+            <div class="obligation-meta">
+              <span>CloudSoft MSA</span>
+              <span>Due: Apr 10, 2026</span>
+            </div>
+            <div style="font-size: 12.5px; color: var(--charcoal-muted);">Required quarterly audit documentation including compliance certificates and security assessment results.</div>
+          </div>
+          <div class="obligation-card" style="border-left: 3px solid var(--terracotta);">
+            <div class="obligation-header">
+              <div class="obligation-title">Annual Data Processing Impact Assessment</div>
+              <span class="badge badge-overdue">Overdue</span>
+            </div>
+            <div class="obligation-meta">
+              <span>SecureVault DPA</span>
+              <span>Due: Apr 5, 2026</span>
+            </div>
+            <div style="font-size: 12.5px; color: var(--charcoal-muted);">Complete annual DPIA as required under GDPR Article 35 and submit to data protection officer.</div>
+          </div>
+          <div class="obligation-card" style="border-left: 3px solid var(--terracotta);">
+            <div class="obligation-header">
+              <div class="obligation-title">Insurance Certificate Renewal</div>
+              <span class="badge badge-overdue">Overdue</span>
+            </div>
+            <div class="obligation-meta">
+              <span>GlobalPartners SOW</span>
+              <span>Due: Apr 1, 2026</span>
+            </div>
+            <div style="font-size: 12.5px; color: var(--charcoal-muted);">Provide updated certificate of insurance with minimum $5M professional liability coverage.</div>
+          </div>
+        </div>
+
+        <div class="card-title" style="margin-bottom: 16px; margin-top: 8px;">Upcoming Obligations</div>
+        <div class="obligation-grid">
+          <div class="obligation-card" style="border-left: 3px solid #b8860b;">
+            <div class="obligation-header">
+              <div class="obligation-title">Monthly Performance Report</div>
+              <span class="badge badge-pending">Due in 5 days</span>
+            </div>
+            <div class="obligation-meta">
+              <span>DataPipe License</span>
+              <span>Due: Apr 26, 2026</span>
+            </div>
+          </div>
+          <div class="obligation-card" style="border-left: 3px solid #b8860b;">
+            <div class="obligation-header">
+              <div class="obligation-title">Security Patch Compliance Verification</div>
+              <span class="badge badge-pending">Due in 8 days</span>
+            </div>
+            <div class="obligation-meta">
+              <span>NexGen Cloud SaaS</span>
+              <span>Due: Apr 29, 2026</span>
+            </div>
+          </div>
+          <div class="obligation-card" style="border-left: 3px solid var(--sage);">
+            <div class="obligation-header">
+              <div class="obligation-title">Quarterly Business Review Presentation</div>
+              <span class="badge badge-active">Due in 14 days</span>
+            </div>
+            <div class="obligation-meta">
+              <span>CloudSoft MSA</span>
+              <span>Due: May 5, 2026</span>
+            </div>
+          </div>
+          <div class="obligation-card" style="border-left: 3px solid var(--sage);">
+            <div class="obligation-header">
+              <div class="obligation-title">Subprocessor List Update Notification</div>
+              <span class="badge badge-active">Due in 21 days</span>
+            </div>
+            <div class="obligation-meta">
+              <span>SecureVault DPA</span>
+              <span>Due: May 12, 2026</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: SLA Monitoring -->
+      <div class="tab-content" id="tab-sla">
+        <div style="display: flex; gap: 16px; margin-bottom: 28px;">
+          <div class="stat-card accent-sage" style="flex: 1;">
+            <div class="stat-label">SLAs Monitored</div>
+            <div class="stat-value">34</div>
+          </div>
+          <div class="stat-card accent-terracotta" style="flex: 1;">
+            <div class="stat-label">Active Breaches</div>
+            <div class="stat-value">2</div>
+          </div>
+          <div class="stat-card accent-warm" style="flex: 1;">
+            <div class="stat-label">At Risk</div>
+            <div class="stat-value">5</div>
+          </div>
+        </div>
+
+        <div class="sla-grid">
+          <div class="sla-card">
+            <div class="card-label">Uptime &mdash; DataPipe</div>
+            <div class="sla-value critical">99.82%</div>
+            <div class="sla-target">Target: 99.95% &mdash; <strong style="color: var(--terracotta);">BREACH</strong></div>
+            <div style="margin-top: 12px;">
+              <div class="progress-bar"><div class="progress-fill terracotta" style="width: 82%;"></div></div>
+            </div>
+          </div>
+          <div class="sla-card">
+            <div class="card-label">Response Time &mdash; TechServe</div>
+            <div class="sla-value good">2.1h</div>
+            <div class="sla-target">Target: &le; 4 hours &mdash; Compliant</div>
+            <div style="margin-top: 12px;">
+              <div class="progress-bar"><div class="progress-fill green" style="width: 95%;"></div></div>
+            </div>
+          </div>
+          <div class="sla-card">
+            <div class="card-label">Uptime &mdash; NexGen Cloud</div>
+            <div class="sla-value good">99.98%</div>
+            <div class="sla-target">Target: 99.9% &mdash; Compliant</div>
+            <div style="margin-top: 12px;">
+              <div class="progress-bar"><div class="progress-fill green" style="width: 98%;"></div></div>
+            </div>
+          </div>
+          <div class="sla-card">
+            <div class="card-label">Resolution Time &mdash; CloudSoft</div>
+            <div class="sla-value warning">18.2h</div>
+            <div class="sla-target">Target: &le; 24 hours &mdash; At Risk</div>
+            <div style="margin-top: 12px;">
+              <div class="progress-bar"><div class="progress-fill amber" style="width: 76%;"></div></div>
+            </div>
+          </div>
+          <div class="sla-card">
+            <div class="card-label">Throughput &mdash; DataPipe</div>
+            <div class="sla-value critical">84.3%</div>
+            <div class="sla-target">Target: 95% &mdash; <strong style="color: var(--terracotta);">BREACH</strong></div>
+            <div style="margin-top: 12px;">
+              <div class="progress-bar"><div class="progress-fill terracotta" style="width: 64%;"></div></div>
+            </div>
+          </div>
+          <div class="sla-card">
+            <div class="card-label">Availability &mdash; SecureVault</div>
+            <div class="sla-value good">99.99%</div>
+            <div class="sla-target">Target: 99.9% &mdash; Compliant</div>
+            <div style="margin-top: 12px;">
+              <div class="progress-bar"><div class="progress-fill green" style="width: 100%;"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Risk Overview -->
+      <div class="tab-content" id="tab-risk">
+        <div class="risk-overview-grid" style="margin-bottom: 28px;">
+          <div class="risk-category-card">
+            <div class="risk-category-label">Liability</div>
+            <div class="risk-count high-risk">8</div>
+            <div style="font-size: 11px; color: var(--charcoal-muted);">3 high severity</div>
+          </div>
+          <div class="risk-category-card">
+            <div class="risk-category-label">IP Rights</div>
+            <div class="risk-count med-risk">5</div>
+            <div style="font-size: 11px; color: var(--charcoal-muted);">1 high severity</div>
+          </div>
+          <div class="risk-category-card">
+            <div class="risk-category-label">Termination</div>
+            <div class="risk-count low-risk">3</div>
+            <div style="font-size: 11px; color: var(--charcoal-muted);">0 high severity</div>
+          </div>
+          <div class="risk-category-card">
+            <div class="risk-category-label">Data Privacy</div>
+            <div class="risk-count high-risk">6</div>
+            <div style="font-size: 11px; color: var(--charcoal-muted);">2 high severity</div>
+          </div>
+          <div class="risk-category-card">
+            <div class="risk-category-label">Compliance</div>
+            <div class="risk-count med-risk">4</div>
+            <div style="font-size: 11px; color: var(--charcoal-muted);">1 high severity</div>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <div class="table-header">
+            <div class="table-title">Recent Risk Detections</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Contract</th>
+                <th>Risk Category</th>
+                <th>Severity</th>
+                <th>Description</th>
+                <th>Detected</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Meridian NDA</td>
+                <td>Liability</td>
+                <td><span class="risk-indicator"><span class="risk-dot high"></span> High</span></td>
+                <td>Unlimited indemnification clause with no cap on liability</td>
+                <td>Today</td>
+              </tr>
+              <tr>
+                <td>CloudSoft MSA</td>
+                <td>Data Privacy</td>
+                <td><span class="risk-indicator"><span class="risk-dot high"></span> High</span></td>
+                <td>Missing GDPR data transfer clauses for EU processing</td>
+                <td>Today</td>
+              </tr>
+              <tr>
+                <td>DataPipe License</td>
+                <td>Termination</td>
+                <td><span class="risk-indicator"><span class="risk-dot medium"></span> Medium</span></td>
+                <td>Auto-renewal with 90-day notice, no termination for convenience</td>
+                <td>Yesterday</td>
+              </tr>
+              <tr>
+                <td>GlobalPartners SOW</td>
+                <td>IP Rights</td>
+                <td><span class="risk-indicator"><span class="risk-dot medium"></span> Medium</span></td>
+                <td>Ambiguous work product ownership clause</td>
+                <td>Yesterday</td>
+              </tr>
+              <tr>
+                <td>NexGen Cloud SaaS</td>
+                <td>Compliance</td>
+                <td><span class="risk-indicator"><span class="risk-dot low"></span> Low</span></td>
+                <td>SOC 2 Type II certification expiring in 45 days</td>
+                <td>Apr 19</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         PAGE: RENEWALS
+         =========================================== -->
+    <section class="page" id="page-renewals">
+      <div class="page-header">
+        <div class="page-header-row">
+          <div>
+            <div class="page-title">Renewals</div>
+            <div class="page-subtitle">Monitor upcoming contract renewals, auto-renewal terms, and notice period deadlines.</div>
+          </div>
+          <button class="btn btn-secondary">Export Calendar</button>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card accent-terracotta">
+          <div class="stat-label">Renewing (30 Days)</div>
+          <div class="stat-value">6</div>
+        </div>
+        <div class="stat-card accent-warm">
+          <div class="stat-label">Notice Period Active</div>
+          <div class="stat-value">4</div>
+        </div>
+        <div class="stat-card accent-sage">
+          <div class="stat-label">Auto-Renewal</div>
+          <div class="stat-value">9</div>
+        </div>
+        <div class="stat-card accent-charcoal">
+          <div class="stat-label">Total Renewal Value</div>
+          <div class="stat-value">$4.8M</div>
+        </div>
+      </div>
+
+      <div class="card-title" style="margin-bottom: 18px;">Upcoming Renewals</div>
+      <div class="renewal-timeline">
+        <div class="renewal-card urgent">
+          <div class="renewal-date">Apr 28, 2026 &mdash; 7 days</div>
+          <div class="renewal-name">Enterprise SaaS License</div>
+          <div class="renewal-party">DataPipe Solutions</div>
+          <div class="renewal-details">
+            <div class="renewal-detail-row">
+              <span>Annual Value</span>
+              <span>$840,000</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Auto-Renewal</span>
+              <span><span class="badge badge-auto">Yes</span></span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Notice Period</span>
+              <span style="color: var(--terracotta); font-weight: 700;">60 days (PASSED)</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Term Extension</span>
+              <span>12 months</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="renewal-card urgent">
+          <div class="renewal-date">May 3, 2026 &mdash; 12 days</div>
+          <div class="renewal-name">Managed IT Support</div>
+          <div class="renewal-party">TechServe Pro</div>
+          <div class="renewal-details">
+            <div class="renewal-detail-row">
+              <span>Annual Value</span>
+              <span>$380,000</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Auto-Renewal</span>
+              <span><span class="badge badge-auto">Yes</span></span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Notice Period</span>
+              <span style="color: var(--terracotta); font-weight: 700;">30 days (5 left)</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Term Extension</span>
+              <span>12 months</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="renewal-card upcoming">
+          <div class="renewal-date">May 19, 2026 &mdash; 28 days</div>
+          <div class="renewal-name">Cloud Infrastructure</div>
+          <div class="renewal-party">NexGen Cloud</div>
+          <div class="renewal-details">
+            <div class="renewal-detail-row">
+              <span>Annual Value</span>
+              <span>$1,200,000</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Auto-Renewal</span>
+              <span><span class="badge badge-draft">No</span></span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Notice Period</span>
+              <span>90 days (action required)</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Negotiation</span>
+              <span>In progress</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="renewal-card upcoming">
+          <div class="renewal-date">Jun 15, 2026 &mdash; 55 days</div>
+          <div class="renewal-name">Data Security Vault</div>
+          <div class="renewal-party">SecureVault Corp.</div>
+          <div class="renewal-details">
+            <div class="renewal-detail-row">
+              <span>Annual Value</span>
+              <span>$290,000</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Auto-Renewal</span>
+              <span><span class="badge badge-auto">Yes</span></span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Notice Period</span>
+              <span>60 days (due Apr 16)</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Term Extension</span>
+              <span>24 months</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="renewal-card safe">
+          <div class="renewal-date">Jul 30, 2026 &mdash; 100 days</div>
+          <div class="renewal-name">Marketing Services</div>
+          <div class="renewal-party">BrightWave Agency</div>
+          <div class="renewal-details">
+            <div class="renewal-detail-row">
+              <span>Annual Value</span>
+              <span>$210,000</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Auto-Renewal</span>
+              <span><span class="badge badge-draft">No</span></span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Notice Period</span>
+              <span>30 days</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Status</span>
+              <span>Under evaluation</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="renewal-card safe">
+          <div class="renewal-date">Sep 1, 2026 &mdash; 133 days</div>
+          <div class="renewal-name">Consulting Framework</div>
+          <div class="renewal-party">StrategicAdvisors LLC</div>
+          <div class="renewal-details">
+            <div class="renewal-detail-row">
+              <span>Annual Value</span>
+              <span>$720,000</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Auto-Renewal</span>
+              <span><span class="badge badge-auto">Yes</span></span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Notice Period</span>
+              <span>90 days (due Jun 3)</span>
+            </div>
+            <div class="renewal-detail-row">
+              <span>Term Extension</span>
+              <span>12 months</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         PAGE: VENDORS
+         =========================================== -->
+    <section class="page" id="page-vendors">
+      <div class="page-header">
+        <div class="page-header-row">
+          <div>
+            <div class="page-title">Vendors</div>
+            <div class="page-subtitle">Evaluate vendor relationships through contract value, risk exposure, and relationship health metrics.</div>
+          </div>
+          <button class="btn btn-primary">+ Add Vendor</button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="search-wrapper">
+          <span class="search-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="5"/><line x1="10" y1="10" x2="15" y2="15"/></svg>
+          </span>
+          <input type="text" class="search-input" placeholder="Search vendors..." style="padding-left: 38px;">
+        </div>
+        <button class="filter-btn active">All Vendors</button>
+        <button class="filter-btn">Strategic</button>
+        <button class="filter-btn">At Risk</button>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th>Contracts</th>
+              <th>Total Value</th>
+              <th>Risk Score</th>
+              <th>Relationship Health</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>CloudSoft Inc.</td>
+              <td>4</td>
+              <td>$3,200,000</td>
+              <td><span class="risk-indicator"><span class="risk-dot low"></span> Low</span></td>
+              <td>
+                <div class="health-bar-cell">
+                  <div class="health-bar-track"><div class="health-bar-fill" style="width: 92%; background: var(--sage);"></div></div>
+                  <span class="health-bar-label" style="color: var(--sage);">92</span>
+                </div>
+              </td>
+              <td><span class="badge badge-active">Strategic</span></td>
+            </tr>
+            <tr>
+              <td>DataPipe Solutions</td>
+              <td>2</td>
+              <td>$1,680,000</td>
+              <td><span class="risk-indicator"><span class="risk-dot high"></span> High</span></td>
+              <td>
+                <div class="health-bar-cell">
+                  <div class="health-bar-track"><div class="health-bar-fill" style="width: 58%; background: var(--terracotta);"></div></div>
+                  <span class="health-bar-label" style="color: var(--terracotta);">58</span>
+                </div>
+              </td>
+              <td><span class="badge badge-review">Under Review</span></td>
+            </tr>
+            <tr>
+              <td>NexGen Cloud</td>
+              <td>3</td>
+              <td>$2,100,000</td>
+              <td><span class="risk-indicator"><span class="risk-dot low"></span> Low</span></td>
+              <td>
+                <div class="health-bar-cell">
+                  <div class="health-bar-track"><div class="health-bar-fill" style="width: 88%; background: var(--sage);"></div></div>
+                  <span class="health-bar-label" style="color: var(--sage);">88</span>
+                </div>
+              </td>
+              <td><span class="badge badge-active">Strategic</span></td>
+            </tr>
+            <tr>
+              <td>Meridian Analytics</td>
+              <td>1</td>
+              <td>$320,000</td>
+              <td><span class="risk-indicator"><span class="risk-dot high"></span> High</span></td>
+              <td>
+                <div class="health-bar-cell">
+                  <div class="health-bar-track"><div class="health-bar-fill" style="width: 45%; background: var(--terracotta);"></div></div>
+                  <span class="health-bar-label" style="color: var(--terracotta);">45</span>
+                </div>
+              </td>
+              <td><span class="badge badge-review">Under Review</span></td>
+            </tr>
+            <tr>
+              <td>GlobalPartners Ltd.</td>
+              <td>2</td>
+              <td>$890,000</td>
+              <td><span class="risk-indicator"><span class="risk-dot medium"></span> Medium</span></td>
+              <td>
+                <div class="health-bar-cell">
+                  <div class="health-bar-track"><div class="health-bar-fill" style="width: 74%; background: #b8860b;"></div></div>
+                  <span class="health-bar-label" style="color: #b8860b;">74</span>
+                </div>
+              </td>
+              <td><span class="badge badge-active">Active</span></td>
+            </tr>
+            <tr>
+              <td>TechServe Pro</td>
+              <td>3</td>
+              <td>$580,000</td>
+              <td><span class="risk-indicator"><span class="risk-dot low"></span> Low</span></td>
+              <td>
+                <div class="health-bar-cell">
+                  <div class="health-bar-track"><div class="health-bar-fill" style="width: 85%; background: var(--sage);"></div></div>
+                  <span class="health-bar-label" style="color: var(--sage);">85</span>
+                </div>
+              </td>
+              <td><span class="badge badge-active">Active</span></td>
+            </tr>
+            <tr>
+              <td>SecureVault Corp.</td>
+              <td>2</td>
+              <td>$520,000</td>
+              <td><span class="risk-indicator"><span class="risk-dot medium"></span> Medium</span></td>
+              <td>
+                <div class="health-bar-cell">
+                  <div class="health-bar-track"><div class="health-bar-fill" style="width: 71%; background: #b8860b;"></div></div>
+                  <span class="health-bar-label" style="color: #b8860b;">71</span>
+                </div>
+              </td>
+              <td><span class="badge badge-active">Active</span></td>
+            </tr>
+            <tr>
+              <td>BrightWave Agency</td>
+              <td>1</td>
+              <td>$210,000</td>
+              <td><span class="risk-indicator"><span class="risk-dot low"></span> Low</span></td>
+              <td>
+                <div class="health-bar-cell">
+                  <div class="health-bar-track"><div class="health-bar-fill" style="width: 80%; background: var(--sage);"></div></div>
+                  <span class="health-bar-label" style="color: var(--sage);">80</span>
+                </div>
+              </td>
+              <td><span class="badge badge-expired">Expired</span></td>
+            </tr>
+            <tr>
+              <td>PrimeAsset Leasing</td>
+              <td>1</td>
+              <td>$95,000</td>
+              <td><span class="risk-indicator"><span class="risk-dot low"></span> Low</span></td>
+              <td>
+                <div class="health-bar-cell">
+                  <div class="health-bar-track"><div class="health-bar-fill" style="width: 90%; background: var(--sage);"></div></div>
+                  <span class="health-bar-label" style="color: var(--sage);">90</span>
+                </div>
+              </td>
+              <td><span class="badge badge-active">Active</span></td>
+            </tr>
+            <tr>
+              <td>StrategicAdvisors LLC</td>
+              <td>2</td>
+              <td>$960,000</td>
+              <td><span class="risk-indicator"><span class="risk-dot medium"></span> Medium</span></td>
+              <td>
+                <div class="health-bar-cell">
+                  <div class="health-bar-track"><div class="health-bar-fill" style="width: 68%; background: #b8860b;"></div></div>
+                  <span class="health-bar-label" style="color: #b8860b;">68</span>
+                </div>
+              </td>
+              <td><span class="badge badge-draft">Onboarding</span></td>
+            </tr>
+            <tr>
+              <td>OracleWise Systems</td>
+              <td>1</td>
+              <td>$450,000</td>
+              <td><span class="risk-indicator"><span class="risk-dot medium"></span> Medium</span></td>
+              <td>
+                <div class="health-bar-cell">
+                  <div class="health-bar-track"><div class="health-bar-fill" style="width: 63%; background: #b8860b;"></div></div>
+                  <span class="health-bar-label" style="color: #b8860b;">63</span>
+                </div>
+              </td>
+              <td><span class="badge badge-pending">Pending</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         PAGE: GOVERNANCE
+         =========================================== -->
+    <section class="page" id="page-governance">
+      <div class="page-header">
+        <div class="page-title">Governance</div>
+        <div class="page-subtitle">Relationship health scoring and perception gap analysis. Understand how your partners perceive the relationship versus your own assessment.</div>
+      </div>
+
+      <div class="gap-legend">
+        <div class="gap-legend-item">
+          <div class="gap-legend-swatch self"></div>
+          <span>Self Assessment</span>
+        </div>
+        <div class="gap-legend-item">
+          <div class="gap-legend-swatch partner"></div>
+          <span>Partner Perception</span>
+        </div>
+      </div>
+
+      <div class="relationship-grid">
+        <!-- Relationship 1 -->
+        <div class="relationship-card">
+          <div class="relationship-header">
+            <div>
+              <div class="relationship-name">CloudSoft Inc.</div>
+              <div class="relationship-type">Strategic Technology Partner</div>
+            </div>
+            <div class="health-score high">87</div>
+          </div>
+          <div class="gap-analysis">
+            <div class="gap-row">
+              <span class="gap-label">Communication</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 88%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 82%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">88</span><span class="sep">/</span><span class="partner">82</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Delivery</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 92%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 90%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">92</span><span class="sep">/</span><span class="partner">90</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Value</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 85%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 78%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">85</span><span class="sep">/</span><span class="partner">78</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Innovation</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 80%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 85%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">80</span><span class="sep">/</span><span class="partner">85</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="improvement-list">
+            <div class="improvement-item">
+              <span class="improvement-status done">&#10003;</span>
+              Quarterly executive alignment sessions established
+            </div>
+            <div class="improvement-item">
+              <span class="improvement-status in-progress">&#9679;</span>
+              Joint innovation workshop scheduled for Q3
+            </div>
+          </div>
+        </div>
+
+        <!-- Relationship 2 -->
+        <div class="relationship-card">
+          <div class="relationship-header">
+            <div>
+              <div class="relationship-name">DataPipe Solutions</div>
+              <div class="relationship-type">Technology Vendor</div>
+            </div>
+            <div class="health-score low">54</div>
+          </div>
+          <div class="gap-analysis">
+            <div class="gap-row">
+              <span class="gap-label">Communication</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 62%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 45%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">62</span><span class="sep">/</span><span class="partner">45</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Delivery</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 48%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 52%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">48</span><span class="sep">/</span><span class="partner">52</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Value</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 55%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 40%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">55</span><span class="sep">/</span><span class="partner">40</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Innovation</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 50%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 38%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">50</span><span class="sep">/</span><span class="partner">38</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="improvement-list">
+            <div class="improvement-item">
+              <span class="improvement-status pending">!</span>
+              Escalation meeting with VP Engineering required
+            </div>
+            <div class="improvement-item">
+              <span class="improvement-status pending">!</span>
+              SLA remediation plan overdue by 14 days
+            </div>
+            <div class="improvement-item">
+              <span class="improvement-status in-progress">&#9679;</span>
+              Alternative vendor evaluation in progress
+            </div>
+          </div>
+        </div>
+
+        <!-- Relationship 3 -->
+        <div class="relationship-card">
+          <div class="relationship-header">
+            <div>
+              <div class="relationship-name">NexGen Cloud</div>
+              <div class="relationship-type">Infrastructure Partner</div>
+            </div>
+            <div class="health-score high">85</div>
+          </div>
+          <div class="gap-analysis">
+            <div class="gap-row">
+              <span class="gap-label">Communication</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 90%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 84%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">90</span><span class="sep">/</span><span class="partner">84</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Delivery</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 86%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 88%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">86</span><span class="sep">/</span><span class="partner">88</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Value</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 82%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 80%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">82</span><span class="sep">/</span><span class="partner">80</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Innovation</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 78%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 82%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">78</span><span class="sep">/</span><span class="partner">82</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="improvement-list">
+            <div class="improvement-item">
+              <span class="improvement-status done">&#10003;</span>
+              Migrated 80% of workloads to multi-region setup
+            </div>
+            <div class="improvement-item">
+              <span class="improvement-status done">&#10003;</span>
+              Monthly cost optimization reviews initiated
+            </div>
+          </div>
+        </div>
+
+        <!-- Relationship 4 -->
+        <div class="relationship-card">
+          <div class="relationship-header">
+            <div>
+              <div class="relationship-name">GlobalPartners Ltd.</div>
+              <div class="relationship-type">Professional Services</div>
+            </div>
+            <div class="health-score medium">72</div>
+          </div>
+          <div class="gap-analysis">
+            <div class="gap-row">
+              <span class="gap-label">Communication</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 75%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 68%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">75</span><span class="sep">/</span><span class="partner">68</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Delivery</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 70%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 72%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">70</span><span class="sep">/</span><span class="partner">72</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Value</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 68%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 60%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">68</span><span class="sep">/</span><span class="partner">60</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Innovation</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 72%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 65%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">72</span><span class="sep">/</span><span class="partner">65</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="improvement-list">
+            <div class="improvement-item">
+              <span class="improvement-status in-progress">&#9679;</span>
+              Renegotiating statement of work scope definitions
+            </div>
+            <div class="improvement-item">
+              <span class="improvement-status pending">!</span>
+              IP ownership clause clarification pending legal review
+            </div>
+          </div>
+        </div>
+
+        <!-- Relationship 5 -->
+        <div class="relationship-card">
+          <div class="relationship-header">
+            <div>
+              <div class="relationship-name">StrategicAdvisors LLC</div>
+              <div class="relationship-type">Management Consulting</div>
+            </div>
+            <div class="health-score medium">68</div>
+          </div>
+          <div class="gap-analysis">
+            <div class="gap-row">
+              <span class="gap-label">Communication</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 72%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 78%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">72</span><span class="sep">/</span><span class="partner">78</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Delivery</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 65%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 70%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">65</span><span class="sep">/</span><span class="partner">70</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Value</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 60%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 55%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">60</span><span class="sep">/</span><span class="partner">55</span></div>
+              </div>
+            </div>
+            <div class="gap-row">
+              <span class="gap-label">Innovation</span>
+              <div class="gap-bar-container">
+                <div class="gap-bar">
+                  <div class="gap-bar-self" style="width: 70%; left: 0;"></div>
+                  <div class="gap-bar-partner" style="width: 62%; left: 0;"></div>
+                </div>
+                <div class="gap-scores"><span class="self">70</span><span class="sep">/</span><span class="partner">62</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="improvement-list">
+            <div class="improvement-item">
+              <span class="improvement-status in-progress">&#9679;</span>
+              Formalizing KPI framework for consulting engagements
+            </div>
+            <div class="improvement-item">
+              <span class="improvement-status done">&#10003;</span>
+              Bi-weekly status reporting cadence established
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===========================================
+         PAGE: ASK AI
+         =========================================== -->
+    <section class="page" id="page-askai">
+      <div class="page-header">
+        <div class="page-title">Ask AI</div>
+        <div class="page-subtitle">Query your contract portfolio using natural language. Powered by RAG with full contract context.</div>
+      </div>
+
+      <div class="chat-container">
+        <div class="chat-messages">
+          <!-- User Message 1 -->
+          <div class="chat-message">
+            <div class="chat-avatar user">JM</div>
+            <div class="chat-bubble">
+              <div class="chat-bubble-header">James Mitchell &mdash; just now</div>
+              <div class="chat-bubble-content">
+                <p>What are our total exposure and key risks with DataPipe Solutions? Include SLA performance and any upcoming obligations.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Response 1 -->
+          <div class="chat-message">
+            <div class="chat-avatar ai">E</div>
+            <div class="chat-bubble">
+              <div class="chat-bubble-header">Evaluetor AI &mdash; just now</div>
+              <div class="chat-bubble-content">
+                <p>Here is a comprehensive analysis of your relationship with <strong>DataPipe Solutions</strong>:</p>
+
+                <div class="ai-section">
+                  <div class="ai-section-title">Financial Exposure</div>
+                  <p>Total contract value across 2 active agreements: <strong>$1,680,000 annually</strong>. This represents approximately 16.4% of your total vendor spend. The Enterprise SaaS License <span class="reference">ENT-2024-0847</span> accounts for $840,000 and auto-renews on May 19, 2026.</p>
+                </div>
+
+                <div class="ai-section">
+                  <div class="ai-section-title">SLA Performance</div>
+                  <ul>
+                    <li><strong>Uptime SLA:</strong> Currently at 99.82% against a 99.95% target &mdash; this is an <strong>active breach</strong> since March 28. Penalty clause triggers at $4,200/day. <span class="reference">Clause 7.2(a)</span></li>
+                    <li><strong>Throughput SLA:</strong> At 84.3% vs 95% target &mdash; second consecutive month in breach. Estimated penalty exposure: $126,000 if unresolved. <span class="reference">Clause 7.4(b)</span></li>
+                    <li><strong>Response Time:</strong> Within acceptable range at 3.2 hours vs 4-hour target.</li>
+                  </ul>
+                </div>
+
+                <div class="ai-section">
+                  <div class="ai-section-title">Key Risks Identified</div>
+                  <ul>
+                    <li><strong>Auto-renewal lock-in:</strong> 60-day notice period has already passed. The license will auto-renew for 12 months on May 19, 2026 unless an exception is negotiated. <span class="reference">Section 12.3</span></li>
+                    <li><strong>Termination for cause:</strong> Current SLA breaches may constitute grounds for termination under Section 14.1, subject to a 30-day cure period.</li>
+                    <li><strong>Data portability:</strong> No explicit data export clause. Migration risk is high if relationship is terminated.</li>
+                  </ul>
+                </div>
+
+                <div class="ai-section">
+                  <div class="ai-section-title">Upcoming Obligations</div>
+                  <ul>
+                    <li><strong>Apr 26:</strong> Monthly performance report submission due</li>
+                    <li><strong>May 1:</strong> Q2 security compliance attestation</li>
+                    <li><strong>May 19:</strong> Auto-renewal date (action window closed)</li>
+                  </ul>
+                </div>
+
+                <p><strong>Recommendation:</strong> Given the persistent SLA breaches and missed notice period, I recommend scheduling an executive escalation meeting to negotiate remediation terms and explore data portability guarantees before the renewal locks in.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Message 2 -->
+          <div class="chat-message">
+            <div class="chat-avatar user">JM</div>
+            <div class="chat-bubble">
+              <div class="chat-bubble-header">James Mitchell &mdash; just now</div>
+              <div class="chat-bubble-content">
+                <p>Which contracts have unlimited liability clauses and what's the recommended remediation?</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Response 2 -->
+          <div class="chat-message">
+            <div class="chat-avatar ai">E</div>
+            <div class="chat-bubble">
+              <div class="chat-bubble-header">Evaluetor AI &mdash; just now</div>
+              <div class="chat-bubble-content">
+                <p>I found <strong>3 contracts</strong> with unlimited or uncapped liability provisions:</p>
+
+                <div class="ai-section">
+                  <div class="ai-section-title">Contracts with Unlimited Liability</div>
+                  <ul>
+                    <li><strong>Meridian Analytics NDA</strong> <span class="reference">NDA-2025-1204</span> &mdash; Section 8.1 contains a mutual unlimited indemnification clause with no aggregate cap. Severity: <strong>High</strong></li>
+                    <li><strong>GlobalPartners SOW</strong> <span class="reference">SOW-2025-0923</span> &mdash; Section 11.2(c) has an uncapped consequential damages provision favoring the counterparty. Severity: <strong>High</strong></li>
+                    <li><strong>BrightWave Agency Services</strong> <span class="reference">SVC-2024-0612</span> &mdash; Section 9.4 waives limitation of liability for IP infringement claims without a cap. Severity: <strong>Medium</strong> (contract expired)</li>
+                  </ul>
+                </div>
+
+                <div class="ai-section">
+                  <div class="ai-section-title">Recommended Remediation</div>
+                  <p>For active contracts, negotiate liability caps at 2x annual contract value for general indemnification and 5x for IP/confidentiality breaches. The Meridian NDA should be prioritized as it is currently under review and can be amended before execution.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <input type="text" class="chat-input" placeholder="Ask anything about your contracts...">
+          <button class="btn btn-primary">Send</button>
+        </div>
+
+        <div class="chat-suggestions">
+          <div class="chat-suggestion">What contracts expire in the next 90 days?</div>
+          <div class="chat-suggestion">Summarize all active NDAs</div>
+          <div class="chat-suggestion">Which vendors have the highest risk?</div>
+          <div class="chat-suggestion">Show me all auto-renewal contracts</div>
+          <div class="chat-suggestion">Compare our MSA terms across vendors</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+(function() {
+  var navItems = document.querySelectorAll('.nav-item[data-page]');
+  var pages = document.querySelectorAll('.page');
+
+  function switchPage(pageId) {
+    navItems.forEach(function(item) {
+      if (item.dataset.page === pageId) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+
+    pages.forEach(function(page) {
+      if (page.id === 'page-' + pageId) {
+        page.classList.add('active');
+        page.style.animation = 'none';
+        page.offsetHeight;
+        page.style.animation = '';
+      } else {
+        page.classList.remove('active');
+      }
+    });
+
+    document.querySelector('.main-content').scrollTop = 0;
+  }
+
+  navItems.forEach(function(item) {
+    item.addEventListener('click', function() {
+      switchPage(this.dataset.page);
+    });
+  });
+
+  /* =========================================================
+     TABS (Compliance page)
+     ========================================================= */
+  var tabItems = document.querySelectorAll('.tab-item[data-tab]');
+  var tabContents = document.querySelectorAll('.tab-content');
+
+  tabItems.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      var tabGroup = this.closest('.tab-bar');
+      var targetId = 'tab-' + this.dataset.tab;
+
+      tabGroup.querySelectorAll('.tab-item').forEach(function(t) {
+        t.classList.remove('active');
+      });
+      this.classList.add('active');
+
+      tabContents.forEach(function(content) {
+        if (content.id === targetId) {
+          content.classList.add('active');
+        } else {
+          content.classList.remove('active');
+        }
+      });
+    });
+  });
+
+  /* =========================================================
+     FILTER BUTTONS (Contracts / Vendors)
+     ========================================================= */
+  document.querySelectorAll('.filter-bar').forEach(function(bar) {
+    var buttons = bar.querySelectorAll('.filter-btn');
+    buttons.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        buttons.forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+      });
+    });
+  });
+
+  /* =========================================================
+     CHAT SUGGESTIONS
+     ========================================================= */
+  document.querySelectorAll('.chat-suggestion').forEach(function(suggestion) {
+    suggestion.addEventListener('click', function() {
+      var input = document.querySelector('.chat-input');
+      if (input) {
+        input.value = this.textContent;
+        input.focus();
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

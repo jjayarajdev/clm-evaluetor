@@ -8,6 +8,8 @@ export interface BusinessUnit {
   description?: string
   parent_id?: string
   head_user_id?: string
+  industry_profile_id?: string
+  effective_profile_name?: string
   is_active: boolean
   created_at: string
   updated_at: string
@@ -20,6 +22,8 @@ export interface BusinessUnitTree {
   description?: string
   is_active: boolean
   head_user_id?: string
+  industry_profile_id?: string
+  effective_profile_name?: string
   children: BusinessUnitTree[]
 }
 
@@ -29,6 +33,7 @@ export interface BusinessUnitCreate {
   description?: string
   parent_id?: string
   head_user_id?: string
+  industry_profile_id?: string
 }
 
 export interface BusinessUnitUpdate {
@@ -37,6 +42,7 @@ export interface BusinessUnitUpdate {
   description?: string
   parent_id?: string
   head_user_id?: string
+  industry_profile_id?: string
   is_active?: boolean
 }
 

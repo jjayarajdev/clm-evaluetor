@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Action Items Panel — Evaluetor CLM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-app: #0f1117;
+    --bg-panel: #181b23;
+    --bg-card: #1e2230;
+    --bg-card-hover: #252a3a;
+    --border: #2a2f3e;
+    --border-light: #353b4f;
+    --text-primary: #e8eaf0;
+    --text-secondary: #8b90a0;
+    --text-muted: #5c6175;
+    --critical: #ff4d6a;
+    --critical-bg: rgba(255,77,106,0.08);
+    --critical-border: rgba(255,77,106,0.25);
+    --high: #ff9f43;
+    --high-bg: rgba(255,159,67,0.08);
+    --high-border: rgba(255,159,67,0.25);
+    --medium: #3b82f6;
+    --medium-bg: rgba(59,130,246,0.08);
+    --medium-border: rgba(59,130,246,0.2);
+    --low: #34d399;
+    --low-bg: rgba(52,211,153,0.06);
+    --low-border: rgba(52,211,153,0.2);
+    --accent: #818cf8;
+    --font-display: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-app);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    min-height: 100vh;
+    padding: 40px 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mockup-header {
+    max-width: 1100px;
+    margin: 0 auto 32px;
+    text-align: center;
+  }
+  .mockup-header h1 {
+    font-size: 13px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .mockup-header p {
+    font-size: 14px;
+    color: var(--text-muted);
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Role Tabs */
+  .role-tabs {
+    display: flex;
+    gap: 4px;
+    max-width: 1100px;
+    margin: 0 auto 24px;
+    background: var(--bg-panel);
+    border-radius: 12px;
+    padding: 4px;
+    border: 1px solid var(--border);
+  }
+  .role-tab {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 9px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+  }
+  .role-tab:hover { color: var(--text-primary); background: var(--bg-card); }
+  .role-tab.active {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .role-tab .tab-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: var(--critical);
+    color: #fff;
+    line-height: 1.3;
+  }
+  .role-tab .tab-icon {
+    width: 16px; height: 16px;
+    opacity: 0.6;
+  }
+  .role-tab.active .tab-icon { opacity: 1; }
+
+  /* Panel Container */
+  .panel-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: none;
+  }
+  .panel-container.active { display: block; }
+
+  /* Summary Strip */
+  .summary-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .summary-cell {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+    animation: cellIn 0.4s ease backwards;
+  }
+  .summary-cell::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 3px;
+  }
+  .summary-cell.critical::before { background: var(--critical); }
+  .summary-cell.high::before { background: var(--high); }
+  .summary-cell.medium::before { background: var(--medium); }
+  .summary-cell.low::before { background: var(--low); }
+
+  .summary-cell .count {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .summary-cell.critical .count { color: var(--critical); }
+  .summary-cell.high .count { color: var(--high); }
+  .summary-cell.medium .count { color: var(--medium); }
+  .summary-cell.low .count { color: var(--low); }
+
+  .summary-cell .label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+  }
+
+  /* Section Headers */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 28px 0 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-header:first-of-type { margin-top: 0; }
+  .section-header .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .section-header .dot.critical { background: var(--critical); box-shadow: 0 0 8px var(--critical); }
+  .section-header .dot.high { background: var(--high); box-shadow: 0 0 8px rgba(255,159,67,0.5); }
+  .section-header .dot.medium { background: var(--medium); }
+  .section-header .dot.low { background: var(--low); }
+  .section-header h3 {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-secondary);
+    flex: 1;
+  }
+  .section-header .section-count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  /* Action Items */
+  .action-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .action-item {
+    display: grid;
+    grid-template-columns: 4px 1fr auto;
+    gap: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    animation: itemIn 0.35s ease backwards;
+  }
+  .action-item:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-light);
+    transform: translateX(3px);
+    box-shadow: -3px 0 12px rgba(0,0,0,0.15);
+  }
+
+  .action-item .severity-bar {
+    width: 4px;
+    min-height: 100%;
+  }
+  .action-item.critical .severity-bar { background: var(--critical); }
+  .action-item.high .severity-bar { background: var(--high); }
+  .action-item.medium .severity-bar { background: var(--medium); }
+  .action-item.low .severity-bar { background: var(--low); }
+
+  .action-item .content {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .action-item .content .top-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .action-item .content .title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+    flex: 1;
+  }
+  .action-item .content .category-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .action-item.critical .category-tag { background: var(--critical-bg); color: var(--critical); border: 1px solid var(--critical-border); }
+  .action-item.high .category-tag { background: var(--high-bg); color: var(--high); border: 1px solid var(--high-border); }
+  .action-item.medium .category-tag { background: var(--medium-bg); color: var(--medium); border: 1px solid var(--medium-border); }
+  .action-item.low .category-tag { background: var(--low-bg); color: var(--low); border: 1px solid var(--low-border); }
+
+  .action-item .content .description {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .action-item .content .meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 2px;
+  }
+  .action-item .content .meta span {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .action-item .content .meta .due-urgent { color: var(--critical); font-weight: 600; }
+  .action-item .content .meta .due-soon { color: var(--high); font-weight: 600; }
+  .action-item .content .meta svg { width: 12px; height: 12px; }
+
+  .action-item .arrow-col {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    color: var(--text-muted);
+    transition: color 0.18s;
+  }
+  .action-item:hover .arrow-col { color: var(--accent); }
+  .action-item .arrow-col svg { width: 16px; height: 16px; }
+
+  /* Pulse animation for critical items */
+  .action-item.critical {
+    border-color: var(--critical-border);
+    background: linear-gradient(135deg, var(--bg-card) 0%, var(--critical-bg) 100%);
+  }
+
+  /* Animations */
+  @keyframes cellIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes itemIn {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Role label */
+  .role-context {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: rgba(129,140,248,0.06);
+    border: 1px solid rgba(129,140,248,0.15);
+    border-radius: 10px;
+  }
+  .role-context .avatar {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .role-context .info .name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .role-context .info .role-label {
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .role-context .timestamp {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* Empty state */
+  .empty-note {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* Footer note */
+  .footer-note {
+    max-width: 1100px;
+    margin: 40px auto 0;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.5px;
+  }
+
+  @media (max-width: 768px) {
+    .summary-strip { grid-template-columns: repeat(2, 1fr); }
+    .role-tabs { flex-wrap: wrap; }
+    body { padding: 20px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="mockup-header">
+  <h1>Action Items Panel</h1>
+  <p>Role-specific, priority-ranked actions derived from contract data. Switch roles to see how each user's view differs.</p>
+</div>
+
+<!-- Role Tabs -->
+<div class="role-tabs">
+  <button class="role-tab active" onclick="switchRole('admin')">
+    <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+    Admin
+    <span class="tab-badge">7</span>
+  </button>
+  <button class="role-tab" onclick="switchRole('legal')">
+    <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l3 9a5.002 5.002 0 01-6.001 0M18 7l-3 9m-3-9l6-2M12 5V3"/></svg>
+    Legal
+    <span class="tab-badge">5</span>
+  </button>
+  <button class="role-tab" onclick="switchRole('procurement')">
+    <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+    Procurement
+    <span class="tab-badge" style="background:var(--high)">4</span>
+  </button>
+  <button class="role-tab" onclick="switchRole('viewer')">
+    <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+    Viewer
+    <span class="tab-badge" style="background:var(--medium)">2</span>
+  </button>
+</div>
+
+<!-- ==================== ADMIN PANEL ==================== -->
+<div class="panel-container active" id="panel-admin">
+  <div class="role-context">
+    <div class="avatar" style="background:linear-gradient(135deg,#6366f1,#818cf8)">AD</div>
+    <div class="info">
+      <div class="name">Admin User</div>
+      <div class="role-label">System Administrator &middot; Acme Corp</div>
+    </div>
+    <div class="timestamp">Updated 2 min ago</div>
+  </div>
+
+  <div class="summary-strip">
+    <div class="summary-cell critical" style="animation-delay:0s"><div class="count">2</div><div class="label">Critical</div></div>
+    <div class="summary-cell high" style="animation-delay:0.06s"><div class="count">3</div><div class="label">High</div></div>
+    <div class="summary-cell medium" style="animation-delay:0.12s"><div class="count">1</div><div class="label">Medium</div></div>
+    <div class="summary-cell low" style="animation-delay:0.18s"><div class="count">1</div><div class="label">Low</div></div>
+  </div>
+
+  <div class="section-header"><div class="dot critical"></div><h3>Critical</h3><span class="section-count">2 items</span></div>
+  <div class="action-list">
+    <div class="action-item critical" style="animation-delay:0.1s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">SLA Breach: Uptime SLA dropped below 99.5% — CloudSoft License Agreement</div>
+          <div class="category-tag">SLA</div>
+        </div>
+        <div class="description">Current uptime at 98.2%, breaching the 99.5% target for 3 consecutive days. Penalty clause may trigger $25,000 credit.</div>
+        <div class="meta">
+          <span class="due-urgent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Escalate today</span>
+          <span>CloudSoft &rarr; Acme Corp</span>
+          <span>Contract #CLM-2025-0147</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+    <div class="action-item critical" style="animation-delay:0.15s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">3 Overdue Obligations — Acme/GlobalPartners NDA</div>
+          <div class="category-tag">Obligation</div>
+        </div>
+        <div class="description">Data destruction certificate, confidentiality training attestation, and quarterly audit report are all past due by 12+ days.</div>
+        <div class="meta">
+          <span class="due-urgent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>12 days overdue</span>
+          <span>GlobalPartners NDA</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+
+  <div class="section-header"><div class="dot high"></div><h3>High Priority</h3><span class="section-count">3 items</span></div>
+  <div class="action-list">
+    <div class="action-item high" style="animation-delay:0.2s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">Auto-Renewal in 28 days — TechVendor MSA ($1.2M annual)</div>
+          <div class="category-tag">Renewal</div>
+        </div>
+        <div class="description">30-day notice window closes May 20. If no action, contract auto-renews for 12 months at current terms.</div>
+        <div class="meta">
+          <span class="due-soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Due May 20</span>
+          <span>$1,200,000/yr</span>
+          <span>TechVendor MSA</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+    <div class="action-item high" style="animation-delay:0.25s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">Extraction Failed — CareerSource MSA upload requires re-processing</div>
+          <div class="category-tag">System</div>
+        </div>
+        <div class="description">AI extraction completed only 60% of clauses. PDF quality score: 0.45. Consider re-uploading a cleaner scan.</div>
+        <div class="meta">
+          <span>Uploaded 2 hours ago</span>
+          <span>CareerSource MSA</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+    <div class="action-item high" style="animation-delay:0.3s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">5 Contracts expiring within 30 days without renewal decision</div>
+          <div class="category-tag">Renewal</div>
+        </div>
+        <div class="description">Combined value: $3.4M. Includes 2 vendor agreements and 3 service contracts pending stakeholder review.</div>
+        <div class="meta">
+          <span class="due-soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Earliest: May 12</span>
+          <span>5 contracts</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+
+  <div class="section-header"><div class="dot medium"></div><h3>Medium</h3><span class="section-count">1 item</span></div>
+  <div class="action-list">
+    <div class="action-item medium" style="animation-delay:0.35s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">KPI Score Alert — Strategic Advisors relationship dropped below 70%</div>
+          <div class="category-tag">Governance</div>
+        </div>
+        <div class="description">Perception score fell from 78% to 64% this quarter. 3 survey responses flagged "poor communication" as primary concern.</div>
+        <div class="meta">
+          <span>Last survey: Apr 15</span>
+          <span>StrategicAdvisors Consulting</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+
+  <div class="section-header"><div class="dot low"></div><h3>Low</h3><span class="section-count">1 item</span></div>
+  <div class="action-list">
+    <div class="action-item low" style="animation-delay:0.4s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">Quarterly compliance report ready for review</div>
+          <div class="category-tag">Report</div>
+        </div>
+        <div class="description">Q1 2026 compliance summary generated. 94% obligation fulfillment rate, 3 minor findings.</div>
+        <div class="meta">
+          <span>Generated today</span>
+          <span>All contracts</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== LEGAL PANEL ==================== -->
+<div class="panel-container" id="panel-legal">
+  <div class="role-context">
+    <div class="avatar" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8)">LG</div>
+    <div class="info">
+      <div class="name">Legal User</div>
+      <div class="role-label">Legal Counsel &middot; Acme Corp</div>
+    </div>
+    <div class="timestamp">Updated 5 min ago</div>
+  </div>
+
+  <div class="summary-strip">
+    <div class="summary-cell critical"><div class="count">1</div><div class="label">Critical</div></div>
+    <div class="summary-cell high" style="animation-delay:0.06s"><div class="count">2</div><div class="label">High</div></div>
+    <div class="summary-cell medium" style="animation-delay:0.12s"><div class="count">1</div><div class="label">Medium</div></div>
+    <div class="summary-cell low" style="animation-delay:0.18s"><div class="count">1</div><div class="label">Low</div></div>
+  </div>
+
+  <div class="section-header"><div class="dot critical"></div><h3>Critical</h3><span class="section-count">1 item</span></div>
+  <div class="action-list">
+    <div class="action-item critical" style="animation-delay:0.1s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">Unlimited Liability detected — TechVendor MSA lacks liability cap</div>
+          <div class="category-tag">Risk</div>
+        </div>
+        <div class="description">AI flagged Section 8.2 as containing unlimited indemnification with no aggregate cap. Standard policy requires caps at 2x annual contract value.</div>
+        <div class="meta">
+          <span class="due-urgent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Review immediately</span>
+          <span>TechVendor MSA &middot; Section 8.2</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+
+  <div class="section-header"><div class="dot high"></div><h3>High Priority</h3><span class="section-count">2 items</span></div>
+  <div class="action-list">
+    <div class="action-item high" style="animation-delay:0.15s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">Missing Termination Clause — Rodriguez Employment Agreement</div>
+          <div class="category-tag">Clause</div>
+        </div>
+        <div class="description">No termination-for-convenience clause found. Contract only has termination-for-cause (Section 12). Company policy requires both.</div>
+        <div class="meta">
+          <span class="due-soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Pending review</span>
+          <span>Employment Agreement</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+    <div class="action-item high" style="animation-delay:0.2s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">Non-standard IP Assignment — CloudSoft License deviates from template</div>
+          <div class="category-tag">Clause</div>
+        </div>
+        <div class="description">IP ownership clause grants vendor joint ownership of derivative works. Standard template reserves all IP to licensee.</div>
+        <div class="meta">
+          <span>CloudSoft License &middot; Section 5.3</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+
+  <div class="section-header"><div class="dot medium"></div><h3>Medium</h3><span class="section-count">1 item</span></div>
+  <div class="action-list">
+    <div class="action-item medium" style="animation-delay:0.25s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">2 Contracts pending legal review in queue</div>
+          <div class="category-tag">Review</div>
+        </div>
+        <div class="description">Acme/GlobalPartners NDA amendment and new StrategicAdvisors SOW awaiting your sign-off.</div>
+        <div class="meta">
+          <span>In queue for 3 days</span>
+          <span>2 contracts</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+
+  <div class="section-header"><div class="dot low"></div><h3>Low</h3><span class="section-count">1 item</span></div>
+  <div class="action-list">
+    <div class="action-item low" style="animation-delay:0.3s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">Governing law inconsistency — 2 contracts reference outdated jurisdiction</div>
+          <div class="category-tag">Clause</div>
+        </div>
+        <div class="description">References Delaware law but entity redomiciled to California in 2025. Non-urgent but should be updated at renewal.</div>
+        <div class="meta">
+          <span>Flag for next renewal cycle</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PROCUREMENT PANEL ==================== -->
+<div class="panel-container" id="panel-procurement">
+  <div class="role-context">
+    <div class="avatar" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)">PR</div>
+    <div class="info">
+      <div class="name">Procurement User</div>
+      <div class="role-label">Procurement Manager &middot; Acme Corp</div>
+    </div>
+    <div class="timestamp">Updated 8 min ago</div>
+  </div>
+
+  <div class="summary-strip">
+    <div class="summary-cell critical"><div class="count">0</div><div class="label">Critical</div></div>
+    <div class="summary-cell high" style="animation-delay:0.06s"><div class="count">2</div><div class="label">High</div></div>
+    <div class="summary-cell medium" style="animation-delay:0.12s"><div class="count">1</div><div class="label">Medium</div></div>
+    <div class="summary-cell low" style="animation-delay:0.18s"><div class="count">1</div><div class="label">Low</div></div>
+  </div>
+
+  <div class="section-header"><div class="dot high"></div><h3>High Priority</h3><span class="section-count">2 items</span></div>
+  <div class="action-list">
+    <div class="action-item high" style="animation-delay:0.1s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">Vendor rate increase pending — TechVendor MSA renewal at +15% above market</div>
+          <div class="category-tag">Cost</div>
+        </div>
+        <div class="description">Proposed renewal pricing $1.38M vs. current $1.2M. Comparable vendor quotes range $980K-$1.1M. Negotiate or evaluate alternatives.</div>
+        <div class="meta">
+          <span class="due-soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Decision by May 20</span>
+          <span>$180K potential savings</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+    <div class="action-item high" style="animation-delay:0.15s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">Vendor performance declining — CloudSoft SLA misses trending upward</div>
+          <div class="category-tag">Vendor</div>
+        </div>
+        <div class="description">3 SLA breaches in last 90 days (vs. 0 in prior quarter). Response time SLA missed 4 times. Trigger performance review clause.</div>
+        <div class="meta">
+          <span>CloudSoft License Agreement</span>
+          <span>Trend: deteriorating</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+
+  <div class="section-header"><div class="dot medium"></div><h3>Medium</h3><span class="section-count">1 item</span></div>
+  <div class="action-list">
+    <div class="action-item medium" style="animation-delay:0.2s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">3 vendor contracts lack benchmarking clause</div>
+          <div class="category-tag">Terms</div>
+        </div>
+        <div class="description">No price benchmarking provisions found. Add during next renewal to ensure market-competitive pricing over term.</div>
+        <div class="meta">
+          <span>3 vendor agreements</span>
+          <span>Flag for renewal</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+
+  <div class="section-header"><div class="dot low"></div><h3>Low</h3><span class="section-count">1 item</span></div>
+  <div class="action-list">
+    <div class="action-item low" style="animation-delay:0.25s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">Consolidation opportunity — 2 overlapping vendor contracts for similar services</div>
+          <div class="category-tag">Optimize</div>
+        </div>
+        <div class="description">TechVendor MSA and CloudSoft License both cover cloud infrastructure. Consolidating could save ~$200K annually.</div>
+        <div class="meta">
+          <span>Estimated savings: $200K/yr</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== VIEWER PANEL ==================== -->
+<div class="panel-container" id="panel-viewer">
+  <div class="role-context">
+    <div class="avatar" style="background:linear-gradient(135deg,#64748b,#94a3b8)">VW</div>
+    <div class="info">
+      <div class="name">Viewer User</div>
+      <div class="role-label">Read-Only &middot; Acme Corp</div>
+    </div>
+    <div class="timestamp">Updated 12 min ago</div>
+  </div>
+
+  <div class="summary-strip">
+    <div class="summary-cell critical"><div class="count">0</div><div class="label">Critical</div></div>
+    <div class="summary-cell high" style="animation-delay:0.06s"><div class="count">0</div><div class="label">High</div></div>
+    <div class="summary-cell medium" style="animation-delay:0.12s"><div class="count">1</div><div class="label">Medium</div></div>
+    <div class="summary-cell low" style="animation-delay:0.18s"><div class="count">1</div><div class="label">Low</div></div>
+  </div>
+
+  <div class="section-header"><div class="dot medium"></div><h3>Medium</h3><span class="section-count">1 item</span></div>
+  <div class="action-list">
+    <div class="action-item medium" style="animation-delay:0.1s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">2 contracts you follow were updated recently</div>
+          <div class="category-tag">Update</div>
+        </div>
+        <div class="description">TechVendor MSA had risk level changed to "high" and GlobalPartners NDA received 3 new obligation entries.</div>
+        <div class="meta">
+          <span>Updated yesterday</span>
+          <span>2 contracts</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+
+  <div class="section-header"><div class="dot low"></div><h3>Low</h3><span class="section-count">1 item</span></div>
+  <div class="action-list">
+    <div class="action-item low" style="animation-delay:0.15s">
+      <div class="severity-bar"></div>
+      <div class="content">
+        <div class="top-row">
+          <div class="title">New quarterly compliance report available</div>
+          <div class="category-tag">Report</div>
+        </div>
+        <div class="description">Q1 2026 report is ready. Covers 12 active contracts across your business unit.</div>
+        <div class="meta">
+          <span>Published today</span>
+          <span>12 contracts</span>
+        </div>
+      </div>
+      <div class="arrow-col"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">
+  MOCKUP &middot; Action items derived from contract risk analysis, obligation tracking, SLA monitoring, renewal detection, and clause extraction data
+</div>
+
+<script>
+function switchRole(role) {
+  // Update tabs
+  document.querySelectorAll('.role-tab').forEach(tab => tab.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  // Update panels
+  document.querySelectorAll('.panel-container').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + role).classList.add('active');
+
+  // Re-trigger animations
+  const panel = document.getElementById('panel-' + role);
+  panel.querySelectorAll('.action-item, .summary-cell').forEach(el => {
+    el.style.animation = 'none';
+    el.offsetHeight; // trigger reflow
+    el.style.animation = '';
+  });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evaluetor — AI-Native Contract Lifecycle Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Nunito+Sans:ital,opsz,wght@0,6..12,300..700;1,6..12,300..700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; scroll-behavior: smooth; }
+body {
+  font-family: 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f6f7f9;
+  color: #1e1e2e;
+  line-height: 1.6;
+  overflow: hidden;
+  height: 100vh;
+}
+h1,h2,h3,h4,h5,h6 { font-family: 'Manrope', sans-serif; font-weight: 700; line-height: 1.25; }
+
+/* ============================================================
+   LAYOUT SHELL
+   ============================================================ */
+.app-shell { display: flex; height: 100vh; }
+
+/* ---- Sidebar ---- */
+.sidebar {
+  width: 250px;
+  min-width: 250px;
+  background: #ffffff;
+  border-right: 1px solid #e8eaed;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  position: relative;
+}
+.sidebar-brand {
+  padding: 22px 22px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #f0f1f3;
+}
+.sidebar-brand .brand-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 800;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+.sidebar-brand .brand-text {
+  font-family: 'Manrope', sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.sidebar-brand .brand-badge {
+  font-size: 9px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  margin-left: auto;
+}
+
+/* Nav items */
+.sidebar-nav { flex: 1; padding: 14px 12px; overflow-y: auto; }
+.sidebar-nav .nav-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: #9ca3af;
+  padding: 14px 12px 6px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #6b7280;
+  position: relative;
+  margin-bottom: 2px;
+  user-select: none;
+}
+.nav-item:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+.nav-item.active {
+  background: linear-gradient(135deg, #eef2ff, #ede9fe);
+  color: #4f46e5;
+  font-weight: 650;
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background: linear-gradient(180deg, #4f46e5, #7c3aed);
+  border-radius: 0 3px 3px 0;
+}
+.nav-item .nav-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.nav-item .nav-badge {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 1px 7px;
+  border-radius: 20px;
+}
+.nav-item .nav-badge.info {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+/* Sidebar footer */
+.sidebar-footer {
+  padding: 14px 16px;
+  border-top: 1px solid #f0f1f3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sidebar-footer .user-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.sidebar-footer .user-info { flex: 1; min-width: 0; }
+.sidebar-footer .user-name { font-size: 13px; font-weight: 650; color: #1e1e2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-footer .user-role { font-size: 11px; color: #9ca3af; }
+
+/* ---- Main content area ---- */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+.topbar {
+  height: 56px;
+  background: #fff;
+  border-bottom: 1px solid #e8eaed;
+  display: flex;
+  align-items: center;
+  padding: 0 28px;
+  gap: 16px;
+  flex-shrink: 0;
+}
+.topbar .page-title {
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e1e2e;
+}
+.topbar .breadcrumb {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-left: 2px;
+}
+.topbar .topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.topbar .search-box {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.topbar .search-box:hover { border-color: #c7d2fe; background: #eef2ff; }
+.topbar .search-box kbd {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 10px;
+  background: #e5e7eb;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #6b7280;
+}
+.topbar .icon-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  transition: all 0.15s;
+  position: relative;
+  color: #6b7280;
+}
+.topbar .icon-btn:hover { background: #f3f4f6; color: #4f46e5; border-color: #c7d2fe; }
+.topbar .icon-btn .notif-dot {
+  position: absolute;
+  top: 5px; right: 5px;
+  width: 7px; height: 7px;
+  background: #ef4444;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+}
+
+/* Page container */
+.page-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px;
+}
+.page { display: none; animation: pageIn 0.35s ease; }
+.page.active { display: block; }
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   SHARED COMPONENTS
+   ============================================================ */
+
+/* Cards */
+.card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+.card:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06);
+  transform: translateY(-2px);
+}
+.card-header {
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e1e2e;
+}
+.card-body { padding: 20px 22px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Nunito Sans', sans-serif;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+}
+.btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+.btn-secondary:hover { background: #e5e7eb; }
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+}
+.badge-green  { background: #dcfce7; color: #16a34a; }
+.badge-amber  { background: #fef3c7; color: #d97706; }
+.badge-red    { background: #fee2e2; color: #dc2626; }
+.badge-gray   { background: #f3f4f6; color: #6b7280; }
+.badge-blue   { background: #dbeafe; color: #2563eb; }
+.badge-violet { background: #ede9fe; color: #7c3aed; }
+.badge-teal   { background: #ccfbf1; color: #0d9488; }
+
+/* Tables */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table thead th {
+  background: linear-gradient(135deg, #4f46e5, #6d5ddb);
+  color: #fff;
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+}
+.data-table thead th:first-child { border-radius: 10px 0 0 0; }
+.data-table thead th:last-child  { border-radius: 0 10px 0 0; }
+.data-table tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+.data-table tbody tr { transition: background 0.15s; }
+.data-table tbody tr:nth-child(even) { background: #fafbfc; }
+.data-table tbody tr:hover { background: #eef2ff; }
+
+/* Stat cards grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
+  transition: all 0.25s ease;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 2px 6px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06); }
+.stat-card .stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.stat-card .stat-value {
+  font-family: 'Manrope', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: #1e1e2e;
+  line-height: 1.15;
+}
+.stat-card .stat-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.stat-card .stat-trend {
+  font-size: 12px;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.stat-card .stat-trend.up   { color: #16a34a; }
+.stat-card .stat-trend.down { color: #dc2626; }
+
+/* Grid layouts */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #f0f1f3;
+  margin-bottom: 22px;
+}
+.tab-item {
+  padding: 10px 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #9ca3af;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  user-select: none;
+}
+.tab-item:hover { color: #4f46e5; }
+.tab-item.active { color: #4f46e5; }
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #4f46e5, #7c3aed);
+  border-radius: 2px 2px 0 0;
+}
+
+/* Progress bars */
+.progress-bar {
+  height: 7px;
+  background: #f0f1f3;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.progress-bar .fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.6s ease;
+}
+.fill-green  { background: linear-gradient(90deg, #16a34a, #06b6d4); }
+.fill-amber  { background: linear-gradient(90deg, #f59e0b, #f97316); }
+.fill-red    { background: linear-gradient(90deg, #ef4444, #dc2626); }
+.fill-indigo { background: linear-gradient(90deg, #4f46e5, #7c3aed); }
+.fill-teal   { background: linear-gradient(90deg, #06b6d4, #14b8a6); }
+
+/* Toggle */
+.toggle {
+  width: 40px; height: 22px;
+  background: #d1d5db;
+  border-radius: 11px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.25s;
+  flex-shrink: 0;
+}
+.toggle.on { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.25s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.toggle.on::after { transform: translateX(18px); }
+
+/* ============================================================
+   PAGE 1: DASHBOARD
+   ============================================================ */
+.hero-banner {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #8b5cf6 100%);
+  border-radius: 16px;
+  padding: 32px 34px;
+  color: #fff;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  top: -40%; right: -10%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.hero-banner::after {
+  content: '';
+  position: absolute;
+  bottom: -30%; left: 30%;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.hero-banner h1 {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
+}
+.hero-banner p {
+  font-size: 14px;
+  opacity: 0.85;
+  position: relative;
+  z-index: 1;
+}
+.hero-banner .hero-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+.hero-banner .btn-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 650;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Nunito Sans', sans-serif;
+}
+.hero-banner .btn-hero-primary {
+  background: #fff;
+  color: #4f46e5;
+}
+.hero-banner .btn-hero-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.hero-banner .btn-hero-secondary {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  backdrop-filter: blur(4px);
+}
+.hero-banner .btn-hero-secondary:hover { background: rgba(255,255,255,0.25); }
+
+/* Chart */
+.chart-area {
+  position: relative;
+  height: 200px;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 0 4px;
+}
+.chart-bar-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.chart-bar {
+  width: 100%;
+  border-radius: 6px 6px 2px 2px;
+  transition: all 0.4s ease;
+  position: relative;
+  min-height: 4px;
+}
+.chart-bar.primary { background: linear-gradient(180deg, #4f46e5, #6d5ddb); }
+.chart-bar.secondary { background: linear-gradient(180deg, #06b6d4, #22d3ee); }
+.chart-bar:hover { filter: brightness(1.1); transform: scaleY(1.04); transform-origin: bottom; }
+.chart-label { font-size: 11px; color: #9ca3af; font-weight: 600; }
+
+/* Activity feed */
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.activity-dot.green  { background: #16a34a; }
+.activity-dot.blue   { background: #2563eb; }
+.activity-dot.amber  { background: #d97706; }
+.activity-dot.violet { background: #7c3aed; }
+.activity-text { font-size: 13px; color: #4b5563; }
+.activity-text strong { color: #1e1e2e; font-weight: 650; }
+.activity-time { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+/* ============================================================
+   PAGE 4: RENEWALS
+   ============================================================ */
+.renewal-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
+  transition: all 0.25s;
+  border-left: 4px solid transparent;
+}
+.renewal-card:hover { transform: translateY(-2px); box-shadow: 0 2px 6px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06); }
+.renewal-card.urgent { border-left-color: #ef4444; }
+.renewal-card.warning { border-left-color: #f59e0b; }
+.renewal-card.safe { border-left-color: #16a34a; }
+.renewal-card .rc-title { font-family: 'Manrope', sans-serif; font-size: 14.5px; font-weight: 700; color: #1e1e2e; margin-bottom: 4px; }
+.renewal-card .rc-party { font-size: 12.5px; color: #6b7280; margin-bottom: 12px; }
+.renewal-card .rc-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.renewal-card .rc-meta-item .rc-meta-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; font-weight: 650; }
+.renewal-card .rc-meta-item .rc-meta-value { font-size: 13.5px; font-weight: 650; color: #1e1e2e; }
+.renewal-card .rc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+.renewal-card .rc-footer .auto-renew {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+/* ============================================================
+   VENDOR / GOVERNANCE / CHAT STYLES
+   ============================================================ */
+.vendor-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.perception-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
+  transition: all 0.25s;
+}
+.perception-card:hover { transform: translateY(-2px); box-shadow: 0 2px 6px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06); }
+.perception-card .pc-name { font-family: 'Manrope', sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.perception-card .pc-type { font-size: 12px; color: #9ca3af; margin-bottom: 16px; }
+.score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+}
+.score-row .score-label { color: #6b7280; font-weight: 600; }
+.score-row .score-val { font-family: 'Manrope', sans-serif; font-weight: 800; }
+.gap-indicator {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gap-indicator.positive { background: #dcfce7; color: #16a34a; }
+.gap-indicator.negative { background: #fee2e2; color: #dc2626; }
+.gap-indicator.neutral  { background: #f3f4f6; color: #6b7280; }
+.radar-container { display: flex; align-items: center; justify-content: center; padding: 20px; }
+
+/* Chat */
+.chat-container { max-width: 780px; margin: 0 auto; }
+.chat-messages { display: flex; flex-direction: column; gap: 18px; margin-bottom: 22px; }
+.chat-msg { display: flex; gap: 12px; align-items: flex-start; }
+.chat-msg.user { flex-direction: row-reverse; }
+.chat-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.chat-avatar.ai { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; }
+.chat-avatar.human { background: linear-gradient(135deg, #06b6d4, #0d9488); color: #fff; }
+.chat-bubble {
+  max-width: 85%;
+  padding: 14px 18px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+.chat-msg.assistant .chat-bubble {
+  background: #fff;
+  border: 1px solid #e8eaed;
+  color: #1e1e2e;
+  border-radius: 14px 14px 14px 4px;
+}
+.chat-msg.user .chat-bubble {
+  background: linear-gradient(135deg, #4f46e5, #6d5ddb);
+  color: #fff;
+  border-radius: 14px 14px 4px 14px;
+}
+.chat-bubble code {
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: #7c3aed;
+}
+.chat-msg.user .chat-bubble code { background: rgba(255,255,255,0.2); color: #fff; }
+.chat-bubble .ref-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #4f46e5;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 650;
+  margin: 2px 2px 2px 0;
+  cursor: pointer;
+}
+.chat-input-area { display: flex; gap: 10px; align-items: flex-end; }
+.chat-input-box {
+  flex: 1;
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 13.5px;
+  font-family: 'Nunito Sans', sans-serif;
+  color: #1e1e2e;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.chat-input-box:focus { border-color: #4f46e5; }
+.chat-input-box::placeholder { color: #9ca3af; }
+.chat-send-btn {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.chat-send-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+/* Obligation items */
+.obligation-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.obligation-item:last-child { border-bottom: none; }
+.obligation-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.obligation-info { flex: 1; min-width: 0; }
+.obligation-info .ob-title { font-size: 13.5px; font-weight: 650; color: #1e1e2e; }
+.obligation-info .ob-contract { font-size: 12px; color: #9ca3af; }
+.obligation-due { text-align: right; }
+.obligation-due .due-date { font-size: 13px; font-weight: 650; }
+.obligation-due .due-label { font-size: 11px; color: #9ca3af; }
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- ============================================================
+       SIDEBAR
+       ============================================================ -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">E</div>
+      <span class="brand-text">Evaluetor</span>
+      <span class="brand-badge">CLM</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <div class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">&#x1f4ca;</span> Dashboard
+      </div>
+      <div class="nav-item" data-page="contracts">
+        <span class="nav-icon">&#x1f4c4;</span> Contracts
+        <span class="nav-badge info">247</span>
+      </div>
+      <div class="nav-item" data-page="compliance">
+        <span class="nav-icon">&#x2705;</span> Compliance
+        <span class="nav-badge">3</span>
+      </div>
+      <div class="nav-item" data-page="renewals">
+        <span class="nav-icon">&#x1f504;</span> Renewals
+      </div>
+
+      <div class="nav-section-label">Manage</div>
+      <div class="nav-item" data-page="vendors">
+        <span class="nav-icon">&#x1f3e2;</span> Vendors
+      </div>
+      <div class="nav-item" data-page="governance">
+        <span class="nav-icon">&#x1f91d;</span> Governance
+      </div>
+
+      <div class="nav-section-label">Intelligence</div>
+      <div class="nav-item" data-page="askai">
+        <span class="nav-icon">&#x2728;</span> Ask AI
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-avatar">JS</div>
+      <div class="user-info">
+        <div class="user-name">Jane Sterling</div>
+        <div class="user-role">Legal Ops &middot; Acme Corp</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============================================================
+       MAIN CONTENT
+       ============================================================ -->
+  <div class="main-content">
+    <!-- Topbar -->
+    <header class="topbar">
+      <span class="page-title" id="topbar-title">Dashboard</span>
+      <span class="breadcrumb" id="topbar-breadcrumb">Overview</span>
+      <div class="topbar-right">
+        <div class="search-box">
+          <span>&#x1f50d;</span> Search contracts...
+          <kbd>&#x2318;K</kbd>
+        </div>
+        <div class="icon-btn">&#x1f514;<span class="notif-dot"></span></div>
+        <div class="icon-btn">&#x2699;&#xfe0f;</div>
+      </div>
+    </header>
+
+    <!-- Page Container -->
+    <div class="page-container">
+
+      <!-- ========================================================
+           PAGE 1: DASHBOARD
+           ======================================================== -->
+      <div class="page active" id="page-dashboard">
+        <div class="hero-banner">
+          <h1>Welcome back, Jane</h1>
+          <p>Your contract portfolio is looking healthy. 3 items need attention today.</p>
+          <div class="hero-actions">
+            <button class="btn-hero btn-hero-primary">&#x2795; Upload Contract</button>
+            <button class="btn-hero btn-hero-secondary">&#x1f4cb; View Reports</button>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Active Contracts</div>
+            <div class="stat-row">
+              <div class="stat-value">247</div>
+              <div class="stat-trend up">&#x2191; 12%</div>
+            </div>
+            <svg width="100%" height="36" viewBox="0 0 120 36" preserveAspectRatio="none" style="margin-top:14px">
+              <defs><linearGradient id="sg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4f46e5" stop-opacity="0.15"/><stop offset="100%" stop-color="#4f46e5" stop-opacity="0"/></linearGradient></defs>
+              <polyline points="0,28 10,24 20,26 30,18 40,22 50,14 60,18 70,10 80,14 90,8 100,12 110,6 120,4" fill="url(#sg1)" stroke="none"/>
+              <polyline points="0,28 10,24 20,26 30,18 40,22 50,14 60,18 70,10 80,14 90,8 100,12 110,6 120,4" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Pending Review</div>
+            <div class="stat-row">
+              <div class="stat-value">18</div>
+              <div class="stat-trend down">&#x2191; 3</div>
+            </div>
+            <svg width="100%" height="36" viewBox="0 0 120 36" preserveAspectRatio="none" style="margin-top:14px">
+              <defs><linearGradient id="sg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#d97706" stop-opacity="0.15"/><stop offset="100%" stop-color="#d97706" stop-opacity="0"/></linearGradient></defs>
+              <polyline points="0,20 10,18 20,22 30,16 40,24 50,20 60,28 70,22 80,26 90,30 100,24 110,28 120,26" fill="url(#sg2)" stroke="none"/>
+              <polyline points="0,20 10,18 20,22 30,16 40,24 50,20 60,28 70,22 80,26 90,30 100,24 110,28 120,26" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Compliance Score</div>
+            <div class="stat-row">
+              <div class="stat-value">94.2%</div>
+              <div class="stat-trend up">&#x2191; 2.1%</div>
+            </div>
+            <svg width="100%" height="36" viewBox="0 0 120 36" preserveAspectRatio="none" style="margin-top:14px">
+              <defs><linearGradient id="sg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#16a34a" stop-opacity="0.15"/><stop offset="100%" stop-color="#16a34a" stop-opacity="0"/></linearGradient></defs>
+              <polyline points="0,30 10,26 20,24 30,22 40,18 50,20 60,16 70,14 80,12 90,10 100,8 110,6 120,4" fill="url(#sg3)" stroke="none"/>
+              <polyline points="0,30 10,26 20,24 30,22 40,18 50,20 60,16 70,14 80,12 90,10 100,8 110,6 120,4" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Monthly Savings</div>
+            <div class="stat-row">
+              <div class="stat-value">$1.2M</div>
+              <div class="stat-trend up">&#x2191; 18%</div>
+            </div>
+            <svg width="100%" height="36" viewBox="0 0 120 36" preserveAspectRatio="none" style="margin-top:14px">
+              <defs><linearGradient id="sg4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7c3aed" stop-opacity="0.15"/><stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/></linearGradient></defs>
+              <polyline points="0,32 10,28 20,30 30,24 40,20 50,22 60,16 70,18 80,12 90,10 100,8 110,4 120,6" fill="url(#sg4)" stroke="none"/>
+              <polyline points="0,32 10,28 20,30 30,24 40,20 50,22 60,16 70,18 80,12 90,10 100,8 110,4 120,6" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h3>Contract Volume</h3>
+              <div style="display:flex;gap:14px;font-size:11.5px;font-weight:600;">
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,#4f46e5,#6d5ddb);display:inline-block;"></span> Created</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,#06b6d4,#22d3ee);display:inline-block;"></span> Signed</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-area">
+                <div class="chart-bar-group"><div class="chart-bar primary" style="height:65px"></div><div class="chart-bar secondary" style="height:50px;margin-top:4px"></div><div class="chart-label">Jan</div></div>
+                <div class="chart-bar-group"><div class="chart-bar primary" style="height:85px"></div><div class="chart-bar secondary" style="height:60px;margin-top:4px"></div><div class="chart-label">Feb</div></div>
+                <div class="chart-bar-group"><div class="chart-bar primary" style="height:72px"></div><div class="chart-bar secondary" style="height:55px;margin-top:4px"></div><div class="chart-label">Mar</div></div>
+                <div class="chart-bar-group"><div class="chart-bar primary" style="height:95px"></div><div class="chart-bar secondary" style="height:78px;margin-top:4px"></div><div class="chart-label">Apr</div></div>
+                <div class="chart-bar-group"><div class="chart-bar primary" style="height:110px"></div><div class="chart-bar secondary" style="height:85px;margin-top:4px"></div><div class="chart-label">May</div></div>
+                <div class="chart-bar-group"><div class="chart-bar primary" style="height:88px"></div><div class="chart-bar secondary" style="height:70px;margin-top:4px"></div><div class="chart-label">Jun</div></div>
+                <div class="chart-bar-group"><div class="chart-bar primary" style="height:130px"></div><div class="chart-bar secondary" style="height:95px;margin-top:4px"></div><div class="chart-label">Jul</div></div>
+                <div class="chart-bar-group"><div class="chart-bar primary" style="height:145px"></div><div class="chart-bar secondary" style="height:110px;margin-top:4px"></div><div class="chart-label">Aug</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Recent Activity</h3>
+              <span style="font-size:12px;color:#4f46e5;font-weight:600;cursor:pointer;">View all</span>
+            </div>
+            <div class="card-body">
+              <div class="activity-item">
+                <div class="activity-dot green"></div>
+                <div>
+                  <div class="activity-text"><strong>NDA - TechVentures</strong> was signed by both parties</div>
+                  <div class="activity-time">12 minutes ago</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-dot violet"></div>
+                <div>
+                  <div class="activity-text">AI extracted <strong>14 clauses</strong> from CloudSoft MSA</div>
+                  <div class="activity-time">38 minutes ago</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-dot amber"></div>
+                <div>
+                  <div class="activity-text"><strong>Renewal notice</strong> due in 7 days for DataPro License</div>
+                  <div class="activity-time">1 hour ago</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-dot blue"></div>
+                <div>
+                  <div class="activity-text"><strong>Risk assessment</strong> completed for Apex SLA Agreement</div>
+                  <div class="activity-time">2 hours ago</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-dot green"></div>
+                <div>
+                  <div class="activity-text"><strong>Jane Sterling</strong> approved vendor compliance for Q3</div>
+                  <div class="activity-time">3 hours ago</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-dot violet"></div>
+                <div>
+                  <div class="activity-text">New obligation detected: <strong>Annual audit clause</strong> in GlobeTech MSA</div>
+                  <div class="activity-time">5 hours ago</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           PAGE 2: CONTRACTS
+           ======================================================== -->
+      <div class="page" id="page-contracts">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="position:relative;">
+              <input type="text" placeholder="Search contracts..." style="width:320px;padding:9px 14px 9px 36px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;font-family:'Nunito Sans',sans-serif;outline:none;transition:border-color 0.2s;background:#fff;" onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e5e7eb'">
+              <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:#9ca3af;">&#x1f50d;</span>
+            </div>
+            <button class="btn btn-secondary">&#x1f3af; Filter</button>
+            <button class="btn btn-secondary">&#x2195; Sort</button>
+          </div>
+          <button class="btn btn-primary">&#x2795; New Contract</button>
+        </div>
+
+        <div class="card" style="overflow:hidden;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Contract Name</th>
+                <th>Type</th>
+                <th>Counterparty</th>
+                <th>Status</th>
+                <th>Value</th>
+                <th>Expiry</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:650;">Master Services Agreement</td>
+                <td><span class="badge badge-violet">MSA</span></td>
+                <td>TechVentures Inc.</td>
+                <td><span class="badge badge-green">Active</span></td>
+                <td style="font-weight:650;">$2,400,000</td>
+                <td>Mar 15, 2027</td>
+              </tr>
+              <tr>
+                <td style="font-weight:650;">Non-Disclosure Agreement</td>
+                <td><span class="badge badge-teal">NDA</span></td>
+                <td>CloudSoft Labs</td>
+                <td><span class="badge badge-green">Active</span></td>
+                <td style="font-weight:650;">&mdash;</td>
+                <td>Dec 31, 2026</td>
+              </tr>
+              <tr>
+                <td style="font-weight:650;">Software License Agreement</td>
+                <td><span class="badge badge-blue">License</span></td>
+                <td>DataPro Solutions</td>
+                <td><span class="badge badge-amber">Under Review</span></td>
+                <td style="font-weight:650;">$850,000</td>
+                <td>Jun 30, 2026</td>
+              </tr>
+              <tr>
+                <td style="font-weight:650;">SLA Agreement - Premium Tier</td>
+                <td><span class="badge badge-violet">SLA</span></td>
+                <td>Apex Hosting Group</td>
+                <td><span class="badge badge-green">Active</span></td>
+                <td style="font-weight:650;">$1,100,000</td>
+                <td>Sep 1, 2027</td>
+              </tr>
+              <tr>
+                <td style="font-weight:650;">Employment Agreement - VP Eng</td>
+                <td><span class="badge badge-gray">Employment</span></td>
+                <td>Internal</td>
+                <td><span class="badge badge-green">Active</span></td>
+                <td style="font-weight:650;">$380,000</td>
+                <td>Indefinite</td>
+              </tr>
+              <tr>
+                <td style="font-weight:650;">Consulting Services Agreement</td>
+                <td><span class="badge badge-teal">Consulting</span></td>
+                <td>Strategic Advisors LLC</td>
+                <td><span class="badge badge-gray">Draft</span></td>
+                <td style="font-weight:650;">$175,000</td>
+                <td>TBD</td>
+              </tr>
+              <tr>
+                <td style="font-weight:650;">Office Lease Agreement</td>
+                <td><span class="badge badge-blue">Lease</span></td>
+                <td>Metropolitan Properties</td>
+                <td><span class="badge badge-green">Active</span></td>
+                <td style="font-weight:650;">$4,200,000</td>
+                <td>Jan 15, 2029</td>
+              </tr>
+              <tr>
+                <td style="font-weight:650;">Data Processing Agreement</td>
+                <td><span class="badge badge-violet">DPA</span></td>
+                <td>CloudSoft Labs</td>
+                <td><span class="badge badge-amber">Under Review</span></td>
+                <td style="font-weight:650;">&mdash;</td>
+                <td>Dec 31, 2026</td>
+              </tr>
+              <tr>
+                <td style="font-weight:650;">Vendor Services Agreement</td>
+                <td><span class="badge badge-teal">MSA</span></td>
+                <td>GlobeTech Partners</td>
+                <td><span class="badge badge-red">Expired</span></td>
+                <td style="font-weight:650;">$920,000</td>
+                <td>Jan 31, 2026</td>
+              </tr>
+              <tr>
+                <td style="font-weight:650;">IP Assignment Agreement</td>
+                <td><span class="badge badge-gray">IP</span></td>
+                <td>NovaTech Research</td>
+                <td><span class="badge badge-green">Active</span></td>
+                <td style="font-weight:650;">&mdash;</td>
+                <td>Perpetual</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;font-size:12.5px;color:#6b7280;">
+          <span>Showing 1-10 of 247 contracts</span>
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;">&larr; Prev</button>
+            <button class="btn btn-primary" style="padding:5px 10px;font-size:12px;">Next &rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           PAGE 3: COMPLIANCE
+           ======================================================== -->
+      <div class="page" id="page-compliance">
+        <div class="tabs">
+          <div class="tab-item active" data-tab="obligations">Obligations</div>
+          <div class="tab-item" data-tab="sla">SLA Monitoring</div>
+          <div class="tab-item" data-tab="risk">Risk Overview</div>
+        </div>
+
+        <div class="stats-grid" style="margin-bottom:24px;">
+          <div class="stat-card">
+            <div class="stat-label">Total Obligations</div>
+            <div class="stat-value">86</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Upcoming (30 days)</div>
+            <div class="stat-value" style="color:#d97706;">12</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Overdue</div>
+            <div class="stat-value" style="color:#dc2626;">3</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Compliance Rate</div>
+            <div class="stat-value" style="color:#16a34a;">94.2%</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h3>Upcoming Obligations</h3>
+              <span class="badge badge-amber">12 upcoming</span>
+            </div>
+            <div class="card-body">
+              <div class="obligation-item">
+                <div class="obligation-icon" style="background:#fee2e2;">&#x1f6a8;</div>
+                <div class="obligation-info">
+                  <div class="ob-title">Annual Compliance Audit</div>
+                  <div class="ob-contract">GlobeTech Partners MSA</div>
+                </div>
+                <div class="obligation-due">
+                  <div class="due-date" style="color:#dc2626;">Overdue</div>
+                  <div class="due-label">Was due Apr 15</div>
+                </div>
+              </div>
+              <div class="obligation-item">
+                <div class="obligation-icon" style="background:#fee2e2;">&#x1f6a8;</div>
+                <div class="obligation-info">
+                  <div class="ob-title">Security Assessment Report</div>
+                  <div class="ob-contract">Apex Hosting SLA</div>
+                </div>
+                <div class="obligation-due">
+                  <div class="due-date" style="color:#dc2626;">Overdue</div>
+                  <div class="due-label">Was due Apr 10</div>
+                </div>
+              </div>
+              <div class="obligation-item">
+                <div class="obligation-icon" style="background:#fee2e2;">&#x1f6a8;</div>
+                <div class="obligation-info">
+                  <div class="ob-title">Insurance Certificate Renewal</div>
+                  <div class="ob-contract">Metropolitan Properties Lease</div>
+                </div>
+                <div class="obligation-due">
+                  <div class="due-date" style="color:#dc2626;">Overdue</div>
+                  <div class="due-label">Was due Apr 1</div>
+                </div>
+              </div>
+              <div class="obligation-item">
+                <div class="obligation-icon" style="background:#fef3c7;">&#x23f0;</div>
+                <div class="obligation-info">
+                  <div class="ob-title">Quarterly Performance Review</div>
+                  <div class="ob-contract">TechVentures MSA</div>
+                </div>
+                <div class="obligation-due">
+                  <div class="due-date" style="color:#d97706;">In 5 days</div>
+                  <div class="due-label">Apr 26, 2026</div>
+                </div>
+              </div>
+              <div class="obligation-item">
+                <div class="obligation-icon" style="background:#fef3c7;">&#x23f0;</div>
+                <div class="obligation-info">
+                  <div class="ob-title">Data Retention Certification</div>
+                  <div class="ob-contract">CloudSoft DPA</div>
+                </div>
+                <div class="obligation-due">
+                  <div class="due-date" style="color:#d97706;">In 12 days</div>
+                  <div class="due-label">May 3, 2026</div>
+                </div>
+              </div>
+              <div class="obligation-item">
+                <div class="obligation-icon" style="background:#dcfce7;">&#x1f4c5;</div>
+                <div class="obligation-info">
+                  <div class="ob-title">Vendor Spend Report</div>
+                  <div class="ob-contract">DataPro License Agreement</div>
+                </div>
+                <div class="obligation-due">
+                  <div class="due-date" style="color:#16a34a;">In 23 days</div>
+                  <div class="due-label">May 14, 2026</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Compliance Breakdown</h3>
+            </div>
+            <div class="card-body" style="display:flex;flex-direction:column;align-items:center;">
+              <svg width="220" height="220" viewBox="0 0 220 220">
+                <defs>
+                  <linearGradient id="donutGreen" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#16a34a"/>
+                    <stop offset="100%" stop-color="#06b6d4"/>
+                  </linearGradient>
+                </defs>
+                <circle cx="110" cy="110" r="85" fill="none" stroke="#f0f1f3" stroke-width="22"/>
+                <circle cx="110" cy="110" r="85" fill="none" stroke="url(#donutGreen)" stroke-width="22"
+                  stroke-dasharray="472 62" stroke-dashoffset="0"
+                  transform="rotate(-90 110 110)" stroke-linecap="round"/>
+                <circle cx="110" cy="110" r="85" fill="none" stroke="#f59e0b" stroke-width="22"
+                  stroke-dasharray="43 491" stroke-dashoffset="-472"
+                  transform="rotate(-90 110 110)" stroke-linecap="round"/>
+                <circle cx="110" cy="110" r="85" fill="none" stroke="#ef4444" stroke-width="22"
+                  stroke-dasharray="19 515" stroke-dashoffset="-515"
+                  transform="rotate(-90 110 110)" stroke-linecap="round"/>
+                <text x="110" y="104" text-anchor="middle" font-family="Manrope" font-size="32" font-weight="800" fill="#1e1e2e">94.2%</text>
+                <text x="110" y="124" text-anchor="middle" font-family="Nunito Sans" font-size="12" fill="#9ca3af">Compliance</text>
+              </svg>
+              <div style="display:flex;gap:24px;margin-top:18px;">
+                <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;">
+                  <span style="width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#06b6d4);display:inline-block;"></span>
+                  <span style="font-weight:650;">Compliant</span> <span style="color:#9ca3af;">76</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;">
+                  <span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>
+                  <span style="font-weight:650;">Upcoming</span> <span style="color:#9ca3af;">7</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;">
+                  <span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block;"></span>
+                  <span style="font-weight:650;">Overdue</span> <span style="color:#9ca3af;">3</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           PAGE 4: RENEWALS
+           ======================================================== -->
+      <div class="page" id="page-renewals">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
+          <div>
+            <h2 style="font-size:20px;margin-bottom:2px;">Upcoming Renewals</h2>
+            <p style="font-size:13px;color:#6b7280;">8 contracts up for renewal in the next 90 days</p>
+          </div>
+          <button class="btn btn-primary">&#x1f4e7; Send Reminders</button>
+        </div>
+
+        <div class="grid-3">
+          <div class="renewal-card urgent">
+            <div class="rc-title">DataPro Software License</div>
+            <div class="rc-party">DataPro Solutions</div>
+            <div class="rc-meta">
+              <div class="rc-meta-item"><div class="rc-meta-label">Renewal Date</div><div class="rc-meta-value" style="color:#dc2626;">May 1, 2026</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Annual Value</div><div class="rc-meta-value">$850,000</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Period</div><div class="rc-meta-value">30 days</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Deadline</div><div class="rc-meta-value" style="color:#dc2626;">Apr 1 (Passed)</div></div>
+            </div>
+            <div class="rc-footer">
+              <span class="badge badge-red">Action Required</span>
+              <div class="auto-renew">Auto-renew <div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+          </div>
+
+          <div class="renewal-card urgent">
+            <div class="rc-title">CloudSoft NDA</div>
+            <div class="rc-party">CloudSoft Labs</div>
+            <div class="rc-meta">
+              <div class="rc-meta-item"><div class="rc-meta-label">Renewal Date</div><div class="rc-meta-value" style="color:#dc2626;">May 15, 2026</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Annual Value</div><div class="rc-meta-value">&mdash;</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Period</div><div class="rc-meta-value">14 days</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Deadline</div><div class="rc-meta-value" style="color:#dc2626;">May 1</div></div>
+            </div>
+            <div class="rc-footer">
+              <span class="badge badge-red">10 Days Left</span>
+              <div class="auto-renew">Auto-renew <div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+          </div>
+
+          <div class="renewal-card warning">
+            <div class="rc-title">Strategic Advisors Consulting</div>
+            <div class="rc-party">Strategic Advisors LLC</div>
+            <div class="rc-meta">
+              <div class="rc-meta-item"><div class="rc-meta-label">Renewal Date</div><div class="rc-meta-value" style="color:#d97706;">Jun 15, 2026</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Annual Value</div><div class="rc-meta-value">$175,000</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Period</div><div class="rc-meta-value">30 days</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Deadline</div><div class="rc-meta-value">May 16</div></div>
+            </div>
+            <div class="rc-footer">
+              <span class="badge badge-amber">55 Days Left</span>
+              <div class="auto-renew">Auto-renew <div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+          </div>
+
+          <div class="renewal-card warning">
+            <div class="rc-title">Apex Premium SLA</div>
+            <div class="rc-party">Apex Hosting Group</div>
+            <div class="rc-meta">
+              <div class="rc-meta-item"><div class="rc-meta-label">Renewal Date</div><div class="rc-meta-value" style="color:#d97706;">Jun 30, 2026</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Annual Value</div><div class="rc-meta-value">$1,100,000</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Period</div><div class="rc-meta-value">60 days</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Deadline</div><div class="rc-meta-value" style="color:#d97706;">May 1</div></div>
+            </div>
+            <div class="rc-footer">
+              <span class="badge badge-amber">70 Days Left</span>
+              <div class="auto-renew">Auto-renew <div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+          </div>
+
+          <div class="renewal-card safe">
+            <div class="rc-title">GlobeTech Vendor Services</div>
+            <div class="rc-party">GlobeTech Partners</div>
+            <div class="rc-meta">
+              <div class="rc-meta-item"><div class="rc-meta-label">Renewal Date</div><div class="rc-meta-value">Jul 15, 2026</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Annual Value</div><div class="rc-meta-value">$920,000</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Period</div><div class="rc-meta-value">30 days</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Deadline</div><div class="rc-meta-value">Jun 15</div></div>
+            </div>
+            <div class="rc-footer">
+              <span class="badge badge-green">85 Days Left</span>
+              <div class="auto-renew">Auto-renew <div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+          </div>
+
+          <div class="renewal-card safe">
+            <div class="rc-title">NovaTech IP License</div>
+            <div class="rc-party">NovaTech Research</div>
+            <div class="rc-meta">
+              <div class="rc-meta-item"><div class="rc-meta-label">Renewal Date</div><div class="rc-meta-value">Jul 31, 2026</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Annual Value</div><div class="rc-meta-value">$340,000</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Period</div><div class="rc-meta-value">45 days</div></div>
+              <div class="rc-meta-item"><div class="rc-meta-label">Notice Deadline</div><div class="rc-meta-value">Jun 16</div></div>
+            </div>
+            <div class="rc-footer">
+              <span class="badge badge-green">101 Days Left</span>
+              <div class="auto-renew">Auto-renew <div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           PAGE 5: VENDORS
+           ======================================================== -->
+      <div class="page" id="page-vendors">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
+          <div>
+            <h2 style="font-size:20px;margin-bottom:2px;">Vendor Management</h2>
+            <p style="font-size:13px;color:#6b7280;">12 active vendor relationships</p>
+          </div>
+          <button class="btn btn-primary">&#x2795; Add Vendor</button>
+        </div>
+
+        <div class="card" style="overflow:hidden;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Vendor</th>
+                <th>Contracts</th>
+                <th>Total Value</th>
+                <th>Risk Score</th>
+                <th>Health</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">TV</div>
+                    <div><div style="font-weight:650;">TechVentures Inc.</div><div style="font-size:11px;color:#9ca3af;">Technology Services</div></div>
+                  </div>
+                </td>
+                <td style="font-weight:650;">8</td>
+                <td style="font-weight:650;">$4,200,000</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="progress-bar" style="width:80px;"><div class="fill fill-green" style="width:22%;"></div></div>
+                    <span style="font-weight:650;color:#16a34a;font-size:12px;">Low</span>
+                  </div>
+                </td>
+                <td><span class="vendor-health" style="color:#16a34a;">&#x25CF; Excellent</span></td>
+                <td><span class="badge badge-green">Active</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#0d9488);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">CS</div>
+                    <div><div style="font-weight:650;">CloudSoft Labs</div><div style="font-size:11px;color:#9ca3af;">Cloud Infrastructure</div></div>
+                  </div>
+                </td>
+                <td style="font-weight:650;">5</td>
+                <td style="font-weight:650;">$1,680,000</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="progress-bar" style="width:80px;"><div class="fill fill-green" style="width:35%;"></div></div>
+                    <span style="font-weight:650;color:#16a34a;font-size:12px;">Low</span>
+                  </div>
+                </td>
+                <td><span class="vendor-health" style="color:#16a34a;">&#x25CF; Good</span></td>
+                <td><span class="badge badge-green">Active</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#f97316);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">DP</div>
+                    <div><div style="font-weight:650;">DataPro Solutions</div><div style="font-size:11px;color:#9ca3af;">Data Analytics</div></div>
+                  </div>
+                </td>
+                <td style="font-weight:650;">3</td>
+                <td style="font-weight:650;">$1,250,000</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="progress-bar" style="width:80px;"><div class="fill fill-amber" style="width:58%;"></div></div>
+                    <span style="font-weight:650;color:#d97706;font-size:12px;">Medium</span>
+                  </div>
+                </td>
+                <td><span class="vendor-health" style="color:#d97706;">&#x25CF; Fair</span></td>
+                <td><span class="badge badge-amber">Review</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#8b5cf6,#a78bfa);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">AH</div>
+                    <div><div style="font-weight:650;">Apex Hosting Group</div><div style="font-size:11px;color:#9ca3af;">Infrastructure Hosting</div></div>
+                  </div>
+                </td>
+                <td style="font-weight:650;">4</td>
+                <td style="font-weight:650;">$2,100,000</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="progress-bar" style="width:80px;"><div class="fill fill-green" style="width:28%;"></div></div>
+                    <span style="font-weight:650;color:#16a34a;font-size:12px;">Low</span>
+                  </div>
+                </td>
+                <td><span class="vendor-health" style="color:#16a34a;">&#x25CF; Good</span></td>
+                <td><span class="badge badge-green">Active</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#ef4444,#f97316);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">GT</div>
+                    <div><div style="font-weight:650;">GlobeTech Partners</div><div style="font-size:11px;color:#9ca3af;">Consulting</div></div>
+                  </div>
+                </td>
+                <td style="font-weight:650;">6</td>
+                <td style="font-weight:650;">$3,450,000</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="progress-bar" style="width:80px;"><div class="fill fill-red" style="width:72%;"></div></div>
+                    <span style="font-weight:650;color:#dc2626;font-size:12px;">High</span>
+                  </div>
+                </td>
+                <td><span class="vendor-health" style="color:#dc2626;">&#x25CF; At Risk</span></td>
+                <td><span class="badge badge-red">Alert</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#16a34a,#06b6d4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">MP</div>
+                    <div><div style="font-weight:650;">Metropolitan Properties</div><div style="font-size:11px;color:#9ca3af;">Real Estate</div></div>
+                  </div>
+                </td>
+                <td style="font-weight:650;">2</td>
+                <td style="font-weight:650;">$4,200,000</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="progress-bar" style="width:80px;"><div class="fill fill-green" style="width:15%;"></div></div>
+                    <span style="font-weight:650;color:#16a34a;font-size:12px;">Low</span>
+                  </div>
+                </td>
+                <td><span class="vendor-health" style="color:#16a34a;">&#x25CF; Excellent</span></td>
+                <td><span class="badge badge-green">Active</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">SA</div>
+                    <div><div style="font-weight:650;">Strategic Advisors LLC</div><div style="font-size:11px;color:#9ca3af;">Management Consulting</div></div>
+                  </div>
+                </td>
+                <td style="font-weight:650;">2</td>
+                <td style="font-weight:650;">$350,000</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="progress-bar" style="width:80px;"><div class="fill fill-amber" style="width:45%;"></div></div>
+                    <span style="font-weight:650;color:#d97706;font-size:12px;">Medium</span>
+                  </div>
+                </td>
+                <td><span class="vendor-health" style="color:#d97706;">&#x25CF; Fair</span></td>
+                <td><span class="badge badge-green">Active</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">NR</div>
+                    <div><div style="font-weight:650;">NovaTech Research</div><div style="font-size:11px;color:#9ca3af;">R&D / IP</div></div>
+                  </div>
+                </td>
+                <td style="font-weight:650;">3</td>
+                <td style="font-weight:650;">$780,000</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="progress-bar" style="width:80px;"><div class="fill fill-green" style="width:20%;"></div></div>
+                    <span style="font-weight:650;color:#16a34a;font-size:12px;">Low</span>
+                  </div>
+                </td>
+                <td><span class="vendor-health" style="color:#16a34a;">&#x25CF; Good</span></td>
+                <td><span class="badge badge-green">Active</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           PAGE 6: GOVERNANCE
+           ======================================================== -->
+      <div class="page" id="page-governance">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
+          <div>
+            <h2 style="font-size:20px;margin-bottom:2px;">Relationship Governance</h2>
+            <p style="font-size:13px;color:#6b7280;">Perception gap analysis across key business relationships</p>
+          </div>
+          <button class="btn btn-primary">&#x1f4ca; Generate Report</button>
+        </div>
+
+        <div class="stats-grid" style="margin-bottom:24px;">
+          <div class="stat-card">
+            <div class="stat-label">Active Relationships</div>
+            <div class="stat-value">12</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg. Self Score</div>
+            <div class="stat-value" style="color:#4f46e5;">7.8</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg. Partner Score</div>
+            <div class="stat-value" style="color:#06b6d4;">7.2</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg. Perception Gap</div>
+            <div class="stat-value" style="color:#d97706;">-0.6</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div class="perception-card">
+              <div class="pc-name">TechVentures Inc.</div>
+              <div class="pc-type">Strategic Partner &middot; Technology Services</div>
+              <div class="score-row">
+                <span class="score-label">Our Perception (Self)</span>
+                <span class="score-val" style="color:#4f46e5;">8.4 / 10</span>
+              </div>
+              <div class="progress-bar" style="margin-bottom:10px;"><div class="fill fill-indigo" style="width:84%;"></div></div>
+              <div class="score-row">
+                <span class="score-label">Partner Perception</span>
+                <span class="score-val" style="color:#06b6d4;">8.1 / 10</span>
+              </div>
+              <div class="progress-bar" style="margin-bottom:10px;"><div class="fill fill-teal" style="width:81%;"></div></div>
+              <div class="gap-indicator positive">&#x2714; Aligned &mdash; Gap: +0.3 (within tolerance)</div>
+            </div>
+
+            <div class="perception-card">
+              <div class="pc-name">GlobeTech Partners</div>
+              <div class="pc-type">Vendor &middot; Consulting Services</div>
+              <div class="score-row">
+                <span class="score-label">Our Perception (Self)</span>
+                <span class="score-val" style="color:#4f46e5;">7.8 / 10</span>
+              </div>
+              <div class="progress-bar" style="margin-bottom:10px;"><div class="fill fill-indigo" style="width:78%;"></div></div>
+              <div class="score-row">
+                <span class="score-label">Partner Perception</span>
+                <span class="score-val" style="color:#06b6d4;">5.9 / 10</span>
+              </div>
+              <div class="progress-bar" style="margin-bottom:10px;"><div class="fill fill-teal" style="width:59%;"></div></div>
+              <div class="gap-indicator negative">&#x26a0; Misaligned &mdash; Gap: -1.9 (needs attention)</div>
+            </div>
+
+            <div class="perception-card">
+              <div class="pc-name">CloudSoft Labs</div>
+              <div class="pc-type">Vendor &middot; Cloud Infrastructure</div>
+              <div class="score-row">
+                <span class="score-label">Our Perception (Self)</span>
+                <span class="score-val" style="color:#4f46e5;">7.2 / 10</span>
+              </div>
+              <div class="progress-bar" style="margin-bottom:10px;"><div class="fill fill-indigo" style="width:72%;"></div></div>
+              <div class="score-row">
+                <span class="score-label">Partner Perception</span>
+                <span class="score-val" style="color:#06b6d4;">7.5 / 10</span>
+              </div>
+              <div class="progress-bar" style="margin-bottom:10px;"><div class="fill fill-teal" style="width:75%;"></div></div>
+              <div class="gap-indicator positive">&#x2714; Aligned &mdash; Gap: +0.3 (within tolerance)</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>KPI Radar &mdash; TechVentures</h3>
+              <div style="display:flex;gap:12px;font-size:11.5px;font-weight:600;">
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#4f46e5;display:inline-block;"></span> Self</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#06b6d4;display:inline-block;"></span> Partner</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="radar-container">
+                <svg width="320" height="320" viewBox="0 0 320 320">
+                  <g transform="translate(160,160)">
+                    <polygon points="0,-120 114.13,-37.08 70.53,97.08 -70.53,97.08 -114.13,-37.08" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+                    <polygon points="0,-90 85.60,-27.81 52.90,72.81 -52.90,72.81 -85.60,-27.81" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+                    <polygon points="0,-60 57.06,-18.54 35.27,48.54 -35.27,48.54 -57.06,-18.54" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+                    <polygon points="0,-30 28.53,-9.27 17.63,24.27 -17.63,24.27 -28.53,-9.27" fill="none" stroke="#f0f1f3" stroke-width="1"/>
+                    <line x1="0" y1="0" x2="0" y2="-120" stroke="#e5e7eb" stroke-width="1"/>
+                    <line x1="0" y1="0" x2="114.13" y2="-37.08" stroke="#e5e7eb" stroke-width="1"/>
+                    <line x1="0" y1="0" x2="70.53" y2="97.08" stroke="#e5e7eb" stroke-width="1"/>
+                    <line x1="0" y1="0" x2="-70.53" y2="97.08" stroke="#e5e7eb" stroke-width="1"/>
+                    <line x1="0" y1="0" x2="-114.13" y2="-37.08" stroke="#e5e7eb" stroke-width="1"/>
+                    <polygon points="0,-100.8 76.27,-24.73 52.85,72.73 -52.85,72.73 -95.39,-33.08"
+                      fill="rgba(79,70,229,0.12)" stroke="#4f46e5" stroke-width="2" stroke-linejoin="round"/>
+                    <polygon points="0,-97.2 71.36,-22.14 44.55,61.28 -56.42,77.66 -68.49,-22.24"
+                      fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="2" stroke-linejoin="round"/>
+                    <circle cx="0" cy="-100.8" r="4" fill="#4f46e5"/>
+                    <circle cx="76.27" cy="-24.73" r="4" fill="#4f46e5"/>
+                    <circle cx="52.85" cy="72.73" r="4" fill="#4f46e5"/>
+                    <circle cx="-52.85" cy="72.73" r="4" fill="#4f46e5"/>
+                    <circle cx="-95.39" cy="-33.08" r="4" fill="#4f46e5"/>
+                    <circle cx="0" cy="-97.2" r="4" fill="#06b6d4"/>
+                    <circle cx="71.36" cy="-22.14" r="4" fill="#06b6d4"/>
+                    <circle cx="44.55" cy="61.28" r="4" fill="#06b6d4"/>
+                    <circle cx="-56.42" cy="77.66" r="4" fill="#06b6d4"/>
+                    <circle cx="-68.49" cy="-22.24" r="4" fill="#06b6d4"/>
+                  </g>
+                  <text x="160" y="28" text-anchor="middle" font-family="Nunito Sans" font-size="11" fill="#6b7280" font-weight="600">Quality</text>
+                  <text x="290" y="118" text-anchor="start" font-family="Nunito Sans" font-size="11" fill="#6b7280" font-weight="600">Delivery</text>
+                  <text x="248" y="272" text-anchor="middle" font-family="Nunito Sans" font-size="11" fill="#6b7280" font-weight="600">Value</text>
+                  <text x="72" y="272" text-anchor="middle" font-family="Nunito Sans" font-size="11" fill="#6b7280" font-weight="600">Communication</text>
+                  <text x="30" y="118" text-anchor="end" font-family="Nunito Sans" font-size="11" fill="#6b7280" font-weight="600">Innovation</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           PAGE 7: ASK AI
+           ======================================================== -->
+      <div class="page" id="page-askai">
+        <div class="chat-container">
+          <div style="text-align:center;margin-bottom:32px;">
+            <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:24px;margin-bottom:12px;">&#x2728;</div>
+            <h2 style="font-size:22px;margin-bottom:4px;">Ask Evaluetor AI</h2>
+            <p style="font-size:13.5px;color:#6b7280;">Ask questions about your contracts, obligations, risks, and more.</p>
+          </div>
+
+          <div class="chat-messages">
+            <div class="chat-msg user">
+              <div class="chat-avatar human">JS</div>
+              <div class="chat-bubble">What are the key risks in our TechVentures MSA, and when is the next renewal?</div>
+            </div>
+
+            <div class="chat-msg assistant">
+              <div class="chat-avatar ai">&#x2728;</div>
+              <div class="chat-bubble">
+                <p style="margin-bottom:12px;">I've analyzed the <strong>TechVentures Master Services Agreement</strong> and here are the key findings:</p>
+                <p style="margin-bottom:8px;font-weight:700;font-family:Manrope,sans-serif;font-size:13px;">Risk Assessment (3 items found)</p>
+                <div style="margin-bottom:14px;padding-left:4px;">
+                  <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">
+                    <span style="color:#d97706;flex-shrink:0;">&#x26a0;</span>
+                    <span><strong>Liability Cap</strong> &mdash; Limited to 12 months of fees ($2.4M). Industry standard is typically 24 months for contracts of this size.</span>
+                  </div>
+                  <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">
+                    <span style="color:#d97706;flex-shrink:0;">&#x26a0;</span>
+                    <span><strong>IP Assignment</strong> &mdash; Clause 8.3 contains a broad IP assignment that may extend to pre-existing work. Recommend legal review.</span>
+                  </div>
+                  <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">
+                    <span style="color:#16a34a;flex-shrink:0;">&#x2714;</span>
+                    <span><strong>Termination</strong> &mdash; 90-day notice period with standard cure provisions. Acceptable.</span>
+                  </div>
+                </div>
+                <p style="margin-bottom:8px;font-weight:700;font-family:Manrope,sans-serif;font-size:13px;">Renewal Information</p>
+                <div style="background:#f8fafc;border:1px solid #e8eaed;border-radius:8px;padding:12px 14px;margin-bottom:12px;">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12.5px;">
+                    <div><span style="color:#9ca3af;">Renewal Date:</span> <strong>Mar 15, 2027</strong></div>
+                    <div><span style="color:#9ca3af;">Notice Period:</span> <strong>60 days</strong></div>
+                    <div><span style="color:#9ca3af;">Auto-Renewal:</span> <strong style="color:#16a34a;">Enabled</strong></div>
+                    <div><span style="color:#9ca3af;">Annual Value:</span> <strong>$2,400,000</strong></div>
+                  </div>
+                </div>
+                <p style="font-size:12.5px;color:#6b7280;">
+                  Sources: <span class="ref-tag">&#x1f4c4; TechVentures_MSA_2024.pdf</span> <span class="ref-tag">&#x1f4ca; Risk Report #247</span>
+                </p>
+              </div>
+            </div>
+
+            <div class="chat-msg user">
+              <div class="chat-avatar human">JS</div>
+              <div class="chat-bubble">How does our liability cap compare to other MSAs in the portfolio?</div>
+            </div>
+
+            <div class="chat-msg assistant">
+              <div class="chat-avatar ai">&#x2728;</div>
+              <div class="chat-bubble">
+                <p style="margin-bottom:12px;">Here's a comparison of liability caps across your active MSAs:</p>
+                <div style="overflow-x:auto;margin-bottom:14px;">
+                  <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+                    <thead>
+                      <tr style="border-bottom:2px solid #e5e7eb;">
+                        <th style="text-align:left;padding:6px 10px;font-weight:700;color:#4f46e5;">Contract</th>
+                        <th style="text-align:left;padding:6px 10px;font-weight:700;color:#4f46e5;">Liability Cap</th>
+                        <th style="text-align:left;padding:6px 10px;font-weight:700;color:#4f46e5;">Multiple</th>
+                        <th style="text-align:left;padding:6px 10px;font-weight:700;color:#4f46e5;">Risk</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style="border-bottom:1px solid #f3f4f6;">
+                        <td style="padding:6px 10px;">TechVentures MSA</td>
+                        <td style="padding:6px 10px;font-weight:650;">$2.4M</td>
+                        <td style="padding:6px 10px;">12 months</td>
+                        <td style="padding:6px 10px;"><span class="badge badge-amber" style="font-size:10px;">Medium</span></td>
+                      </tr>
+                      <tr style="border-bottom:1px solid #f3f4f6;">
+                        <td style="padding:6px 10px;">Apex Hosting SLA</td>
+                        <td style="padding:6px 10px;font-weight:650;">$3.3M</td>
+                        <td style="padding:6px 10px;">36 months</td>
+                        <td style="padding:6px 10px;"><span class="badge badge-green" style="font-size:10px;">Low</span></td>
+                      </tr>
+                      <tr style="border-bottom:1px solid #f3f4f6;">
+                        <td style="padding:6px 10px;">GlobeTech MSA</td>
+                        <td style="padding:6px 10px;font-weight:650;">$920K</td>
+                        <td style="padding:6px 10px;">12 months</td>
+                        <td style="padding:6px 10px;"><span class="badge badge-amber" style="font-size:10px;">Medium</span></td>
+                      </tr>
+                      <tr>
+                        <td style="padding:6px 10px;">DataPro License</td>
+                        <td style="padding:6px 10px;font-weight:650;">$1.7M</td>
+                        <td style="padding:6px 10px;">24 months</td>
+                        <td style="padding:6px 10px;"><span class="badge badge-green" style="font-size:10px;">Low</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p style="margin-bottom:6px;">The TechVentures MSA has a <strong>12-month</strong> liability cap, which is below your portfolio average of <strong>21 months</strong>. I recommend negotiating to at least 24 months at the next renewal.</p>
+                <p style="font-size:12.5px;color:#6b7280;margin-top:8px;">
+                  Sources: <span class="ref-tag">&#x1f4ca; Portfolio Analysis</span> <span class="ref-tag">&#x1f4c4; 4 contracts analyzed</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-input-area">
+            <input class="chat-input-box" type="text" placeholder="Ask about contracts, obligations, risks, renewals...">
+            <button class="chat-send-btn">&#x27a4;</button>
+          </div>
+          <div style="text-align:center;margin-top:10px;font-size:11px;color:#9ca3af;">
+            Powered by Evaluetor AI &middot; RAG-enhanced with your contract data &middot; 9 specialized agents
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-container -->
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<script>
+(function() {
+  var navItems = document.querySelectorAll('.nav-item[data-page]');
+  var pages = document.querySelectorAll('.page');
+  var topTitle = document.getElementById('topbar-title');
+  var topBreadcrumb = document.getElementById('topbar-breadcrumb');
+  var pageMeta = {
+    dashboard:  { title: 'Dashboard',   crumb: 'Overview' },
+    contracts:  { title: 'Contracts',    crumb: 'All Contracts' },
+    compliance: { title: 'Compliance',   crumb: 'Obligations & Risk' },
+    renewals:   { title: 'Renewals',     crumb: 'Upcoming Renewals' },
+    vendors:    { title: 'Vendors',      crumb: 'Vendor Management' },
+    governance: { title: 'Governance',   crumb: 'Relationship Health' },
+    askai:      { title: 'Ask AI',       crumb: 'Contract Intelligence' }
+  };
+  navItems.forEach(function(item) {
+    item.addEventListener('click', function() {
+      var pageId = this.dataset.page;
+      navItems.forEach(function(n) { n.classList.remove('active'); });
+      this.classList.add('active');
+      pages.forEach(function(p) { p.classList.remove('active'); });
+      var target = document.getElementById('page-' + pageId);
+      if (target) target.classList.add('active');
+      var meta = pageMeta[pageId] || { title: pageId, crumb: '' };
+      topTitle.textContent = meta.title;
+      topBreadcrumb.textContent = meta.crumb;
+    });
+  });
+  var tabItems = document.querySelectorAll('.tab-item[data-tab]');
+  tabItems.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      tabItems.forEach(function(t) { t.classList.remove('active'); });
+      this.classList.add('active');
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -14,7 +14,7 @@ Tenant admins see both global and their own tenant entries.
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +27,8 @@ from app.services.extraction_quality_service import (
     remove_from_golden_set,
     verify_extraction,
     bulk_auto_approve_all,
+    get_per_taxonomy_accuracy,
+    get_quality_driven_hints,
 )
 
 router = APIRouter(prefix="/api/admin/extraction-quality", tags=["extraction-quality"])
@@ -67,6 +69,34 @@ async def golden_set_overview(
     Super admins see metrics for all entries.
     """
     return await get_golden_set_overview(db, tenant_id)
+
+
+@router.get("/taxonomy-accuracy")
+async def taxonomy_accuracy(
+    tenant_id: CurrentTenantId,
+    current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get per-taxonomy-item extraction accuracy scores.
+
+    Returns accuracy (correct/total/%) for each clause type, obligation type,
+    and SLA metric type based on golden set verifications.
+    """
+    return await get_per_taxonomy_accuracy(db, tenant_id)
+
+
+@router.get("/taxonomy-accuracy/hints")
+async def taxonomy_accuracy_hints(
+    tenant_id: CurrentTenantId,
+    current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get suggested extraction hints for low-accuracy taxonomy items.
+
+    Returns items with accuracy < 70% and >= 3 verified samples,
+    with suggested hint text admins can apply to their extraction config.
+    """
+    return await get_quality_driven_hints(db, tenant_id)
 
 
 @router.get("/golden-set")
@@ -164,14 +194,50 @@ async def extraction_detail(
     return detail
 
 
+async def _bg_auto_recompile(tenant_id_str: str | None) -> None:
+    """Background task: load tenant config and trigger auto-recompile if eligible.
+
+    Runs after the verification response is sent. Opens its own session so
+    it doesn't share state with the request handler. Best-effort — failures
+    are logged only.
+    """
+    from app.database import async_session_maker
+    from app.models.tenant import Tenant
+    from app.services.dspy_compiler import maybe_auto_recompile
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
+
+    try:
+        tid = UUID(tenant_id_str) if tenant_id_str else None
+        async with async_session_maker() as session:
+            config: dict | None = None
+            if tid is not None:
+                tenant = await session.get(Tenant, tid)
+                if tenant and tenant.config_overrides:
+                    config = tenant.config_overrides.get("dspy_auto_recompile")
+            if not config:
+                return  # nothing to do for global / unconfigured tenants
+            summary = await maybe_auto_recompile(session, tid, config)
+            if any(v.startswith("auto:") or "queued" in v for v in summary.values() if isinstance(v, str)):
+                _logger.info(f"Auto-recompile summary tenant={tenant_id_str}: {summary}")
+    except Exception as e:
+        _logger.warning(f"Background auto-recompile failed for tenant {tenant_id_str}: {e}")
+
+
 @router.post("/verify")
 async def verify_extraction_item(
     body: VerifyExtractionRequest,
     tenant_id: CurrentTenantId,
     current_user: AdminUser,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """Verify (correct/incorrect/partial) an extracted item."""
+    """Verify (correct/incorrect/partial) an extracted item.
+
+    If the tenant has ``config_overrides.dspy_auto_recompile.enabled=true``
+    and this verification pushes any agent over its threshold, a recompile
+    is scheduled as a background task after the response is returned.
+    """
     if body.status not in ("correct", "incorrect", "partial"):
         raise HTTPException(status_code=400, detail="Invalid status")
     try:
@@ -187,6 +253,15 @@ async def verify_extraction_item(
             tenant_id=tenant_id,
         )
         await db.commit()
+
+        # Trigger auto-recompile evaluation *after* the response is sent,
+        # but only when the verification was a positive example.
+        if body.status == "correct":
+            background_tasks.add_task(
+                _bg_auto_recompile,
+                str(tenant_id) if tenant_id else None,
+            )
+
         return {
             "id": str(verification.id),
             "status": verification.status,
@@ -245,10 +320,16 @@ async def compile_dspy_programs(
 async def compilation_status(
     tenant_id: CurrentTenantId,
     current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
 ):
-    """Check which DSPy compiled programs exist for the current tenant."""
-    from app.services.dspy_compiler import get_compilation_status
-    status = await get_compilation_status(tenant_id)
+    """Check which DSPy compiled programs exist for the current tenant.
+
+    The response includes, per agent, the number of ``status='correct'``
+    verifications added since each program was last compiled — the same
+    counter the auto-recompile logic uses.
+    """
+    from app.services.dspy_compiler import get_compilation_status_with_counts
+    status = await get_compilation_status_with_counts(db, tenant_id)
     return {"tenant_id": str(tenant_id) if tenant_id else "global", "programs": status}
 
 
@@ -257,6 +338,7 @@ async def bulk_verify(
     body: BulkVerifyRequest,
     tenant_id: CurrentTenantId,
     current_user: AdminUser,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     """Bulk verify multiple extraction items at once."""
@@ -280,6 +362,14 @@ async def bulk_verify(
                 "status": verification.status,
             })
         await db.commit()
+
+        # One auto-recompile evaluation for the whole batch (not per item)
+        if any(r["status"] == "correct" for r in results):
+            background_tasks.add_task(
+                _bg_auto_recompile,
+                str(tenant_id) if tenant_id else None,
+            )
+
         return {"verified": len(results), "results": results}
     except Exception as e:
         await db.rollback()
