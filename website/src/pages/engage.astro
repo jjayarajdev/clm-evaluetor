@@ -1,0 +1,236 @@
+---
+import MarketingLayout from '../layouts/MarketingLayout.astro';
+
+const steps = [
+  {
+    num: '01',
+    tag: 'Discovery',
+    title: 'A thirty-minute review.',
+    bring: 'Five live contracts. Any format.',
+    we_show: 'Obligations, SLAs, risk patterns, and renewal terms — extracted in front of you, scored against your portfolio norms.',
+    you_keep: 'The findings, regardless of whether you proceed.',
+    cost: 'No payment. No procurement involvement. No NDA required.',
+    duration: '30 minutes',
+  },
+  {
+    num: '02',
+    tag: 'Pilot',
+    title: 'A scoped, time-boxed pilot.',
+    bring: 'Twenty to fifty contracts that represent your portfolio.',
+    we_show: 'Where the leakage is. Which obligations are at risk. Which renewals are imminent. Which SLAs are under-claimed. A relationship-governance baseline if a counterparty is in scope.',
+    you_keep: 'A written assessment, the extracted data as structured export, and a recommendation on whether a portfolio engagement makes sense.',
+    cost: 'Scoped per pilot — discussed once Discovery has established the shape of the work.',
+    duration: 'Typically 2–6 weeks',
+  },
+  {
+    num: '03',
+    tag: 'Portfolio engagement',
+    title: 'Active management of the full portfolio.',
+    bring: 'Your contract repository, the systems that hold execution truth (ERP, ITSM, finance), and the people who own outcomes.',
+    we_show: 'Continuous monitoring across obligations, SLAs, risk, renewals, and counterparty relationships. Findings turn into improvement points with owners and deadlines. Realised value is measured, not assumed.',
+    you_keep: 'A monthly statement of recovered, recoverable, and at-risk value across every contract in scope — defensible to the board.',
+    cost: 'Annual engagement, scoped to portfolio size and connector requirements. Unlimited users. Discussed on a call.',
+    duration: 'Annual',
+  },
+];
+
+const principles = [
+  ['No per-seat licensing',     'You pay for the work, not for the headcount that does it. Adding users is free.'],
+  ['No long lock-in',           'Standard exit on notice. Your data exports as PDF, DOCX, and structured JSON at any time.'],
+  ['Findings are yours',        'Anything we extract in Discovery or Pilot is yours to keep, even if you walk away.'],
+  ['Connectors priced honestly', 'ERP and ITSM connectors are real engineering work. We do not pretend they are click-to-enable.'],
+  ['EU residency available',    'Production deployments can be pinned to EU regions. The public demo is hosted in the US.'],
+  ['Human-in-the-loop first 30 days', 'Every extraction on a new portfolio is reviewed by an operator before it becomes canonical.'],
+];
+
+const faqs = [
+  {
+    q: 'Why not publish prices?',
+    a: 'Three reasons. (1) Portfolios vary by an order of magnitude — €20M vs €200M ACV are not the same engagement. (2) Connectors are real engineering work and require scoping. (3) We do not yet have enough customer data to defend specific numbers in public; we would rather have a conversation than ship a number we cannot stand behind.',
+  },
+  {
+    q: 'What does Discovery cost?',
+    a: 'Zero. No payment, no procurement, no contract. Bring five live contracts, get a written set of findings. If that takes more than the time we promised, that is on us.',
+  },
+  {
+    q: 'How long until first value?',
+    a: 'First findings are visible inside Discovery — that is the point. A pilot typically reaches its written assessment in 2–6 weeks. Portfolio engagements start delivering against month one once data is connected.',
+  },
+  {
+    q: 'What about integrations?',
+    a: 'Today: ServiceNow (ITSM), SharePoint, REST API, and webhooks. Scoped per engagement: ERP-volume connectors (SAP, Oracle, NetSuite), central-bank FX feeds. These are not "click to enable" — they require data-mapping work specific to your environment, scoped during pilot.',
+  },
+  {
+    q: 'Can we self-host?',
+    a: 'Production deployments support EU residency. Fully on-premise is possible for enterprise customers with the right operational maturity — happy to discuss requirements.',
+  },
+];
+---
+
+<MarketingLayout
+  title="How we engage"
+  description="A thirty-minute review, a scoped pilot, then an annual engagement — the three stages of working with Evaluetor."
+>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- HERO                                                          -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section" style="padding-top: clamp(56px, 6vw, 100px); padding-bottom: clamp(40px, 4vw, 64px);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-ink">How we engage</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h1 class="display display-xl" style="margin-top: 12px;">
+          Bring five contracts.<br/>
+          We show you, <span class="emph">in thirty minutes,</span><br/>
+          what your current CLM is missing.
+        </h1>
+        <p class="lead" style="margin-top: 28px; max-width: 760px;">
+          We do not publish prices on the website because portfolios vary by an order of magnitude and connectors are real engineering work. Every engagement starts with a free thirty-minute review — no procurement, no NDA, no commitment. From there, the shape of the work tells us what to scope.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- THREE-STEP MODEL                                              -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr" style="background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">01 / The three stages</div>
+      <h2 class="sechead-h display display-lg">Discovery. Pilot. <span class="emph">Engagement.</span></h2>
+    </header>
+
+    {steps.map((s, i) => (
+      <div class="grid grid-cols-12 gap-x-6 gap-y-4" style={`padding: ${i === 0 ? '32px' : '40px'} 0 32px; ${i < steps.length - 1 ? 'border-bottom: 1px solid var(--rule-2);' : ''}`}>
+
+        <!-- Big numeral + tag -->
+        <div class="col-span-12 md:col-span-3">
+          <div class="numeral-huge" style="margin-bottom: 8px;">{s.num}</div>
+          <div class="label label-orange">{s.tag}</div>
+          <p class="mono ink-3" style="font-size: 11px; margin-top: 10px; letter-spacing: 0.06em;">{s.duration}</p>
+        </div>
+
+        <!-- Detail -->
+        <div class="col-span-12 md:col-span-9">
+          <h3 class="display display-md" style="margin-bottom: 22px;">{s.title}</h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
+            <div>
+              <div class="label" style="margin-bottom: 8px;">You bring</div>
+              <p class="ink-2" style="font-size: 15px; line-height: 1.6;">{s.bring}</p>
+            </div>
+            <div>
+              <div class="label" style="margin-bottom: 8px;">We show</div>
+              <p class="ink-2" style="font-size: 15px; line-height: 1.6;">{s.we_show}</p>
+            </div>
+            <div>
+              <div class="label" style="margin-bottom: 8px;">You keep</div>
+              <p class="ink-2" style="font-size: 15px; line-height: 1.6;">{s.you_keep}</p>
+            </div>
+            <div>
+              <div class="label label-orange" style="margin-bottom: 8px;">Investment</div>
+              <p class="ink-2" style="font-size: 15px; line-height: 1.6;">{s.cost}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- OPERATING PRINCIPLES                                          -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">02 / How we operate</div>
+      <h2 class="sechead-h display display-lg">Six commitments, <span class="emph">in writing.</span></h2>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0" style="margin-top: 32px;">
+      {principles.map(([title, desc], i) => (
+        <div style={`padding: 22px 0; border-bottom: 1px solid var(--rule-2); ${i < 2 ? 'border-top: 1px solid var(--rule-2);' : ''}`}>
+          <div class="display display-sm" style="margin-bottom: 6px;">{title}</div>
+          <p class="ink-3" style="font-size: 14px; line-height: 1.55;">{desc}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- FAQ                                                           -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr" style="background: var(--paper-2);">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">03 / Frequently asked</div>
+      <h2 class="sechead-h display display-lg">The questions <span class="emph">that come first.</span></h2>
+    </header>
+
+    <div style="margin-top: 32px; border-top: 1px solid var(--rule);">
+      {faqs.map((f) => (
+        <details class="faq-item">
+          <summary>{f.q}</summary>
+          <div class="faq-a"><p>{f.a}</p></div>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- CTA                                                           -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 gap-y-8">
+      <div class="col-span-12 md:col-span-7">
+        <div class="label label-orange">Begin</div>
+        <h2 class="display display-lg" style="margin-top: 12px;">
+          Thirty minutes. <span class="emph">Five contracts.</span><br/>
+          Findings you keep.
+        </h2>
+        <p class="lead" style="margin-top: 22px; max-width: 560px;">
+          The fastest way to know whether Evaluetor is right for your portfolio is to watch it read your own paper.
+        </p>
+
+        <div style="margin-top: 28px;">
+          <a href="/contact" class="cta-btn">Book a review <span class="arr">→</span></a>
+          <a href="/commercial" class="cta-link" style="margin-left: 12px;">Read the long story →</a>
+        </div>
+      </div>
+
+      <div class="col-span-12 md:col-span-5">
+        <div style="border: 1px solid var(--rule); padding: 28px; background: var(--surface);">
+          <div class="label label-ink" style="margin-bottom: 14px;">What a review looks like</div>
+          <div class="grid grid-cols-3" style="gap: 14px; padding-bottom: 18px; border-bottom: 1px solid var(--rule-2);">
+            <div>
+              <div class="label tnum">30 min</div>
+              <div class="ink-3" style="font-size: 12px; margin-top: 4px;">Walkthrough</div>
+            </div>
+            <div>
+              <div class="label tnum">5 contracts</div>
+              <div class="ink-3" style="font-size: 12px; margin-top: 4px;">Your real data</div>
+            </div>
+            <div>
+              <div class="label tnum">0 prep</div>
+              <div class="ink-3" style="font-size: 12px; margin-top: 4px;">We do the work</div>
+            </div>
+          </div>
+          <p class="ink-2" style="font-size: 14px; line-height: 1.55; margin-top: 16px;">
+            Drop us a note with five PDFs. We will come back with a calendar slot and a written summary within forty-eight hours of the call.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</MarketingLayout>

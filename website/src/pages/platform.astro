@@ -1,180 +1,146 @@
 ---
 import MarketingLayout from '../layouts/MarketingLayout.astro';
-import Hero from '../components/Hero.astro';
-import SectionHeading from '../components/SectionHeading.astro';
-import FeatureShowcase from '../components/FeatureShowcase.astro';
-import StatsBar from '../components/StatsBar.astro';
-import CTABanner from '../components/CTABanner.astro';
+
+const pipeline = [
+  { n: '01', t: 'Ingest',     d: 'PDF and DOCX accepted. Parsed, chunked, embedded into a vector store (ChromaDB).' },
+  { n: '02', t: 'Extract',    d: 'Nine specialised agents read each contract: metadata, clauses, obligations, risks, SLAs, renewals, schema.' },
+  { n: '03', t: 'Score',      d: 'Risk patterns, obligation severity, SLA targets, composite health — calculated and stored per contract.' },
+  { n: '04', t: 'Watch',      d: 'Continuous monitoring against external feeds — ITSM tickets, ERP volumes, FX rates, calendar windows.' },
+  { n: '05', t: 'Surface',    d: 'Dashboards by team. Alerts by deadline. Improvement points with owner and priority.' },
+  { n: '06', t: 'Act',        d: 'Findings turn into work. Credits claimed. Renewals negotiated. Risk re-papered. Loop closes.' },
+];
+
+const security = [
+  { t: 'Multi-tenant isolation',  d: 'Every query is filtered by tenant at the data layer. Role-based access enforced at the API layer. Audit trail written for every action.' },
+  { t: 'EU residency',             d: 'Production deployments can be pinned to EU regions. The public demo runs in a US region.' },
+  { t: 'Langfuse observability',   d: 'Every AI call writes a trace — reasoning chain, prompts, model output. Inspectable, exportable, replayable. Defensible for risk teams.' },
+  { t: 'Human-in-the-loop',        d: 'For the first thirty days on every new portfolio, every extraction is reviewed by an operator before becoming canonical.' },
+  { t: 'No proprietary lock-in',   d: 'Contracts, extracted data, and audit trails export at any time as PDF, DOCX, or structured JSON. Standard exit terms allow notice without penalty.' },
+  { t: 'Certifications',           d: 'SOC 2 Type II and ISO 27001 are on the roadmap. Architecture documentation available under NDA.' },
+];
+
+const stack = [
+  { layer: 'API',                tech: 'Python 3.11 / FastAPI (async)' },
+  { layer: 'Frontend',           tech: 'React / TypeScript / Vite' },
+  { layer: 'Database',           tech: 'PostgreSQL + ChromaDB (vectors)' },
+  { layer: 'AI orchestration',   tech: 'OpenAI GPT-4o + Agent Squad' },
+  { layer: 'Observability',      tech: 'Langfuse via OpenTelemetry' },
+  { layer: 'Deployment',         tech: 'Docker Compose — local + AWS EC2' },
+];
 ---
 
-<MarketingLayout title="Platform & Security - Enterprise-Grade Architecture" description="AI-native architecture built for enterprise security. SOC 2 Type II compliant, GDPR-ready, with AES-256 encryption, SSO, and comprehensive audit trails.">
+<MarketingLayout
+  title="Platform & architecture"
+  description="AI-native architecture: nine specialised agents, multi-tenant by design, Langfuse traced, EU-residency-ready."
+>
 
-  <!-- Hero -->
-  <Hero
-    tag="Platform"
-    headline='Enterprise-grade <span class="text-primary-600">security and architecture</span>'
-    subheadline="AI-native architecture built for enterprise security from day one. SOC 2, GDPR, AES-256, SSO — the stuff your security team actually cares about."
-    primaryCTA={{ text: 'See the architecture', href: '/contact' }}
-    secondaryCTA={{ text: 'See Pricing', href: '/pricing' }}
-  />
+<section class="section" style="padding-top: clamp(56px, 6vw, 100px); padding-bottom: clamp(40px, 4vw, 64px);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-ink">Platform</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h1 class="display display-xl" style="margin-top: 12px;">
+          AI-first. <span class="emph">Audit-ready.</span><br/>
+          Built for the long haul.
+        </h1>
+        <p class="lead" style="margin-top: 28px; max-width: 720px;">
+          Evaluetor is not a document repository with AI bolted on. Nine specialised agents read every contract, watch every commitment, and surface the work that protects the value the signature created.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
 
-  <!-- Stats -->
-  <StatsBar stats={[
-    { value: 'SOC 2', label: 'Type II Compliant' },
-    { value: '99.9%', label: 'Uptime SLA' },
-    { value: 'AES-256', label: 'Encryption' },
-    { value: 'GDPR', label: 'Ready' },
-  ]} />
+<section class="section sr" style="background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">01 / How it works</div>
+      <h2 class="sechead-h display display-lg">Six steps, <span class="emph">in order.</span></h2>
+    </header>
 
-  <!-- Architecture -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="Architecture"
-        title="AI-native from the ground up"
-        subtitle="Purpose-built for contract intelligence. Every architectural decision optimizes for extraction accuracy, query performance, and operational reliability."
-      />
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-        <div class="bg-white rounded-xl p-8 border border-gray-100">
-          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
-            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg>
-          </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">AI-Native Design</h3>
-          <p class="text-sm text-gray-600 leading-relaxed">Multi-agent orchestration powered by Agent Squad with GPT-4o. RAG pipeline combines ChromaDB vector search with structured filters and intelligent re-ranking for high-accuracy contract analysis.</p>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6" style="gap: 1px; margin-top: 32px; background: var(--rule-2);">
+      {pipeline.map((p) => (
+        <div style="background: var(--surface); padding: 20px 16px;">
+          <div class="mono ink-3" style="font-size: 10px; letter-spacing: 0.14em;">{p.n}</div>
+          <div class="ink" style="font-size: 15px; font-weight: 500; margin-top: 8px; letter-spacing: -0.01em;">{p.t}</div>
+          <p class="ink-3" style="font-size: 12.5px; line-height: 1.5; margin-top: 8px;">{p.d}</p>
         </div>
-        <div class="bg-white rounded-xl p-8 border border-gray-100">
-          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
-            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
-          </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">Modern Stack</h3>
-          <p class="text-sm text-gray-600 leading-relaxed">FastAPI async backend with real-time APIs. React frontend with TypeScript. PostgreSQL for structured entities. ChromaDB for vector embeddings. Built for performance and developer productivity.</p>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section class="section sr">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">02 / Security &amp; governance</div>
+      <h2 class="sechead-h display display-lg">Defensible <span class="emph">from day one.</span></h2>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-0" style="margin-top: 28px;">
+      {security.map(({t, d}, i) => (
+        <div style={`padding: 22px 0; border-bottom: 1px solid var(--rule-2); ${i < 2 ? 'border-top: 1px solid var(--rule-2);' : ''}`}>
+          <div class="display display-sm" style="margin-bottom: 8px;">{t}</div>
+          <p class="ink-3" style="font-size: 14px; line-height: 1.6;">{d}</p>
         </div>
-        <div class="bg-white rounded-xl p-8 border border-gray-100">
-          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
-            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z" /></svg>
-          </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">Cloud Infrastructure</h3>
-          <p class="text-sm text-gray-600 leading-relaxed">Docker-containerized services with horizontal scaling. Regional deployment options for data residency requirements. Automated backups, health monitoring, and zero-downtime deployments.</p>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section class="section sr" style="background: var(--paper-2);">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">03 / Technical stack</div>
+      <h2 class="sechead-h display display-lg">What is under the hood.</h2>
+    </header>
+
+    <div class="grid grid-cols-12 gap-x-6 gap-y-8" style="margin-top: 32px;">
+      <div class="col-span-12 md:col-span-7">
+        <table class="ctable">
+          <thead>
+            <tr><th>Layer</th><th>Technology</th></tr>
+          </thead>
+          <tbody>
+            {stack.map((s) => (
+              <tr><td>{s.layer}</td><td class="mono ink-3" style="font-size: 13px;">{s.tech}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div class="col-span-12 md:col-span-5">
+        <div style="border: 1px solid var(--rule-2); background: var(--surface); padding: 24px;">
+          <div class="label label-orange" style="margin-bottom: 14px;">Scale today</div>
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            <li class="ink-2" style="font-size: 14px; padding: 8px 0; border-bottom: 1px solid var(--rule-2);"><span class="mono ink-3" style="font-size: 11px; margin-right: 10px;">9</span>specialised AI agents</li>
+            <li class="ink-2" style="font-size: 14px; padding: 8px 0; border-bottom: 1px solid var(--rule-2);"><span class="mono ink-3" style="font-size: 11px; margin-right: 10px;">36</span>clause types extracted</li>
+            <li class="ink-2" style="font-size: 14px; padding: 8px 0; border-bottom: 1px solid var(--rule-2);"><span class="mono ink-3" style="font-size: 11px; margin-right: 10px;">10</span>risk patterns scored</li>
+            <li class="ink-2" style="font-size: 14px; padding: 8px 0; border-bottom: 1px solid var(--rule-2);"><span class="mono ink-3" style="font-size: 11px; margin-right: 10px;">7</span>obligation types classified</li>
+            <li class="ink-2" style="font-size: 14px; padding: 8px 0; border-bottom: 1px solid var(--rule-2);"><span class="mono ink-3" style="font-size: 11px; margin-right: 10px;">13</span>SLA metric types tracked</li>
+            <li class="ink-2" style="font-size: 14px; padding: 8px 0;"><span class="mono ink-3" style="font-size: 11px; margin-right: 10px;">15</span>contract-type schemas with 1,235 fields</li>
+          </ul>
         </div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Security & Compliance -->
-  <section class="section-padding bg-gray-50">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="Security & Compliance"
-        title="Built to meet enterprise security standards"
-        subtitle="Security is foundational, not an afterthought. Every layer of the platform is designed with data protection, access control, and auditability at its core."
-      />
-      <div class="space-y-16 mt-8">
-        <FeatureShowcase
-          title="Data Protection"
-          description="Your contract data is protected at every stage — in transit, at rest, and during AI processing. Comprehensive key management and data residency controls ensure compliance with regional regulations."
-          imagePosition="right"
-          tag="Encryption & Residency"
-          image="/screenshots/dashboard.png"
-          imageAlt="Platform dashboard with security overview"
-          bullets={[
-            'AES-256 encryption at rest for all stored contract data and extracted intelligence',
-            'TLS 1.3 encryption in transit for all API communications and data transfers',
-            'Customer-managed encryption key support for organizations with strict key governance policies',
-            'Data residency options with isolated deployments in US and EU regions for GDPR compliance',
-            'Automated data retention policies with configurable expiration and secure deletion',
-          ]}
-        />
-        <FeatureShowcase
-          title="Access Control"
-          description="Granular access controls ensure the right people see the right contracts. From role-based permissions to SSO integration, every access point is secured and audited."
-          imagePosition="left"
-          tag="Identity & Authorization"
-          image="/screenshots/users.png"
-          imageAlt="User access control and role management"
-          bullets={[
-            'Role-based access control (RBAC) with predefined roles for legal, procurement, finance, and executive teams',
-            'SSO and SAML 2.0 integration with major identity providers including Okta, Azure AD, and OneLogin',
-            'Multi-factor authentication (MFA) enforced at the organization level with support for TOTP and hardware keys',
-            'Comprehensive audit trails log every action — document access, data export, configuration changes, and AI queries',
-            'IP allowlisting and session management controls for additional network-level security',
-          ]}
-        />
+<section class="section sr">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-orange">Review</div>
       </div>
-    </div>
-  </section>
-
-  <!-- Integrations -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="Integrations"
-        title="Integration-ready platform"
-        subtitle="A comprehensive REST API and webhook system lets you connect Evaluetor to any system in your stack. Enterprise connectors available on request."
-      />
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8">
-        <div class="bg-white rounded-xl p-6 border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
-          <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center mb-4">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
-          </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-1">REST API & Webhooks</h3>
-          <p class="text-sm text-gray-600">Built-in API for any system. Push and pull contract data, trigger workflows, and build custom integrations with full API documentation.</p>
-        </div>
-        <div class="bg-white rounded-xl p-6 border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
-          <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center mb-4">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" /></svg>
-          </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-1">Real-time Notifications</h3>
-          <p class="text-sm text-gray-600">Slack and Microsoft Teams notifications for SLA breaches, obligation deadlines, and renewal alerts. Stay informed where your team already works.</p>
-        </div>
-        <div class="bg-white rounded-xl p-6 border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
-          <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center mb-4">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" /></svg>
-          </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-1">CRM Sync</h3>
-          <p class="text-sm text-gray-600">Salesforce and HubSpot integration available. Link contracts to accounts, sync vendor data, and keep your CRM in the loop automatically.</p>
-        </div>
-        <div class="bg-white rounded-xl p-6 border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300">
-          <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center mb-4">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
-          </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-1">Enterprise Connectors</h3>
-          <p class="text-sm text-gray-600">SAP, Oracle, SAP Ariba, and Coupa connectors available on request. We'll work with your team to build the integration your workflow needs.</p>
+      <div class="col-span-12 md:col-span-9">
+        <h2 class="display display-lg">Want the architecture deck <span class="emph">under NDA?</span></h2>
+        <div style="margin-top: 24px;">
+          <a href="/contact" class="cta-btn">Get in touch <span class="arr">→</span></a>
         </div>
       </div>
     </div>
-  </section>
-
-  <!-- Observability -->
-  <section class="section-padding bg-gray-50">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="Observability"
-        title="Full visibility into AI operations"
-        subtitle="Every AI decision is traceable. Langfuse integration provides end-to-end observability across all agent operations, so you always know what the AI is doing, why, and at what cost."
-      />
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-        <div class="bg-white rounded-xl p-6 border border-gray-100">
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Agent Tracing</h3>
-          <p class="text-sm text-gray-600 leading-relaxed">Full trace visibility for every AI operation. See which agents processed each contract, what prompts were sent, and how responses were generated — from input to final output.</p>
-        </div>
-        <div class="bg-white rounded-xl p-6 border border-gray-100">
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Debugging & Quality</h3>
-          <p class="text-sm text-gray-600 leading-relaxed">When an extraction needs review, trace the exact chain of reasoning. Compare agent outputs across document versions. Identify and resolve accuracy issues systematically.</p>
-        </div>
-        <div class="bg-white rounded-xl p-6 border border-gray-100">
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Cost Monitoring</h3>
-          <p class="text-sm text-gray-600 leading-relaxed">Track token usage, API costs, and processing time per contract, per agent, and per operation. Set budgets and alerts to maintain predictable AI spend across your organization.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- CTA -->
-  <CTABanner
-    headline="Questions about security?"
-    subtext="We love talking architecture. Let's do a technical deep-dive with your engineering team."
-    buttonText="Schedule a call"
-    buttonLink="/contact"
-  />
+  </div>
+</section>
 
 </MarketingLayout>

@@ -1,135 +1,72 @@
 ---
 import MarketingLayout from '../../layouts/MarketingLayout.astro';
-import Hero from '../../components/Hero.astro';
-import SectionHeading from '../../components/SectionHeading.astro';
-import FeatureShowcase from '../../components/FeatureShowcase.astro';
-import FeatureCard from '../../components/FeatureCard.astro';
-import FeatureGrid from '../../components/FeatureGrid.astro';
-import StatsBar from '../../components/StatsBar.astro';
-import CTABanner from '../../components/CTABanner.astro';
+
+const capabilities = [
+  ['Auto-renewal detection',      'Every contract with an auto-renewal clause is identified and flagged. Notice-period windows are extracted to the day.'],
+  ['Early surface — 60–120 days', 'Configurable lead-time alerts. Most renewals surface 60–120 days before the notice deadline, giving procurement time to renegotiate, not just react.'],
+  ['Renewal calendar',            'Portfolio-wide calendar view of upcoming renewals, with value, vendor, notice deadline, and current health score.'],
+  ['Renegotiation prep',           'Side-by-side comparison of current terms vs. portfolio norms vs. market benchmarks (where we have them). Surfaces the case for renegotiation.'],
+  ['Both-sides view',              'For sell-side teams: same calendar, same prep, applied to customer renewals. Protect the book before churn lands on the AM\'s desk.'],
+  ['Health-conditioned alerts',    'Renewals attached to vendors with red composite health scores get escalated automatically. Healthy renewals stay quiet.'],
+];
 ---
 
-<MarketingLayout title="Renewal Management - Never Miss a Renewal or Auto-Renewal Deadline" description="AI-powered auto-renewal detection, notice period calculation, urgency classification, and data-driven renewal recommendations based on SLA performance history.">
+<MarketingLayout
+  title="Renewal Management"
+  description="No surprise renewals. Auto-renewal trap detection, notice-period windows, 60-120 day early surface."
+>
 
-  <!-- Hero -->
-  <Hero
-    tag="Renewal Management"
-    headline='Take control of every <span class="text-primary-600">renewal deadline</span>'
-    subheadline="AI detects auto-renewal clauses, calculates notice deadlines, and recommends renewal decisions based on actual vendor performance. Never get locked in again."
-    primaryCTA={{ text: 'See how it works', href: '/contact' }}
-    secondaryCTA={{ text: 'See Pricing', href: '/pricing' }}
-  />
-
-  <!-- Stats -->
-  <StatsBar stats={[
-    { value: 'Zero', label: 'Missed renewals' },
-    { value: '4', label: 'Urgency levels tracked' },
-    { value: '30/60/90', label: 'Day notification windows' },
-    { value: 'AI', label: 'Powered recommendations' },
-  ]} />
-
-  <!-- Showcase 1: Renewal Calendar -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="Complete Visibility"
-        title="Your entire renewal landscape at a glance"
-        subtitle="A visual calendar of every upcoming renewal, expiration, and notice deadline across your entire contract portfolio, so nothing catches your team off guard."
-      />
-      <FeatureShowcase
-        title="Renewal Calendar"
-        description="See every upcoming contract expiration and renewal deadline on a unified timeline. Filter by urgency, contract value, owner, or vendor to focus on what matters most to your team."
-        imagePosition="right"
-        tag="Portfolio View"
-        image="/screenshots/renewals.png"
-        imageAlt="Renewal calendar with deadline tracking"
-        bullets={[
-          'Visual timeline of all contract expirations with color-coded urgency indicators',
-          'Automatic notice deadline calculation based on contract-specific notice periods',
-          'Filter by 30, 60, or 90-day windows to manage your pipeline proactively',
-          'Aggregate renewal value tracking shows total dollar exposure in each time window',
-          'Calendar integration exports deadlines to Outlook, Google Calendar, or any ICS-compatible system',
-        ]}
-      />
+<section class="section" style="padding-top: clamp(56px, 6vw, 100px); padding-bottom: clamp(40px, 4vw, 64px);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-ink">Capability &nbsp;·&nbsp; 04</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h1 class="display display-xl" style="margin-top: 12px;">
+          No surprise <span class="emph">renewals.</span>
+        </h1>
+        <p class="lead" style="margin-top: 28px; max-width: 720px;">
+          Auto-renewal clauses are the most-quoted leakage source in any procurement war story. Evaluetor extracts them, calendars them, and surfaces them with enough lead time that you negotiate — instead of just paying.
+        </p>
+      </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Showcase 2: Auto-Renewal Detection -->
-  <section class="section-padding bg-gray-50">
-    <div class="container-narrow">
-      <FeatureShowcase
-        title="Auto-Renewal Detection"
-        description="Auto-renewal clauses are one of the most expensive blind spots in contract management. Our AI reads every agreement and flags auto-renewal terms, then calculates the exact date by which you must act to preserve your options."
-        imagePosition="left"
-        tag="AI Detection"
-        image="/screenshots/milestone-config.png"
-        imageAlt="Auto-renewal detection and milestone configuration"
-        bullets={[
-          'AI identifies auto-renewal clauses buried in contract language regardless of wording',
-          'Calculates the last possible notice date based on renewal date minus notice period',
-          'Classifies urgency into 4 levels: Low, Medium, High, and Critical based on time remaining',
-          'Flags contracts where the notice window has already passed or is about to close',
-          'Tracks renewal term lengths, escalation clauses, and price adjustment provisions',
-        ]}
-      />
+<section class="section sr" style="background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">01 / What it does</div>
+      <h2 class="sechead-h display display-lg">Six things, <span class="emph">before the deadline.</span></h2>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-0" style="margin-top: 28px;">
+      {capabilities.map(([t, d], i) => (
+        <div style={`padding: 22px 0; border-bottom: 1px solid var(--rule-2); ${i < 2 ? 'border-top: 1px solid var(--rule-2);' : ''}`}>
+          <div class="display display-sm" style="margin-bottom: 8px;">{t}</div>
+          <p class="ink-3" style="font-size: 14px; line-height: 1.6;">{d}</p>
+        </div>
+      ))}
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Showcase 3: Risk-Based Recommendations -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <FeatureShowcase
-        title="Risk-Based Renewal Recommendations"
-        description="Renewal decisions should be informed by performance data, not just calendar dates. Evaluetor combines SLA compliance history, obligation fulfillment rates, and risk scores to recommend whether to renew, renegotiate, or terminate."
-        imagePosition="right"
-        tag="Data-Driven Decisions"
-        image="/screenshots/vendor-performance.png"
-        imageAlt="Vendor performance analysis for renewal decisions"
-        bullets={[
-          'SLA performance history feeds directly into renewal recommendations',
-          'Identifies at-risk contracts where vendor performance has been declining',
-          'Recommends renegotiation when SLA breaches or obligation failures exceed thresholds',
-          'Highlights high-value contracts with strong performance as candidates for early renewal',
-          'Provides side-by-side comparison of contract terms for multi-vendor renewals',
-        ]}
-      />
+<section class="section sr" style="background: var(--paper-2);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-orange">See it work</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h2 class="display display-lg">Find out which auto-renewals <span class="emph">are about to trigger.</span></h2>
+        <div style="margin-top: 24px;">
+          <a href="/contact" class="cta-btn">Book a review <span class="arr">→</span></a>
+          <a href="/features/relationship-governance" class="cta-link" style="margin-left: 12px;">Next: Relationship governance →</a>
+        </div>
+      </div>
     </div>
-  </section>
-
-  <!-- Additional Features -->
-  <section class="section-padding bg-gray-50">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="More Capabilities"
-        title="Renewal management that drives better outcomes"
-        subtitle="Beyond deadline tracking, Evaluetor gives your team the intelligence needed to negotiate stronger terms and make confident renewal decisions."
-      />
-      <FeatureGrid>
-        <FeatureCard
-          title="Stakeholder Workflows"
-          description="Route renewal decisions to the right stakeholders with automated approval workflows. Legal reviews terms, procurement evaluates pricing, and business owners confirm the relationship."
-          icon='<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>'
-        />
-        <FeatureCard
-          title="Financial Impact Analysis"
-          description="Understand the total cost of renewal versus replacement. See aggregated spend history, price escalation trends, and projected costs to support data-driven procurement decisions."
-          icon='<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>'
-        />
-        <FeatureCard
-          title="Renewal History & Audit Trail"
-          description="Complete record of every renewal decision, including who was notified, when decisions were made, and what terms changed. Build institutional knowledge that improves every future negotiation."
-          icon='<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>'
-        />
-      </FeatureGrid>
-    </div>
-  </section>
-
-  <!-- CTA -->
-  <CTABanner
-    headline="When's your next renewal deadline?"
-    subtext="If you have to check a spreadsheet, we should talk."
-    buttonText="Let's talk"
-    buttonLink="/contact"
-  />
+  </div>
+</section>
 
 </MarketingLayout>
