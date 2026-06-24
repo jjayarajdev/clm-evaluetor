@@ -1,171 +1,132 @@
 ---
 import MarketingLayout from '../layouts/MarketingLayout.astro';
-import Hero from '../components/Hero.astro';
-import SectionHeading from '../components/SectionHeading.astro';
-import CTABanner from '../components/CTABanner.astro';
+
+const principles = [
+  ['AI-first, not AI-added',
+   'Every competitor bolted AI onto a document repository. We built model-first. Nine specialised agents work in concert — extraction, risk, obligations, clauses, renewals, SLAs, Q&A, schema, intent routing.'],
+  ['Relationships, not just documents',
+   'Contracts define terms. Relationships determine outcomes. Evaluetor is the only platform that measures how both sides of a relationship perceive the partnership — the perception gap, scored continuously.'],
+  ['European, audit-ready',
+   'Built in the Netherlands. Multi-tenant isolation by design. EU residency available. Langfuse trace per AI call — every reasoning chain is inspectable, exportable, replayable.'],
+];
+
+const facts = [
+  { v: '2024',                  k: 'Founded',     s: 'In the Netherlands' },
+  { v: 'Evaluetor B.V.',         k: 'Entity',      s: 'Dutch private limited company' },
+  { v: 'Post-signature CLM',     k: 'Focus',       s: 'Execution, not document routing' },
+  { v: 'Self-funded',            k: 'Backed by',   s: 'Independent. Customer-focused.' },
+];
 ---
 
-<MarketingLayout title="About Us - Evaluetor" description="A small team in Rotterdam building the contract intelligence platform that enterprises deserve but have never had. Our story, our mission, and why we're different.">
+<MarketingLayout
+  title="About Evaluetor"
+  description="A small team in the Netherlands building the contract intelligence platform that enterprises deserve but have never had."
+>
 
-  <!-- Hero -->
-  <Hero
-    tag="Our Story"
-    headline='A small team with a <span class="text-primary-600">big bet</span>'
-    subheadline="We're building the contract intelligence platform that enterprises deserve but have never had."
-    primaryCTA={{ text: 'Talk to the team', href: '/contact' }}
-    secondaryCTA={{ text: 'See the product', href: '/product' }}
-  />
-
-  <!-- Mission -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <div class="max-w-3xl mx-auto text-center">
-        <SectionHeading
-          tag="The Bet"
-          title="Contracts are broken. We're fixing it."
-        />
-        <p class="text-lg text-gray-600 leading-relaxed -mt-6">
-          Here's what's wild: enterprises spend millions negotiating contracts, then file them in a drawer. Nobody reads them. Nobody tracks the obligations. Nobody claims the service credits they're owed. And when something goes wrong, everyone scrambles to find the document.
-        </p>
-        <p class="text-lg text-gray-600 leading-relaxed mt-4">
-          We think that's insane. So we built an AI that reads every contract, extracts every obligation, tracks every deadline, and monitors every vendor relationship. Not as a feature bolted onto a document repository — as the core of the product.
+<!-- HERO -->
+<section class="section" style="padding-top: clamp(56px, 6vw, 100px); padding-bottom: clamp(40px, 4vw, 64px);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-ink">About</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h1 class="display display-xl" style="margin-top: 12px;">
+          A small team <span class="emph">in the Netherlands.</span><br/>
+          A big bet on <span class="emph">post-signature.</span>
+        </h1>
+        <p class="lead" style="margin-top: 28px; max-width: 720px;">
+          Enterprises spend millions negotiating contracts, then file them in a drawer. Nobody reads them. Nobody tracks the obligations. Nobody claims the service credits. When something goes wrong, everyone scrambles to find the document. We think that is fixable.
         </p>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Our Story (dark) -->
-  <section class="section-padding bg-gray-950">
-    <div class="container-narrow">
-      <div class="max-w-3xl mx-auto">
-        <SectionHeading
-          tag="Why"
-          title="Born from frustration"
-          dark={true}
-        />
-        <div class="text-lg text-gray-400 mx-auto text-center leading-relaxed">
-          <p>
-            Years of experience in vendor governance and relationship management revealed a painful truth: enterprises lose millions to contracts they can't track. Legal teams drowning in manual review. Procurement missing SLA breaches. Finance discovering auto-renewals after they've triggered.
-          </p>
-          <p class="mt-4">
-            Evaluetor was started in Rotterdam with a simple thesis: if AI can read and understand contracts better than any individual person, why are we still doing it manually? So we built a platform that doesn't just store contracts — it understands them.
-          </p>
+<!-- THE BET -->
+<section class="section sr" style="background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">01 / The bet</div>
+      <h2 class="sechead-h display display-lg">Contracts are <span class="emph">broken after signature.</span></h2>
+    </header>
+
+    <div class="grid grid-cols-12 gap-x-6" style="margin-top: 36px;">
+      <div class="col-span-12 md:col-span-9 md:col-start-4">
+        <p class="ink-2" style="font-size: 17px; line-height: 1.65; max-width: 680px;">
+          Years in vendor governance and business-relationship management surfaced the same painful pattern across enterprise after enterprise: legal teams drowning in manual review, procurement missing SLA breaches, finance discovering auto-renewals after they triggered, no single owner for the value that was supposed to land.
+        </p>
+        <p class="ink-2" style="font-size: 17px; line-height: 1.65; margin-top: 16px; max-width: 680px;">
+          Evaluetor was started in the Netherlands with a simple thesis: if AI can read and understand contracts better than any individual person, why are we still doing it manually? So we built a platform that does not just store contracts — it understands them, watches them perform, and surfaces what is leaking.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRINCIPLES -->
+<section class="section sr">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">02 / How we are different</div>
+      <h2 class="sechead-h display display-lg">Three things <span class="emph">we will not compromise on.</span></h2>
+    </header>
+
+    <div style="margin-top: 32px;">
+      {principles.map(([title, desc], i) => (
+        <div class="grid grid-cols-12 gap-x-6" style={`padding: 32px 0; ${i < principles.length - 1 ? 'border-bottom: 1px solid var(--rule-2);' : ''}`}>
+          <div class="col-span-12 md:col-span-3">
+            <div class="numeral-huge">{String(i+1).padStart(2,'0')}</div>
+          </div>
+          <div class="col-span-12 md:col-span-9">
+            <h3 class="display display-md">{title}</h3>
+            <p class="ink-2" style="font-size: 15px; line-height: 1.65; margin-top: 12px; max-width: 620px;">{desc}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<!-- COMPANY FACTS -->
+<section class="section sr" style="background: var(--paper-2);">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">03 / Company facts</div>
+      <h2 class="sechead-h display display-lg">The basics.</h2>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-4" style="gap: 1px; margin-top: 32px; background: var(--rule-2);">
+      {facts.map((f) => (
+        <div style="background: var(--paper); padding: 24px 20px;">
+          <div class="display display-md">{f.v}</div>
+          <div class="label" style="margin-top: 10px;">{f.k}</div>
+          <p class="ink-3" style="font-size: 12px; margin-top: 4px;">{f.s}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section sr">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 gap-y-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-orange">Meet the team</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h2 class="display display-lg">Want to see <span class="emph">what we are building?</span></h2>
+        <p class="lead" style="margin-top: 18px; max-width: 540px;">
+          A real conversation, not a sales pitch. Live walkthrough with your own contracts. No slides.
+        </p>
+        <div style="margin-top: 28px;">
+          <a href="/contact" class="cta-btn">Talk to the team <span class="arr">→</span></a>
+          <a href="/product" class="cta-link" style="margin-left: 12px;">See the product →</a>
         </div>
       </div>
     </div>
-  </section>
-
-  <!-- What Makes Us Different -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="Our Approach"
-        title="Why we're different"
-      />
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
-        <div class="bg-white rounded-xl p-8 border border-gray-100 text-center">
-          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-4">
-            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg>
-          </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">AI-first, not AI-added</h3>
-          <p class="text-sm text-gray-600 leading-relaxed">Every competitor bolts AI onto a document repository. We built the AI first, then wrapped the product around it. Eight specialized agents, not one generic model.</p>
-        </div>
-        <div class="bg-white rounded-xl p-8 border border-gray-100 text-center">
-          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-4">
-            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" /></svg>
-          </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">Relationships, not just documents</h3>
-          <p class="text-sm text-gray-600 leading-relaxed">Contracts define terms. Relationships determine outcomes. We're the only platform that measures how both sides perceive the partnership — not just what the contract says.</p>
-        </div>
-        <div class="bg-white rounded-xl p-8 border border-gray-100 text-center">
-          <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-4">
-            <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
-          </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">European-built, enterprise-ready</h3>
-          <p class="text-sm text-gray-600 leading-relaxed">Headquartered in Rotterdam. GDPR-native. Data stays where you need it. No compromises on privacy.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Who's Behind This -->
-  <section class="section-padding bg-gray-50">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="Behind Evaluetor"
-        title="Who's building this"
-      />
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mt-8">
-        <div class="bg-white rounded-2xl p-8 border border-gray-200/60 text-center shadow-sm hover:shadow-md transition-shadow">
-          <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center mx-auto mb-5 shadow-md shadow-primary-500/20">
-            <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" /></svg>
-          </div>
-          <h3 class="text-xl font-bold text-gray-900">S.E.Visser Consultancy B.V.</h3>
-          <p class="text-base text-primary-600 font-semibold mt-1">Strategy & Domain Expertise</p>
-          <p class="text-sm text-gray-600 mt-3 leading-relaxed">Deep experience in vendor governance, business relationship management, and enterprise contract operations. The domain knowledge and strategic vision behind Evaluetor.</p>
-        </div>
-        <div class="bg-white rounded-2xl p-8 border border-gray-200/60 text-center shadow-sm hover:shadow-md transition-shadow">
-          <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center mx-auto mb-5 shadow-md shadow-primary-500/20">
-            <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
-          </div>
-          <h3 class="text-xl font-bold text-gray-900">Syntegreti Technologies B.V.</h3>
-          <p class="text-base text-primary-600 font-semibold mt-1">Engineering & AI</p>
-          <p class="text-sm text-gray-600 mt-3 leading-relaxed">The technical force building the platform. AI-native architecture, multi-agent orchestration, and the engineering that turns domain expertise into working software.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Company Facts -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="Company"
-        title="Company facts"
-      />
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
-        <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200/60 text-center shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-          <div class="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-transparent"></div>
-          <div class="relative">
-            <div class="text-3xl font-bold text-primary-700 mb-2">2024</div>
-            <h3 class="text-sm font-semibold text-gray-900 mb-1">Founded</h3>
-            <p class="text-xs text-gray-500">Rotterdam, Netherlands</p>
-          </div>
-        </div>
-        <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200/60 text-center shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-          <div class="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-transparent"></div>
-          <div class="relative">
-            <div class="text-3xl font-bold text-primary-700 mb-2">Rotterdam</div>
-            <h3 class="text-sm font-semibold text-gray-900 mb-1">Headquarters</h3>
-            <p class="text-xs text-gray-500">European Union</p>
-          </div>
-        </div>
-        <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200/60 text-center shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-          <div class="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-transparent"></div>
-          <div class="relative">
-            <div class="text-2xl font-bold text-primary-700 mb-2">Contract Intelligence</div>
-            <h3 class="text-sm font-semibold text-gray-900 mb-1">Focus</h3>
-            <p class="text-xs text-gray-500">AI-powered analysis and governance</p>
-          </div>
-        </div>
-        <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200/60 text-center shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-          <div class="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-transparent"></div>
-          <div class="relative">
-            <div class="text-3xl font-bold text-primary-700 mb-2">Self-funded</div>
-            <h3 class="text-sm font-semibold text-gray-900 mb-1">Backed By</h3>
-            <p class="text-xs text-gray-500">Independent. Customer-focused.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- CTA -->
-  <CTABanner
-    headline="Want to see what we're building?"
-    subtext="We'll walk you through a live demo with your own contracts. No slides, no sales pitch."
-    buttonText="Talk to us"
-    buttonLink="/contact"
-  />
+  </div>
+</section>
 
 </MarketingLayout>

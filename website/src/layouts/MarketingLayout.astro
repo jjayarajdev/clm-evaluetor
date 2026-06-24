@@ -2,6 +2,7 @@
 import BaseLayout from './BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import '../styles/dutch.css';
 
 interface Props {
   title: string;
@@ -13,8 +14,25 @@ const { title, description } = Astro.props;
 
 <BaseLayout title={title} description={description}>
   <Header />
-  <main>
+  <main class="dutch">
     <slot />
   </main>
   <Footer />
 </BaseLayout>
+
+<script>
+  /* Scroll-reveal — pages that use `.sr` class get faded in on intersection. */
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.08, rootMargin: '0px 0px -8% 0px' }
+  );
+
+  document.querySelectorAll('.sr').forEach((el) => observer.observe(el));
+</script>

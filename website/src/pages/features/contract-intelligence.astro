@@ -1,135 +1,103 @@
 ---
 import MarketingLayout from '../../layouts/MarketingLayout.astro';
-import Hero from '../../components/Hero.astro';
-import SectionHeading from '../../components/SectionHeading.astro';
-import FeatureShowcase from '../../components/FeatureShowcase.astro';
-import FeatureCard from '../../components/FeatureCard.astro';
-import FeatureGrid from '../../components/FeatureGrid.astro';
-import StatsBar from '../../components/StatsBar.astro';
-import CTABanner from '../../components/CTABanner.astro';
+
+const capabilities = [
+  ['Parties, dates, values',     'Names, signatories, jurisdiction, effective and termination dates, contract value, currency, payment terms — extracted from the document, not from a sidecar metadata form.'],
+  ['36 clause types',             'Indemnity, liability, IP, termination, confidentiality, assignment, force majeure, governing law, dispute resolution, change of control, exclusivity, audit rights, and 24 more — each classified, scored, and cited.'],
+  ['15 contract schemas',         '1,235 typed fields across MSA, SOW, NDA, employment, lease, SaaS, services, supply, distribution, licensing, M&A, JV, franchise, partnership, insurance.'],
+  ['Paragraph-level citation',    'Every extracted fact and every risk flag points back to the exact paragraph in the source document. Legal counsel can verify a finding in seconds.'],
+  ['Cross-portfolio anomaly',     'Find the one outlier indemnity clause across 200 SaaS contracts. Surface the supplier whose termination terms drift from your portfolio norm.'],
+  ['Contract Q&A',                'Ask natural-language questions across the portfolio. Answers cite source. Built on the same vector index used by extraction.'],
+];
+
+const agents = [
+  ['Metadata extraction',    'Parties, dates, values, jurisdiction'],
+  ['Schema extraction',      '15 contract types · 1,235 typed fields'],
+  ['Clause extraction',      '36 clause types · paragraph-citing'],
+  ['Contract Q&A',            'RAG-powered answers across the portfolio'],
+  ['Intent routing',         'Queries routed to the right agent or tool'],
+];
 ---
 
-<MarketingLayout title="Contract Intelligence - AI-Powered Extraction & Analysis" description="8 specialized AI agents powered by GPT-4o extract metadata, clauses, risks, obligations, and more from every contract. Ask questions in natural language and get cited answers instantly.">
+<MarketingLayout
+  title="Contract Intelligence"
+  description="Read every contract. Score every clause. 36 clause types, 15 schemas, paragraph-level citation."
+>
 
-  <!-- Hero -->
-  <Hero
-    tag="Contract Intelligence"
-    headline='Turn every contract into <span class="text-primary-600">actionable intelligence</span>'
-    subheadline="Eight AI agents extract metadata, classify clauses, score risks, and answer questions across your entire portfolio. Upload a PDF, get intelligence in minutes."
-    primaryCTA={{ text: 'Try it free', href: '/contact' }}
-    secondaryCTA={{ text: 'See Pricing', href: '/pricing' }}
-  />
-
-  <!-- Stats -->
-  <StatsBar stats={[
-    { value: '30+', label: 'Clause types identified' },
-    { value: '10', label: 'Risk categories scored' },
-    { value: '8', label: 'Specialized AI agents' },
-    { value: '90%+', label: 'Extraction accuracy' },
-  ]} />
-
-  <!-- Showcase 1: Metadata Extraction -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="Instant Extraction"
-        title="Every detail, captured automatically"
-        subtitle="Stop manually reading contracts. Our Metadata Extraction Agent identifies and structures the critical data points hidden in every agreement."
-      />
-      <FeatureShowcase
-        title="Metadata Extraction"
-        description="Upload any contract and our AI immediately extracts the structured data your teams need. No templates, no manual tagging, no training required."
-        imagePosition="right"
-        tag="Agent 1 of 8"
-        image="/screenshots/contracts.png"
-        imageAlt="Contract list with extracted metadata"
-        bullets={[
-          'Identifies contract type, governing law, and jurisdiction automatically',
-          'Extracts all parties with roles (buyer, seller, licensor, service provider)',
-          'Captures effective dates, expiration dates, and renewal terms',
-          'Detects total contract value, payment terms, and currency',
-          'Links amendments and exhibits to parent agreements',
-        ]}
-      />
+<section class="section" style="padding-top: clamp(56px, 6vw, 100px); padding-bottom: clamp(40px, 4vw, 64px);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-ink">Capability &nbsp;·&nbsp; 01</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h1 class="display display-xl" style="margin-top: 12px;">
+          Read every contract. <span class="emph">Cite every flag.</span>
+        </h1>
+        <p class="lead" style="margin-top: 28px; max-width: 720px;">
+          The foundation underneath the rest of the platform. Five specialised agents parse, classify, and extract — into a structured model that the rest of Evaluetor can reason over.
+        </p>
+      </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Showcase 2: Clause & Risk Analysis -->
-  <section class="section-padding bg-gray-50">
-    <div class="container-narrow">
-      <FeatureShowcase
-        title="Clause & Risk Analysis"
-        description="Our Clause Extraction and Risk Detection agents work together to classify every provision and surface contractual risks before they become problems."
-        imagePosition="left"
-        tag="Deep Analysis"
-        image="/screenshots/compliance-overview.png"
-        imageAlt="Compliance overview with risk analysis"
-        bullets={[
-          'Classifies 30+ clause types including indemnification, limitation of liability, IP assignment, and termination',
-          'Scores each risk on a four-level scale: LOW, MEDIUM, HIGH, and CRITICAL',
-          'Detects missing clauses that should be present based on contract type and industry standards',
-          'Highlights unusual or non-standard language that deviates from your playbook',
-          'Provides risk summaries with specific clause references for rapid legal review',
-        ]}
-      />
+<section class="section sr" style="background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">01 / What it does</div>
+      <h2 class="sechead-h display display-lg">Six things, <span class="emph">at portfolio scale.</span></h2>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-0" style="margin-top: 28px;">
+      {capabilities.map(([t, d], i) => (
+        <div style={`padding: 22px 0; border-bottom: 1px solid var(--rule-2); ${i < 2 ? 'border-top: 1px solid var(--rule-2);' : ''}`}>
+          <div class="display display-sm" style="margin-bottom: 8px;">{t}</div>
+          <p class="ink-3" style="font-size: 14px; line-height: 1.6;">{d}</p>
+        </div>
+      ))}
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Showcase 3: Natural Language Q&A -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <FeatureShowcase
-        title="Natural Language Q&A"
-        description="Ask questions about any contract or across your entire portfolio in plain English. Our RAG-powered Q&A agent retrieves relevant clauses and delivers cited answers with full traceability."
-        imagePosition="right"
-        tag="Semantic Search"
-        image="/screenshots/contract-qa.png"
-        imageAlt="Natural language contract Q&A interface"
-        bullets={[
-          'Ask questions like "What are our termination rights under the Acme MSA?"',
-          'Every answer includes source citations with direct links to the relevant clauses',
-          'Semantic search finds relevant provisions even when wording differs across contracts',
-          'Follow-up suggestions help you explore related topics and dig deeper',
-          'Cross-contract queries compare terms across your entire portfolio in seconds',
-        ]}
-      />
+<section class="section sr">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">02 / Under the hood</div>
+      <h2 class="sechead-h display display-lg">Five agents <span class="emph">in concert.</span></h2>
+    </header>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" style="gap: 1px; margin-top: 28px; background: var(--rule-2);">
+      {agents.map(([t, d], i) => (
+        <div style="background: var(--surface); padding: 18px 16px;">
+          <div class="mono ink-3" style="font-size: 10px; letter-spacing: 0.14em;">{String(i+1).padStart(2,'0')}</div>
+          <div class="ink" style="font-size: 14px; font-weight: 500; margin-top: 8px; letter-spacing: -0.01em;">{t}</div>
+          <p class="ink-3" style="font-size: 12.5px; line-height: 1.5; margin-top: 6px;">{d}</p>
+        </div>
+      ))}
     </div>
-  </section>
 
-  <!-- Additional Features -->
-  <section class="section-padding bg-gray-50">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="More Capabilities"
-        title="Intelligence that goes deeper"
-        subtitle="Beyond extraction and search, our AI agents deliver specialized analysis that transforms how your team works with contracts."
-      />
-      <FeatureGrid>
-        <FeatureCard
-          title="Schema-Based Custom Extraction"
-          description="Define your own extraction schemas to pull exactly the data points your business needs. Map fields to your internal taxonomy and export structured data to downstream systems."
-          icon='<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" /></svg>'
-        />
-        <FeatureCard
-          title="Hybrid Semantic Search"
-          description="Combines vector similarity, keyword matching, and structured filters with intelligent re-ranking. Find the exact clause you need across thousands of contracts in milliseconds."
-          icon='<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>'
-        />
-        <FeatureCard
-          title="Multi-Agent Orchestration"
-          description="All 8 agents coordinate through Agent Squad with intelligent intent-based routing. Ask a question and the right agent handles it automatically, with full observability via Langfuse tracing."
-          icon='<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg>'
-        />
-      </FeatureGrid>
+    <p class="ink-3" style="font-size: 13px; margin-top: 20px; max-width: 680px; line-height: 1.6;">
+      Each agent's reasoning chain is written to a Langfuse trace — prompts, model output, citations — and can be replayed, exported, or audited.
+    </p>
+  </div>
+</section>
+
+<section class="section sr" style="background: var(--paper-2);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-orange">Try it</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h2 class="display display-lg">Drop in five contracts. <span class="emph">See what it pulls.</span></h2>
+        <div style="margin-top: 24px;">
+          <a href="/contact" class="cta-btn">Book a review <span class="arr">→</span></a>
+          <a href="/product" class="cta-link" style="margin-left: 12px;">All six capabilities →</a>
+        </div>
+      </div>
     </div>
-  </section>
-
-  <!-- CTA -->
-  <CTABanner
-    headline="Curious? Upload a contract."
-    subtext="Watch our AI agents extract, classify, and analyze it in real time."
-    buttonText="Get started"
-    buttonLink="/contact"
-  />
+  </div>
+</section>
 
 </MarketingLayout>

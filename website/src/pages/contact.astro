@@ -1,101 +1,124 @@
 ---
 import MarketingLayout from '../layouts/MarketingLayout.astro';
-import Hero from '../components/Hero.astro';
-import ContactForm from '../components/ContactForm.astro';
 ---
 
-<MarketingLayout title="Contact Us - Book a Demo" description="Book a personalized demo or get in touch. See how Evaluetor can transform your contract management in a live session with your own documents.">
+<MarketingLayout
+  title="Contact"
+  description="Book a thirty-minute review with five of your live contracts. We will show you what your current CLM is missing."
+>
 
-  <!-- Hero -->
-  <Hero
-    tag="Say hi"
-    headline='Let&apos;s <span class="text-primary-600">talk contracts</span>'
-    subheadline="Tell us what you're dealing with. We'll show you how Evaluetor can help — live, with your own documents."
-    primaryCTA={{ text: 'Jump to form', href: '#contact-form' }}
-    secondaryCTA={{ text: 'See the product first', href: '/product' }}
-  />
-
-  <!-- Contact Section -->
-  <section class="section-padding" id="contact-form">
-    <div class="container-narrow">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
-
-        <!-- Left: Contact Form -->
-        <div class="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-          <ContactForm heading="Get in touch" />
-        </div>
-
-        <!-- Right: Company Info -->
-        <div class="space-y-6">
-
-          <!-- Office -->
-          <div class="bg-white rounded-2xl border border-gray-100 p-6">
-            <div class="flex items-start gap-4">
-              <div class="flex-shrink-0 w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 7.5h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
-                </svg>
-              </div>
-              <div>
-                <h3 class="text-base font-semibold text-gray-900">Office</h3>
-                <p class="mt-1 text-sm text-gray-600">Senority B.V.</p>
-                <p class="text-sm text-gray-600">Rotterdam, The Netherlands</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Email -->
-          <div class="bg-white rounded-2xl border border-gray-100 p-6">
-            <div class="flex items-start gap-4">
-              <div class="flex-shrink-0 w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                </svg>
-              </div>
-              <div>
-                <h3 class="text-base font-semibold text-gray-900">Email</h3>
-                <a href="mailto:sales@evaluetor.com" class="mt-1 text-sm text-primary-600 hover:text-primary-700 transition-colors">
-                  sales@evaluetor.com
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <!-- What to Expect -->
-          <div class="bg-white rounded-2xl border border-gray-100 p-6">
-            <div class="flex items-start gap-4">
-              <div class="flex-shrink-0 w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
-                </svg>
-              </div>
-              <div>
-                <h3 class="text-base font-semibold text-gray-900">What to Expect</h3>
-                <ul class="mt-2 space-y-2">
-                  <li class="flex items-start gap-2 text-sm text-gray-600">
-                    <svg class="w-4 h-4 text-primary-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                    A real conversation, not a sales pitch
-                  </li>
-                  <li class="flex items-start gap-2 text-sm text-gray-600">
-                    <svg class="w-4 h-4 text-primary-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                    Live demo with your actual contracts
-                  </li>
-                  <li class="flex items-start gap-2 text-sm text-gray-600">
-                    <svg class="w-4 h-4 text-primary-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                    Honest pricing discussion
-                  </li>
-                  <li class="flex items-start gap-2 text-sm text-gray-600">
-                    <svg class="w-4 h-4 text-primary-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                    Zero commitment, zero pressure
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-        </div>
+<!-- HERO -->
+<section class="section" style="padding-top: clamp(56px, 6vw, 100px); padding-bottom: clamp(28px, 3vw, 48px);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-ink">Contact</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h1 class="display display-xl" style="margin-top: 12px;">
+          Bring five contracts. <span class="emph">Bring questions.</span><br/>
+          We will bring findings.
+        </h1>
+        <p class="lead" style="margin-top: 24px; max-width: 640px;">
+          A thirty-minute walkthrough with your real documents. No slides, no procurement involvement, no NDA required. Findings are yours to keep regardless of whether you proceed.
+        </p>
       </div>
     </div>
-  </section>
+  </div>
+</section>
+
+<!-- FORM + INFO -->
+<section class="section sr" id="form" style="background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-10 gap-y-10">
+
+      <!-- Form -->
+      <div class="col-span-12 lg:col-span-7">
+        <div class="label label-ink" style="margin-bottom: 10px;">Get in touch</div>
+        <h2 class="display display-md" style="margin-bottom: 28px;">Drop us a note.</h2>
+
+        <form action="mailto:sales@evaluetor.com" method="post" enctype="text/plain" style="display: grid; gap: 18px;">
+          <div class="grid grid-cols-1 md:grid-cols-2" style="gap: 18px;">
+            <div>
+              <label class="label" for="name">Your name</label>
+              <input type="text" id="name" name="name" required class="fld" />
+            </div>
+            <div>
+              <label class="label" for="email">Work email</label>
+              <input type="email" id="email" name="email" required class="fld" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2" style="gap: 18px;">
+            <div>
+              <label class="label" for="company">Company</label>
+              <input type="text" id="company" name="company" required class="fld" />
+            </div>
+            <div>
+              <label class="label" for="role">Role</label>
+              <input type="text" id="role" name="role" placeholder="e.g. Procurement Director" class="fld" />
+            </div>
+          </div>
+
+          <div>
+            <label class="label" for="message">What are you dealing with?</label>
+            <textarea id="message" name="message" rows="5" placeholder="A few sentences about your portfolio, where you suspect leakage, or just what you want to see." class="fld"></textarea>
+          </div>
+
+          <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 6px;">
+            <button type="submit" class="cta-btn">Send <span class="arr">→</span></button>
+            <span class="ink-3" style="font-size: 13px;">Or email <a href="mailto:sales@evaluetor.com" class="a-orange" style="font-size: 13px;">sales@evaluetor.com</a> directly.</span>
+          </div>
+        </form>
+      </div>
+
+      <!-- Info column -->
+      <div class="col-span-12 lg:col-span-5">
+        <div style="border: 1px solid var(--rule-2); padding: 28px; margin-bottom: 18px;">
+          <div class="label label-ink" style="margin-bottom: 12px;">What a review looks like</div>
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            <li style="padding: 10px 0; border-bottom: 1px solid var(--rule-2); font-size: 14.5px;"><span class="mono ink-3" style="font-size: 11px; margin-right: 10px;">01</span>You bring five live contracts. Any format.</li>
+            <li style="padding: 10px 0; border-bottom: 1px solid var(--rule-2); font-size: 14.5px;"><span class="mono ink-3" style="font-size: 11px; margin-right: 10px;">02</span>We extract obligations, SLAs, risk patterns, renewals.</li>
+            <li style="padding: 10px 0; border-bottom: 1px solid var(--rule-2); font-size: 14.5px;"><span class="mono ink-3" style="font-size: 11px; margin-right: 10px;">03</span>Findings are scored against portfolio norms — live.</li>
+            <li style="padding: 10px 0; font-size: 14.5px;"><span class="mono ink-3" style="font-size: 11px; margin-right: 10px;">04</span>You keep the findings, regardless of next steps.</li>
+          </ul>
+        </div>
+
+        <div style="border: 1px solid var(--rule-2); padding: 28px; margin-bottom: 18px;">
+          <div class="label label-ink" style="margin-bottom: 12px;">Office</div>
+          <p class="ink-2" style="font-size: 15px; margin-bottom: 6px; font-weight: 500;">Evaluetor B.V.</p>
+          <p class="ink-3" style="font-size: 14px;">the Netherlands</p>
+        </div>
+
+        <div style="border: 1px solid var(--rule-2); padding: 28px;">
+          <div class="label label-ink" style="margin-bottom: 12px;">Direct line</div>
+          <a href="mailto:sales@evaluetor.com" class="a-orange" style="font-size: 15px;">sales@evaluetor.com <span class="arr">→</span></a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<style is:global>
+  .fld {
+    width: 100%;
+    margin-top: 8px;
+    padding: 11px 14px;
+    background: var(--paper);
+    border: 1px solid var(--rule-2);
+    font-family: 'Geist', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .fld:focus {
+    outline: none;
+    background: var(--surface);
+    border-color: var(--orange-2);
+  }
+  .fld::placeholder { color: var(--ink-4); }
+  textarea.fld { resize: vertical; }
+</style>
 
 </MarketingLayout>

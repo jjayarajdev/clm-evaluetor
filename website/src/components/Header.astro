@@ -4,97 +4,139 @@ const navItems = [
     label: 'Product',
     href: '/product',
     children: [
-      { label: 'Contract Intelligence', href: '/features/contract-intelligence' },
-      { label: 'Obligation Tracking', href: '/features/obligation-tracking' },
-      { label: 'SLA Monitoring', href: '/features/sla-monitoring' },
-      { label: 'Renewal Management', href: '/features/renewal-management' },
-      { label: 'Relationship Governance', href: '/features/relationship-governance' },
+      { label: 'Contract Intelligence',    href: '/features/contract-intelligence' },
+      { label: 'Obligation Tracking',      href: '/features/obligation-tracking' },
+      { label: 'SLA Monitoring',           href: '/features/sla-monitoring' },
+      { label: 'Renewal Management',       href: '/features/renewal-management' },
+      { label: 'Relationship Governance',  href: '/features/relationship-governance' },
     ],
   },
   { label: 'Why Evaluetor', href: '/commercial' },
-  { label: 'Pricing', href: '/pricing' },
-  { label: 'Platform', href: '/platform' },
-  { label: 'Customers', href: '/customers' },
-  { label: 'About', href: '/about' },
+  { label: 'Platform',      href: '/platform' },
+  { label: 'Who it\'s for', href: '/who-its-for' },
+  { label: 'How we engage', href: '/engage' },
+  { label: 'About',         href: '/about' },
 ];
 ---
 
-<header class="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-xl border-b border-gray-200/50">
-  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="flex items-center justify-between h-18">
+<header class="dutch-nav fixed top-0 left-0 right-0 z-50">
+  <nav class="wrap">
+    <div class="flex items-center justify-between" style="height: 64px;">
       <!-- Logo -->
-      <a href="/" class="flex items-center gap-2.5">
-        <div class="w-9 h-9 bg-primary-600 rounded-lg flex items-center justify-center">
-          <span class="text-white font-bold text-base">E</span>
+      <a href="/" class="flex items-center gap-2.5" style="text-decoration: none;">
+        <div style="width: 32px; height: 32px; background: var(--ink); display: flex; align-items: center; justify-content: center;">
+          <span style="color: var(--paper); font-family: 'Geist', sans-serif; font-weight: 700; font-size: 16px;">E</span>
         </div>
-        <span class="text-2xl font-bold text-gray-900">Evaluetor</span>
+        <span style="font-family: 'Geist', sans-serif; font-weight: 600; font-size: 18px; color: var(--ink); letter-spacing: -0.01em;">
+          Evaluetor
+        </span>
       </a>
 
-      <!-- Desktop Nav -->
-      <div class="hidden md:flex items-center gap-1">
+      <!-- Desktop nav -->
+      <div class="hidden md:flex items-center" style="gap: 6px;">
         {navItems.map((item) => (
           item.children ? (
             <div class="relative group">
-              <button class="px-4 py-2 text-base font-medium text-gray-700 hover:text-primary-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1">
+              <button class="dnav-link" type="button">
                 {item.label}
-                <svg class="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                <svg style="width: 11px; height: 11px; margin-left: 4px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
               </button>
-              <div class="absolute left-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                <div class="bg-white rounded-xl shadow-lg border border-gray-100 py-2 w-64">
+              <div class="absolute left-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
+                <div style="background: var(--surface); border: 1px solid var(--rule-2); min-width: 260px; padding: 6px 0;">
                   {item.children.map((child) => (
-                    <a href={child.href} class="block px-4 py-2.5 text-base text-gray-700 hover:bg-primary-50 hover:text-primary-700 transition-colors">
-                      {child.label}
-                    </a>
+                    <a href={child.href} class="dnav-child">{child.label}</a>
                   ))}
                 </div>
               </div>
             </div>
           ) : (
-            <a href={item.href} class="px-4 py-2 text-base font-medium text-gray-700 hover:text-primary-700 rounded-lg hover:bg-gray-50 transition-colors">
-              {item.label}
-            </a>
+            <a href={item.href} class="dnav-link">{item.label}</a>
           )
         ))}
       </div>
 
-      <!-- CTA + Mobile toggle -->
-      <div class="flex items-center gap-3">
-        <a href="/contact" class="hidden sm:inline-flex btn-primary !text-base !py-2.5 !px-5">
-          Get started
+      <!-- CTA + mobile toggle -->
+      <div class="flex items-center" style="gap: 12px;">
+        <a href="/contact" class="hidden sm:inline-flex cta-btn" style="padding: 9px 16px; font-size: 14px;">
+          Book a review <span class="arr">→</span>
         </a>
-        <button id="mobile-menu-btn" class="md:hidden p-2 text-gray-700 hover:text-primary-700 rounded-lg hover:bg-gray-50">
-          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+        <button id="mobile-menu-btn" class="md:hidden" style="padding: 6px; color: var(--ink); background: transparent; border: none;">
+          <svg style="width: 22px; height: 22px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
         </button>
       </div>
     </div>
   </nav>
 
-  <!-- Mobile Menu -->
-  <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-gray-100">
-    <div class="px-4 py-4 space-y-1">
+  <!-- Mobile menu -->
+  <div id="mobile-menu" class="hidden md:hidden" style="background: var(--paper); border-top: 1px solid var(--rule-2);">
+    <div class="wrap" style="padding-top: 14px; padding-bottom: 18px;">
       {navItems.map((item) => (
         item.children ? (
-          <div>
-            <a href={item.href} class="block px-3 py-2 text-sm font-semibold text-gray-900">{item.label}</a>
-            <div class="pl-4 space-y-1">
+          <div style="margin-bottom: 12px;">
+            <a href={item.href} class="dnav-mlink" style="font-weight: 600;">{item.label}</a>
+            <div style="padding-left: 12px;">
               {item.children.map((child) => (
-                <a href={child.href} class="block px-3 py-2 text-sm text-gray-600 hover:text-primary-700">{child.label}</a>
+                <a href={child.href} class="dnav-mlink-child">{child.label}</a>
               ))}
             </div>
           </div>
         ) : (
-          <a href={item.href} class="block px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-700">{item.label}</a>
+          <a href={item.href} class="dnav-mlink">{item.label}</a>
         )
       ))}
-      <div class="pt-3">
-        <a href="/contact" class="btn-primary w-full text-center">Get started</a>
-      </div>
+      <a href="/contact" class="cta-btn" style="margin-top: 14px; width: 100%; justify-content: center;">
+        Book a review <span class="arr">→</span>
+      </a>
     </div>
   </div>
 </header>
 
 <!-- Spacer for fixed header -->
-<div class="h-16"></div>
+<div style="height: 64px;"></div>
+
+<style is:global>
+  .dnav-link {
+    display: inline-flex; align-items: center;
+    padding: 8px 14px;
+    font-family: 'Geist', sans-serif;
+    font-size: 14px; font-weight: 500;
+    color: var(--ink-2);
+    background: transparent; border: none;
+    text-decoration: none;
+    transition: color .15s ease;
+    cursor: pointer;
+    letter-spacing: -0.005em;
+  }
+  .dnav-link:hover { color: var(--orange-2); }
+
+  .dnav-child {
+    display: block;
+    padding: 9px 16px;
+    font-family: 'Geist', sans-serif;
+    font-size: 13.5px;
+    color: var(--ink-2);
+    text-decoration: none;
+    transition: background .12s ease, color .12s ease;
+  }
+  .dnav-child:hover { background: var(--paper-2); color: var(--orange-2); }
+
+  .dnav-mlink {
+    display: block;
+    padding: 9px 0;
+    font-family: 'Geist', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .dnav-mlink-child {
+    display: block;
+    padding: 7px 0;
+    font-family: 'Geist', sans-serif;
+    font-size: 14px;
+    color: var(--ink-3);
+    text-decoration: none;
+  }
+</style>
 
 <script>
   const btn = document.getElementById('mobile-menu-btn');

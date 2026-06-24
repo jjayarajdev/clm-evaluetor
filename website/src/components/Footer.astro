@@ -3,66 +3,67 @@ const columns = [
   {
     title: 'Product',
     links: [
-      { label: 'Product Overview', href: '/product' },
-      { label: 'Contract Intelligence', href: '/features/contract-intelligence' },
-      { label: 'Obligation Tracking', href: '/features/obligation-tracking' },
-      { label: 'SLA Monitoring', href: '/features/sla-monitoring' },
-      { label: 'Renewal Management', href: '/features/renewal-management' },
-      { label: 'Relationship Governance', href: '/features/relationship-governance' },
-      { label: 'Pricing', href: '/pricing' },
+      { label: 'Overview',                 href: '/product' },
+      { label: 'Contract Intelligence',    href: '/features/contract-intelligence' },
+      { label: 'Obligation Tracking',      href: '/features/obligation-tracking' },
+      { label: 'SLA Monitoring',           href: '/features/sla-monitoring' },
+      { label: 'Renewal Management',       href: '/features/renewal-management' },
+      { label: 'Relationship Governance',  href: '/features/relationship-governance' },
     ],
   },
   {
     title: 'Company',
     links: [
-      { label: 'About', href: '/about' },
-      { label: 'Customers', href: '/customers' },
-      { label: 'Platform', href: '/platform' },
-      { label: 'Contact', href: '/contact' },
+      { label: 'Why Evaluetor',  href: '/commercial' },
+      { label: 'Platform',       href: '/platform' },
+      { label: 'Who it\'s for',  href: '/who-its-for' },
+      { label: 'How we engage',  href: '/engage' },
+      { label: 'About',          href: '/about' },
+      { label: 'Contact',        href: '/contact' },
     ],
   },
   {
     title: 'Legal',
     links: [
-      { label: 'Privacy Policy', href: '/legal/privacy' },
-      { label: 'Terms of Service', href: '/legal/terms' },
+      { label: 'Privacy Policy',    href: '/legal/privacy' },
+      { label: 'Terms of Service',  href: '/legal/terms' },
     ],
   },
 ];
 ---
 
-<footer class="bg-[#0a0a0f] text-gray-300 border-t border-white/[0.06]">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+<footer style="background: var(--paper-2); border-top: 1px solid var(--rule);">
+  <div class="wrap" style="padding-top: 56px; padding-bottom: 32px;">
+    <div class="grid grid-cols-2 md:grid-cols-4" style="gap: 32px;">
+
       <!-- Brand column -->
-      <div class="col-span-2 md:col-span-1 relative">
-        <div class="absolute -top-16 -left-16 w-64 h-64 bg-primary-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <a href="/" class="flex items-center gap-2 mb-4">
-          <div class="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-sm">E</span>
+      <div class="col-span-2 md:col-span-1">
+        <a href="/" class="flex items-center gap-2.5" style="text-decoration: none; margin-bottom: 16px;">
+          <div style="width: 32px; height: 32px; background: var(--ink); display: flex; align-items: center; justify-content: center;">
+            <span style="color: var(--paper); font-family: 'Geist', sans-serif; font-weight: 700; font-size: 16px;">E</span>
           </div>
-          <span class="text-xl font-bold text-white">Evaluetor</span>
+          <span style="font-family: 'Geist', sans-serif; font-weight: 600; font-size: 18px; color: var(--ink); letter-spacing: -0.01em;">
+            Evaluetor
+          </span>
         </a>
-        <p class="text-sm text-gray-400 mb-4 max-w-xs">
-          Making contracts less terrible, one AI agent at a time.
+
+        <p class="ink-2" style="font-size: 14px; line-height: 1.55; max-width: 260px; margin-bottom: 16px;">
+          AI-native contract lifecycle management. Built in <em class="emph" style="color: var(--ink);">the Netherlands</em>.
         </p>
-        <div class="flex items-center gap-2 text-sm text-gray-500">
-          <span>By Senority B.V.</span>
-          <span>&middot;</span>
-          <span>Rotterdam, NL</span>
+
+        <div class="label">
+          Evaluetor B.V. &nbsp;·&nbsp; the Netherlands
         </div>
       </div>
 
       <!-- Link columns -->
       {columns.map((column) => (
         <div>
-          <h3 class="text-sm font-semibold text-white mb-4">{column.title}</h3>
-          <ul class="space-y-2.5">
+          <div class="label label-ink" style="margin-bottom: 14px;">{column.title}</div>
+          <ul style="list-style: none; padding: 0; margin: 0;">
             {column.links.map((link) => (
-              <li>
-                <a href={link.href} class="text-sm text-gray-400 hover:text-white transition-colors">
-                  {link.label}
-                </a>
+              <li style="margin-bottom: 8px;">
+                <a href={link.href} class="dfoot-link">{link.label}</a>
               </li>
             ))}
           </ul>
@@ -71,13 +72,24 @@ const columns = [
     </div>
 
     <!-- Bottom bar -->
-    <div class="mt-12 pt-8 border-t border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-      <p class="text-sm text-gray-500">&copy; 2026 Evaluetor. All rights reserved.</p>
-      <div class="flex items-center gap-4">
-        <a href="mailto:sales@evaluetor.com" class="text-sm text-gray-400 hover:text-white transition-colors">
-          sales@evaluetor.com
-        </a>
-      </div>
+    <div class="rule-soft flex flex-col sm:flex-row justify-between items-start sm:items-center" style="margin-top: 48px; padding-top: 22px; gap: 12px;">
+      <p class="mono" style="font-size: 11px; color: var(--ink-3); letter-spacing: 0.04em;">
+        &copy; 2026 Evaluetor B.V. &nbsp;·&nbsp; All rights reserved.
+      </p>
+      <a href="mailto:sales@evaluetor.com" class="dfoot-link" style="font-size: 13px;">
+        sales@evaluetor.com
+      </a>
     </div>
   </div>
 </footer>
+
+<style is:global>
+  .dfoot-link {
+    font-family: 'Geist', sans-serif;
+    font-size: 14px;
+    color: var(--ink-3);
+    text-decoration: none;
+    transition: color .15s ease;
+  }
+  .dfoot-link:hover { color: var(--orange-2); }
+</style>

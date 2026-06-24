@@ -1,6 +1,5 @@
 ---
 import MarketingLayout from '../../layouts/MarketingLayout.astro';
-import CTABanner from '../../components/CTABanner.astro';
 ---
 
 <MarketingLayout title="Terms of Service" description="Evaluetor Terms of Service. Read the terms and conditions governing your use of the Evaluetor platform.">
@@ -138,11 +137,17 @@ import CTABanner from '../../components/CTABanner.astro';
     </div>
   </section>
 
-  <CTABanner
-    headline="Questions about our terms?"
-    subtext="Our team is ready to discuss licensing, data ownership, and compliance requirements."
-    buttonText="Contact Us"
-    buttonLink="/contact"
-  />
+  <section class="section sr" style="background: var(--paper-2);">
+    <div class="wrap">
+      <div class="grid grid-cols-12 gap-x-6 items-baseline">
+        <div class="col-span-12 md:col-span-3"><div class="label label-orange">Questions</div></div>
+        <div class="col-span-12 md:col-span-9">
+          <h2 class="display display-md">Questions about <span class="emph">our terms?</span></h2>
+          <p class="lead" style="margin-top: 14px; max-width: 560px;">Our team is ready to discuss licensing, data ownership, and compliance requirements.</p>
+          <div style="margin-top: 22px;"><a href="/contact" class="cta-btn">Contact us <span class="arr">→</span></a></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
 </MarketingLayout>
