@@ -113,6 +113,7 @@ const superAdminNav: NavItem[] = [
   { name: 'Tenants', href: '/super-admin/tenants', icon: BuildingOffice2Icon, roles: ['super_admin'] },
   { name: 'All Users', href: '/super-admin/users', icon: UserGroupIcon, roles: ['super_admin'] },
   { name: 'Extraction Quality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['super_admin'] },
+  { name: 'Industry Profiles', href: '/admin/industry-profiles', icon: SwatchIcon, roles: ['super_admin'] },
   { name: 'Custom Fields', href: '/super-admin/custom-fields', icon: AdjustmentsHorizontalIcon, roles: ['super_admin'] },
   { name: 'Integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, roles: ['super_admin'] },
 ]
