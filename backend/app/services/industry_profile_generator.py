@@ -19,7 +19,9 @@ from app.models.industry_profile import IndustryProfile
 
 logger = logging.getLogger(__name__)
 
-MAX_SAMPLE_CHARS = 8000
+# GPT-4o has a 128k-token context; 120k chars (~30k tokens) leaves ample room
+# for the system prompt, example profile, and response.
+MAX_SAMPLE_CHARS = 120_000
 
 SYSTEM_PROMPT = """You are a contract lifecycle management (CLM) domain expert. \
 You design industry vertical configurations for a CLM platform.
@@ -41,8 +43,14 @@ direction is "lower_is_better" or "higher_is_better". default_target is a number
 contract types), each value a list of {"section": str, "fields": [{"key", "label", "type"}]} \
 where type is one of: text, date, currency, percentage, number, table, boolean.
 - "extraction_hints": object with EXACTLY the keys "metadata", "clauses", "risks", "slas", \
-"obligations". Each value is a 2-4 sentence instruction telling an AI extraction agent what \
-industry-specific things to look for.
+"obligations". Each value is a thorough instruction (up to ~200 words) telling an AI extraction \
+agent what industry-specific things to look for. If reference/sample text is provided, you MUST \
+exhaustively incorporate its domain vocabulary into these hints: party roles, document names, \
+identifiers and codes, procedures, regulatory schemes, and abbreviations (with expansions). \
+The goal is that an extraction agent reading only these hints recognises every key term from \
+the reference text when it appears in a contract. Distribute terms to the most relevant agent \
+(e.g. party roles and identifiers -> metadata; procedures and compliance schemes -> obligations \
+and risks; document names -> clauses and metadata).
 - "ui_config": object with "table_columns" (4-6 of {"key", "label", "width"?, "format"?}), \
 "dashboard_widgets" (3-5 of {"key", "label", "color"}), "detail_tabs" (list of {"id", "label"}, \
 always include overview/review/documents/sharing plus 1-2 industry tabs), "filters" (list of \
@@ -104,7 +112,9 @@ async def generate_profile_draft(
 
     if sample_contract_text:
         user_parts.append(
-            "Representative contract excerpt from this industry:\n"
+            "Reference text from this industry (contract excerpt, glossary, or process "
+            "guide). Incorporate ALL of its domain terminology into the profile, "
+            "especially the extraction_hints:\n"
             + sample_contract_text[:MAX_SAMPLE_CHARS]
         )
 
