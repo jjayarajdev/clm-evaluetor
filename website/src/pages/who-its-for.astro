@@ -1,0 +1,211 @@
+---
+import MarketingLayout from '../layouts/MarketingLayout.astro';
+
+const personas = [
+  {
+    role: 'Legal',
+    tag: 'Risk + integrity',
+    title: 'Read every contract. Score every clause.',
+    bullets: [
+      'Risk scoring across 10 patterns (uncapped liability, broad indemnification, weak termination, auto-renewal traps, …)',
+      '36 clause types extracted, cited back to source paragraph',
+      'Cross-portfolio anomaly detection — flag the one outlier indemnity in 200 SaaS contracts',
+      'Defensible audit trail per AI call (Langfuse trace)',
+    ],
+    closer: 'Counsel reads what matters first, not every paragraph last week.',
+  },
+  {
+    role: 'Procurement',
+    tag: 'Recovery + leverage',
+    title: 'Volumes, rebates, and SLA credits — claimed, not lost.',
+    bullets: [
+      'Actual-vs-committed volume comparison from ERP feeds',
+      'Tier and rebate trigger detection across the portfolio',
+      'Renewal calendar with notice-period windows surfaced 60–120 days early',
+      'Vendor scorecards (A–F) with breach history and credit recovery position',
+    ],
+    closer: 'Walk into the QBR with leverage, not invoices to dispute later.',
+  },
+  {
+    role: 'Operations',
+    tag: 'Obligations + delivery',
+    title: 'Every commitment, with an owner and a deadline.',
+    bullets: [
+      '7 obligation types extracted with severity and consequence',
+      'RAG (red / amber / green) status across the portfolio',
+      'Configurable alerts on deadlines and consequence triggers',
+      'Compliance reporting that auditors can read without translation',
+    ],
+    closer: 'No missed deadline you cannot explain. No commitment without an owner.',
+  },
+  {
+    role: 'Finance',
+    tag: 'Visibility + recovery',
+    title: 'A single composite health score per contract.',
+    bullets: [
+      'Composite health: Risk · SLA · Obligations rolled up to one number',
+      'Service-credit position calculated against actuals from ticketing',
+      'FX-indexed obligations watched against live ECB feeds',
+      'Monthly statement of recovered / recoverable / at-risk value per contract',
+    ],
+    closer: 'The board sees one number per relationship. We show the math behind it.',
+  },
+  {
+    role: 'Sales / AM',
+    tag: 'Sell-side execution',
+    title: 'The same disciplines, the other side of the table.',
+    bullets: [
+      'Read your own templates. Score your own redlines against portfolio norms.',
+      'SLAs you committed to — watched. Credits you owe — surfaced.',
+      'Renewal calendar from the seller perspective — protect the book.',
+      'Relationship governance that captures both sides of the perception gap.',
+    ],
+    closer: 'Most CLM tools assume you signed the contract. Evaluetor works either way.',
+  },
+];
+
+const fit = [
+  { who: 'Mid-large EU enterprises',     why: 'Annual contract value €20M–€500M is where the leakage math closes fastest. Below €20M the recoverable pot is too small to justify the engagement; above €500M we are usually one of several governance layers.' },
+  { who: 'Procurement-led organisations', why: 'Strong procurement teams already know there is leakage. They want the tooling that turns suspicion into a defensible monthly number.' },
+  { who: 'Regulated sectors',             why: 'Financial services, healthcare, public sector, energy, regulated tech — environments where audit trail and defensibility are not optional.' },
+  { who: 'Multi-counterparty estates',    why: '50+ supplier or customer relationships is where pattern detection across the portfolio becomes valuable. Below that, a spreadsheet still wins.' },
+];
+
+const notFit = [
+  ['No procurement function',         'If there is no one to own the conversations the platform surfaces, the value cannot land.'],
+  ['Repository-only mandate',         'If you only need contracts stored and routed for signature, a DocuSign CLM or Ironclad is the right tool. Evaluetor does post-signature.'],
+  ['Pre-revenue startups',            'The leakage math does not work below €5M ACV. We will tell you that on the first call.'],
+  ['No appetite for connectors',      'Real ROI comes from connecting ERP and ticketing. If those integrations are off the table, expect a fraction of the value.'],
+];
+---
+
+<MarketingLayout
+  title="Who it's for"
+  description="Evaluetor is built for mid-large EU enterprises with procurement-led operations and a multi-counterparty contract estate. Five personas, four fit signals."
+>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- HERO                                                          -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section" style="padding-top: clamp(56px, 6vw, 100px); padding-bottom: clamp(40px, 4vw, 64px);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-ink">Who it's for</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h1 class="display display-xl" style="margin-top: 12px;">
+          Built for the team<br/>
+          that <span class="emph">owns the outcome,</span><br/>
+          not the document.
+        </h1>
+        <p class="lead" style="margin-top: 28px; max-width: 760px;">
+          Evaluetor is built for mid-large European enterprises with procurement-led operations, a multi-counterparty contract estate, and a board that wants to know what is being lost after signature. Five teams use it daily. Below is what each of them sees.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- FIVE PERSONAS                                                 -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr" style="background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">01 / Five teams</div>
+      <h2 class="sechead-h display display-lg">One platform. <span class="emph">Five views.</span></h2>
+    </header>
+
+    {personas.map((p, i) => (
+      <div class="grid grid-cols-12 gap-x-6 gap-y-4" style={`padding: 36px 0; ${i < personas.length - 1 ? 'border-bottom: 1px solid var(--rule-2);' : ''}`}>
+        <div class="col-span-12 md:col-span-3">
+          <div class="display display-md" style="color: var(--orange);">{p.role}</div>
+          <div class="label" style="margin-top: 6px;">{p.tag}</div>
+        </div>
+        <div class="col-span-12 md:col-span-9">
+          <h3 class="display display-md" style="margin-bottom: 20px;">{p.title}</h3>
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            {p.bullets.map((b, j) => (
+              <li class="cap-row" style={j === 0 ? 'border-top: 1px solid var(--rule-2);' : ''}>
+                <span class="cap-num">{String(j+1).padStart(2,'0')}</span>
+                <div class="ink-2" style="font-size: 14px; line-height: 1.55;">{b}</div>
+              </li>
+            ))}
+          </ul>
+          <p class="ink-2 emph" style="margin-top: 18px; font-size: 19px; max-width: 580px;">{p.closer}</p>
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- ICP — WHERE EVALUETOR FITS                                    -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">02 / Where it fits</div>
+      <h2 class="sechead-h display display-lg">Four signals <span class="emph">that the math works.</span></h2>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-0" style="margin-top: 28px;">
+      {fit.map(({who, why}, i) => (
+        <div style={`padding: 22px 0; border-bottom: 1px solid var(--rule-2); ${i < 2 ? 'border-top: 1px solid var(--rule-2);' : ''}`}>
+          <div class="display display-sm" style="margin-bottom: 8px;">{who}</div>
+          <p class="ink-3" style="font-size: 14px; line-height: 1.6;">{why}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- HONEST DISQUALIFIERS                                          -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr" style="background: var(--ink); color: var(--paper);">
+  <div class="wrap">
+    <header class="sechead" style="border-bottom-color: rgba(247,246,243,0.18);">
+      <div class="sechead-num label" style="color: var(--orange);">03 / Where it does not fit</div>
+      <h2 class="sechead-h display display-lg" style="color: var(--paper);">We will tell you on the first call.</h2>
+    </header>
+
+    <p class="lead" style="margin-top: 22px; color: rgba(247,246,243,0.78); max-width: 720px;">
+      Saying yes to every prospect is how vendors waste their customers' procurement cycles. Four situations where the answer is "probably not, and here is why".
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-0" style="margin-top: 28px;">
+      {notFit.map(([title, desc], i) => (
+        <div style={`padding: 22px 0; border-bottom: 1px solid rgba(247,246,243,0.14); ${i < 2 ? 'border-top: 1px solid rgba(247,246,243,0.14);' : ''}`}>
+          <div class="display display-sm" style="color: var(--paper); margin-bottom: 8px;">{title}</div>
+          <p style="font-size: 14px; line-height: 1.6; color: rgba(247,246,243,0.72);">{desc}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- CTA                                                           -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 gap-y-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-ink">Find out</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h2 class="display display-lg">
+          Not sure if you fit? <span class="emph">Bring five contracts. We will tell you.</span>
+        </h2>
+        <div style="margin-top: 28px;">
+          <a href="/contact" class="cta-btn">Book a review <span class="arr">→</span></a>
+          <a href="/engage" class="cta-link" style="margin-left: 12px;">How we engage →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</MarketingLayout>

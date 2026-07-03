@@ -1,287 +1,195 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
+import MarketingLayout from '../layouts/MarketingLayout.astro';
+
+const capabilities = [
+  { n: '01', t: 'Contract Intelligence',    d: 'Parties, dates, values, 36 clause types extracted with paragraph-level citation.', href: '/features/contract-intelligence' },
+  { n: '02', t: 'Obligation Tracking',      d: '7 obligation types, RAG status, owner assignment, audit-grade evidence.',         href: '/features/obligation-tracking' },
+  { n: '03', t: 'SLA Monitoring',           d: '13 metric types, breach detection from ticketing, service-credit calculation.',    href: '/features/sla-monitoring' },
+  { n: '04', t: 'Renewal Management',       d: 'Auto-renewal traps, notice-period windows surfaced 60–120 days early.',           href: '/features/renewal-management' },
+  { n: '05', t: 'Relationship Governance',  d: 'KPI perception gaps, composite health scoring — only in Evaluetor.',              href: '/features/relationship-governance' },
+];
+
+const audiences = [
+  { who: 'Legal',         outcome: 'Risk patterns across the portfolio, cited to source paragraph.' },
+  { who: 'Procurement',   outcome: 'Credits, rebates, and renewal leverage — claimed, not lost.' },
+  { who: 'Operations',    outcome: 'Every commitment with an owner and a deadline.' },
+  { who: 'Finance',       outcome: 'One composite health number per contract, monthly.' },
+  { who: 'Sales / AM',    outcome: 'Sell-side execution: own templates, own SLAs, own renewals.' },
+];
 ---
 
-<BaseLayout title="Coming Soon" description="Evaluetor — AI-Powered Contract Intelligence. Making your contracts Transparent, Measurable and Actionable. Coming Soon.">
+<MarketingLayout
+  title="AI-native CLM, built in the Netherlands"
+  description="Evaluetor catches the contract value that leaks after signature — obligations, SLAs, risk, renewals, and relationships, in one platform."
+>
 
-<div class="relative min-h-screen bg-gray-950 overflow-hidden flex items-center justify-center">
-
-  <!-- Animated background: floating contract clauses -->
-  <div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-    <!-- Mesh gradient blobs -->
-    <div class="absolute top-1/4 left-1/4 w-[600px] h-[600px] rounded-full bg-primary-600/8 blur-[150px] animate-drift-slow"></div>
-    <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-orange-500/6 blur-[120px] animate-drift-med"></div>
-    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-pink-500/4 blur-[100px] animate-drift-slow"></div>
-
-    <!-- Dot grid -->
-    <div class="absolute inset-0 dot-grid opacity-20"></div>
-
-    <!-- Floating contract document shapes -->
-    <div class="contract-float contract-1">
-      <div class="w-32 h-40 rounded-lg border border-primary-500/20 bg-white/[0.03] backdrop-blur-sm p-3 shadow-xl shadow-primary-500/5">
-        <div class="w-10 h-1.5 bg-primary-500/30 rounded mb-2"></div>
-        <div class="w-full h-1 bg-white/10 rounded mb-1.5"></div>
-        <div class="w-full h-1 bg-white/10 rounded mb-1.5"></div>
-        <div class="w-3/4 h-1 bg-white/10 rounded mb-3"></div>
-        <div class="w-full h-1 bg-white/8 rounded mb-1.5"></div>
-        <div class="w-full h-1 bg-white/8 rounded mb-1.5"></div>
-        <div class="w-5/6 h-1 bg-white/8 rounded mb-3"></div>
-        <div class="w-full h-1 bg-white/5 rounded mb-1.5"></div>
-        <div class="w-2/3 h-1 bg-white/5 rounded"></div>
-        <!-- AI scan line -->
-        <div class="absolute inset-x-2 h-px bg-gradient-to-r from-transparent via-primary-400 to-transparent animate-scan"></div>
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- HERO                                                          -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section" style="padding-top: clamp(64px, 7vw, 120px); padding-bottom: clamp(40px, 4vw, 80px);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-ink">AI-native CLM &nbsp;·&nbsp; the Netherlands</div>
       </div>
-    </div>
+      <div class="col-span-12 md:col-span-9">
+        <h1 class="display display-xl" style="margin-top: 12px;">
+          Contracts <span class="emph">create value.</span><br/>
+          Execution <span class="emph">protects it.</span><br/>
+          Evaluetor handles execution.
+        </h1>
+        <p class="lead" style="margin-top: 28px; max-width: 720px;">
+          Organisations lose 8–11% of contract value after signing. The legacy CLM tools store and route documents. Evaluetor reads them, watches them perform, and surfaces the value that leaks during execution — obligations, SLAs, risk, renewals, and relationships, in one platform.
+        </p>
 
-    <div class="contract-float contract-2">
-      <div class="w-28 h-36 rounded-lg border border-orange-500/20 bg-white/[0.03] backdrop-blur-sm p-3 shadow-xl shadow-orange-500/5">
-        <div class="w-8 h-1.5 bg-orange-500/30 rounded mb-2"></div>
-        <div class="w-full h-1 bg-white/10 rounded mb-1.5"></div>
-        <div class="w-full h-1 bg-white/10 rounded mb-1.5"></div>
-        <div class="w-2/3 h-1 bg-white/10 rounded mb-3"></div>
-        <div class="w-full h-1 bg-white/8 rounded mb-1.5"></div>
-        <div class="w-full h-1 bg-white/8 rounded mb-1.5"></div>
-        <div class="w-3/4 h-1 bg-white/8 rounded"></div>
-        <div class="absolute inset-x-2 h-px bg-gradient-to-r from-transparent via-orange-400 to-transparent animate-scan-delayed"></div>
-      </div>
-    </div>
-
-    <div class="contract-float contract-3">
-      <div class="w-24 h-32 rounded-lg border border-primary-400/15 bg-white/[0.02] backdrop-blur-sm p-2.5 shadow-xl shadow-primary-400/5">
-        <div class="w-7 h-1 bg-primary-400/25 rounded mb-2"></div>
-        <div class="w-full h-0.5 bg-white/8 rounded mb-1"></div>
-        <div class="w-full h-0.5 bg-white/8 rounded mb-1"></div>
-        <div class="w-4/5 h-0.5 bg-white/8 rounded mb-2.5"></div>
-        <div class="w-full h-0.5 bg-white/6 rounded mb-1"></div>
-        <div class="w-full h-0.5 bg-white/6 rounded mb-1"></div>
-        <div class="w-3/5 h-0.5 bg-white/6 rounded"></div>
-      </div>
-    </div>
-
-    <div class="contract-float contract-4">
-      <div class="w-20 h-28 rounded border border-orange-400/15 bg-white/[0.02] p-2">
-        <div class="w-5 h-1 bg-orange-400/20 rounded mb-1.5"></div>
-        <div class="w-full h-0.5 bg-white/7 rounded mb-1"></div>
-        <div class="w-full h-0.5 bg-white/7 rounded mb-1"></div>
-        <div class="w-3/4 h-0.5 bg-white/7 rounded mb-2"></div>
-        <div class="w-full h-0.5 bg-white/5 rounded mb-1"></div>
-        <div class="w-2/3 h-0.5 bg-white/5 rounded"></div>
-      </div>
-    </div>
-
-    <div class="contract-float contract-5">
-      <div class="w-36 h-44 rounded-lg border border-primary-500/15 bg-white/[0.02] backdrop-blur-sm p-3">
-        <div class="w-12 h-1.5 bg-primary-500/25 rounded mb-2.5"></div>
-        <div class="w-full h-1 bg-white/8 rounded mb-1.5"></div>
-        <div class="w-full h-1 bg-white/8 rounded mb-1.5"></div>
-        <div class="w-5/6 h-1 bg-white/8 rounded mb-1.5"></div>
-        <div class="w-full h-1 bg-white/8 rounded mb-3"></div>
-        <!-- Highlighted "clause" -->
-        <div class="w-full h-2.5 bg-primary-500/15 rounded border border-primary-500/20 mb-2"></div>
-        <div class="w-full h-1 bg-white/6 rounded mb-1.5"></div>
-        <div class="w-full h-1 bg-white/6 rounded mb-1.5"></div>
-        <div class="w-2/3 h-1 bg-white/6 rounded"></div>
-      </div>
-    </div>
-
-    <!-- Floating clause tags -->
-    <div class="clause-tag tag-1">Indemnification</div>
-    <div class="clause-tag tag-2">SLA: 99.9% uptime</div>
-    <div class="clause-tag tag-3">Auto-renewal</div>
-    <div class="clause-tag tag-4">Payment: NET 30</div>
-    <div class="clause-tag tag-5">Termination clause</div>
-    <div class="clause-tag tag-6">Force Majeure</div>
-  </div>
-
-  <!-- Main content -->
-  <div class="relative z-10 text-center max-w-3xl mx-auto px-6">
-
-    <!-- Logo -->
-    <div class="mb-8 inline-flex items-center gap-3 px-6 py-3 rounded-full border border-primary-500/30 bg-primary-500/10 backdrop-blur-sm">
-      <svg class="w-8 h-7" viewBox="0 0 218 178" fill="none">
-        <path d="M 0,55 A 55,55 0 0,1 55,0 L 98,0 L 98,78 L 0,78 Z" fill="#A78BFA"/>
-        <path d="M 118,0 L 163,0 A 55,55 0 0,1 218,55 L 218,78 L 118,78 Z" fill="#A78BFA"/>
-        <path d="M 0,98 L 98,98 L 98,178 L 55,178 A 55,55 0 0,1 0,123 Z" fill="#A78BFA"/>
-        <path d="M 118,98 L 218,98 L 218,123 A 55,55 0 0,1 163,178 L 118,178 Z" fill="#A78BFA"/>
-      </svg>
-      <span class="text-primary-300 font-semibold tracking-wider text-sm uppercase">Evaluetor</span>
-    </div>
-
-    <!-- Headline -->
-    <h1 class="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-[1.1] mb-6">
-      Something powerful<br>
-      <span class="gradient-text">is coming.</span>
-    </h1>
-
-    <!-- Subline -->
-    <p class="text-lg sm:text-xl text-gray-400 leading-relaxed mb-10 max-w-2xl mx-auto">
-      AI-powered contract intelligence that makes your contracts transparent, measurable, and actionable. We're putting the finishing touches on something you've never seen in CLM.
-    </p>
-
-    <!-- Animated features ticker -->
-    <div class="mb-12 overflow-hidden h-8 relative">
-      <div class="ticker-wrap">
-        <div class="ticker">
-          <span class="ticker-item text-primary-400">9 AI Agents</span>
-          <span class="ticker-item text-orange-400">Obligation Tracking</span>
-          <span class="ticker-item text-primary-400">SLA Monitoring</span>
-          <span class="ticker-item text-orange-400">Risk Detection</span>
-          <span class="ticker-item text-primary-400">Relationship Governance</span>
-          <span class="ticker-item text-orange-400">Knowledge Graph</span>
-          <span class="ticker-item text-primary-400">Perception Gap Scoring</span>
-          <span class="ticker-item text-orange-400">Vendor Scorecards</span>
-          <!-- Duplicate for seamless loop -->
-          <span class="ticker-item text-primary-400">9 AI Agents</span>
-          <span class="ticker-item text-orange-400">Obligation Tracking</span>
-          <span class="ticker-item text-primary-400">SLA Monitoring</span>
-          <span class="ticker-item text-orange-400">Risk Detection</span>
-          <span class="ticker-item text-primary-400">Relationship Governance</span>
-          <span class="ticker-item text-orange-400">Knowledge Graph</span>
-          <span class="ticker-item text-primary-400">Perception Gap Scoring</span>
-          <span class="ticker-item text-orange-400">Vendor Scorecards</span>
+        <div style="margin-top: 36px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+          <a href="/contact" class="cta-btn">Book a 30-min review <span class="arr">→</span></a>
+          <a href="/commercial" class="cta-link">Read the long story →</a>
         </div>
       </div>
     </div>
+  </div>
+</section>
 
-    <!-- CTA -->
-    <div class="flex items-center justify-center">
-      <a href="/contact"
-         class="btn-primary text-base px-8 py-3.5 group">
-        Get Early Access
-        <svg class="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
-      </a>
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- TRUST STRIP                                                   -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section style="border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); background: var(--paper-2);">
+  <div class="wrap" style="padding-top: 18px; padding-bottom: 18px;">
+    <div class="grid grid-cols-2 md:grid-cols-4" style="gap: 18px;">
+      <div>
+        <div class="label">Built for</div>
+        <p class="ink" style="font-size: 14px; margin-top: 4px; font-weight: 500;">EU mid-large enterprise</p>
+      </div>
+      <div>
+        <div class="label">Engagement</div>
+        <p class="ink" style="font-size: 14px; margin-top: 4px; font-weight: 500;">Portfolio, not per-seat</p>
+      </div>
+      <div>
+        <div class="label">Time to first finding</div>
+        <p class="ink" style="font-size: 14px; margin-top: 4px; font-weight: 500;">Inside a 30-min review</p>
+      </div>
+      <div>
+        <div class="label">Residency</div>
+        <p class="ink" style="font-size: 14px; margin-top: 4px; font-weight: 500;">EU regions available</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- CAPABILITIES                                                  -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">01 / What's in the box</div>
+      <h2 class="sechead-h display display-lg">Five disciplines. <span class="emph">One platform.</span></h2>
+    </header>
+
+    <div style="margin-top: 32px;">
+      {capabilities.map((c) => (
+        <a href={c.href} class="cap-row" style="text-decoration: none; transition: background .15s ease;">
+          <span class="cap-num">{c.n}</span>
+          <div>
+            <div class="cap-t">{c.t} <span class="ink-3" style="font-size: 11px; font-family: 'Geist Mono', monospace; letter-spacing: 0.06em;">→</span></div>
+            <p class="cap-d">{c.d}</p>
+          </div>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- AUDIENCES                                                     -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr" style="background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">02 / Who uses it</div>
+      <h2 class="sechead-h display display-lg">Five teams, <span class="emph">five views.</span></h2>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-5" style="gap: 1px; margin-top: 32px; background: var(--rule-2);">
+      {audiences.map((a) => (
+        <div style="background: var(--surface); padding: 22px 18px;">
+          <div class="display display-md" style="color: var(--orange);">{a.who}</div>
+          <p class="ink-2" style="font-size: 13.5px; line-height: 1.5; margin-top: 12px;">{a.outcome}</p>
+        </div>
+      ))}
     </div>
 
-    <!-- Bottom tagline -->
-    <p class="mt-16 text-xs text-gray-600 tracking-wide uppercase">
-      AI-Powered Contract Intelligence &mdash; Rotterdam, Netherlands
+    <p style="margin-top: 28px;">
+      <a href="/who-its-for" class="a-orange">See the five views in detail <span class="arr">→</span></a>
     </p>
   </div>
-</div>
+</section>
 
-<style>
-  /* Floating contract documents */
-  .contract-float {
-    position: absolute;
-    animation-timing-function: ease-in-out;
-    animation-iteration-count: infinite;
-  }
-  .contract-1 { top: 8%; left: 5%; animation: float-1 18s infinite; }
-  .contract-2 { top: 15%; right: 8%; animation: float-2 22s infinite; }
-  .contract-3 { bottom: 20%; left: 10%; animation: float-3 20s infinite; }
-  .contract-4 { bottom: 12%; right: 12%; animation: float-4 16s infinite; }
-  .contract-5 { top: 45%; left: -2%; animation: float-5 24s infinite; }
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- WHY EVALUETOR                                                 -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr" style="background: var(--ink); color: var(--paper);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 gap-y-8 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label" style="color: var(--orange);">03 / Why Evaluetor</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h2 class="display display-lg" style="color: var(--paper);">
+          AI-first, not AI-bolted-on.
+        </h2>
+        <p class="lead" style="margin-top: 22px; color: rgba(247,246,243,0.78); max-width: 680px;">
+          Legacy CLM tools were built in the document-management era and bolted AI on later. Evaluetor was built model-first. Obligations, SLAs, risk, renewals, and relationship governance ship in the box — not as add-ons, not as roadmap items, not as professional-services engagements.
+        </p>
 
-  @keyframes float-1 {
-    0%, 100% { transform: translateY(0) rotate(-3deg); opacity: 0.6; }
-    50% { transform: translateY(-30px) rotate(2deg); opacity: 0.8; }
-  }
-  @keyframes float-2 {
-    0%, 100% { transform: translateY(0) rotate(4deg); opacity: 0.5; }
-    50% { transform: translateY(-25px) rotate(-2deg); opacity: 0.7; }
-  }
-  @keyframes float-3 {
-    0%, 100% { transform: translateY(0) rotate(-2deg); opacity: 0.4; }
-    50% { transform: translateY(-35px) rotate(3deg); opacity: 0.6; }
-  }
-  @keyframes float-4 {
-    0%, 100% { transform: translateY(0) rotate(2deg); opacity: 0.5; }
-    50% { transform: translateY(-20px) rotate(-3deg); opacity: 0.7; }
-  }
-  @keyframes float-5 {
-    0%, 100% { transform: translateY(0) rotate(-4deg); opacity: 0.35; }
-    50% { transform: translateY(-40px) rotate(1deg); opacity: 0.55; }
-  }
+        <div class="grid grid-cols-1 md:grid-cols-3" style="gap: 28px; margin-top: 40px;">
+          <div>
+            <div class="display display-md" style="color: var(--orange);">9 agents</div>
+            <p style="font-size: 14px; color: rgba(247,246,243,0.72); margin-top: 8px; line-height: 1.55;">Specialised AI agents in concert: extraction, Q&amp;A, risk, obligation, clause, renewal, SLA, schema, intent routing.</p>
+          </div>
+          <div>
+            <div class="display display-md" style="color: var(--orange);">10 risk patterns</div>
+            <p style="font-size: 14px; color: rgba(247,246,243,0.72); margin-top: 8px; line-height: 1.55;">Uncapped liability, broad indemnification, weak termination, auto-renewal traps, unfavourable IP, weak confidentiality, missing caps, one-sided terms, regulatory exposure, ambiguous language.</p>
+          </div>
+          <div>
+            <div class="display display-md" style="color: var(--orange);">1 score</div>
+            <p style="font-size: 14px; color: rgba(247,246,243,0.72); margin-top: 8px; line-height: 1.55;">Composite contract health — Risk &middot; SLA &middot; Obligations rolled up. The number the board reads.</p>
+          </div>
+        </div>
 
-  /* AI scanning line across contract docs */
-  @keyframes scan-line {
-    0% { top: 10%; opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { top: 85%; opacity: 0; }
-  }
-  .animate-scan {
-    animation: scan-line 4s ease-in-out infinite;
-    position: absolute;
-  }
-  .animate-scan-delayed {
-    animation: scan-line 4s ease-in-out infinite 2s;
-    position: absolute;
-  }
+        <p style="margin-top: 36px;">
+          <a href="/commercial" class="a-orange" style="color: var(--paper); border-bottom-color: var(--orange);">
+            Read the full Why-Evaluetor story <span class="arr">→</span>
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
 
-  /* Floating clause tags */
-  .clause-tag {
-    position: absolute;
-    padding: 4px 12px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 500;
-    font-family: 'Inter', monospace;
-    letter-spacing: 0.02em;
-    border: 1px solid rgba(124, 58, 237, 0.15);
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(8px);
-    color: rgba(167, 139, 250, 0.5);
-    white-space: nowrap;
-    animation-timing-function: ease-in-out;
-    animation-iteration-count: infinite;
-  }
-  .tag-1 { top: 25%; right: 15%; animation: float-tag 14s infinite; color: rgba(167, 139, 250, 0.45); }
-  .tag-2 { top: 65%; left: 8%; animation: float-tag 18s infinite 2s; color: rgba(251, 146, 60, 0.4); border-color: rgba(251, 146, 60, 0.12); }
-  .tag-3 { bottom: 30%; right: 5%; animation: float-tag 16s infinite 4s; color: rgba(167, 139, 250, 0.4); }
-  .tag-4 { top: 40%; right: 3%; animation: float-tag 20s infinite 1s; color: rgba(251, 146, 60, 0.35); border-color: rgba(251, 146, 60, 0.1); }
-  .tag-5 { bottom: 15%; left: 20%; animation: float-tag 15s infinite 3s; color: rgba(167, 139, 250, 0.35); }
-  .tag-6 { top: 10%; left: 30%; animation: float-tag 19s infinite 5s; color: rgba(251, 146, 60, 0.3); border-color: rgba(251, 146, 60, 0.08); }
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- CTA                                                           -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<section class="section sr">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 gap-y-8 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-orange">Begin</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h2 class="display display-lg">
+          Bring five contracts.<br/>
+          We will show you, <span class="emph">in thirty minutes,</span><br/>
+          what your current CLM is missing.
+        </h2>
+        <div style="margin-top: 28px;">
+          <a href="/contact" class="cta-btn">Book a review <span class="arr">→</span></a>
+          <a href="/engage" class="cta-link" style="margin-left: 12px;">How we engage →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-  @keyframes float-tag {
-    0%, 100% { transform: translateY(0) translateX(0); opacity: 0.5; }
-    25% { transform: translateY(-12px) translateX(8px); opacity: 0.7; }
-    50% { transform: translateY(-6px) translateX(-5px); opacity: 0.6; }
-    75% { transform: translateY(-18px) translateX(3px); opacity: 0.8; }
-  }
-
-  /* Background drift animations */
-  @keyframes drift-slow {
-    0%, 100% { transform: translate(0, 0); }
-    33% { transform: translate(30px, -20px); }
-    66% { transform: translate(-20px, 15px); }
-  }
-  @keyframes drift-med {
-    0%, 100% { transform: translate(0, 0); }
-    33% { transform: translate(-25px, 15px); }
-    66% { transform: translate(15px, -25px); }
-  }
-  .animate-drift-slow { animation: drift-slow 30s ease-in-out infinite; }
-  .animate-drift-med { animation: drift-med 20s ease-in-out infinite; }
-
-  /* Feature ticker */
-  .ticker-wrap {
-    width: 100%;
-    overflow: hidden;
-    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
-    -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
-  }
-  .ticker {
-    display: inline-flex;
-    animation: ticker-scroll 30s linear infinite;
-    white-space: nowrap;
-  }
-  .ticker-item {
-    display: inline-block;
-    padding: 0 24px;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    opacity: 0.7;
-  }
-  @keyframes ticker-scroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-  }
-
-  /* Override body for full dark */
-  body { background: #030712; }
-</style>
-
-</BaseLayout>
+</MarketingLayout>

@@ -1,170 +1,163 @@
 ---
 import MarketingLayout from '../layouts/MarketingLayout.astro';
-import Hero from '../components/Hero.astro';
-import SectionHeading from '../components/SectionHeading.astro';
-import FeatureShowcase from '../components/FeatureShowcase.astro';
-import Timeline from '../components/Timeline.astro';
-import CTABanner from '../components/CTABanner.astro';
 
-const steps = [
+const capabilities = [
   {
-    number: 1,
-    title: 'Upload',
-    description: 'Upload any PDF or Word contract. Drag and drop single documents or bulk import an entire portfolio. No templates, no pre-configuration required.',
+    n: '01', t: 'Contract Intelligence',
+    href: '/features/contract-intelligence',
+    bullets: ['Parties, dates, values', '36 clause types extracted', '15 schemas, 1,235 fields', 'Paragraph-level citation'],
+    closer: 'Read every contract. Cite every flag.',
   },
   {
-    number: 2,
-    title: 'AI Extraction',
-    description: 'Eight specialized AI agents analyze every document simultaneously — extracting metadata, classifying clauses, scoring risks, identifying obligations, and detecting SLA terms.',
+    n: '02', t: 'Obligation Tracking',
+    href: '/features/obligation-tracking',
+    bullets: ['7 obligation types', 'Severity scoring', 'RAG portfolio dashboard', 'Owner assignment + audit log'],
+    closer: 'Every commitment, with an owner.',
   },
   {
-    number: 3,
-    title: 'Track & Monitor',
-    description: 'Obligations surface with deadlines and owners. SLA metrics are matched against actual performance. Renewal dates populate your calendar with auto-renewal and notice period alerts.',
+    n: '03', t: 'SLA Monitoring',
+    href: '/features/sla-monitoring',
+    bullets: ['13 metric types', 'Breach detection from ticketing', 'Service-credit calculation', 'A–F vendor scorecards'],
+    closer: 'Credits claimed, not lost.',
   },
   {
-    number: 4,
-    title: 'Govern Relationships',
-    description: 'Score vendor performance with multi-factor analysis. Track KPI perception gaps between internal and external stakeholders. Drive accountability with structured improvement plans.',
+    n: '04', t: 'Renewal Management',
+    href: '/features/renewal-management',
+    bullets: ['Auto-renewal trap detection', 'Notice-period windows', '60–120 day early surface', 'Side-by-side renegotiation prep'],
+    closer: 'No surprise renewals.',
+  },
+  {
+    n: '05', t: 'Relationship Governance',
+    href: '/features/relationship-governance',
+    bullets: ['KPI perception-gap scoring', 'Dual-side surveys', 'Composite health: Risk · SLA · Obligations', 'Improvement points with owners'],
+    closer: 'The only platform measuring the relationship.',
+  },
+  {
+    n: '06', t: 'Enterprise Security',
+    href: '/platform',
+    bullets: ['Multi-tenant isolation', 'EU residency available', 'Langfuse trace per AI call', 'Standard exit, no lock-in'],
+    closer: 'Defensible from day one.',
   },
 ];
+
+const compare = {
+  cols: ['Evaluetor', 'DocuSign CLM', 'Icertis', 'Ironclad'],
+  rows: [
+    ['Time to first outcome',           ['Within weeks',  '6–12 months', '12–18 months', '3–6 months']],
+    ['Native AI agents',                ['9',             'Limited add-on', 'Limited',    'Limited add-on']],
+    ['Built-in SLA monitoring',         ['Yes',           'No',           'No',           'No']],
+    ['AI-extracted obligations',        ['Yes — 7 types', 'Manual',       'Limited',      'Manual']],
+    ['Relationship governance',         ['Yes — built-in', '—',           '—',            '—']],
+    ['Composite contract health score', ['Yes',           '—',            '—',            '—']],
+    ['User licensing',                  ['Unlimited',     'Per seat',     'Per seat',     'Per seat']],
+    ['LLM observability (traceable)',   ['Yes — Langfuse', '—',            '—',            '—']],
+  ],
+};
 ---
 
-<MarketingLayout title="Product Overview - Complete Post-Signing Contract Management" description="One platform to understand, track, and govern every contract. AI-powered extraction, obligation tracking, SLA monitoring, renewal management, and relationship governance.">
+<MarketingLayout
+  title="Product overview"
+  description="Six capabilities, one platform. Contract intelligence, obligation tracking, SLA monitoring, renewal management, relationship governance, enterprise security."
+>
 
-  <!-- Hero -->
-  <Hero
-    tag="Product Overview"
-    headline='One platform to <span class="text-primary-600">understand, track, and govern</span> every contract'
-    subheadline="Complete post-signing contract management. AI extraction, obligation tracking, SLA monitoring, renewal alerts, and relationship governance — in one platform."
-    primaryCTA={{ text: 'See it live', href: '/contact' }}
-    secondaryCTA={{ text: 'See Pricing', href: '/pricing' }}
-  />
-
-  <!-- How It Works -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <SectionHeading
-        tag="How It Works"
-        title="From upload to intelligence in minutes"
-        subtitle="Four steps from PDF to actionable intelligence."
-      />
-      <div class="max-w-2xl mx-auto">
-        <Timeline steps={steps} />
+<section class="section" style="padding-top: clamp(56px, 6vw, 100px); padding-bottom: clamp(40px, 4vw, 64px);">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-ink">Product</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h1 class="display display-xl" style="margin-top: 12px;">
+          Six capabilities.<br/>
+          <span class="emph">None of them an add-on.</span><br/>
+          None sold separately.
+        </h1>
+        <p class="lead" style="margin-top: 28px; max-width: 720px;">
+          Every legacy CLM tool sells the post-signature value as a roadmap item or a separate SKU. Evaluetor ships it in the box. Six capabilities cover the full execution surface — and they share one underlying data model.
+        </p>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Feature Showcase 1: Contract Intelligence -->
-  <section class="section-padding bg-gray-50">
-    <div class="container-narrow">
-      <FeatureShowcase
-        title="Contract Intelligence"
-        description="Eight specialized AI agents powered by GPT-4o extract every critical data point from your contracts. No manual review, no templates, no training period. Upload a document and receive structured, searchable intelligence in minutes."
-        imagePosition="right"
-        tag="AI-Powered Extraction"
-        image="/screenshots/contract-qa.png"
-        imageAlt="Contract Q&A interface showing AI-powered question answering"
-        bullets={[
-          'Metadata extraction identifies parties, dates, values, governing law, and contract type automatically',
-          'Clause classification across 30+ types including indemnification, IP assignment, termination, and confidentiality',
-          'Risk scoring on a four-level scale (Low, Medium, High, Critical) across 10 risk categories',
-          'Natural language Q&A with cited answers across your entire contract portfolio',
-          'Custom schema extraction for data points specific to your business processes',
-        ]}
-      />
+<section class="section sr" style="background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">01 / What's in the box</div>
+      <h2 class="sechead-h display display-lg">Six capabilities, <span class="emph">one platform.</span></h2>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style="gap: 1px; margin-top: 32px; background: var(--rule-2);">
+      {capabilities.map((c) => (
+        <a href={c.href} style="background: var(--surface); padding: 26px 22px; text-decoration: none; transition: background .15s ease; display: block;">
+          <div class="label label-orange">{c.n}</div>
+          <div class="display display-md" style="margin-top: 10px; margin-bottom: 14px;">{c.t}</div>
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            {c.bullets.map((b) => (
+              <li class="ink-2" style="font-size: 13.5px; padding: 5px 0; line-height: 1.45;">{b}</li>
+            ))}
+          </ul>
+          <p class="emph ink-2" style="font-size: 17px; margin-top: 16px;">{c.closer}</p>
+          <p style="margin-top: 14px;">
+            <span class="a-orange" style="font-size: 13px;">Read more <span class="arr">→</span></span>
+          </p>
+        </a>
+      ))}
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Feature Showcase 2: Obligation Tracking -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <FeatureShowcase
-        title="Obligation Tracking"
-        description="Every contractual obligation is extracted, assigned, and tracked through completion. Automated alerts ensure nothing falls through the cracks, while compliance evidence creates an auditable trail for every commitment."
-        imagePosition="left"
-        tag="Compliance Management"
-        image="/screenshots/obligations.png"
-        imageAlt="Obligation tracking dashboard with compliance status"
-        bullets={[
-          'AI identifies obligations across all contract types — delivery milestones, reporting requirements, payment terms, and regulatory commitments',
-          'RAG status indicators (Red, Amber, Green) provide at-a-glance compliance visibility for every obligation',
-          'Owner assignment and escalation paths ensure clear accountability across teams',
-          'Automated deadline alerts with configurable lead times prevent missed commitments',
-          'Compliance evidence attachments create an auditable trail for internal governance and external audits',
-        ]}
-      />
+<section class="section sr">
+  <div class="wrap">
+    <header class="sechead">
+      <div class="sechead-num label label-ink">02 / Versus the legacy stack</div>
+      <h2 class="sechead-h display display-lg">Where the others <span class="emph">do not go.</span></h2>
+    </header>
+
+    <div style="margin-top: 28px; overflow-x: auto;">
+      <table class="ctable">
+        <thead>
+          <tr>
+            <th></th>
+            {compare.cols.map((c, i) => (
+              <th class={i === 0 ? 'us' : ''}>{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {compare.rows.map(([label, vals]) => (
+            <tr>
+              <td>{label}</td>
+              {(vals as string[]).map((v, i) => (
+                <td class={i === 0 ? 'us' : 'them'}>{v}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
-  </section>
 
-  <!-- Feature Showcase 3: SLA Monitoring -->
-  <section class="section-padding bg-gray-50">
-    <div class="container-narrow">
-      <FeatureShowcase
-        title="SLA Monitoring"
-        description="Contracted SLA metrics are extracted automatically and matched against actual performance data. Detect breaches the moment they occur, calculate service credits owed, and track penalty enforcement across your vendor portfolio."
-        imagePosition="right"
-        tag="Performance Tracking"
-        image="/screenshots/sla-breaches.png"
-        imageAlt="SLA breach detection dashboard with severity indicators"
-        bullets={[
-          'AI extracts SLA metrics, target thresholds, measurement periods, and penalty structures from contract language',
-          'Actual performance data integrates with contracted targets for continuous compliance monitoring',
-          'Breach detection triggers automated alerts with severity classification and financial impact assessment',
-          'Service credit calculations track credits owed, credits claimed, and credits recovered',
-          'Historical trend analysis reveals chronic underperformance patterns across vendors and service categories',
-        ]}
-      />
+    <p class="mono ink-3" style="font-size: 11px; line-height: 1.6; margin-top: 16px; max-width: 760px;">
+      Comparison reflects publicly documented capabilities of each platform at time of writing. Vendor pricing and packaging vary by region and customer size; figures in the "time to first outcome" row refer to median customer reports.
+    </p>
+  </div>
+</section>
+
+<section class="section sr">
+  <div class="wrap">
+    <div class="grid grid-cols-12 gap-x-6 items-baseline">
+      <div class="col-span-12 md:col-span-3">
+        <div class="label label-orange">Begin</div>
+      </div>
+      <div class="col-span-12 md:col-span-9">
+        <h2 class="display display-lg">Bring five contracts. <span class="emph">See it work.</span></h2>
+        <div style="margin-top: 24px;">
+          <a href="/contact" class="cta-btn">Book a review <span class="arr">→</span></a>
+          <a href="/commercial" class="cta-link" style="margin-left: 12px;">Read the long story →</a>
+        </div>
+      </div>
     </div>
-  </section>
-
-  <!-- Feature Showcase 4: Renewal Management -->
-  <section class="section-padding">
-    <div class="container-narrow">
-      <FeatureShowcase
-        title="Renewal Management"
-        description="Never be caught off guard by an auto-renewal or missed notice period again. Evaluetor builds a complete calendar of every contract expiration, with intelligent alerts that account for notice requirements and internal approval timelines."
-        imagePosition="left"
-        tag="Deadline Management"
-        image="/screenshots/renewals.png"
-        imageAlt="Renewal management calendar with deadline tracking"
-        bullets={[
-          'Calendar view of all contract expirations with filterable views by vendor, department, and contract value',
-          'Auto-renewal detection identifies evergreen clauses and calculates the last date to provide notice',
-          'Notice period tracking with configurable lead-time alerts for internal review and approval workflows',
-          'AI-powered renewal recommendations based on vendor performance, market conditions, and contract terms',
-        ]}
-      />
-    </div>
-  </section>
-
-  <!-- Feature Showcase 5: Relationship Governance -->
-  <section class="section-padding bg-gray-50">
-    <div class="container-narrow">
-      <FeatureShowcase
-        title="Relationship Governance"
-        description="Go beyond contract compliance to measure the health of your vendor and partner relationships. KPI perception scoring reveals gaps between how your team and your counterparty view performance — the leading indicator of relationship risk."
-        imagePosition="right"
-        tag="Vendor Performance"
-        image="/screenshots/counterparty-performance.png"
-        imageAlt="Counterparty performance scoring dashboard"
-        bullets={[
-          'Multi-factor vendor scoring combines SLA compliance, obligation fulfillment, risk posture, and stakeholder satisfaction',
-          'KPI perception gap analysis compares internal vs. external views of performance across every key metric',
-          'Improvement point tracking links specific initiatives to the perception gaps they address',
-          'Multi-party satisfaction surveys collect structured feedback from all stakeholders in a relationship',
-          'Governance structure visualization maps team hierarchies, escalation paths, and decision-making authority',
-        ]}
-      />
-    </div>
-  </section>
-
-  <!-- CTA -->
-  <CTABanner
-    headline="Want to see it work?"
-    subtext="Upload your own contracts and watch Evaluetor extract intelligence in real time."
-    buttonText="Try it free"
-    buttonLink="/contact"
-  />
+  </div>
+</section>
 
 </MarketingLayout>
