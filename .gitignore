@@ -136,6 +136,7 @@ playwright-report/
 # claude related
 # =============================================================================
 claude-sdlc/
+.claude/settings.local.json
 research/
 tasks/
 deploy/environments.env
