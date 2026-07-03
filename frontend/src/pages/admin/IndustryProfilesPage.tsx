@@ -19,7 +19,9 @@ import {
 } from '@/lib/api/admin'
 import type { TaxonomySuggestionItem, TaxonomyAccuracyItem, QualityHint } from '@/lib/api/admin'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
+import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import NewIndustryWizard from '@/components/admin/NewIndustryWizard'
 import {
   DocumentTextIcon,
   ShieldCheckIcon,
@@ -709,8 +711,10 @@ export default function IndustryProfilesPage() {
   const [activeTab, setActiveTab] = useState<TabId>('contract_types')
   const [search, setSearch] = useState('')
   const [slideOver, setSlideOver] = useState<{ item: TaxonomyItem; isNew: boolean; isCustom: boolean; isBase: boolean } | null>(null)
+  const [showNewIndustry, setShowNewIndustry] = useState(false)
   const queryClient = useQueryClient()
   const { config, refresh: refreshConfig } = useTenantConfig()
+  const { isSuperAdmin } = useAuth()
 
   const currentSlug = config?.industry
 
@@ -912,12 +916,25 @@ export default function IndustryProfilesPage() {
             <p className="text-xs text-gray-500">Configure extraction taxonomy and AI behavior</p>
           </div>
         </div>
-        <ProfileSelector
-          profiles={profiles}
-          currentSlug={currentSlug || null}
-          onSwitch={(slug) => switchProfileMutation.mutate(slug)}
-        />
+        <div className="flex items-center gap-2">
+          {isSuperAdmin && (
+            <button
+              onClick={() => setShowNewIndustry(true)}
+              className="btn-primary text-sm flex items-center gap-1.5"
+            >
+              <PlusIcon className="h-4 w-4" />
+              New Industry
+            </button>
+          )}
+          <ProfileSelector
+            profiles={profiles}
+            currentSlug={currentSlug || null}
+            onSwitch={(slug) => switchProfileMutation.mutate(slug)}
+          />
+        </div>
       </div>
+
+      {showNewIndustry && <NewIndustryWizard onClose={() => setShowNewIndustry(false)} />}
 
       {/* Main layout: sidebar + content */}
       <div className="flex flex-1 overflow-hidden">

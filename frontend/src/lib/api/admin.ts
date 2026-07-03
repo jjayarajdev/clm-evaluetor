@@ -469,6 +469,27 @@ export async function setMyIndustryProfile(profileSlug: string | null): Promise<
   return response.data
 }
 
+export interface GeneratedProfileDraft {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  draft: Record<string, any>
+  warnings: string[]
+}
+
+export async function generateIndustryProfile(payload: {
+  name: string
+  description: string
+  sample_contract_text?: string
+}): Promise<GeneratedProfileDraft> {
+  const response = await client.post('/industry-profiles/generate', payload, { timeout: 120000 })
+  return response.data
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function createIndustryProfile(payload: Record<string, any>): Promise<any> {
+  const response = await client.post('/industry-profiles', payload)
+  return response.data
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getTenantOverrides(): Promise<Record<string, any>> {
   const response = await client.get('/tenants/current/overrides')
