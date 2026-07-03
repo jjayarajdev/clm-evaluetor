@@ -712,6 +712,7 @@ export default function IndustryProfilesPage() {
   const [search, setSearch] = useState('')
   const [slideOver, setSlideOver] = useState<{ item: TaxonomyItem; isNew: boolean; isCustom: boolean; isBase: boolean } | null>(null)
   const [showNewIndustry, setShowNewIndustry] = useState(false)
+  const [viewSlug, setViewSlug] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const { config, refresh: refreshConfig } = useTenantConfig()
   const { isSuperAdmin } = useAuth()
@@ -724,7 +725,11 @@ export default function IndustryProfilesPage() {
     queryFn: getIndustryProfiles,
   })
 
-  const currentProfileId = profiles.find((p) => p.slug === currentSlug)?.id
+  // Super admin has no tenant profile — they browse/edit any profile directly
+  const effectiveSlug = isSuperAdmin
+    ? viewSlug ?? currentSlug ?? profiles[0]?.slug ?? null
+    : currentSlug
+  const currentProfileId = profiles.find((p) => p.slug === effectiveSlug)?.id
 
   const { data: profile, isLoading: profileLoading } = useQuery<ProfileDetail>({
     queryKey: ['industry-profile', currentProfileId],
@@ -928,8 +933,10 @@ export default function IndustryProfilesPage() {
           )}
           <ProfileSelector
             profiles={profiles}
-            currentSlug={currentSlug || null}
-            onSwitch={(slug) => switchProfileMutation.mutate(slug)}
+            currentSlug={effectiveSlug || null}
+            onSwitch={(slug) =>
+              isSuperAdmin ? setViewSlug(slug) : switchProfileMutation.mutate(slug)
+            }
           />
         </div>
       </div>
@@ -1032,7 +1039,7 @@ export default function IndustryProfilesPage() {
                   />
                 </div>
                 <button
-                  onClick={() => setSlideOver({ item: { code: '', label: '' }, isNew: true, isCustom: false, isBase: true })}
+                  onClick={() => setSlideOver({ item: { code: '', label: '' }, isNew: true, isCustom: !isSuperAdmin, isBase: isSuperAdmin })}
                   className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
                 >
                   <PlusIcon className="h-4 w-4" />
@@ -1071,7 +1078,7 @@ export default function IndustryProfilesPage() {
                             <TaxonomyRow
                               key={item.code}
                               item={item}
-                              onClick={() => setSlideOver({ item, isNew: false, isCustom: false, isBase: true })}
+                              onClick={() => { if (isSuperAdmin) setSlideOver({ item, isNew: false, isCustom: false, isBase: true }) }}
                               accuracy={tabData.accuracyMap?.[item.code]}
                             />
                           ))}
@@ -1086,7 +1093,7 @@ export default function IndustryProfilesPage() {
                       <TaxonomyRow
                         key={item.code}
                         item={item}
-                        onClick={() => setSlideOver({ item, isNew: false, isCustom: false, isBase: true })}
+                        onClick={() => { if (isSuperAdmin) setSlideOver({ item, isNew: false, isCustom: false, isBase: true }) }}
                         accuracy={tabData.accuracyMap?.[item.code]}
                       />
                     ))}
@@ -1116,9 +1123,13 @@ export default function IndustryProfilesPage() {
           ) : activeTab === 'extraction_hints' ? (
             <div className="p-6 max-w-3xl">
               <ExtractionHintsContent
-                baseHints={profile?.extraction_hints || {}}
-                customHints={customHints}
-                onSave={(hints) => saveMutation.mutate({ extraction_hints: hints })}
+                baseHints={isSuperAdmin ? {} : profile?.extraction_hints || {}}
+                customHints={isSuperAdmin ? profile?.extraction_hints || {} : customHints}
+                onSave={(hints) =>
+                  isSuperAdmin
+                    ? updateProfileMutation.mutate({ extraction_hints: hints })
+                    : saveMutation.mutate({ extraction_hints: hints })
+                }
                 qualityHints={qualityHints}
               />
             </div>
@@ -1146,7 +1157,7 @@ export default function IndustryProfilesPage() {
             isNew={slideOver.isNew}
             accuracy={tabData.accuracyMap?.[slideOver.item.code]}
             onSave={(item) => {
-              if (slideOver.isBase || slideOver.isNew) handleSaveBase(item)
+              if (slideOver.isBase) handleSaveBase(item)
               else handleSaveCustom(item)
             }}
             onDelete={slideOver.isNew ? undefined : () => {
