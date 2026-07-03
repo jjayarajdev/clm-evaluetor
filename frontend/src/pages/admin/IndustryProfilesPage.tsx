@@ -527,9 +527,12 @@ function ExtractionHintsContent({
         <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
           <div className="flex items-center gap-2 mb-2">
             <SparklesIcon className="h-4 w-4 text-amber-500" />
-            <span className="text-xs font-semibold text-gray-700">Suggested improvements based on extraction quality</span>
+            <span className="text-xs font-semibold text-gray-700">
+              Suggested improvements based on extraction quality ({qualityHints.length})
+            </span>
           </div>
-          {qualityHints.slice(0, 3).map((h) => (
+          <div className="max-h-64 overflow-y-auto">
+          {qualityHints.map((h) => (
             <div key={h.code} className="flex items-center justify-between py-1.5 border-t border-amber-100">
               <div>
                 <span className="text-sm text-gray-800">{h.label}</span>
@@ -545,6 +548,7 @@ function ExtractionHintsContent({
               )}
             </div>
           ))}
+          </div>
         </div>
       )}
 
