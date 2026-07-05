@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evaluetor — AI Contract Intelligence · Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+<style>
+/* ─────────────────────────────────────────────────────────────
+   EVALUETOR · COMBO MOCKUP
+   Ironclad architecture + Luminance polish + Dutch palette
+   ───────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+:root {
+  --paper:     #F7F6F3;
+  --paper-2:   #EFEDE8;
+  --paper-3:   #E5E2D9;
+  --surface:   #FFFFFF;
+  --ink:       #0E0E10;
+  --ink-2:     #2D2F36;
+  --ink-3:     #5B5F66;
+  --ink-4:     #A0A4AB;
+  --rule:      #1A1A1C;
+  --rule-2:    #DDDBD5;
+  --rule-3:    #BDBAB1;
+  --orange:    #E94E1B;
+  --orange-2:  #C73E0F;
+  --red:       #B91C1C;
+  --amber:     #D97706;
+  --green:     #15803D;
+}
+
+body {
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-feature-settings: 'ss01' 1, 'kern' 1;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* ─── Type system ─── */
+.display    { font-family: 'Geist', sans-serif; font-weight: 500; letter-spacing: -0.028em; line-height: 0.96; }
+.display-xl { font-size: clamp(48px, 6.8vw, 96px); }
+.display-lg { font-size: clamp(34px, 4.6vw, 64px); }
+.display-md { font-size: clamp(26px, 3vw, 40px); }
+.display-sm { font-size: clamp(18px, 1.6vw, 22px); font-weight: 600; }
+
+.lead { font-size: clamp(17px, 1.3vw, 20px); line-height: 1.55; color: var(--ink-2); }
+
+.emph {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic; font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+.label {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.label-ink { color: var(--ink); }
+.label-orange { color: var(--orange); }
+.mono { font-family: 'Geist Mono', monospace; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+a { color: inherit; text-decoration: none; }
+
+/* ─── Layout helpers ─── */
+.wrap {
+  max-width: 84rem;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+@media (min-width: 768px)  { .wrap { padding: 0 40px; } }
+@media (min-width: 1280px) { .wrap { padding: 0 56px; } }
+
+.section { padding: clamp(48px, 5.5vw, 96px) 0; }
+.section-tight { padding: clamp(36px, 3.5vw, 56px) 0; }
+
+.rule       { border-top: 1px solid var(--rule); }
+.rule-soft  { border-top: 1px solid var(--rule-2); }
+.rule-thick { border-top: 3px solid var(--rule); }
+
+/* ─── Sticky nav ─── */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(247,246,243,0.86);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(14,14,16,0.08);
+}
+.nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px;
+  max-width: 84rem; margin: 0 auto;
+}
+.nav-brand {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 600; font-size: 17px; letter-spacing: -0.01em;
+}
+.nav-brand .mark {
+  width: 22px; height: 22px;
+  background: var(--orange); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 11px;
+  font-family: 'Geist Mono', monospace;
+}
+.nav-links {
+  display: none;
+  gap: 28px;
+  font-size: 15px; color: var(--ink-2);
+}
+.nav-links a:hover { color: var(--orange); }
+.nav-cta-group { display: flex; align-items: center; gap: 12px; }
+@media (min-width: 880px) { .nav-links { display: flex; } }
+
+/* ─── CTAs ─── */
+/* CTA uses --orange-2 (#C73E0F) for AA contrast on white text (~4.62:1). */
+.cta-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--orange-2);
+  color: #fff;
+  padding: 13px 22px;
+  font-weight: 600; font-size: 15px;
+  border: 1px solid var(--orange-2);
+  transition: background .2s ease, border-color .2s ease, gap .25s ease;
+  cursor: pointer;
+}
+.cta-btn:hover { background: var(--ink); border-color: var(--ink); gap: 16px; }
+.cta-btn:focus-visible,
+.cta-outline:focus-visible {
+  outline: 2px solid var(--orange-2);
+  outline-offset: 3px;
+}
+/* General focus ring for in-page interactive elements (nav links, tabs, FAQ summaries, footer links) */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--orange-2);
+  outline-offset: 2px;
+}
+.cta-btn.small { padding: 9px 18px; font-size: 15px; }
+.cta-outline {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: transparent;
+  color: var(--ink);
+  padding: 13px 22px;
+  font-weight: 500; font-size: 15px;
+  border: 1px solid var(--ink);
+  transition: background .2s ease, gap .25s ease;
+}
+.cta-outline:hover { background: var(--ink); color: var(--paper); gap: 16px; }
+.cta-outline.small { padding: 9px 18px; font-size: 15px; }
+.cta-link {
+  color: var(--ink-3); font-size: 15px;
+  transition: color .15s ease;
+}
+.cta-link:hover { color: var(--ink); }
+
+/* ─── Scroll reveal ─── */
+.sr { opacity: 0; transform: translateY(10px); transition: opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1); }
+.sr.in { opacity: 1; transform: none; }
+
+/* ═════════════════════════════════════════════════════════════
+   HERO
+   ════════════════════════════════════════════════════════════ */
+.hero { padding: 56px 0 80px; }
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 48px;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .hero-grid { grid-template-columns: 7fr 5fr; gap: 56px; }
+}
+
+.hero-h1 {
+  font-size: clamp(42px, 6vw, 86px);
+  line-height: 0.98;
+  letter-spacing: -0.028em;
+  font-weight: 500;
+  font-family: 'Geist', sans-serif;
+}
+.hero-h1 .for {
+  display: block;
+  margin-top: 12px;
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--orange);
+  font-size: 0.78em;
+  letter-spacing: -0.015em;
+}
+.hero-rotator {
+  display: inline-block;
+  height: 1.2em;
+  line-height: 1.2;
+  overflow: hidden;
+  vertical-align: bottom;
+  position: relative;
+  min-width: 14ch;
+}
+.hero-rotator > span {
+  position: absolute;
+  inset: 0;
+  line-height: 1.2;
+  display: block;
+  opacity: 0;
+  transform: translateY(100%);
+  animation: rotate 15s linear infinite;
+  will-change: opacity, transform;
+}
+.hero-rotator > span:nth-child(1) { animation-delay:  0s; }
+.hero-rotator > span:nth-child(2) { animation-delay:  3s; }
+.hero-rotator > span:nth-child(3) { animation-delay:  6s; }
+.hero-rotator > span:nth-child(4) { animation-delay:  9s; }
+.hero-rotator > span:nth-child(5) { animation-delay: 12s; }
+@keyframes rotate {
+  0%   { opacity: 0; transform: translateY(100%); }
+  3%   { opacity: 1; transform: translateY(0); }
+  17%  { opacity: 1; transform: translateY(0); }
+  20%  { opacity: 0; transform: translateY(-100%); }
+  100% { opacity: 0; transform: translateY(-100%); }
+}
+
+.hero-lead { margin-top: 24px; max-width: 540px; }
+.hero-ctas {
+  margin-top: 32px;
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+}
+
+.hero-microsig {
+  margin-top: 36px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule-2);
+  display: flex; flex-wrap: wrap; gap: 28px;
+}
+.hero-microsig > div {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.hero-microsig .v {
+  font-family: 'Geist Mono', monospace;
+  font-size: 13px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.hero-microsig .l {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-family: 'Geist Mono', monospace;
+  letter-spacing: 0.04em;
+}
+
+/* Hero product mock — Portfolio Command */
+.pmock {
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  overflow: hidden;
+  position: relative;
+  box-shadow:
+    0 0 0 1px var(--rule-2),
+    0 32px 60px -32px rgba(14,14,16,0.22),
+    0 2px 0 0 rgba(14,14,16,0.04);
+}
+.pm-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 16px;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule-2);
+}
+.pm-title { display: flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 600; }
+.pm-title .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 0 3px rgba(233,78,27,0.18);
+  animation: pm-pulse 2s ease-in-out infinite;
+}
+@keyframes pm-pulse {
+  0%,100% { box-shadow: 0 0 0 3px rgba(233,78,27,0.18); }
+  50%     { box-shadow: 0 0 0 7px rgba(233,78,27,0.06); }
+}
+.pm-title .sub { font-weight: 400; color: var(--ink-3); }
+.pm-meta { font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--ink-3); }
+.pm-corner {
+  position: absolute; top: 13px; right: 64px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-4);
+}
+.pm-body { padding: 16px 18px 18px; }
+.pm-label {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 10px;
+}
+.pm-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.pm-stat .v {
+  font-size: 28px; font-weight: 600;
+  letter-spacing: -0.025em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.pm-stat .l { font-size: 11px; color: var(--ink-3); margin-top: 4px; }
+.pm-stat.risk .v { color: var(--orange); }
+.pm-div { border-top: 1px solid var(--rule-2); margin: 16px -18px; }
+.pm-alerts { display: flex; flex-direction: column; }
+.pm-alert {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  gap: 12px; align-items: start;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--rule-2);
+}
+.pm-alert:last-child { border-bottom: 0; padding-bottom: 0; }
+.pm-alert:first-child { padding-top: 0; }
+.pm-alert .d {
+  width: 7px; height: 7px; border-radius: 50%;
+  margin-top: 5px;
+}
+.pm-alert .d.red { background: var(--red); }
+.pm-alert .d.orange { background: var(--orange); }
+.pm-alert .d.amber { background: var(--amber); }
+.pm-alert .t { font-size: 12.5px; font-weight: 500; line-height: 1.3; }
+.pm-alert .s { font-size: 11px; color: var(--ink-3); margin-top: 2px; font-family: 'Geist Mono', monospace; }
+.pm-alert .i {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; font-variant-numeric: tabular-nums;
+  color: var(--orange); font-weight: 600;
+  align-self: center; white-space: nowrap;
+}
+
+/* ═════════════════════════════════════════════════════════════
+   TRUST STRIP
+   ════════════════════════════════════════════════════════════ */
+.trust {
+  background: var(--paper-2);
+  padding: 36px 0;
+  border-top: 1px solid var(--rule-2);
+  border-bottom: 1px solid var(--rule-2);
+}
+.trust-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 12px 36px;
+}
+.trust-row .lbl {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin-right: 24px;
+}
+
+/* ═════════════════════════════════════════════════════════════
+   STATS BAND
+   ════════════════════════════════════════════════════════════ */
+.stats {
+  padding: 56px 0;
+}
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+}
+@media (min-width: 768px) {
+  .stats-row { grid-template-columns: repeat(4, 1fr); gap: 0; }
+}
+.stat-cell {
+  padding: 28px 0;
+}
+@media (min-width: 768px) {
+  .stat-cell { padding: 0 28px; border-left: 1px solid var(--rule-2); }
+  .stat-cell:first-child { padding-left: 0; border-left: 0; }
+  .stat-cell:last-child  { padding-right: 0; }
+}
+.stat-cell .label { margin-bottom: 14px; display: block; }
+.stat-cell .v {
+  font-family: 'Geist', sans-serif;
+  font-size: clamp(48px, 5.8vw, 82px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.stat-cell .v .emph { color: var(--orange); }
+.stat-cell .desc {
+  margin-top: 14px;
+  font-size: 15px;
+  color: var(--ink-3);
+  line-height: 1.5;
+  max-width: 240px;
+}
+
+/* ═════════════════════════════════════════════════════════════
+   SECTION HEADERS (consistent pattern)
+   ════════════════════════════════════════════════════════════ */
+.sechead {
+  display: grid; grid-template-columns: 1fr; gap: 24px;
+  align-items: baseline; padding-bottom: 18px;
+  border-bottom: 1px solid var(--rule);
+}
+@media (min-width: 768px) { .sechead { grid-template-columns: 3fr 9fr; } }
+.sechead h2 { margin: 0; }
+
+/* ═════════════════════════════════════════════════════════════
+   CAPABILITIES — 6 cards (Luminance pattern)
+   ════════════════════════════════════════════════════════════ */
+.caps {
+  background: var(--paper-2);
+  padding: clamp(64px, 6vw, 96px) 0;
+}
+.caps-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+  margin-top: 48px;
+  background: var(--rule-2);
+  border: 1px solid var(--rule-2);
+}
+@media (min-width: 720px) { .caps-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .caps-grid { grid-template-columns: repeat(3, 1fr); } }
+.cap {
+  background: var(--surface);
+  padding: 28px 28px 32px;
+  display: flex; flex-direction: column;
+  min-height: 280px;
+  transition: background .25s ease;
+  cursor: pointer;
+  position: relative;
+}
+.cap:hover { background: var(--paper); }
+.cap .cap-num {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; letter-spacing: 0.16em;
+  color: var(--ink-3);
+}
+.cap .cap-t {
+  margin-top: 20px;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.cap .cap-d {
+  margin-top: 10px;
+  font-size: 15px;
+  color: var(--ink-3);
+  line-height: 1.55;
+  flex: 1;
+}
+.cap .cap-tag {
+  margin-top: 18px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px; letter-spacing: 0.16em;
+  color: var(--orange);
+  text-transform: uppercase;
+}
+.cap .cap-tag::after {
+  content: '→'; font-family: 'Geist', sans-serif;
+  transition: transform .2s ease;
+}
+.cap:hover .cap-tag::after { transform: translateX(4px); }
+.cap.feat {
+  background: var(--ink);
+  color: var(--paper);
+}
+.cap.feat .cap-num { color: rgba(247,246,243,0.55); }
+.cap.feat .cap-d   { color: rgba(247,246,243,0.72); }
+.cap.feat:hover { background: #1A1A1F; }
+
+/* ═════════════════════════════════════════════════════════════
+   AUDIENCE TABS (Ironclad pattern)
+   ════════════════════════════════════════════════════════════ */
+.audience { padding: clamp(64px, 6vw, 96px) 0; }
+.tabs-bar {
+  margin-top: 40px;
+  border-top: 1px solid var(--rule-2);
+  border-bottom: 1px solid var(--rule-2);
+  display: flex; flex-wrap: wrap;
+  background: var(--paper);
+}
+.tab-btn {
+  flex: 1; min-width: 140px;
+  padding: 18px 20px;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--rule-2);
+  text-align: left;
+  cursor: pointer;
+  font-family: 'Geist', sans-serif;
+  position: relative;
+  transition: background .15s ease;
+}
+.tab-btn:last-child { border-right: 0; }
+.tab-btn:hover { background: var(--paper-2); }
+.tab-btn .tab-l {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px; letter-spacing: 0.14em;
+  color: var(--ink-3); text-transform: uppercase;
+  display: block;
+}
+.tab-btn .tab-t {
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: -0.01em;
+}
+.tab-btn.on { background: var(--surface); }
+.tab-btn.on .tab-t { color: var(--ink); }
+.tab-btn.on::after {
+  content: '';
+  position: absolute;
+  top: -1px; left: 0; right: 0;
+  height: 3px;
+  background: var(--orange);
+}
+
+.tab-content {
+  padding: 48px 0 8px;
+  display: none;
+  grid-template-columns: 1fr;
+  gap: 40px;
+}
+@media (min-width: 900px) { .tab-content { grid-template-columns: 5fr 7fr; gap: 56px; } }
+.tab-content.on { display: grid; }
+.tab-content h3 {
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+}
+.tab-content .lead { margin-top: 18px; max-width: 540px; }
+.tab-content ul {
+  list-style: none;
+  margin-top: 26px;
+}
+.tab-content ul li {
+  padding: 12px 0;
+  border-top: 1px solid var(--rule-2);
+  display: grid; grid-template-columns: 26px 1fr;
+  gap: 14px; align-items: baseline;
+  font-size: 15px;
+}
+.tab-content ul li:first-child { border-top: 0; }
+.tab-content ul li .n {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; color: var(--ink-3);
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+.tab-side {
+  background: var(--paper-2);
+  padding: 28px;
+  border: 1px solid var(--rule-2);
+}
+.tab-side .tab-side-l {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px; letter-spacing: 0.14em;
+  color: var(--ink-3); text-transform: uppercase;
+}
+.tab-side .tab-side-row {
+  display: flex; justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule-2);
+  font-size: 15px;
+}
+.tab-side .tab-side-row:first-of-type { border-top: 0; margin-top: 14px; padding-top: 0; }
+.tab-side .tab-side-row .k { color: var(--ink-3); }
+.tab-side .tab-side-row .v {
+  font-family: 'Geist Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--orange);
+  font-weight: 600;
+}
+.tab-side .tab-side-row .v.neutral { color: var(--ink); }
+
+/* ═════════════════════════════════════════════════════════════
+   VALUE EROSION CHART (signature visual)
+   ════════════════════════════════════════════════════════════ */
+.erosion {
+  background: var(--paper);
+  padding: clamp(64px, 6vw, 96px) 0;
+}
+.erosion-card {
+  margin-top: 40px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 24px 28px;
+}
+.erosion-legend {
+  display: flex; flex-wrap: wrap; gap: 22px; align-items: center;
+  margin-bottom: 14px;
+  font-family: 'Geist Mono', monospace; font-size: 11px;
+  letter-spacing: 0.06em; color: var(--ink-3);
+}
+.erosion-legend .sw {
+  display: inline-block;
+  width: 14px; height: 2px;
+  margin-right: 8px; vertical-align: middle;
+}
+.erosion-legend .sw.dotted {
+  height: 14px; width: 14px;
+  background-image: repeating-linear-gradient(135deg, transparent 0 3px, var(--orange) 3px 4px);
+}
+.evkey {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule-2);
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 14px 28px;
+}
+@media (min-width: 720px) { .evkey { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1100px) { .evkey { grid-template-columns: repeat(6, 1fr); } }
+.evkey-item { display: flex; gap: 11px; align-items: start; }
+.evkey-num {
+  flex-shrink: 0;
+  width: 20px; height: 20px;
+  background: var(--orange);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 10.5px;
+}
+.evkey-item .t { font-size: 13px; font-weight: 500; line-height: 1.3; }
+.evkey-item .w { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--ink-3); margin-top: 2px; letter-spacing: 0.04em; }
+
+/* ═════════════════════════════════════════════════════════════
+   WHY EVALUETOR (Luminance pattern)
+   ════════════════════════════════════════════════════════════ */
+.why {
+  background: var(--ink);
+  color: var(--paper);
+  padding: clamp(72px, 7vw, 120px) 0;
+}
+.why .sechead { border-bottom-color: rgba(247,246,243,0.16); }
+.why .sechead h2 { color: var(--paper); }
+.why .sechead .label { color: rgba(247,246,243,0.55); }
+.why .sechead .label.label-ink { color: var(--orange); }
+.why-grid {
+  margin-top: 56px;
+  display: grid; grid-template-columns: 1fr;
+  gap: 1px;
+  background: rgba(247,246,243,0.16);
+  border: 1px solid rgba(247,246,243,0.16);
+}
+@media (min-width: 768px) { .why-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .why-grid { grid-template-columns: repeat(3, 1fr); } }
+.why-item {
+  background: var(--ink);
+  padding: 32px 28px;
+  min-height: 180px;
+}
+.why-item .why-n {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; letter-spacing: 0.14em;
+  color: var(--orange);
+}
+.why-item .why-t {
+  margin-top: 18px;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--paper);
+}
+.why-item .why-d {
+  margin-top: 12px;
+  font-size: 15px;
+  color: rgba(247,246,243,0.7);
+  line-height: 1.55;
+}
+
+/* ═════════════════════════════════════════════════════════════
+   COMPARISON TABLE
+   ════════════════════════════════════════════════════════════ */
+.compare { padding: clamp(64px, 6vw, 96px) 0; }
+.ctable {
+  width: 100%; border-collapse: collapse;
+  margin-top: 40px;
+}
+.ctable thead th {
+  text-align: left;
+  font-family: 'Geist Mono', monospace; font-weight: 500;
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 14px 16px 12px 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: bottom;
+}
+.ctable thead th.us {
+  color: var(--ink);
+  font-family: 'Geist', sans-serif;
+  font-size: 15px; text-transform: none; letter-spacing: 0;
+  font-weight: 600; padding-right: 18px;
+}
+.ctable thead th.us::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--orange);
+  margin-right: 8px; transform: translateY(-2px);
+}
+.ctable tbody td {
+  padding: 18px 16px 18px 0;
+  border-bottom: 1px solid var(--rule-2);
+  vertical-align: top; font-size: 15px;
+}
+.ctable tbody tr td:first-child { color: var(--ink); font-weight: 500; }
+.ctable tbody td.us { color: var(--ink); font-weight: 600; padding-right: 18px; }
+.ctable tbody td.them { color: var(--ink-3); }
+.ctable tbody tr.zebra td { background: var(--paper-2); }
+.compare-note {
+  margin-top: 20px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; color: var(--ink-3); line-height: 1.6;
+  max-width: 64rem;
+}
+
+/* ═════════════════════════════════════════════════════════════
+   FAQ
+   ════════════════════════════════════════════════════════════ */
+.faq {
+  background: var(--paper-2);
+  padding: clamp(64px, 6vw, 96px) 0;
+}
+.faq-list {
+  margin-top: 40px;
+  border-top: 1px solid var(--rule);
+}
+.faq-item {
+  border-bottom: 1px solid var(--rule-2);
+  padding: 0;
+}
+.faq-item summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 24px 0;
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  transition: color .15s ease;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary:hover { color: var(--orange); }
+.faq-item summary::after {
+  content: '+';
+  font-family: 'Geist Mono', monospace;
+  font-size: 22px; font-weight: 400;
+  color: var(--orange);
+  flex-shrink: 0;
+  transition: transform .25s ease;
+}
+.faq-item[open] summary::after { transform: rotate(45deg); }
+.faq-item .faq-a {
+  padding: 0 0 24px;
+  font-size: 15px;
+  color: var(--ink-2);
+  line-height: 1.65;
+  max-width: 56rem;
+}
+.faq-item .faq-a p + p { margin-top: 12px; }
+
+/* ═════════════════════════════════════════════════════════════
+   FINAL CTA
+   ════════════════════════════════════════════════════════════ */
+.final {
+  padding: clamp(80px, 7.5vw, 140px) 0;
+}
+.final-grid {
+  display: grid; grid-template-columns: 1fr; gap: 48px;
+  align-items: end;
+}
+@media (min-width: 900px) { .final-grid { grid-template-columns: 7fr 5fr; gap: 64px; } }
+.final h2 {
+  font-size: clamp(40px, 5.5vw, 76px);
+  line-height: 1;
+  letter-spacing: -0.028em;
+  font-weight: 500;
+}
+.final .lead { margin-top: 22px; max-width: 540px; }
+.final .ctas {
+  margin-top: 32px;
+  display: flex; flex-wrap: wrap; gap: 14px;
+}
+.final-side {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 32px;
+}
+.final-side .label { display: block; margin-bottom: 14px; }
+.final-side .name {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.018em;
+}
+.final-side .role {
+  font-size: 15px;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+.final-side .contact {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule-2);
+  font-family: 'Geist Mono', monospace;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.final-side .contact a:hover { color: var(--orange); }
+
+/* ═════════════════════════════════════════════════════════════
+   FOOTER
+   ════════════════════════════════════════════════════════════ */
+.footer {
+  background: var(--ink);
+  color: rgba(247,246,243,0.7);
+  padding: 64px 0 32px;
+}
+.footer-grid {
+  display: grid; grid-template-columns: 2fr 1fr 1fr;
+  gap: 40px 32px;
+}
+@media (min-width: 900px) { .footer-grid { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; } }
+.footer-brand { color: var(--paper); }
+.footer-brand .mark {
+  width: 28px; height: 28px;
+  background: var(--orange); color: white;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px;
+  font-family: 'Geist Mono', monospace;
+  margin-bottom: 16px;
+}
+.footer-brand .name { font-size: 20px; font-weight: 600; }
+.footer-brand .tag { font-size: 13px; color: rgba(247,246,243,0.55); margin-top: 8px; max-width: 240px; }
+.footer-col h4 {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; letter-spacing: 0.14em;
+  color: var(--paper); text-transform: uppercase;
+  font-weight: 500; margin-bottom: 18px;
+}
+.footer-col a {
+  display: block;
+  font-size: 13px;
+  color: rgba(247,246,243,0.6);
+  padding: 5px 0;
+  transition: color .15s ease;
+}
+.footer-col a:hover { color: var(--orange); }
+.footer-bottom {
+  margin-top: 56px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(247,246,243,0.14);
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  color: rgba(247,246,243,0.5);
+  text-transform: uppercase;
+}
+
+/* ═════════════════════════════════════════════════════════════
+   MOCKUP RIBBON (corner badge)
+   ════════════════════════════════════════════════════════════ */
+.mockup-ribbon {
+  position: fixed;
+  bottom: 16px; right: 16px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+  z-index: 100;
+}
+
+/* small things */
+.text-orange { color: var(--orange); }
+.text-ink-3 { color: var(--ink-3); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ NAV ═══════════════ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-brand">
+      <span class="mark">E</span>
+      Evaluetor
+    </a>
+    <div class="nav-links">
+      <a href="#capabilities">Platform</a>
+      <a href="#audience">For your team</a>
+      <a href="#why">Why Evaluetor</a>
+      <a href="#compare">Compare</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="nav-cta-group">
+      <a href="mailto:Steven.Visser@Evaluetor.com?subject=Schedule%20a%20review" class="cta-btn small">Request a review <span>→</span></a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+
+      <!-- Left: Headline + CTA -->
+      <div>
+        <h1 class="hero-h1">
+          Eight to eleven percent<sup style="font-size: 0.45em; vertical-align: super; color: var(--orange-2); margin-left: 4px;">¹</sup> of every contract <span class="emph">quietly leaves the building.</span>
+
+          <span class="for">
+            Built for
+            <span class="hero-rotator">
+              <span>Legal</span>
+              <span>Procurement</span>
+              <span>Finance</span>
+              <span>Operations</span>
+              <span>Executives</span>
+            </span>
+          </span>
+        </h1>
+
+        <p class="hero-lead lead">
+          Evaluetor is an AI-native CLM that surfaces every obligation, SLA, risk and renewal — closing the gap between what your contracts say and what actually happens after the ink dries.
+        </p>
+
+        <div class="hero-ctas">
+          <a href="#final" class="cta-btn">Request a 30-minute review <span>→</span></a>
+          <a href="#capabilities" class="cta-outline">See the platform</a>
+        </div>
+
+        <div class="hero-microsig">
+          <div>
+            <span class="v">9 agents</span>
+            <span class="l">specialised AI</span>
+          </div>
+          <div>
+            <span class="v">30+ clause types</span>
+            <span class="l">extracted natively</span>
+          </div>
+          <div>
+            <span class="v">10 risk patterns</span>
+            <span class="l">scored per contract</span>
+          </div>
+          <div>
+            <span class="v">Built in NL</span>
+            <span class="l">EU residency available</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Product mock -->
+      <aside class="pmock">
+        <div class="pm-head">
+          <div class="pm-title">
+            <span class="dot"></span>
+            Evaluetor <span class="sub">· portfolio overview</span>
+          </div>
+          <div class="pm-meta">24.05.26 · LIVE</div>
+        </div>
+        <div class="pm-corner">illustrative</div>
+
+        <div class="pm-body">
+          <div class="pm-label">Portfolio at a glance</div>
+          <div class="pm-stats">
+            <div class="pm-stat">
+              <div class="v tnum">142</div>
+              <div class="l">contracts under management</div>
+            </div>
+            <div class="pm-stat">
+              <div class="v tnum">€48.2M</div>
+              <div class="l">annual contract value</div>
+            </div>
+            <div class="pm-stat risk">
+              <div class="v tnum">€4.6M</div>
+              <div class="l">value at risk (Q2 view)</div>
+            </div>
+          </div>
+
+          <div class="pm-div"></div>
+
+          <div class="pm-label">Active alerts · last 7 days</div>
+          <div class="pm-alerts">
+            <div class="pm-alert">
+              <span class="d red"></span>
+              <div>
+                <div class="t">Acme Telco — Priority-1 SLA breach</div>
+                <div class="s">5 incidents · 90-day window</div>
+              </div>
+              <div class="i">€8,400</div>
+            </div>
+            <div class="pm-alert">
+              <span class="d orange"></span>
+              <div>
+                <div class="t">Vertex Logistics — Volume below tier 3</div>
+                <div class="s">Q1 rebate at risk</div>
+              </div>
+              <div class="i">€184,200</div>
+            </div>
+            <div class="pm-alert">
+              <span class="d amber"></span>
+              <div>
+                <div class="t">Nordic Hosting — Auto-renewal in 14 days</div>
+                <div class="s">Notice deadline approaching</div>
+              </div>
+              <div class="i">act now</div>
+            </div>
+            <div class="pm-alert">
+              <span class="d red"></span>
+              <div>
+                <div class="t">Lumen Cloud — 3 obligations overdue</div>
+                <div class="s">2 amber · 1 escalation pending</div>
+              </div>
+              <div class="i">review</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ TRUST STRIP ═══════════════ -->
+<section class="trust">
+  <div class="wrap">
+    <div class="trust-row" style="justify-content: center;">
+      <p style="font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); text-align: center; max-width: 64rem; line-height: 1.7;">
+        Built for European mid-large enterprises with structured contracts and high SLA spend &nbsp;·&nbsp; procurement-led buying committees &nbsp;·&nbsp; <a href="#final" style="color: var(--orange-2); text-decoration: underline; text-underline-offset: 4px;">talk to us</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ STATS BAND ═══════════════ -->
+<section class="stats sr">
+  <div class="wrap">
+    <div class="sechead">
+      <div class="label label-ink">01 / The problem in four numbers</div>
+      <h2 class="display display-lg">The cost of treating contracts <span class="emph">as documents.</span></h2>
+    </div>
+
+    <div class="stats-row" style="margin-top: 56px;">
+      <div class="stat-cell">
+        <span class="label">Lost annually</span>
+        <div class="v"><span class="emph">8–11%</span></div>
+        <p class="desc">of contract value lost after signature, per industry research.</p>
+      </div>
+      <div class="stat-cell">
+        <span class="label">When it happens</span>
+        <div class="v">70–80<span class="emph">%</span></div>
+        <p class="desc">of leakage occurs during execution — not at the table.</p>
+      </div>
+      <div class="stat-cell">
+        <span class="label">Recoverable</span>
+        <div class="v">30–40<span class="emph">%</span></div>
+        <p class="desc">of identified leakage closes under active management.</p>
+      </div>
+      <div class="stat-cell">
+        <span class="label">First outcome</span>
+        <div class="v"><span class="emph">weeks</span></div>
+        <p class="desc">to first findings — bring five contracts and start.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ CAPABILITIES ═══════════════ -->
+<section id="capabilities" class="caps sr">
+  <div class="wrap">
+    <div class="sechead">
+      <div class="label label-ink">02 / The platform</div>
+      <h2 class="display display-lg">Nine agents. One model. <span class="emph">Every contract.</span></h2>
+    </div>
+
+    <p class="lead" style="margin-top: 26px; max-width: 720px;">
+      Six built-in capabilities — none of them an add-on, none sold separately. Upload a contract, and the platform does the rest.
+    </p>
+
+    <div class="caps-grid">
+      <div class="cap">
+        <span class="cap-num">01</span>
+        <h3 class="cap-t">Contract Intelligence</h3>
+        <p class="cap-d">Extract metadata, 30+ clause types, and risk across ten dimensions. Semantic search across the entire portfolio.</p>
+      </div>
+      <div class="cap">
+        <span class="cap-num">02</span>
+        <h3 class="cap-t">Obligation Tracking</h3>
+        <p class="cap-d">RAG status, owner assignment, escalation paths, configurable deadline alerts, evidence of completion.</p>
+      </div>
+      <div class="cap">
+        <span class="cap-num">03</span>
+        <h3 class="cap-t">SLA Monitoring</h3>
+        <p class="cap-d">Real-time breach detection, automated credit calculations, A-to-F vendor scorecards.</p>
+      </div>
+      <div class="cap">
+        <span class="cap-num">04</span>
+        <h3 class="cap-t">Renewal Management</h3>
+        <p class="cap-d">Auto-renewal detection, notice-period tracking, and AI-led renewal recommendations.</p>
+      </div>
+      <div class="cap feat">
+        <span class="cap-num">05 · Exclusive</span>
+        <h3 class="cap-t">Relationship Governance</h3>
+        <p class="cap-d">Perception-gap analysis, composite health scoring, structured improvement points. No other CLM does this.</p>
+      </div>
+      <div class="cap">
+        <span class="cap-num">06</span>
+        <h3 class="cap-t">Enterprise Security</h3>
+        <p class="cap-d">Encryption, role-based access, multi-tenant isolation, full audit trails. Certifications on the roadmap.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ AUDIENCE TABS ═══════════════ -->
+<section id="audience" class="audience sr">
+  <div class="wrap">
+    <div class="sechead">
+      <div class="label label-ink">03 / For your team</div>
+      <h2 class="display display-lg">One platform. <span class="emph">Five points of view.</span></h2>
+    </div>
+
+    <div class="tabs-bar" role="tablist">
+      <button class="tab-btn on" data-tab="legal" role="tab">
+        <span class="tab-l">For</span>
+        <span class="tab-t">Legal</span>
+      </button>
+      <button class="tab-btn" data-tab="procurement" role="tab">
+        <span class="tab-l">For</span>
+        <span class="tab-t">Procurement</span>
+      </button>
+      <button class="tab-btn" data-tab="finance" role="tab">
+        <span class="tab-l">For</span>
+        <span class="tab-t">Finance</span>
+      </button>
+      <button class="tab-btn" data-tab="ops" role="tab">
+        <span class="tab-l">For</span>
+        <span class="tab-t">Operations</span>
+      </button>
+      <button class="tab-btn" data-tab="sales" role="tab">
+        <span class="tab-l">For</span>
+        <span class="tab-t">Sales &amp; AM</span>
+      </button>
+    </div>
+
+    <!-- LEGAL -->
+    <div class="tab-content on" data-tab="legal">
+      <div>
+        <h3>Days of contract review compressed to minutes.</h3>
+        <p class="lead">Risk-scored clauses across ten categories. Portfolio-wide semantic search. Anomaly detection against your own norms — so the unusual clause is flagged the moment it lands.</p>
+        <ul>
+          <li><span class="n">01</span> Risk scoring across 10 patterns (uncapped liability, broad indemnification, weak termination, auto-renewal traps, …)</li>
+          <li><span class="n">02</span> 30+ clause types classified out of the box</li>
+          <li><span class="n">03</span> Cross-portfolio anomaly detection via knowledge graph</li>
+          <li><span class="n">04</span> Natural-language Q&amp;A across the entire contract base</li>
+          <li><span class="n">05</span> Audit-ready evidence trails for every change</li>
+        </ul>
+      </div>
+      <aside class="tab-side">
+        <span class="tab-side-l">Outcomes legal teams measure</span>
+        <div class="tab-side-row"><span class="k">Review time per contract</span><span class="v">↓ target 90%</span></div>
+        <div class="tab-side-row"><span class="k">Risk visibility coverage</span><span class="v neutral">100%</span></div>
+        <div class="tab-side-row"><span class="k">Clauses indexed</span><span class="v neutral">30+ types</span></div>
+        <div class="tab-side-row"><span class="k">Audit prep time</span><span class="v">↓ significant</span></div>
+      </aside>
+    </div>
+
+    <!-- PROCUREMENT -->
+    <div class="tab-content" data-tab="procurement">
+      <div>
+        <h3>Recover every service credit you are owed.</h3>
+        <p class="lead">SLAs extracted from contract language, matched against real performance data, and credits calculated automatically — before the vendor counts them for you.</p>
+        <ul>
+          <li><span class="n">01</span> Thirteen SLA metric types extracted natively (uptime, response, resolution, delivery, throughput, error rate, compliance rate, recovery time/point, utilisation, quality score, availability, custom)</li>
+          <li><span class="n">02</span> Real-time breach detection across your vendor base</li>
+          <li><span class="n">03</span> Automated service-credit calculations per contract terms</li>
+          <li><span class="n">04</span> A-to-F vendor scorecards with trend analysis</li>
+          <li><span class="n">05</span> Rebate &amp; tier monitoring against committed volumes</li>
+        </ul>
+      </div>
+      <aside class="tab-side">
+        <span class="tab-side-l">Outcomes procurement teams measure</span>
+        <div class="tab-side-row"><span class="k">Service credits identified</span><span class="v">↑ target 3–5×</span></div>
+        <div class="tab-side-row"><span class="k">Time to detect breach</span><span class="v neutral">real-time</span></div>
+        <div class="tab-side-row"><span class="k">Vendors scorecarded</span><span class="v neutral">All</span></div>
+        <div class="tab-side-row"><span class="k">Tier &amp; rebate visibility</span><span class="v neutral">Live</span></div>
+      </aside>
+    </div>
+
+    <!-- FINANCE -->
+    <div class="tab-content" data-tab="finance">
+      <div>
+        <h3>Forecast cash flow against what was actually signed.</h3>
+        <p class="lead">Every payment term, every renewal, every penalty modelled — so finance plans against the contract base, not against last quarter's invoices.</p>
+        <ul>
+          <li><span class="n">01</span> Auto-renewal detection 90 days ahead of trigger</li>
+          <li><span class="n">02</span> Payment term &amp; cash-flow forecasting against signed contracts</li>
+          <li><span class="n">03</span> Recoverable credits surfaced as P&amp;L line items</li>
+          <li><span class="n">04</span> Indexed-pricing (FX, CPI) monitored continuously</li>
+          <li><span class="n">05</span> Audit trails for every financial obligation</li>
+        </ul>
+      </div>
+      <aside class="tab-side">
+        <span class="tab-side-l">Outcomes finance teams measure</span>
+        <div class="tab-side-row"><span class="k">Auto-renewal surprises</span><span class="v">↓ target 95%</span></div>
+        <div class="tab-side-row"><span class="k">Forecast accuracy</span><span class="v neutral">↑</span></div>
+        <div class="tab-side-row"><span class="k">Recoverable book</span><span class="v neutral">surfaced</span></div>
+        <div class="tab-side-row"><span class="k">Indexed-term coverage</span><span class="v neutral">FX · CPI</span></div>
+      </aside>
+    </div>
+
+    <!-- OPERATIONS -->
+    <div class="tab-content" data-tab="ops">
+      <div>
+        <h3>Never miss an obligation. Govern the relationship, not just the contract.</h3>
+        <p class="lead">Every promise tracked with an owner and a deadline. Composite health scoring across risk, SLA and obligations — so every business relationship has a number you can defend.</p>
+        <ul>
+          <li><span class="n">01</span> RAG status for every obligation across the portfolio</li>
+          <li><span class="n">02</span> Composite vendor health (Risk 30% · SLA 40% · Obligations 30%)</li>
+          <li><span class="n">03</span> Perception-gap analysis between you and your counterparty</li>
+          <li><span class="n">04</span> Improvement points auto-generated and assigned</li>
+          <li><span class="n">05</span> Alerts via email, Slack, Teams — wherever your team works</li>
+        </ul>
+      </div>
+      <aside class="tab-side">
+        <span class="tab-side-l">Outcomes operations teams measure</span>
+        <div class="tab-side-row"><span class="k">Missed deadlines</span><span class="v">↓ target 95%</span></div>
+        <div class="tab-side-row"><span class="k">Obligation coverage</span><span class="v neutral">100%</span></div>
+        <div class="tab-side-row"><span class="k">Relationship health</span><span class="v neutral">scored</span></div>
+        <div class="tab-side-row"><span class="k">Escalation routing</span><span class="v neutral">automated</span></div>
+      </aside>
+    </div>
+
+    <!-- SALES / ACCOUNT MANAGEMENT / COMMERCIAL -->
+    <div class="tab-content" data-tab="sales">
+      <div>
+        <h3>Deliver what you sold. Protect the renewal.</h3>
+        <p class="lead">The same disciplines, turned outward. Track your own commitments to customers, surface delivery risks before they breach, and protect renewal &amp; extension revenue — with the relationship health your CSMs and account managers actually need.</p>
+        <ul>
+          <li><span class="n">01</span> Your commitments tracked the same way you track suppliers' — RAG status, owner, evidence</li>
+          <li><span class="n">02</span> SLA exposure on contracts you wrote — surface delivery risk before the customer notices</li>
+          <li><span class="n">03</span> Renewal &amp; extension pipeline visibility — no auto-renewals lost by accident</li>
+          <li><span class="n">04</span> Account health via the same composite (Risk 30% · SLA 40% · Obligations 30%) — applied to your delivery side</li>
+          <li><span class="n">05</span> Perception-gap analysis both ways: how your customer sees you vs how you see yourself</li>
+        </ul>
+      </div>
+      <aside class="tab-side">
+        <span class="tab-side-l">Outcomes sales &amp; AM teams measure</span>
+        <div class="tab-side-row"><span class="k">Delivery-on-commitment</span><span class="v neutral">100% visible</span></div>
+        <div class="tab-side-row"><span class="k">Renewal &amp; extension rate</span><span class="v">↑ target</span></div>
+        <div class="tab-side-row"><span class="k">Account health (live)</span><span class="v neutral">scored</span></div>
+        <div class="tab-side-row"><span class="k">Customer perception delta</span><span class="v neutral">tracked</span></div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ VALUE EROSION (signature chart) ═══════════════ -->
+<section class="erosion sr">
+  <div class="wrap">
+    <div class="sechead">
+      <div class="label label-ink">04 / Where value lives</div>
+      <h2 class="display display-lg">Contracting matters. So does renewal. <span class="emph">But the long middle is where value is made — or quietly mislaid.</span></h2>
+    </div>
+
+    <div class="erosion-card">
+      <div class="erosion-legend">
+        <span><span class="sw" style="background: var(--ink);"></span>Negotiated value</span>
+        <span><span class="sw" style="background: var(--orange);"></span>Realised value</span>
+        <span><span class="sw dotted"></span>Leakage</span>
+      </div>
+
+      <!-- The chart -->
+      <svg viewBox="0 0 960 268" preserveAspectRatio="xMidYMid meet" style="display:block; width:100%; height:auto;">
+        <defs>
+          <pattern id="leakHatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(135)">
+            <rect width="6" height="6" fill="transparent"/>
+            <line x1="0" y1="0" x2="0" y2="6" stroke="#E94E1B" stroke-width="1.2" opacity="0.55"/>
+          </pattern>
+        </defs>
+
+        <rect x="70"  y="46" width="67"  height="180" fill="#EFEDE8"/>
+        <rect x="137" y="46" width="666" height="180" fill="#0E0E10" opacity="0.045"/>
+        <rect x="803" y="46" width="67"  height="180" fill="#EFEDE8"/>
+
+        <line x1="137" y1="46" x2="137" y2="226" stroke="#0E0E10" stroke-width="1" stroke-dasharray="2 3"/>
+        <line x1="803" y1="46" x2="803" y2="226" stroke="#0E0E10" stroke-width="1" stroke-dasharray="2 3"/>
+
+        <text x="103" y="30" font-family="Geist" font-size="12" fill="#6B6F78" text-anchor="middle">Contracting</text>
+        <text x="470" y="30" font-family="Geist" font-size="12" fill="#0E0E10" text-anchor="middle" font-weight="600">Execution</text>
+        <text x="836" y="30" font-family="Geist" font-size="12" fill="#6B6F78" text-anchor="middle">Renewal</text>
+
+        <line x1="70" y1="46"  x2="870" y2="46"  stroke="#D8D5CD" stroke-width="1"/>
+        <line x1="70" y1="106" x2="870" y2="106" stroke="#D8D5CD" stroke-width="0.5" stroke-dasharray="2 3"/>
+        <line x1="70" y1="166" x2="870" y2="166" stroke="#D8D5CD" stroke-width="0.5" stroke-dasharray="2 3"/>
+        <line x1="70" y1="226" x2="870" y2="226" stroke="#1A1A1C" stroke-width="1"/>
+
+        <text x="62" y="50"  font-family="Geist Mono" font-size="10" fill="#6B6F78" text-anchor="end">100%</text>
+        <text x="62" y="170" font-family="Geist Mono" font-size="10" fill="#6B6F78" text-anchor="end">90%</text>
+
+        <path d="M 70 46 L 870 46 L 870 160 L 803 160 L 803 152 L 692 152 L 692 128 L 603 128 L 603 108 L 492 108 L 492 94 L 403 94 L 403 62 L 248 62 L 248 46 Z" fill="url(#leakHatch)"/>
+
+        <line x1="70" y1="46" x2="870" y2="46" stroke="#0E0E10" stroke-width="2"/>
+
+        <path d="M 70 46 L 248 46 L 248 62 L 403 62 L 403 94 L 492 94 L 492 108 L 603 108 L 603 128 L 692 128 L 692 152 L 803 152 L 803 160 L 870 160" fill="none" stroke="#E94E1B" stroke-width="2.5"/>
+
+        <circle cx="870" cy="160" r="4" fill="#E94E1B"/>
+
+        <g font-family="Geist" font-size="11" font-weight="600" fill="#FFFFFF" text-anchor="middle">
+          <circle cx="248" cy="62"  r="9" fill="#E94E1B"/><text x="248" y="65.5">1</text>
+          <circle cx="403" cy="94"  r="9" fill="#E94E1B"/><text x="403" y="97.5">2</text>
+          <circle cx="492" cy="108" r="9" fill="#E94E1B"/><text x="492" y="111.5">3</text>
+          <circle cx="603" cy="128" r="9" fill="#E94E1B"/><text x="603" y="131.5">4</text>
+          <circle cx="692" cy="152" r="9" fill="#E94E1B"/><text x="692" y="155.5">5</text>
+          <circle cx="803" cy="160" r="9" fill="#E94E1B"/><text x="803" y="163.5">6</text>
+        </g>
+
+        <g font-family="Geist Mono" font-size="10" fill="#6B6F78" text-anchor="middle">
+          <line x1="70"  y1="226" x2="70"  y2="231" stroke="#6B6F78" stroke-width="1"/><text x="70"  y="244">M0</text>
+          <line x1="203" y1="226" x2="203" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="203" y="244">M6</text>
+          <line x1="337" y1="226" x2="337" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="337" y="244">M12</text>
+          <line x1="470" y1="226" x2="470" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="470" y="244">M18</text>
+          <line x1="603" y1="226" x2="603" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="603" y="244">M24</text>
+          <line x1="737" y1="226" x2="737" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="737" y="244">M30</text>
+          <line x1="870" y1="226" x2="870" y2="231" stroke="#6B6F78" stroke-width="1"/><text x="870" y="244">M36</text>
+        </g>
+      </svg>
+
+      <div class="evkey">
+        <div class="evkey-item"><div class="evkey-num">1</div><div><div class="t">Scope change</div><div class="w">Month 8</div></div></div>
+        <div class="evkey-item"><div class="evkey-num">2</div><div><div class="t">SLA breach</div><div class="w">Month 15</div></div></div>
+        <div class="evkey-item"><div class="evkey-num">3</div><div><div class="t">Missed deadline</div><div class="w">Month 19</div></div></div>
+        <div class="evkey-item"><div class="evkey-num">4</div><div><div class="t">Volume miss</div><div class="w">Month 24</div></div></div>
+        <div class="evkey-item"><div class="evkey-num">5</div><div><div class="t">Unclaimed credit</div><div class="w">Month 28</div></div></div>
+        <div class="evkey-item"><div class="evkey-num">6</div><div><div class="t">Auto-renewal</div><div class="w">Month 33</div></div></div>
+      </div>
+    </div>
+
+    <p style="margin-top: 18px; font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); line-height: 1.6; max-width: 64rem;">
+      Illustrative model. The exact shape varies by sector and portfolio. The pattern — that value erodes during execution, in small steps, at predictable points — does not.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════ WHY EVALUETOR ═══════════════ -->
+<section id="why" class="why sr">
+  <div class="wrap">
+    <div class="sechead">
+      <div class="label label-ink">05 / Why Evaluetor</div>
+      <h2 class="display display-lg">Built model-first. <span class="emph">Built for execution.</span></h2>
+    </div>
+
+    <div class="why-grid">
+      <div class="why-item">
+        <div class="why-n">01</div>
+        <div class="why-t">AI-native, not bolted on</div>
+        <div class="why-d">Nine specialised agents trained on commercial contract language. Not a generic LLM wrapper bolted onto a document store.</div>
+      </div>
+      <div class="why-item">
+        <div class="why-n">02</div>
+        <div class="why-t">Active management built in</div>
+        <div class="why-d">Obligations, SLAs, renewals, relationship governance — all in the box. No add-ons. No "Phase 2" implementation.</div>
+      </div>
+      <div class="why-item">
+        <div class="why-n">03</div>
+        <div class="why-t">Reads the real world</div>
+        <div class="why-d">ServiceNow integration shipping; ERP and central-bank-data connectors scoped per engagement. Compare contracted terms against actual operational reality.</div>
+      </div>
+      <div class="why-item">
+        <div class="why-n">04</div>
+        <div class="why-t">Knowledge graph included</div>
+        <div class="why-d">Cross-portfolio anomaly detection out of the box — flag the contract that deviates from your norms, before it costs you.</div>
+      </div>
+      <div class="why-item">
+        <div class="why-n">05</div>
+        <div class="why-t">Observable AI</div>
+        <div class="why-d">Every agent call traced via Langfuse. Inspect, audit, replay. Defensible AI for risk teams who need to know how it answered.</div>
+      </div>
+      <div class="why-item">
+        <div class="why-n">06</div>
+        <div class="why-t">Built in Europe</div>
+        <div class="why-d">Built in the Netherlands. GDPR-aware architecture. EU data residency available for production deployments. Certifications on the roadmap and discussed openly.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ BOTH SIDES OF EVERY CONTRACT ═══════════════ -->
+<section class="section sr" style="background: var(--paper); padding: clamp(64px, 6vw, 96px) 0;">
+  <div class="wrap">
+    <div class="sechead">
+      <div class="label label-ink">Both sides of every contract</div>
+      <h2 class="display display-lg">Cost is one half. <span class="emph">Revenue is the other.</span></h2>
+    </div>
+
+    <p class="lead" style="margin-top: 22px; max-width: 720px;">
+      The same five disciplines — obligations, risk, SLA, renewals, relationship governance — apply whether you signed the contract or wrote it. Most examples on this page are drawn from the procurement side. The product works identically on the sales side.
+    </p>
+
+    <div style="display:grid; grid-template-columns: 1fr; gap: 24px; margin-top: 40px;" class="both-grid">
+      <!-- Buy side -->
+      <div style="background: var(--surface); border: 1px solid var(--rule-2); padding: 28px 30px;">
+        <div class="label label-orange" style="margin-bottom: 12px;">Buy side</div>
+        <h3 class="display display-md" style="font-weight: 500;">When you signed it.</h3>
+        <p style="font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 17px; color: var(--ink-3); margin-top: 8px;">
+          Cost recovery and risk management.
+        </p>
+        <ul style="list-style: none; margin: 20px 0 0; padding: 18px 0 0; border-top: 1px solid var(--rule-2);">
+          <li style="display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 6px 0; font-size: 15px; color: var(--ink-2);"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); padding-top: 3px;">→</span><span>Detect supplier SLA breaches automatically</span></li>
+          <li style="display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 6px 0; font-size: 15px; color: var(--ink-2);"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); padding-top: 3px;">→</span><span>Calculate service credits owed to you</span></li>
+          <li style="display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 6px 0; font-size: 15px; color: var(--ink-2);"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); padding-top: 3px;">→</span><span>Prevent auto-renewal traps before notice deadlines</span></li>
+          <li style="display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 6px 0; font-size: 15px; color: var(--ink-2);"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); padding-top: 3px;">→</span><span>Surface missed rebate and tier triggers</span></li>
+          <li style="display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 6px 0; font-size: 15px; color: var(--ink-2);"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); padding-top: 3px;">→</span><span>Track supplier obligations to your business</span></li>
+        </ul>
+      </div>
+
+      <!-- Sell side -->
+      <div style="background: var(--surface); border: 1px solid var(--rule-2); padding: 28px 30px;">
+        <div class="label label-orange" style="margin-bottom: 12px;">Sell side</div>
+        <h3 class="display display-md" style="font-weight: 500;">When you wrote it.</h3>
+        <p style="font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 17px; color: var(--ink-3); margin-top: 8px;">
+          Revenue protection and client trust.
+        </p>
+        <ul style="list-style: none; margin: 20px 0 0; padding: 18px 0 0; border-top: 1px solid var(--rule-2);">
+          <li style="display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 6px 0; font-size: 15px; color: var(--ink-2);"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); padding-top: 3px;">→</span><span>Track your commitments to customers, visibly</span></li>
+          <li style="display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 6px 0; font-size: 15px; color: var(--ink-2);"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); padding-top: 3px;">→</span><span>Surface delivery and SLA risks before they breach</span></li>
+          <li style="display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 6px 0; font-size: 15px; color: var(--ink-2);"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); padding-top: 3px;">→</span><span>Protect renewal and extension revenue</span></li>
+          <li style="display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 6px 0; font-size: 15px; color: var(--ink-2);"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); padding-top: 3px;">→</span><span>Identify upsell signals in account health</span></li>
+          <li style="display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 6px 0; font-size: 15px; color: var(--ink-2);"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); padding-top: 3px;">→</span><span>Deliver as promised — measurably, on the record</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <p style="margin-top: 28px; font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--ink-3); line-height: 1.7; max-width: 64rem;">
+      On the sell side: contribution and revenue protection. On the buy side: cost and risk management. The dashboards, the obligations engine, the SLA detector — the same machine.
+    </p>
+  </div>
+</section>
+
+<style>
+  @media (min-width: 900px) { .both-grid { grid-template-columns: 1fr 1fr !important; } }
+</style>
+
+<!-- ═══════════════ COMPARISON ═══════════════ -->
+<section id="compare" class="compare sr">
+  <div class="wrap">
+    <div class="sechead">
+      <div class="label label-ink">06 / Compared</div>
+      <h2 class="display display-lg">What the legacy CLM tools <span class="emph">do not do.</span></h2>
+    </div>
+
+    <p class="lead" style="margin-top: 22px; max-width: 720px;">
+      The other vendors bolted AI onto products designed in the document-management era. Evaluetor was built model-first. The difference is visible in the cells of this table.
+    </p>
+
+    <div style="overflow-x: auto;">
+      <table class="ctable">
+        <thead>
+          <tr>
+            <th style="min-width: 220px;">Capability</th>
+            <th class="us">Evaluetor</th>
+            <th>DocuSign CLM</th>
+            <th>Icertis</th>
+            <th>Ironclad</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>          <td>Time to first outcome</td>     <td class="us">Within weeks</td>   <td class="them">6–12 months</td>     <td class="them">12–18 months</td>    <td class="them">3–6 months</td></tr>
+          <tr class="zebra"><td>Native AI agents</td>     <td class="us">Nine</td>           <td class="them">Limited</td>          <td class="them">Add-on</td>          <td class="them">Limited</td></tr>
+          <tr>          <td>SLA monitoring</td>            <td class="us">Built-in</td>       <td class="them">Not standard</td>     <td class="them">Add-on</td>          <td class="them">Not standard</td></tr>
+          <tr class="zebra"><td>Obligation tracking</td>  <td class="us">AI-extracted</td>   <td class="them">Manual</td>           <td class="them">Manual</td>          <td class="them">Limited</td></tr>
+          <tr>          <td>Relationship governance</td>  <td class="us">Built-in</td>       <td class="them">Not standard</td>     <td class="them">Not standard</td>    <td class="them">Not standard</td></tr>
+          <tr class="zebra"><td>Knowledge graph</td>      <td class="us">Built-in</td>       <td class="them">Not standard</td>     <td class="them">Not standard</td>    <td class="them">Not standard</td></tr>
+          <tr>          <td>Unlimited users</td>           <td class="us">Yes</td>            <td class="them">Per-seat</td>         <td class="them">Per-seat</td>        <td class="them">Per-seat</td></tr>
+          <tr class="zebra"><td>LLM observability</td>    <td class="us">Langfuse</td>       <td class="them">Not standard</td>     <td class="them">Not standard</td>    <td class="them">Not standard</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="compare-note">
+      Comparison reflects publicly documented capabilities of each platform at time of writing (May 2026). Vendor packaging, pricing tiers, and regional offerings vary; "Not standard" indicates the capability is not part of the platform's default offering as documented.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════ WHAT IT RETURNS (pricing / value math) ═══════════════ -->
+<section class="section sr" style="background: var(--paper); padding: clamp(64px, 6vw, 96px) 0;">
+  <div class="wrap">
+    <div class="sechead">
+      <div class="label label-ink">What it returns</div>
+      <h2 class="display display-lg">Simple math, <span class="emph">for the CFO conversation.</span></h2>
+    </div>
+
+    <p class="lead" style="margin-top: 22px; max-width: 720px;">
+      Two numbers a CFO can hold in their head. Roughly <strong style="color: var(--ink); font-weight: 500;">3% of annual contract value</strong> is typically recoverable in year one (industry leakage ~9% × recovery rate ~35%). The platform investment targets a 10× ROI on mid-market portfolios.
+    </p>
+
+    <div style="overflow-x: auto; margin-top: 40px;">
+      <table class="ctable">
+        <thead>
+          <tr>
+            <th style="min-width: 200px;">Annual contract value</th>
+            <th>Recoverable (base case)</th>
+            <th>Year 1 investment</th>
+            <th class="us">ROI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>€20M</td>
+            <td class="them">€630k</td>
+            <td class="them">€100k</td>
+            <td class="us">6.3×</td>
+          </tr>
+          <tr class="zebra">
+            <td>€50M</td>
+            <td class="them">€1.575M</td>
+            <td class="them">€150k</td>
+            <td class="us">10.5×</td>
+          </tr>
+          <tr>
+            <td>€150M</td>
+            <td class="them">€4.725M</td>
+            <td class="them">€350k</td>
+            <td class="us">13.5×</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="compare-note">
+      Indicative leakage math, not a quote. The 3% rule of thumb comes from published industry research (~9% post-signature loss × ~35% recoverable under active management). Year 1 investment ranges shown here are illustrative; actual pricing is scoped per portfolio and discussed on a call. Conservative case ≈ 2.4% recoverable; upside ≈ 4.4%. Real recovery varies by sector, contract type, and counterparty maturity.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════ FAQ ═══════════════ -->
+<section id="faq" class="faq sr">
+  <div class="wrap">
+    <div class="sechead">
+      <div class="label label-ink">07 / Frequently asked</div>
+      <h2 class="display display-lg">The questions <span class="emph">we answer first.</span></h2>
+    </div>
+
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary>How accurate is the AI extraction, and how do you handle hallucination?</summary>
+        <div class="faq-a">
+          <p>For high-stakes outputs — liability caps, indemnities, penalty clauses, obligation deadlines — accuracy matters much more than for "extract the parties." We address this in three concrete ways:</p>
+          <p><strong>1. Human-in-the-loop for the first thirty days</strong> on every new portfolio. Each extraction is reviewed by an operator before it becomes canonical.<br/>
+          <strong>2. Source-clause citation on every flag.</strong> The AI never says "this contract has X risk" without pointing at the exact paragraph. Legal counsel can verify in seconds.<br/>
+          <strong>3. Langfuse trace per AI call.</strong> The reasoning chain is inspectable, exportable, and replayable. Defensible for risk teams.</p>
+          <p>Published accuracy rates by clause type are available on request. We do not claim 100%. Where precision matters most — penalty calculation, obligation triggers — we require human approval before any action is taken.</p>
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>What about data security, residency, and certifications?</summary>
+        <div class="faq-a">
+          <p>Architecture is multi-tenant with hard tenant isolation — every query is filtered by tenant at the data layer. Role-based access is enforced at the API layer. Full audit trails are written for every action.</p>
+          <p>Data residency: EU regions are available for production deployments and are recommended for European customers. The current public demo is hosted in a US region. Formal certifications (SOC 2, ISO 27001) are on the roadmap; we are happy to share architecture documentation under NDA before signature and to discuss what level of attestation your security team needs.</p>
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>How do you integrate with our ERP, ITSM, or other operational systems?</summary>
+        <div class="faq-a">
+          <p>Honestly: integration is the hardest part of any contract-execution system, and we acknowledge that on the way in. Here is the actual shape:</p>
+          <p><strong>Shipping today:</strong> ServiceNow (ITSM) and SharePoint document store. REST API and webhook patterns for anything else.<br/>
+          <strong>Concept, scoped per engagement:</strong> ERP-volume connectors (SAP, Oracle, NetSuite), central-bank FX feeds. These are not "click to enable" — they require data-mapping work specific to your environment, priced in the connector tier above.</p>
+          <p><strong>Time-to-first-value:</strong> typically 2–6 weeks for the core pilot (5 contracts, no new integrations). Adding a first ERP connector usually takes another 4–8 weeks of scoped engineering.</p>
+          <p>We are direct about this because pretending integration is trivial creates a credibility gap with experienced enterprise buyers. The reason the ROI exists is precisely because the data is not yet connected; if it were, the value would not be leaking.</p>
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>Will we be locked in? What does data portability look like?</summary>
+        <div class="faq-a">
+          <p>Export your contracts, extracted data, and audit trails at any time — as PDF, DOCX, or structured JSON. Nothing proprietary stays behind our walls.</p>
+          <p>We are confident enough in the platform that we do not need contractual lock-in to keep customers. Standard terms allow exit without penalty after a notice period.</p>
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>How does pricing work, and what does a first engagement look like?</summary>
+        <div class="faq-a">
+          <p>Pricing is being modelled around portfolio size and connector scope rather than per-seat licensing. Indicative ranges shared on the first call; final scoping is done together. We do not believe in penalising teams for adding users.</p>
+          <p>First engagement is a 30-minute review with five of your live contracts. No payment, no procurement. Findings are yours to keep regardless of whether you proceed.</p>
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>How is the "perception gap" in Relationship Governance actually measured?</summary>
+        <div class="faq-a">
+          <p>The perception gap is one of the more nuanced features, so honest detail: it is measured along three concrete channels, scored together.</p>
+          <p><strong>1. Structured periodic surveys</strong> — both sides of the relationship (buyer and counterparty) score the same KPIs at the same intervals, against the same definitions. The difference between the two scores is the gap.<br/>
+          <strong>2. KPI rating inputs from operational systems</strong> — ServiceNow incident data, SLA performance, obligation fulfilment rates. These are objective signals, scored against the same KPI framework.<br/>
+          <strong>3. Communication cadence signals</strong> (where available) — frequency of escalation, ticket sentiment, response times. Treated as supporting signal, not authoritative score.</p>
+          <p>The composite gap score per KPI flows into the relationship health calculation. Where it exceeds a configurable threshold, an improvement point is auto-generated with owner and priority. It is not a single fuzzy number — it is a structured, defensible measurement with its own audit trail.</p>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>What if we already have a CLM in place?</summary>
+        <div class="faq-a">
+          <p>You already have a contract repository. What you don't have is execution visibility. The legacy CLMs — DocuSign CLM, Icertis, Ironclad, SAP CLM — are good at storing and routing contracts. Evaluetor is the layer that <em>reads them, watches them perform, and surfaces the value that leaks.</em></p>
+          <p>A practical test: if your current CLM can produce a monthly statement of <strong>€ recovered / € lost / € at risk</strong> for every contract in your portfolio, you probably don't need us. If it cannot, we likely do something complementary worth a 30-minute conversation.</p>
+          <p>If, after a pilot, you decide to consolidate onto Evaluetor entirely, the migration path is documented and supported. If you keep the incumbent for drafting and use us for execution, that is also supported — and common.</p>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FINAL CTA ═══════════════ -->
+<section id="final" class="final sr">
+  <div class="wrap">
+    <div style="max-width: 56rem;">
+      <div class="label label-orange" style="margin-bottom: 20px;">08 / Begin</div>
+      <h2>Bring five contracts. <span class="emph">We will show you, in thirty minutes, what your current CLM is missing.</span></h2>
+
+      <!-- Cost of inaction — the financial frame -->
+      <div style="margin-top: 38px; padding: 22px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: 1fr; gap: 12px;" class="cost-grid">
+        <div class="label label-orange">The cost of doing nothing</div>
+        <p class="display display-md" style="line-height: 1.25;">
+          On a <span style="font-family: 'Geist Mono', monospace; color: var(--ink);">€50M</span> contract portfolio, untracked leakage typically runs <span class="emph">€1.5M–€2M per year</span> — well above the cost of catching it.
+        </p>
+      </div>
+      <style>
+        @media (min-width: 768px) { .cost-grid { grid-template-columns: 3fr 9fr !important; align-items: baseline; } }
+      </style>
+      <p class="lead">No payment, no procurement, no preparation required. Findings are yours to keep regardless of whether you proceed.</p>
+      <div class="ctas">
+        <a href="mailto:Steven.Visser@Evaluetor.com?subject=Schedule%20a%2030-minute%20review" class="cta-btn">Request a 30-minute review <span>→</span></a>
+        <a href="#capabilities" class="cta-outline">See the platform</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <span class="mark">E</span>
+        <div class="name">Evaluetor</div>
+        <p class="tag">AI-native contract lifecycle management. Built in the Netherlands.</p>
+      </div>
+
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <a href="#">Contract Intelligence</a>
+        <a href="#">Obligation Tracking</a>
+        <a href="#">SLA Monitoring</a>
+        <a href="#">Renewal Management</a>
+        <a href="#">Relationship Governance</a>
+        <a href="#">Enterprise Security</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>For Teams</h4>
+        <a href="#">Legal</a>
+        <a href="#">Procurement</a>
+        <a href="#">Finance</a>
+        <a href="#">Operations</a>
+        <a href="#">General Counsel</a>
+        <a href="#">CFO Office</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Customers</a>
+        <a href="#">Pricing</a>
+        <a href="#">Contact</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#">Data Processing</a>
+        <a href="#">Security</a>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span>© 2026 Evaluetor B.V. &nbsp;·&nbsp; the Netherlands &nbsp;·&nbsp; All rights reserved</span>
+      <span>Evaluetor is not a law firm and does not provide legal advice.</span>
+    </div>
+  </div>
+</footer>
+
+<div class="mockup-ribbon">MOCKUP · v1</div>
+
+<script>
+  // ─── Audience tabs ───
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.tab;
+      tabBtns.forEach(b => b.classList.toggle('on', b === btn));
+      tabContents.forEach(c => c.classList.toggle('on', c.dataset.tab === target));
+    });
+  });
+
+  // ─── Scroll reveal ───
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    }
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.04 });
+  document.querySelectorAll('.sr').forEach(el => io.observe(el));
+</script>
+
+</body>
+</html>
