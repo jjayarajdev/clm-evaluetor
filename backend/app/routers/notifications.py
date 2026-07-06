@@ -16,7 +16,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.deps import get_db
+from app.core.deps import get_db, require_admin_if_enterprise
 from app.models.notification import (
     NotificationChannel,
     NotificationLog,
@@ -25,7 +25,11 @@ from app.models.notification import (
 )
 from app.services.notification_service import NotificationService
 
-router = APIRouter(prefix="/notifications", tags=["notifications"])
+router = APIRouter(
+    prefix="/notifications",
+    tags=["notifications"],
+    dependencies=[Depends(require_admin_if_enterprise)],
+)
 
 
 class NotificationSummary(BaseModel):

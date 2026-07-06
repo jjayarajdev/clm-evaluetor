@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = "aa01_is_demo"
-down_revision = None
+down_revision = "b1c2d3e4f5g6"  # after integration_configs is created
 branch_labels = None
 depends_on = None
 

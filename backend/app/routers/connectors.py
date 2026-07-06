@@ -4,6 +4,7 @@ Provides access to SLA actuals, milestone status, FX rates, and other
 external data needed for contract governance.
 """
 
+import uuid
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Annotated
@@ -16,12 +17,43 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.connectors.servicenow_stub import get_servicenow_stub
 from app.connectors.milestone_stub import get_milestone_stub
 from app.connectors.fx_stub import get_fx_stub
-from app.core.deps import CurrentUser
+from app.core.deps import CurrentTenantId, CurrentUser
+from app.core.tenant import apply_tenant_filter
 from app.database import get_db
+from app.models.contract import Contract
 from app.models.sla import ContractSLA
 from app.services.sla_comparison import run_sla_comparison, ComplianceStatus
 
 router = APIRouter(prefix="/api/connectors", tags=["Connectors"])
+
+
+async def _verify_contract_access(
+    db: AsyncSession,
+    contract_id: str,
+    tenant_id: uuid.UUID | None,
+) -> uuid.UUID:
+    """Parse the contract id and verify it belongs to the caller's tenant.
+
+    Returns 404 (not 403) for foreign-tenant contracts to avoid confirming
+    their existence.
+    """
+    try:
+        contract_uuid = uuid.UUID(contract_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid contract ID format",
+        )
+
+    query = select(Contract.id).where(Contract.id == contract_uuid)
+    query = apply_tenant_filter(query, tenant_id, Contract)
+    result = await db.execute(query)
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contract not found",
+        )
+    return contract_uuid
 
 
 # Response models
@@ -113,6 +145,7 @@ async def get_connector_status(
 async def get_sla_actuals(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     start_date: date = Query(default=None, description="Start of measurement period"),
     end_date: date = Query(default=None, description="End of measurement period"),
@@ -127,7 +160,7 @@ async def get_sla_actuals(
     Returns:
         List of SLA actual values.
     """
-    import uuid
+    contract_uuid = await _verify_contract_access(db, contract_id, tenant_id)
 
     # Default to current month
     if end_date is None:
@@ -138,7 +171,7 @@ async def get_sla_actuals(
     # Get SLA references from database
     result = await db.execute(
         select(ContractSLA.section_reference, ContractSLA.sla_name, ContractSLA.target_value)
-        .where(ContractSLA.contract_id == uuid.UUID(contract_id))
+        .where(ContractSLA.contract_id == contract_uuid)
         .where(ContractSLA.section_reference.isnot(None))
     )
     slas = result.all()
@@ -180,6 +213,7 @@ async def get_sla_actuals(
 async def get_sla_history(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     months: int = Query(default=12, ge=1, le=24, description="Months of history"),
 ) -> dict:
@@ -192,12 +226,12 @@ async def get_sla_history(
     Returns:
         Historical SLA data with trends.
     """
-    import uuid
+    contract_uuid = await _verify_contract_access(db, contract_id, tenant_id)
 
     # Get SLA references from database
     result = await db.execute(
         select(ContractSLA.section_reference)
-        .where(ContractSLA.contract_id == uuid.UUID(contract_id))
+        .where(ContractSLA.contract_id == contract_uuid)
         .where(ContractSLA.section_reference.isnot(None))
     )
     sla_refs = [r[0] for r in result.all() if r[0]]
@@ -475,6 +509,7 @@ class ComparisonSummaryResponse(BaseModel):
 async def run_contract_comparison(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     start_date: date = Query(default=None, description="Start of measurement period"),
     end_date: date = Query(default=None, description="End of measurement period"),
@@ -492,7 +527,7 @@ async def run_contract_comparison(
     Returns:
         Comparison summary with all SLA results.
     """
-    import uuid as uuid_mod
+    contract_uuid = await _verify_contract_access(db, contract_id, tenant_id)
 
     if end_date is None:
         end_date = date.today()
@@ -502,7 +537,7 @@ async def run_contract_comparison(
     try:
         summary = await run_sla_comparison(
             db=db,
-            contract_id=uuid_mod.UUID(contract_id),
+            contract_id=contract_uuid,
             start_date=start_date,
             end_date=end_date,
         )
@@ -551,6 +586,7 @@ async def run_contract_comparison(
 async def get_compliance_dashboard(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     """Get compliance dashboard data for a contract.
@@ -563,10 +599,9 @@ async def get_compliance_dashboard(
     Returns:
         Dashboard data with compliance metrics.
     """
-    import uuid as uuid_mod
     from datetime import datetime, timedelta
 
-    contract_uuid = uuid_mod.UUID(contract_id)
+    contract_uuid = await _verify_contract_access(db, contract_id, tenant_id)
 
     # Get SLA summary
     result = await db.execute(

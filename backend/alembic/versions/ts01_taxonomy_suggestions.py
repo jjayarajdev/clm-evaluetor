@@ -1,7 +1,7 @@
 """Add taxonomy_suggestions table.
 
-Revision ID: a1b2c3d4e5f6
-Revises: y8z9a0b1c2d3
+Revision ID: ts01_taxonomy_suggestions
+Revises: mp01
 Create Date: 2026-04-23 12:00:00.000000
 
 """
@@ -10,8 +10,10 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 # revision identifiers
-revision = "a1b2c3d4e5f6"
-down_revision = None
+# NOTE: renamed from "a1b2c3d4e5f6" which collided with
+# a1b2c3d4e5f6_add_canonical_contract_tables.py
+revision = "ts01_taxonomy_suggestions"
+down_revision = "mp01"
 branch_labels = None
 depends_on = None
 
