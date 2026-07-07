@@ -2,6 +2,7 @@
  * Stat Card Component - Coast Theme
  * Clean cards with top accent border and uppercase labels
  */
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 interface StatCardProps {
@@ -230,14 +231,7 @@ export function StatusBadge({
     md: 'px-2.5 py-1 text-sm',
   }
 
-  const labels = {
-    active: 'Active',
-    completed: 'Completed',
-    inactive: 'Inactive',
-    pending: 'Pending',
-    processing: 'Processing',
-    breached: 'Breached',
-  }
+  const { t } = useTranslation()
 
   return (
     <span className={cn(
@@ -245,7 +239,7 @@ export function StatusBadge({
       statusStyles[status],
       sizeClasses[size]
     )}>
-      {labels[status]}
+      {t(`status.${status}`)}
     </span>
   )
 }

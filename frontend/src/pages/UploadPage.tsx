@@ -15,6 +15,7 @@ import {
   ChevronDownIcon,
   LinkIcon,
 } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
@@ -61,6 +62,7 @@ const ACCEPTED_TYPES = {
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 
 export default function UploadPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user, isSuperAdmin } = useAuth()
@@ -157,7 +159,7 @@ export default function UploadPage() {
       } else if (contract.status === 'processing') {
         return { ...f, status: 'processing' }
       } else if (contract.status === 'failed') {
-        return { ...f, status: 'error', error: contract.processing_error || 'Processing failed' }
+        return { ...f, status: 'error', error: contract.processing_error || t('upload.processingFailed') }
       }
 
       return f
@@ -214,7 +216,7 @@ export default function UploadPage() {
       file: rejection.file,
       status: 'error' as const,
       progress: 0,
-      error: rejection.errors[0]?.message || 'File rejected',
+      error: rejection.errors[0]?.message || t('upload.fileRejected'),
     }))
 
     const accepted = acceptedFiles.map((file) => ({
@@ -263,7 +265,7 @@ export default function UploadPage() {
                 ...f,
                 status: 'error' as const,
                 progress: 0,
-                error: error.response?.data?.detail || 'Upload failed',
+                error: error.response?.data?.detail || t('upload.uploadFailed'),
               }
             : f
         )
@@ -312,14 +314,14 @@ export default function UploadPage() {
               ...f,
               status: 'error' as const,
               progress: 0,
-              error: fileResult?.message || 'Upload rejected',
+              error: fileResult?.message || t('upload.uploadRejected'),
             }
           } else {
             return {
               ...f,
               status: 'error' as const,
               progress: 0,
-              error: 'Upload failed - no response',
+              error: t('upload.uploadFailedNoResponse'),
             }
           }
         })
@@ -333,7 +335,7 @@ export default function UploadPage() {
                 ...f,
                 status: 'error' as const,
                 progress: 0,
-                error: error.response?.data?.detail || 'Batch upload failed',
+                error: error.response?.data?.detail || t('upload.batchUploadFailed'),
               }
             : f
         )
@@ -348,8 +350,8 @@ export default function UploadPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Upload Contracts"
-        description="Upload contract documents for AI-powered analysis"
+        title={t('upload.title')}
+        description={t('upload.description')}
         icon={CloudArrowUpIcon}
         variant="bordered"
       />
@@ -383,7 +385,7 @@ export default function UploadPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-900">{user.tenant_name}</p>
-              <p className="text-xs text-gray-500">Uploading contracts to your organization</p>
+              <p className="text-xs text-gray-500">{t('upload.uploadingToOrg')}</p>
             </div>
           </div>
         )}
@@ -394,17 +396,21 @@ export default function UploadPage() {
             <SparklesIcon className="h-4 w-4 text-violet-500 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-violet-800">
-                <span className="font-semibold">{config.industry_name}</span> profile active
+                {t('upload.profileActive', { name: config.industry_name })}
               </p>
               <p className="text-[10px] text-violet-600 mt-0.5">
-                {config.contract_types?.length || 0} contract types, {config.clause_types?.length || 0} clause categories, {config.sla_metrics?.length || 0} SLA metrics analyzed
+                {t('upload.profileStats', {
+                  types: config.contract_types?.length || 0,
+                  clauses: config.clause_types?.length || 0,
+                  slas: config.sla_metrics?.length || 0,
+                })}
               </p>
             </div>
             <a
               href="/admin/industry-profiles"
               className="text-[10px] text-violet-500 hover:text-violet-700 font-medium whitespace-nowrap"
             >
-              View profile
+              {t('upload.viewProfile')}
             </a>
           </div>
         )}
@@ -413,7 +419,7 @@ export default function UploadPage() {
         {clients.length > 0 && (
           <>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              Group under client (optional)
+              {t('upload.groupUnderClient')}
             </label>
             <div className="relative" ref={dropdownRef}>
               <button
@@ -427,7 +433,7 @@ export default function UploadPage() {
                       {selectedClient.name} <span className="text-gray-500">({selectedClient.code})</span>
                     </span>
                   ) : (
-                    <span className="text-gray-400">None</span>
+                    <span className="text-gray-400">{t('upload.none')}</span>
                   )}
                 </div>
                 <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition-transform', showClientDropdown && 'rotate-180')} />
@@ -446,7 +452,7 @@ export default function UploadPage() {
                       !selectedClientId && 'bg-primary-50'
                     )}
                   >
-                    <span className="text-gray-600">None</span>
+                    <span className="text-gray-600">{t('upload.none')}</span>
                   </button>
 
                   {clients.map((client) => (
@@ -467,7 +473,7 @@ export default function UploadPage() {
                         <span className="text-gray-900">{client.name}</span>
                         <span className="text-gray-500 text-sm">({client.code})</span>
                       </div>
-                      <span className="text-xs text-gray-400">{client.contract_count} contracts</span>
+                      <span className="text-xs text-gray-400">{t('upload.contractCount', { count: client.contract_count })}</span>
                     </button>
                   ))}
 
@@ -480,7 +486,7 @@ export default function UploadPage() {
                     className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2 border-t border-gray-200"
                   >
                     <PlusIcon className="h-4 w-4 text-primary-600" />
-                    <span className="text-primary-600 font-medium">Create New Client</span>
+                    <span className="text-primary-600 font-medium">{t('upload.createNewClient')}</span>
                   </button>
                 </div>
               )}
@@ -491,11 +497,11 @@ export default function UploadPage() {
         {/* New Client Form */}
         {showNewClientForm && (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Create New Client</h3>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">{t('upload.createNewClient')}</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Client Name *
+                  {t('upload.clientName')}
                 </label>
                 <input
                   type="text"
@@ -507,7 +513,7 @@ export default function UploadPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Client Code *
+                  {t('upload.clientCode')}
                 </label>
                 <input
                   type="text"
@@ -526,7 +532,7 @@ export default function UploadPage() {
                 disabled={!newClientName.trim() || !newClientCode.trim() || createClientMutation.isPending}
                 className="btn-primary text-sm py-1.5 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {createClientMutation.isPending ? 'Creating...' : 'Create Client'}
+                {createClientMutation.isPending ? t('upload.creating') : t('upload.createClient')}
               </button>
               <button
                 type="button"
@@ -537,12 +543,12 @@ export default function UploadPage() {
                 }}
                 className="btn-secondary text-sm py-1.5 px-4"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
             {createClientMutation.isError && (
               <p className="mt-2 text-xs text-red-600">
-                {(createClientMutation.error as any)?.response?.data?.detail || 'Failed to create client'}
+                {(createClientMutation.error as any)?.response?.data?.detail || t('upload.createClientFailed')}
               </p>
             )}
           </div>
@@ -562,13 +568,13 @@ export default function UploadPage() {
         <input {...getInputProps()} />
         <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
         <p className="mt-4 text-lg font-medium text-gray-900">
-          {isDragActive ? 'Drop files here' : 'Drag and drop files here'}
+          {isDragActive ? t('upload.dropFilesHere') : t('upload.dragAndDrop')}
         </p>
         <p className="mt-2 text-sm text-gray-500">
-          or <span className="text-primary-600 font-medium">browse</span> to select files
+          {t('upload.orBrowse')}
         </p>
         <p className="mt-4 text-xs text-gray-400">
-          Supported formats: PDF, Word (.docx, .doc), Excel (.xlsx, .xls), PowerPoint (.pptx, .ppt), Images (max 50MB)
+          {t('upload.supportedFormats')}
         </p>
       </div>
 
@@ -577,11 +583,11 @@ export default function UploadPage() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900">
-              Files ({files.length})
+              {t('upload.filesCount', { count: files.length })}
             </h2>
             {pendingCount > 0 && (
               <button onClick={uploadAll} className="btn-primary text-sm">
-                Upload All ({pendingCount})
+                {t('upload.uploadAll', { count: pendingCount })}
               </button>
             )}
           </div>
@@ -601,7 +607,7 @@ export default function UploadPage() {
                   )}
                   {fileUpload.status === 'completed' && (
                     <p className="text-xs text-green-600 mt-1">
-                      {fileUpload.clauseCount} clauses, {fileUpload.obligationCount} obligations extracted
+                      {t('upload.extractedSummary', { clauses: fileUpload.clauseCount, obligations: fileUpload.obligationCount })}
                     </p>
                   )}
                 </div>
@@ -612,7 +618,7 @@ export default function UploadPage() {
                         onClick={() => uploadFile(index)}
                         className="btn-secondary text-sm py-1 px-3"
                       >
-                        Upload
+                        {t('nav.upload')}
                       </button>
                       <button
                         onClick={() => removeFile(index)}
@@ -625,13 +631,13 @@ export default function UploadPage() {
                   {fileUpload.status === 'uploading' && (
                     <div className="flex items-center gap-2 text-gray-500">
                       <LoadingSpinner size="sm" />
-                      <span className="text-xs">Uploading...</span>
+                      <span className="text-xs">{t('upload.uploading')}</span>
                     </div>
                   )}
                   {(fileUpload.status === 'uploaded' || fileUpload.status === 'processing') && (
                     <div className="flex items-center gap-2 text-blue-600">
                       <ArrowPathIcon className="h-5 w-5 animate-spin" />
-                      <span className="text-xs">Processing...</span>
+                      <span className="text-xs">{t('upload.processing')}</span>
                     </div>
                   )}
                   {fileUpload.status === 'completed' && (
@@ -641,12 +647,12 @@ export default function UploadPage() {
                         onClick={() => navigate(`/contracts/${fileUpload.contractId}`)}
                         className="text-sm text-primary-600 hover:text-primary-800 font-medium"
                       >
-                        View
+                        {t('upload.view')}
                       </button>
                       {fileUpload.hasSuggestions && fileUpload.suggestionCount && (
                         <span className="inline-flex items-center gap-1 bg-primary-100 text-primary-700 text-xs px-2 py-0.5 rounded-full">
                           <LinkIcon className="h-3 w-3" />
-                          {fileUpload.suggestionCount} link{fileUpload.suggestionCount > 1 ? 's' : ''}
+                          {t('upload.linkCount', { count: fileUpload.suggestionCount })}
                         </span>
                       )}
                     </div>
@@ -676,10 +682,10 @@ export default function UploadPage() {
             <CheckCircleIcon className="h-5 w-5 text-green-500" />
             <div>
               <p className="text-sm font-medium text-green-800">
-                {completedCount} document{completedCount > 1 ? 's' : ''} processed successfully!
+                {t('upload.processedSuccessfully', { count: completedCount })}
               </p>
               <p className="text-xs text-green-600 mt-0.5">
-                AI analysis complete - clauses and obligations have been extracted
+                {t('upload.analysisComplete')}
               </p>
             </div>
           </div>
@@ -694,10 +700,10 @@ export default function UploadPage() {
               <LinkIcon className="h-5 w-5 text-primary-500" />
               <div>
                 <p className="text-sm font-medium text-primary-800">
-                  Related Contracts Found
+                  {t('upload.relatedContractsFound')}
                 </p>
                 <p className="text-xs text-primary-600 mt-0.5">
-                  AI detected potential relationships with existing contracts
+                  {t('upload.relatedContractsDesc')}
                 </p>
               </div>
             </div>
@@ -711,7 +717,7 @@ export default function UploadPage() {
               }}
               className="btn-primary text-sm py-1.5 px-4"
             >
-              Review
+              {t('upload.review')}
             </button>
           </div>
         </div>

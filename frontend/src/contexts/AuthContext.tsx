@@ -2,7 +2,14 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
+import { setAppLanguage, type AppLanguage } from '@/i18n'
 import type { User, LoginRequest } from '@/types'
+
+function applyUserLanguage(user: User) {
+  if (user.preferred_language === 'en' || user.preferred_language === 'fr') {
+    setAppLanguage(user.preferred_language as AppLanguage)
+  }
+}
 
 interface AuthContextType {
   user: User | null
@@ -40,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const currentUser = await api.getCurrentUser()
           setUser(currentUser)
+          applyUserLanguage(currentUser)
           // If we just got an SSO token, redirect based on role
           if (ssoToken) {
             const dest = currentUser.role === 'super_admin' ? '/super-admin' : '/dashboard'
@@ -59,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear()
     const response = await api.login(credentials)
     setUser(response.user)
+    applyUserLanguage(response.user)
 
     // Redirect based on role
     switch (response.user.role) {

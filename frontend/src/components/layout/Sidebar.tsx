@@ -28,6 +28,7 @@ import {
   FolderIcon,
   SwatchIcon,
 } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSidebar } from '@/contexts/SidebarContext'
 import { cn } from '@/lib/utils'
@@ -51,80 +52,82 @@ interface NavGroup {
 }
 
 // ── Navigation Structure ──────────────────────────────────────────
+// `name` holds an i18n key, translated at render time via t(item.name)
 
 const mainSection: NavItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
-  { name: 'Contracts', href: '/contracts', icon: DocumentTextIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
-  { name: 'Compliance', href: '/compliance', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
-  { name: 'Renewals', href: '/renewals', icon: CalendarDaysIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
+  { name: 'nav.dashboard', href: '/dashboard', icon: HomeIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
+  { name: 'nav.contracts', href: '/contracts', icon: DocumentTextIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
+  { name: 'nav.compliance', href: '/compliance', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
+  { name: 'nav.renewals', href: '/renewals', icon: CalendarDaysIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
 ]
 
 const managementSection: NavItem[] = [
-  { name: 'Vendors', href: '/vendors', icon: BuildingOffice2Icon, roles: ['admin', 'procurement', 'bu_head'] },
-  { name: 'Reports', href: '/reports', icon: DocumentChartBarIcon, roles: ['admin', 'legal', 'bu_head'] },
-  { name: 'Upload', href: '/upload', icon: CloudArrowUpIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'nav.vendors', href: '/vendors', icon: BuildingOffice2Icon, roles: ['admin', 'procurement', 'bu_head'] },
+  { name: 'nav.reports', href: '/reports', icon: DocumentChartBarIcon, roles: ['admin', 'legal', 'bu_head'] },
+  { name: 'nav.upload', href: '/upload', icon: CloudArrowUpIcon, roles: ['admin', 'legal', 'procurement'] },
 ]
 
 const governanceSection: NavItem[] = [
-  { name: 'Organizations', href: '/organizations', icon: BuildingLibraryIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'Relationships', href: '/relationships', icon: LinkIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'KPI Approvals', href: '/kpi-approvals', icon: ShieldCheckIcon, roles: ['admin'] },
-  { name: 'Surveys', href: '/surveys', icon: ClipboardDocumentListIcon, roles: ['admin', 'legal'] },
+  { name: 'nav.organizations', href: '/organizations', icon: BuildingLibraryIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'nav.relationships', href: '/relationships', icon: LinkIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'nav.kpiApprovals', href: '/kpi-approvals', icon: ShieldCheckIcon, roles: ['admin'] },
+  { name: 'nav.surveys', href: '/surveys', icon: ClipboardDocumentListIcon, roles: ['admin', 'legal'] },
 ]
 
 const intelligenceSection: NavItem[] = [
-  { name: 'Ask AI', href: '/query', icon: ChatBubbleLeftRightIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'nav.askAi', href: '/query', icon: ChatBubbleLeftRightIcon, roles: ['admin', 'legal', 'procurement'] },
 ]
 
 const adminGroups: NavGroup[] = [
   {
-    label: 'Users & Access',
+    label: 'nav.usersAccess',
     collapsible: true,
     items: [
-      { name: 'Users', href: '/users', icon: UsersIcon, roles: ['admin'] },
-      { name: 'Business Units', href: '/admin/business-units', icon: BuildingOffice2Icon, roles: ['admin'] },
-      { name: 'External Users', href: '/admin/external-users', icon: UserGroupIcon, roles: ['admin'] },
+      { name: 'nav.users', href: '/users', icon: UsersIcon, roles: ['admin'] },
+      { name: 'nav.businessUnits', href: '/admin/business-units', icon: BuildingOffice2Icon, roles: ['admin'] },
+      { name: 'nav.externalUsers', href: '/admin/external-users', icon: UserGroupIcon, roles: ['admin'] },
     ],
   },
   {
-    label: 'Integrations',
+    label: 'nav.integrations',
     collapsible: true,
     items: [
-      { name: 'ServiceNow', href: '/admin/integrations/servicenow', icon: CloudArrowUpIcon, roles: ['admin'] },
-      { name: 'SharePoint', href: '/admin/integrations/sharepoint', icon: FolderIcon, roles: ['admin'] },
-      { name: 'SSO (OIDC)', href: '/admin/sso', icon: ShieldCheckIcon, roles: ['admin'] },
+      { name: 'nav.servicenow', href: '/admin/integrations/servicenow', icon: CloudArrowUpIcon, roles: ['admin'] },
+      { name: 'nav.sharepoint', href: '/admin/integrations/sharepoint', icon: FolderIcon, roles: ['admin'] },
+      { name: 'nav.sso', href: '/admin/sso', icon: ShieldCheckIcon, roles: ['admin'] },
     ],
   },
   {
-    label: 'System',
+    label: 'nav.system',
     collapsible: true,
     items: [
-      { name: 'Industry Profiles', href: '/admin/industry-profiles', icon: SwatchIcon, roles: ['admin'] },
-      { name: 'Extraction Quality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['admin'] },
-      { name: 'Master Data', href: '/admin/master-data', icon: CircleStackIcon, roles: ['admin'] },
-      { name: 'Scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
-      { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
+      { name: 'nav.industryProfiles', href: '/admin/industry-profiles', icon: SwatchIcon, roles: ['admin'] },
+      { name: 'nav.extractionQuality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['admin'] },
+      { name: 'nav.masterData', href: '/admin/master-data', icon: CircleStackIcon, roles: ['admin'] },
+      { name: 'nav.scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
+      { name: 'nav.settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
     ],
   },
 ]
 
 const superAdminNav: NavItem[] = [
-  { name: 'Platform Overview', href: '/super-admin', icon: GlobeAltIcon, roles: ['super_admin'] },
-  { name: 'Tenants', href: '/super-admin/tenants', icon: BuildingOffice2Icon, roles: ['super_admin'] },
-  { name: 'All Users', href: '/super-admin/users', icon: UserGroupIcon, roles: ['super_admin'] },
-  { name: 'Extraction Quality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['super_admin'] },
-  { name: 'Industry Profiles', href: '/admin/industry-profiles', icon: SwatchIcon, roles: ['super_admin'] },
-  { name: 'Custom Fields', href: '/super-admin/custom-fields', icon: AdjustmentsHorizontalIcon, roles: ['super_admin'] },
-  { name: 'Integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, roles: ['super_admin'] },
+  { name: 'nav.platformOverview', href: '/super-admin', icon: GlobeAltIcon, roles: ['super_admin'] },
+  { name: 'nav.tenants', href: '/super-admin/tenants', icon: BuildingOffice2Icon, roles: ['super_admin'] },
+  { name: 'nav.allUsers', href: '/super-admin/users', icon: UserGroupIcon, roles: ['super_admin'] },
+  { name: 'nav.extractionQuality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['super_admin'] },
+  { name: 'nav.industryProfiles', href: '/admin/industry-profiles', icon: SwatchIcon, roles: ['super_admin'] },
+  { name: 'nav.customFields', href: '/super-admin/custom-fields', icon: AdjustmentsHorizontalIcon, roles: ['super_admin'] },
+  { name: 'nav.integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, roles: ['super_admin'] },
 ]
 
 // ── Section Label ─────────────────────────────────────────────────
 
 function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean }) {
+  const { t } = useTranslation()
   if (collapsed) return null
   return (
     <p className="px-3 pt-1 pb-1 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-      {label}
+      {t(label)}
     </p>
   )
 }
@@ -143,6 +146,8 @@ function NavItemLink({
   indent?: boolean
 }) {
   const [showTooltip, setShowTooltip] = useState(false)
+  const { t } = useTranslation()
+  const label = t(item.name)
 
   return (
     <div className="relative">
@@ -151,8 +156,8 @@ function NavItemLink({
         onClick={onClose}
         onMouseEnter={() => collapsed && setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
-        aria-label={item.name}
-        title={item.name}
+        aria-label={label}
+        title={label}
         className={({ isActive }) =>
           cn(
             'flex items-center gap-3 rounded-lg transition-all duration-150',
@@ -178,7 +183,7 @@ function NavItemLink({
               aria-hidden="true"
             />
             {!collapsed && (
-              <span className={cn('font-medium truncate', indent ? 'text-[13px]' : 'text-sm')}>{item.name}</span>
+              <span className={cn('font-medium truncate', indent ? 'text-[13px]' : 'text-sm')}>{label}</span>
             )}
           </>
         )}
@@ -187,7 +192,7 @@ function NavItemLink({
       {collapsed && showTooltip && (
         <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50" role="tooltip">
           <div className="bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap shadow-lg">
-            {item.name}
+            {label}
           </div>
         </div>
       )}
@@ -212,6 +217,7 @@ function FlyoutMenu({
   triggerIcon: React.ComponentType<{ className?: string }>
   triggerLabel: string
 }) {
+  const { t } = useTranslation()
   const location = useLocation()
   const [isOpen, setIsOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -287,7 +293,7 @@ function FlyoutMenu({
         />
         {!collapsed && (
           <>
-            <span className="text-sm font-medium truncate flex-1 text-left">{triggerLabel}</span>
+            <span className="text-sm font-medium truncate flex-1 text-left">{t(triggerLabel)}</span>
             <ChevronRightIcon className={cn(
               'h-3.5 w-3.5 shrink-0 transition-transform duration-200',
               isOpen && 'rotate-90'
@@ -310,7 +316,7 @@ function FlyoutMenu({
         >
           {/* Flyout header */}
           <div className="px-4 py-3 border-b border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{triggerLabel}</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t(triggerLabel)}</p>
           </div>
 
           {/* Groups */}
@@ -322,7 +328,7 @@ function FlyoutMenu({
                 <div key={group.label}>
                   {gi > 0 && <div className="border-t border-white/10 my-1.5 mx-3" />}
                   <p className="px-4 pt-2 pb-1 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-                    {group.label}
+                    {t(group.label)}
                   </p>
                   {items.map((item) => (
                     <NavLink
@@ -346,7 +352,7 @@ function FlyoutMenu({
                           <item.icon
                             className={cn('h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-gray-400')}
                           />
-                          <span className="font-medium">{item.name}</span>
+                          <span className="font-medium">{t(item.name)}</span>
                         </>
                       )}
                     </NavLink>
@@ -394,6 +400,7 @@ function NavSection({
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuth()
+  const { t } = useTranslation()
   const { collapsed, toggleCollapsed } = useSidebar()
 
   const role = user?.role || ''
@@ -430,8 +437,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             'p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors',
             collapsed && 'absolute -right-3 top-4 bg-primary-800 border border-white/20 shadow-lg z-10'
           )}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
+          title={collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
         >
           {collapsed ? (
             <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
@@ -451,14 +458,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       >
         {/* MAIN */}
         {filteredMain.length > 0 && (
-          <NavSection label="Main" items={mainSection} role={role} onClose={onClose} collapsed={collapsed} />
+          <NavSection label="nav.sectionMain" items={mainSection} role={role} onClose={onClose} collapsed={collapsed} />
         )}
 
         {/* MANAGEMENT */}
         {filteredMgmt.length > 0 && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <NavSection label="Management" items={managementSection} role={role} onClose={onClose} collapsed={collapsed} />
+            <NavSection label="nav.sectionManagement" items={managementSection} role={role} onClose={onClose} collapsed={collapsed} />
           </>
         )}
 
@@ -466,7 +473,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {filteredGov.length > 0 && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <NavSection label="Governance" items={governanceSection} role={role} onClose={onClose} collapsed={collapsed} />
+            <NavSection label="nav.sectionGovernance" items={governanceSection} role={role} onClose={onClose} collapsed={collapsed} />
           </>
         )}
 
@@ -474,7 +481,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {filteredIntel.length > 0 && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <NavSection label="Intelligence" items={intelligenceSection} role={role} onClose={onClose} collapsed={collapsed} />
+            <NavSection label="nav.sectionIntelligence" items={intelligenceSection} role={role} onClose={onClose} collapsed={collapsed} />
           </>
         )}
 
@@ -482,14 +489,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {hasAdmin && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <SectionLabel label="Admin" collapsed={collapsed} />
+            <SectionLabel label="nav.sectionAdmin" collapsed={collapsed} />
             <FlyoutMenu
               groups={adminGroups}
               userRole={role}
               onClose={onClose}
               collapsed={collapsed}
               triggerIcon={Cog6ToothIcon}
-              triggerLabel="Administration"
+              triggerLabel="nav.administration"
             />
           </>
         )}
@@ -498,7 +505,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {hasSuperAdmin && filteredSuperAdmin.length > 0 && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <SectionLabel label="Super Admin" collapsed={collapsed} />
+            <SectionLabel label="nav.sectionSuperAdmin" collapsed={collapsed} />
             {filteredSuperAdmin.map((item) => (
               <NavItemLink key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
             ))}
@@ -532,7 +539,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                   <p className="text-sm font-medium text-white truncate">
                     {user.full_name || user.username}
                   </p>
-                  <p className="text-xs text-gray-400 capitalize truncate">{user.role}</p>
+                  <p className="text-xs text-gray-400 truncate">{t(`roles.${user.role}`)}</p>
                   {user.tenant_name && (
                     <p className="text-xs font-semibold text-primary-400 truncate">{user.tenant_name}</p>
                   )}
@@ -544,7 +551,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                 <div className="bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap shadow-lg">
                   {user.full_name || user.username}
-                  <span className="text-gray-400 ml-1">({user.role})</span>
+                  <span className="text-gray-400 ml-1">({t(`roles.${user.role}`)})</span>
                   {user.tenant_name && (
                     <span className="text-primary-400 ml-1">&middot; {user.tenant_name}</span>
                   )}
@@ -581,7 +588,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         <button
           className="absolute right-2 top-2 p-2 text-gray-400 hover:text-white"
           onClick={onClose}
-          aria-label="Close sidebar"
+          aria-label={t('nav.closeSidebar')}
         >
           <XMarkIcon className="h-5 w-5" aria-hidden="true" />
         </button>

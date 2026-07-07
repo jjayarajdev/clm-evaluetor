@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import {
   DocumentArrowDownIcon,
@@ -46,6 +47,7 @@ function TrendChart({ data }: { data: { period_label: string; overall_compliance
 }
 
 export default function ReportsPage() {
+  const { t } = useTranslation()
   const [trendPeriod, setTrendPeriod] = useState<'weekly' | 'monthly'>('weekly')
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
@@ -92,8 +94,8 @@ export default function ReportsPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Compliance Reports"
-        description="Generate and export compliance reports with trend analysis"
+        title={t('reports.title')}
+        description={t('reports.description')}
         icon={ChartBarSquareIcon}
         variant="bordered"
         actions={
@@ -103,7 +105,7 @@ export default function ReportsPage() {
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <DocumentArrowDownIcon className="h-4 w-4" />
-            {isExporting ? 'Exporting...' : 'Export CSV'}
+            {isExporting ? t('reports.exporting') : t('reports.exportCsv')}
           </button>
         }
       />
@@ -113,7 +115,7 @@ export default function ReportsPage() {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <CalendarIcon className="h-5 w-5 text-gray-400" />
-            <label className="text-sm font-medium text-gray-700">Report Period:</label>
+            <label className="text-sm font-medium text-gray-700">{t('reports.reportPeriod')}</label>
           </div>
           <input
             type="date"
@@ -121,7 +123,7 @@ export default function ReportsPage() {
             onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
           />
-          <span className="text-gray-500">to</span>
+          <span className="text-gray-500">{t('reports.to')}</span>
           <input
             type="date"
             value={dateRange.end}
@@ -134,7 +136,7 @@ export default function ReportsPage() {
       {/* Trend Analysis */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Compliance Trend</h3>
+          <h3 className="font-semibold text-gray-900">{t('reports.complianceTrend')}</h3>
           <div className="flex gap-2">
             <button
               onClick={() => setTrendPeriod('weekly')}
@@ -143,7 +145,7 @@ export default function ReportsPage() {
                 trendPeriod === 'weekly' ? 'bg-primary-100 text-primary-700' : 'text-gray-500 hover:bg-gray-100'
               )}
             >
-              Weekly
+              {t('reports.weekly')}
             </button>
             <button
               onClick={() => setTrendPeriod('monthly')}
@@ -152,7 +154,7 @@ export default function ReportsPage() {
                 trendPeriod === 'monthly' ? 'bg-primary-100 text-primary-700' : 'text-gray-500 hover:bg-gray-100'
               )}
             >
-              Monthly
+              {t('reports.monthly')}
             </button>
           </div>
         </div>
@@ -170,7 +172,7 @@ export default function ReportsPage() {
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-2">
                     {getTrendIcon(trend.obligation_trend)}
-                    <span className="text-sm text-gray-600">Obligations</span>
+                    <span className="text-sm text-gray-600">{t('reports.obligations')}</span>
                   </div>
                   <p className={cn(
                     'text-lg font-semibold',
@@ -183,7 +185,7 @@ export default function ReportsPage() {
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-2">
                     {getTrendIcon(trend.sla_trend)}
-                    <span className="text-sm text-gray-600">SLAs</span>
+                    <span className="text-sm text-gray-600">{t('reports.slas')}</span>
                   </div>
                   <p className={cn(
                     'text-lg font-semibold',
@@ -196,7 +198,7 @@ export default function ReportsPage() {
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-2">
                     {getTrendIcon(trend.overall_trend)}
-                    <span className="text-sm text-gray-600">Overall</span>
+                    <span className="text-sm text-gray-600">{t('reports.overall')}</span>
                   </div>
                   <p className={cn(
                     'text-lg font-semibold',
@@ -209,7 +211,7 @@ export default function ReportsPage() {
               </div>
             </>
           ) : (
-            <p className="text-center text-gray-500 py-8">No trend data available</p>
+            <p className="text-center text-gray-500 py-8">{t('reports.noTrendData')}</p>
           )}
         </div>
       </div>
@@ -224,18 +226,18 @@ export default function ReportsPage() {
           {/* Summary Stats */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">Report Summary</h3>
+              <h3 className="font-semibold text-gray-900">{t('reports.reportSummary')}</h3>
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-blue-50 rounded-lg p-3">
-                  <p className="text-xs text-blue-600 font-medium">Overall Compliance</p>
+                  <p className="text-xs text-blue-600 font-medium">{t('reports.overallCompliance')}</p>
                   <p className="text-2xl font-bold text-blue-700">
                     {report.summary.overall_compliance_rate.toFixed(1)}%
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-600 font-medium">Contracts Reviewed</p>
+                  <p className="text-xs text-gray-600 font-medium">{t('reports.contractsReviewed')}</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {report.summary.contracts_reviewed}
                   </p>
@@ -243,49 +245,49 @@ export default function ReportsPage() {
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700">Obligations</h4>
+                <h4 className="text-sm font-medium text-gray-700">{t('reports.obligations')}</h4>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div className="bg-gray-50 rounded p-2 text-center">
-                    <p className="text-gray-500">Total</p>
+                    <p className="text-gray-500">{t('reports.total')}</p>
                     <p className="font-semibold">{report.summary.total_obligations}</p>
                   </div>
                   <div className="bg-green-50 rounded p-2 text-center">
-                    <p className="text-green-600">Completed</p>
+                    <p className="text-green-600">{t('status.completed')}</p>
                     <p className="font-semibold text-green-700">{report.summary.obligations_completed}</p>
                   </div>
                   <div className="bg-red-50 rounded p-2 text-center">
-                    <p className="text-red-600">Overdue</p>
+                    <p className="text-red-600">{t('reports.overdue')}</p>
                     <p className="font-semibold text-red-700">{report.summary.obligations_overdue}</p>
                   </div>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Compliance Rate</span>
+                  <span className="text-gray-500">{t('reports.complianceRate')}</span>
                   <span className="font-medium">{report.summary.obligation_compliance_rate.toFixed(1)}%</span>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700">SLAs</h4>
+                <h4 className="text-sm font-medium text-gray-700">{t('reports.slas')}</h4>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div className="bg-gray-50 rounded p-2 text-center">
-                    <p className="text-gray-500">Total</p>
+                    <p className="text-gray-500">{t('reports.total')}</p>
                     <p className="font-semibold">{report.summary.total_slas}</p>
                   </div>
                   <div className="bg-green-50 rounded p-2 text-center">
-                    <p className="text-green-600">Compliant</p>
+                    <p className="text-green-600">{t('reports.compliant')}</p>
                     <p className="font-semibold text-green-700">{report.summary.slas_compliant}</p>
                   </div>
                   <div className="bg-red-50 rounded p-2 text-center">
-                    <p className="text-red-600">Breached</p>
+                    <p className="text-red-600">{t('status.breached')}</p>
                     <p className="font-semibold text-red-700">{report.summary.slas_breached}</p>
                   </div>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Compliance Rate</span>
+                  <span className="text-gray-500">{t('reports.complianceRate')}</span>
                   <span className="font-medium">{report.summary.sla_compliance_rate.toFixed(1)}%</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Total Penalties</span>
+                  <span className="text-gray-500">{t('reports.totalPenalties')}</span>
                   <span className="font-medium text-red-600">${report.summary.total_penalties.toLocaleString()}</span>
                 </div>
               </div>
@@ -295,15 +297,15 @@ export default function ReportsPage() {
           {/* By Contract */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">By Contract</h3>
+              <h3 className="font-semibold text-gray-900">{t('reports.byContract')}</h3>
             </div>
             <div className="overflow-auto max-h-80">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Contract</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Obl.</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">SLA</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">{t('reports.contract')}</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">{t('reports.oblAbbr')}</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">{t('reports.slaAbbr')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">

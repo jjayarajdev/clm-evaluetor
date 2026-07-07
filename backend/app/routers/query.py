@@ -98,6 +98,7 @@ async def query_contracts(
             contract_id=request_body.contract_id,
             user_role=current_user.role.value,
             tenant_id=str(tenant_id) if tenant_id else None,
+            language=current_user.preferred_language,
         )
 
         # Convert sources
@@ -183,6 +184,7 @@ async def get_suggested_questions(
         user_id=str(current_user.id),
         user_role=current_user.role.value,
         tenant_id=str(tenant_id) if tenant_id else None,
+        language=current_user.preferred_language,
     )
 
     return SuggestionsResponse(

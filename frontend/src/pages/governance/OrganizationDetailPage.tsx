@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftIcon,
@@ -78,6 +79,7 @@ function TreeNodeComponent({ node, depth = 0 }: { node: OrganizationTreeNode; de
 }
 
 export default function OrganizationDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<Tab>('Overview')
@@ -158,7 +160,7 @@ export default function OrganizationDetailPage() {
             <span className="text-sm text-gray-400 font-mono">{org.code}</span>
           </div>
           <div className="flex items-center gap-4 mt-2">
-            <span className="text-sm text-gray-500 capitalize">{org.org_type}</span>
+            <span className="text-sm text-gray-500 capitalize">{t(`governance.orgTypes.${org.org_type}`, { defaultValue: org.org_type })}</span>
             {org.industry && <span className="text-sm text-gray-500">{org.industry}</span>}
             {org.region && <span className="text-sm text-gray-500">{org.region}</span>}
           </div>
@@ -179,7 +181,7 @@ export default function OrganizationDetailPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               )}
             >
-              {tab}
+              {t(`governance.tabs.${tab.toLowerCase()}`, { defaultValue: tab })}
               {tab === 'Officers' && officers.length > 0 && (
                 <span className="ml-1.5 bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs">{officers.length}</span>
               )}
@@ -192,21 +194,21 @@ export default function OrganizationDetailPage() {
       {activeTab === 'Overview' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="card">
-            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">Details</h3></div>
+            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">{t('governance.details')}</h3></div>
             <div className="card-body space-y-3">
-              <div><p className="text-xs text-gray-500">Type</p><p className="text-sm font-medium capitalize">{org.org_type}</p></div>
-              <div><p className="text-xs text-gray-500">Industry</p><p className="text-sm font-medium">{org.industry || '—'}</p></div>
-              <div><p className="text-xs text-gray-500">Region</p><p className="text-sm font-medium">{org.region || '—'}</p></div>
-              <div><p className="text-xs text-gray-500">Country</p><p className="text-sm font-medium">{org.country || '—'}</p></div>
-              <div><p className="text-xs text-gray-500">Website</p><p className="text-sm font-medium">{org.website || '—'}</p></div>
+              <div><p className="text-xs text-gray-500">{t('governance.type')}</p><p className="text-sm font-medium capitalize">{t(`governance.orgTypes.${org.org_type}`, { defaultValue: org.org_type })}</p></div>
+              <div><p className="text-xs text-gray-500">{t('governance.industry')}</p><p className="text-sm font-medium">{org.industry || '—'}</p></div>
+              <div><p className="text-xs text-gray-500">{t('governance.region')}</p><p className="text-sm font-medium">{org.region || '—'}</p></div>
+              <div><p className="text-xs text-gray-500">{t('governance.country')}</p><p className="text-sm font-medium">{org.country || '—'}</p></div>
+              <div><p className="text-xs text-gray-500">{t('governance.website')}</p><p className="text-sm font-medium">{org.website || '—'}</p></div>
             </div>
           </div>
           <div className="card">
-            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">Primary Contact</h3></div>
+            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">{t('governance.primaryContact')}</h3></div>
             <div className="card-body space-y-3">
-              <div><p className="text-xs text-gray-500">Name</p><p className="text-sm font-medium">{org.primary_contact_name || '—'}</p></div>
-              <div><p className="text-xs text-gray-500">Email</p><p className="text-sm font-medium">{org.primary_contact_email || '—'}</p></div>
-              <div><p className="text-xs text-gray-500">Phone</p><p className="text-sm font-medium">{org.primary_contact_phone || '—'}</p></div>
+              <div><p className="text-xs text-gray-500">{t('governance.name')}</p><p className="text-sm font-medium">{org.primary_contact_name || '—'}</p></div>
+              <div><p className="text-xs text-gray-500">{t('governance.email')}</p><p className="text-sm font-medium">{org.primary_contact_email || '—'}</p></div>
+              <div><p className="text-xs text-gray-500">{t('governance.phone')}</p><p className="text-sm font-medium">{org.primary_contact_phone || '—'}</p></div>
             </div>
           </div>
         </div>
@@ -218,10 +220,10 @@ export default function OrganizationDetailPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
               <UserGroupIcon className="h-5 w-5 text-gray-400" />
-              Organization Officers ({officers.length})
+              {t('governance.organizationOfficersCount', { count: officers.length })}
             </h2>
             <button onClick={() => setShowAddOfficer(true)} className="btn-primary text-xs flex items-center gap-1">
-              <PlusIcon className="h-3.5 w-3.5" /> Add Officer
+              <PlusIcon className="h-3.5 w-3.5" /> {t('governance.addOfficer')}
             </button>
           </div>
           <div className="card">
@@ -229,12 +231,12 @@ export default function OrganizationDetailPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Side</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.name')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.title')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.role')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.side')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.contact')}</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -244,18 +246,18 @@ export default function OrganizationDetailPage() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-gray-900">{officer.name}</span>
                           {officer.is_primary && (
-                            <span className="text-[10px] bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded">Primary</span>
+                            <span className="text-[10px] bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded">{t('governance.primary')}</span>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">{officer.title || '—'}</td>
                       <td className="px-4 py-3 text-sm text-gray-500">
-                        {officer.governance_role ? ROLE_LABELS[officer.governance_role] || officer.governance_role : '—'}
+                        {officer.governance_role ? t(`governance.officerRoles.${officer.governance_role}`, { defaultValue: ROLE_LABELS[officer.governance_role] || officer.governance_role }) : '—'}
                       </td>
                       <td className="px-4 py-3">
                         {officer.side ? (
                           <span className={cn('px-2 py-0.5 rounded text-xs font-medium', SIDE_COLORS[officer.side])}>
-                            {SIDE_LABELS[officer.side]}
+                            {t(`governance.sides.${officer.side}`, { defaultValue: SIDE_LABELS[officer.side] })}
                           </span>
                         ) : '—'}
                       </td>
@@ -267,7 +269,7 @@ export default function OrganizationDetailPage() {
                           onClick={() => deleteOfficerMutation.mutate(officer.id)}
                           className="text-xs text-red-600 hover:text-red-800"
                         >
-                          Remove
+                          {t('governance.remove')}
                         </button>
                       </td>
                     </tr>
@@ -275,7 +277,7 @@ export default function OrganizationDetailPage() {
                   {officers.length === 0 && (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
-                        No officers assigned. Add your first officer.
+                        {t('governance.noOfficers')}
                       </td>
                     </tr>
                   )}
@@ -293,7 +295,7 @@ export default function OrganizationDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {hierarchy.parent && (
                 <div className="card card-body">
-                  <p className="text-xs text-gray-500 mb-1">Parent Organization</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('governance.parentOrganization')}</p>
                   <Link to={`/organizations/${hierarchy.parent.id}`} className="text-sm font-medium text-primary-600 hover:text-primary-800">
                     {hierarchy.parent.name}
                   </Link>
@@ -301,14 +303,14 @@ export default function OrganizationDetailPage() {
                 </div>
               )}
               <div className="card card-body">
-                <p className="text-xs text-gray-500 mb-1">Current</p>
+                <p className="text-xs text-gray-500 mb-1">{t('governance.current')}</p>
                 <p className="text-sm font-bold text-gray-900">{hierarchy.organization.name}</p>
                 {hierarchy.organization.organization_level && (
                   <p className="text-xs text-gray-400 capitalize">{hierarchy.organization.organization_level}</p>
                 )}
               </div>
               <div className="card card-body">
-                <p className="text-xs text-gray-500 mb-1">Subsidiaries</p>
+                <p className="text-xs text-gray-500 mb-1">{t('governance.subsidiaries')}</p>
                 <p className="text-2xl font-bold text-gray-900">{hierarchy.children?.length ?? 0}</p>
               </div>
             </div>
@@ -317,7 +319,7 @@ export default function OrganizationDetailPage() {
           {hierarchy && hierarchy.children && hierarchy.children.length > 0 && (
             <div className="card">
               <div className="card-header">
-                <h3 className="text-sm font-medium text-gray-900">Direct Subsidiaries</h3>
+                <h3 className="text-sm font-medium text-gray-900">{t('governance.directSubsidiaries')}</h3>
               </div>
               <div className="card-body p-0 divide-y divide-gray-200">
                 {hierarchy.children.map((sub) => (
@@ -346,7 +348,7 @@ export default function OrganizationDetailPage() {
           {tree.length > 0 && (
             <div className="card">
               <div className="card-header">
-                <h3 className="text-sm font-medium text-gray-900">Organization Tree</h3>
+                <h3 className="text-sm font-medium text-gray-900">{t('governance.organizationTree')}</h3>
               </div>
               <div className="card-body">
                 {tree.map((node) => (
@@ -364,7 +366,7 @@ export default function OrganizationDetailPage() {
           <div className="card-header">
             <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
               <ShareIcon className="h-5 w-5 text-gray-400" />
-              Business Relationships ({orgRelationships.length})
+              {t('governance.businessRelationshipsCount', { count: orgRelationships.length })}
             </h3>
           </div>
           <div className="card-body p-0 divide-y divide-gray-200">
@@ -378,7 +380,7 @@ export default function OrganizationDetailPage() {
                   <p className="text-sm font-medium text-gray-900">
                     {rel.org_a?.name || rel.org_a_id} ↔ {rel.org_b?.name || rel.org_b_id}
                   </p>
-                  <p className="text-xs text-gray-500 capitalize">{rel.relationship_type} · {rel.governance_tier}</p>
+                  <p className="text-xs text-gray-500 capitalize">{t(`governance.relationshipTypes.${rel.relationship_type}`, { defaultValue: rel.relationship_type })} · {t(`governance.tiers.${rel.governance_tier}`, { defaultValue: rel.governance_tier })}</p>
                 </div>
                 <div className={cn(
                   'flex items-center gap-1 px-2 py-1 rounded-lg text-sm font-semibold',
@@ -391,7 +393,7 @@ export default function OrganizationDetailPage() {
               </Link>
             ))}
             {orgRelationships.length === 0 && (
-              <p className="px-4 py-8 text-center text-sm text-gray-500">No relationships for this organization.</p>
+              <p className="px-4 py-8 text-center text-sm text-gray-500">{t('governance.noRelationshipsForOrg')}</p>
             )}
           </div>
         </div>
@@ -402,7 +404,7 @@ export default function OrganizationDetailPage() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Add Officer</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('governance.addOfficer')}</h2>
               <button onClick={() => setShowAddOfficer(false)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
@@ -410,7 +412,7 @@ export default function OrganizationDetailPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.name')} *</label>
                   <input
                     type="text"
                     value={officerForm.name || ''}
@@ -419,7 +421,7 @@ export default function OrganizationDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.title')}</label>
                   <input
                     type="text"
                     value={officerForm.title || ''}
@@ -430,33 +432,33 @@ export default function OrganizationDetailPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Governance Role</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.governanceRole')}</label>
                   <select
                     value={officerForm.governance_role || ''}
                     onChange={(e) => setOfficerForm({ ...officerForm, governance_role: (e.target.value || undefined) as GovernanceRole | undefined })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
-                    <option value="">Select role</option>
+                    <option value="">{t('governance.selectRole')}</option>
                     {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
+                      <option key={value} value={value}>{t(`governance.officerRoles.${value}`, { defaultValue: label })}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Side</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.side')}</label>
                   <select
                     value={officerForm.side || 'internal'}
                     onChange={(e) => setOfficerForm({ ...officerForm, side: e.target.value as OfficerSide })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
-                    <option value="internal">Internal</option>
-                    <option value="external">External</option>
+                    <option value="internal">{t('governance.sides.internal')}</option>
+                    <option value="external">{t('governance.sides.external')}</option>
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.email')}</label>
                   <input
                     type="email"
                     value={officerForm.email || ''}
@@ -465,7 +467,7 @@ export default function OrganizationDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.phone')}</label>
                   <input
                     type="text"
                     value={officerForm.phone || ''}
@@ -475,7 +477,7 @@ export default function OrganizationDetailPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.department')}</label>
                 <input
                   type="text"
                   value={officerForm.department || ''}
@@ -490,11 +492,11 @@ export default function OrganizationDetailPage() {
                   onChange={(e) => setOfficerForm({ ...officerForm, is_primary: e.target.checked })}
                   className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
-                Primary Contact
+                {t('governance.primaryContact')}
               </label>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowAddOfficer(false)} className="btn-secondary">Cancel</button>
+              <button onClick={() => setShowAddOfficer(false)} className="btn-secondary">{t('common.cancel')}</button>
               <button
                 onClick={() => {
                   if (officerForm.name) {
@@ -504,7 +506,7 @@ export default function OrganizationDetailPage() {
                 disabled={!officerForm.name || createOfficerMutation.isPending}
                 className="btn-primary"
               >
-                {createOfficerMutation.isPending ? 'Adding...' : 'Add Officer'}
+                {createOfficerMutation.isPending ? t('governance.adding') : t('governance.addOfficer')}
               </button>
             </div>
           </div>

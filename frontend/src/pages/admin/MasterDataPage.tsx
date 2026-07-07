@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { CircleStackIcon, FlagIcon } from '@heroicons/react/24/outline'
 import SLAConfigPanel from './SLAConfigPanel'
@@ -12,14 +13,15 @@ const TABS: { key: Tab; label: string; icon: typeof CircleStackIcon }[] = [
 ]
 
 export default function MasterDataPage() {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<Tab>('sla')
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Master Data</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('nav.masterData')}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Manage SLA and milestone reference configurations
+          {t('masterdata.subtitle')}
         </p>
       </div>
 
@@ -38,7 +40,7 @@ export default function MasterDataPage() {
               )}
             >
               <tab.icon className="h-4 w-4" />
-              {tab.label}
+              {t(`masterdata.tabs.${tab.key}`, { defaultValue: tab.label })}
             </button>
           ))}
         </nav>

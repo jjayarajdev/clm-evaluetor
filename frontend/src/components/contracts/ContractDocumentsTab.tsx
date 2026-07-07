@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   DocumentTextIcon,
@@ -43,6 +44,7 @@ interface Props {
 }
 
 function DocumentRow({ doc, contractId }: { doc: ContractDocument; contractId: string }) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
 
   const { data: signatures = [] } = useQuery<DocumentSignature[]>({
@@ -76,7 +78,7 @@ function DocumentRow({ doc, contractId }: { doc: ContractDocument; contractId: s
           )}
         </div>
         <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded shrink-0">
-          {DOC_TYPE_LABELS[doc.document_type] || doc.document_type}
+          {t(`docsTab.docTypes.${doc.document_type}`, { defaultValue: DOC_TYPE_LABELS[doc.document_type] || doc.document_type })}
         </span>
         {doc.version && (
           <span className="text-xs text-gray-400 shrink-0">v{doc.version}</span>
@@ -89,14 +91,14 @@ function DocumentRow({ doc, contractId }: { doc: ContractDocument; contractId: s
           {/* Signatures */}
           {signatures.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Signatures ({signatures.length})</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('docsTab.signatures', { count: signatures.length })}</p>
               <div className="space-y-2">
                 {signatures.map((sig) => (
                   <div key={sig.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
                     <div>
                       <p className="text-sm font-medium text-gray-900">{sig.signer_name}</p>
                       <p className="text-xs text-gray-500">
-                        {[sig.signer_title, sig.signer_organization].filter(Boolean).join(', ') || 'No title'}
+                        {[sig.signer_title, sig.signer_organization].filter(Boolean).join(', ') || t('docsTab.noTitle')}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -105,7 +107,7 @@ function DocumentRow({ doc, contractId }: { doc: ContractDocument; contractId: s
                         'px-2 py-0.5 rounded text-xs font-medium capitalize',
                         SIGNATURE_STATUS_COLORS[sig.signature_status] || 'bg-gray-100 text-gray-800'
                       )}>
-                        {sig.signature_status}
+                        {t([`status.${sig.signature_status}`, `docsTab.signatureStatus.${sig.signature_status}`], { defaultValue: sig.signature_status })}
                       </span>
                     </div>
                   </div>
@@ -117,7 +119,7 @@ function DocumentRow({ doc, contractId }: { doc: ContractDocument; contractId: s
           {/* Sections */}
           {sections.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Sections ({sections.length})</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('docsTab.sections', { count: sections.length })}</p>
               <div className="space-y-1">
                 {sections.map((section) => (
                   <div key={section.id} className="flex items-baseline gap-2 px-3 py-1.5">
@@ -137,7 +139,7 @@ function DocumentRow({ doc, contractId }: { doc: ContractDocument; contractId: s
           )}
 
           {signatures.length === 0 && sections.length === 0 && (
-            <p className="text-xs text-gray-400 italic">No signatures or sections recorded</p>
+            <p className="text-xs text-gray-400 italic">{t('docsTab.noSignaturesOrSections')}</p>
           )}
         </div>
       )}
@@ -146,6 +148,7 @@ function DocumentRow({ doc, contractId }: { doc: ContractDocument; contractId: s
 }
 
 export default function ContractDocumentsTab({ contractId }: Props) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [formData, setFormData] = useState<Partial<ContractDocumentCreate>>({
@@ -182,13 +185,13 @@ export default function ContractDocumentsTab({ contractId }: Props) {
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
           <DocumentTextIcon className="h-5 w-5 text-gray-400" />
-          Contract Documents ({documents.length})
+          {t('docsTab.title', { count: documents.length })}
         </h2>
         <button
           onClick={() => setShowCreate(true)}
           className="btn-primary text-xs flex items-center gap-1"
         >
-          <PlusIcon className="h-3.5 w-3.5" /> Add Document
+          <PlusIcon className="h-3.5 w-3.5" /> {t('docsTab.addDocument')}
         </button>
       </div>
 
@@ -202,7 +205,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
             }, {})
           ).map(([type, count]) => (
             <span key={type} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-              {DOC_TYPE_LABELS[type as DocumentType] || type}: {count}
+              {t(`docsTab.docTypes.${type}`, { defaultValue: DOC_TYPE_LABELS[type as DocumentType] || type })}: {count}
             </span>
           ))}
         </div>
@@ -217,8 +220,8 @@ export default function ContractDocumentsTab({ contractId }: Props) {
         ) : (
           <div className="px-4 py-8 text-center">
             <DocumentTextIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-500">No documents added yet</p>
-            <p className="text-xs text-gray-400 mt-1">Add documents to track the contract package</p>
+            <p className="text-sm text-gray-500">{t('docsTab.noDocuments')}</p>
+            <p className="text-xs text-gray-400 mt-1">{t('docsTab.noDocumentsHint')}</p>
           </div>
         )}
       </div>
@@ -228,14 +231,14 @@ export default function ContractDocumentsTab({ contractId }: Props) {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Add Document</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('docsTab.addDocument')}</h2>
               <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('docsTab.titleLabel')}</label>
                 <input
                   type="text"
                   value={formData.title || ''}
@@ -245,30 +248,30 @@ export default function ContractDocumentsTab({ contractId }: Props) {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Document Type *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('docsTab.documentTypeLabel')}</label>
                   <select
                     value={formData.document_type || 'other'}
                     onChange={(e) => setFormData({ ...formData, document_type: e.target.value as DocumentType })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     {Object.entries(DOC_TYPE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
+                      <option key={value} value={value}>{t(`docsTab.docTypes.${value}`, { defaultValue: label })}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Version</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('docsTab.version')}</label>
                   <input
                     type="text"
                     value={formData.version || ''}
                     onChange={(e) => setFormData({ ...formData, version: e.target.value })}
-                    placeholder="e.g., 1.0"
+                    placeholder={t('docsTab.versionPlaceholder')}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('docsTab.description')}</label>
                 <textarea
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -277,7 +280,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.language')}</label>
                 <input
                   type="text"
                   value={formData.language || 'en'}
@@ -287,7 +290,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowCreate(false)} className="btn-secondary">Cancel</button>
+              <button onClick={() => setShowCreate(false)} className="btn-secondary">{t('common.cancel')}</button>
               <button
                 onClick={() => {
                   if (formData.title && formData.document_type) {
@@ -297,7 +300,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
                 disabled={!formData.title || createMutation.isPending}
                 className="btn-primary"
               >
-                {createMutation.isPending ? 'Adding...' : 'Add Document'}
+                {createMutation.isPending ? t('docsTab.adding') : t('docsTab.addDocument')}
               </button>
             </div>
           </div>

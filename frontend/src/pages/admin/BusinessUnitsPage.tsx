@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   PlusIcon,
@@ -51,6 +52,7 @@ function TreeNode({
   onDelete: (id: string) => void
   onAddChild: (parentId: string) => void
 }) {
+  const { t } = useTranslation()
   const hasChildren = node.children && node.children.length > 0
   const isExpanded = expandedNodes.has(node.id)
 
@@ -99,7 +101,7 @@ function TreeNode({
             </span>
             {!node.is_active && (
               <span className="text-xs text-red-500 bg-red-50 px-1.5 py-0.5 rounded">
-                Inactive
+                {t('status.inactive')}
               </span>
             )}
           </div>
@@ -117,7 +119,7 @@ function TreeNode({
                 <SwatchIcon className="w-3 h-3" />
                 {node.effective_profile_name}
                 {!node.industry_profile_id && (
-                  <span className="text-gray-400">(inherited)</span>
+                  <span className="text-gray-400">{t('businessUnits.inherited')}</span>
                 )}
               </span>
             )}
@@ -129,21 +131,21 @@ function TreeNode({
           <button
             onClick={() => onAddChild(node.id)}
             className="p-1.5 rounded hover:bg-primary-100 text-gray-400 hover:text-primary-600"
-            title="Add child unit"
+            title={t('businessUnits.addChildUnit')}
           >
             <PlusIcon className="w-4 h-4" />
           </button>
           <button
             onClick={() => onEdit(node.id)}
             className="p-1.5 rounded hover:bg-blue-100 text-gray-400 hover:text-blue-600"
-            title="Edit"
+            title={t('common.edit')}
           >
             <PencilSquareIcon className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(node.id)}
             className="p-1.5 rounded hover:bg-red-100 text-gray-400 hover:text-red-600"
-            title="Delete"
+            title={t('common.delete')}
           >
             <TrashIcon className="w-4 h-4" />
           </button>
@@ -172,6 +174,7 @@ function TreeNode({
 }
 
 export default function BusinessUnitsPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { isSuperAdmin } = useAuth()
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -346,7 +349,7 @@ export default function BusinessUnitsPage() {
   }
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to deactivate this business unit? This will also affect any users assigned to it.')) {
+    if (confirm(t('businessUnits.confirmDeactivate'))) {
       deleteMutation.mutate(id)
     }
   }
@@ -363,7 +366,7 @@ export default function BusinessUnitsPage() {
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700">Failed to load business units. Please try again.</p>
+          <p className="text-red-700">{t('businessUnits.loadFailed')}</p>
         </div>
       </div>
     )
@@ -374,9 +377,9 @@ export default function BusinessUnitsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Business Units</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.businessUnits')}</h1>
           <p className="text-gray-500 mt-1">
-            Manage organizational structure, department hierarchy, and industry profile assignments
+            {t('businessUnits.subtitle')}
           </p>
         </div>
         <button
@@ -385,7 +388,7 @@ export default function BusinessUnitsPage() {
           disabled={isSuperAdmin && !selectedTenantId}
         >
           <PlusIcon className="w-5 h-5" />
-          Add Business Unit
+          {t('businessUnits.addBusinessUnit')}
         </button>
       </div>
 
@@ -393,14 +396,14 @@ export default function BusinessUnitsPage() {
       {isSuperAdmin && (
         <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <label className="block text-sm font-medium text-amber-800 mb-2">
-            Select Tenant to Manage
+            {t('businessUnits.selectTenant')}
           </label>
           <select
             value={selectedTenantId}
             onChange={(e) => setSelectedTenantId(e.target.value)}
             className="w-full max-w-md px-3 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
           >
-            <option value="">Select a tenant...</option>
+            <option value="">{t('businessUnits.selectTenantPlaceholder')}</option>
             {tenants?.map((tenant) => (
               <option key={tenant.id} value={tenant.id}>
                 {tenant.name}
@@ -416,14 +419,14 @@ export default function BusinessUnitsPage() {
           onClick={expandAll}
           className="text-sm text-gray-600 hover:text-gray-900 px-2 py-1 rounded hover:bg-gray-100"
         >
-          Expand All
+          {t('businessUnits.expandAll')}
         </button>
         <span className="text-gray-300">|</span>
         <button
           onClick={collapseAll}
           className="text-sm text-gray-600 hover:text-gray-900 px-2 py-1 rounded hover:bg-gray-100"
         >
-          Collapse All
+          {t('businessUnits.collapseAll')}
         </button>
       </div>
 
@@ -432,8 +435,8 @@ export default function BusinessUnitsPage() {
         {!treeData || treeData.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <BuildingOfficeIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">No business units yet</p>
-            <p className="mt-1">Create your first business unit to get started.</p>
+            <p className="text-lg font-medium">{t('businessUnits.noUnits')}</p>
+            <p className="mt-1">{t('businessUnits.noUnitsHint')}</p>
           </div>
         ) : (
           <div className="space-y-1">
@@ -458,64 +461,64 @@ export default function BusinessUnitsPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b">
               <h2 className="text-xl font-semibold">
-                {editingId ? 'Edit Business Unit' : 'Create Business Unit'}
+                {editingId ? t('businessUnits.editUnit') : t('businessUnits.createUnit')}
               </h2>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name *
+                  {t('businessUnits.name')} *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="e.g., Sales Department"
+                  placeholder={t('businessUnits.namePlaceholder')}
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Code *
+                  {t('businessUnits.code')} *
                 </label>
                 <input
                   type="text"
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 uppercase"
-                  placeholder="e.g., SALES"
+                  placeholder={t('businessUnits.codePlaceholder')}
                   maxLength={20}
                   required
                 />
-                <p className="mt-1 text-xs text-gray-500">Unique identifier code (max 20 chars)</p>
+                <p className="mt-1 text-xs text-gray-500">{t('businessUnits.codeHint')}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
+                  {t('businessUnits.description')}
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Optional description..."
+                  placeholder={t('businessUnits.descriptionPlaceholder')}
                   rows={2}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Parent Unit
+                  {t('businessUnits.parentUnit')}
                 </label>
                 <select
                   value={formData.parent_id}
                   onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
-                  <option value="">None (Top Level)</option>
+                  <option value="">{t('businessUnits.noneTopLevel')}</option>
                   {listData?.items
                     .filter((bu) => bu.id !== editingId)
                     .map((bu) => (
@@ -531,7 +534,7 @@ export default function BusinessUnitsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   <span className="flex items-center gap-1.5">
                     <SwatchIcon className="w-4 h-4 text-violet-500" />
-                    Industry Profile
+                    {t('businessUnits.industryProfile')}
                   </span>
                 </label>
                 <select
@@ -539,7 +542,7 @@ export default function BusinessUnitsPage() {
                   onChange={(e) => setFormData({ ...formData, industry_profile_id: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
-                  <option value="">Inherit from Tenant (default)</option>
+                  <option value="">{t('businessUnits.inheritFromTenant')}</option>
                   {profiles?.map((profile: { id: string; name: string; slug: string }) => (
                     <option key={profile.id} value={profile.id}>
                       {profile.name}
@@ -547,7 +550,7 @@ export default function BusinessUnitsPage() {
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-gray-500">
-                  Override the tenant's default profile for this BU. Contracts in this BU will use this profile for taxonomy and extraction.
+                  {t('businessUnits.profileHint')}
                 </p>
               </div>
 
@@ -561,7 +564,7 @@ export default function BusinessUnitsPage() {
                     className="rounded text-primary-600 focus:ring-primary-500"
                   />
                   <label htmlFor="is_active" className="text-sm text-gray-700">
-                    Active
+                    {t('status.active')}
                   </label>
                 </div>
               )}
@@ -572,7 +575,7 @@ export default function BusinessUnitsPage() {
                   onClick={closeModal}
                   className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -580,10 +583,10 @@ export default function BusinessUnitsPage() {
                   className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
                 >
                   {createMutation.isPending || updateMutation.isPending
-                    ? 'Saving...'
+                    ? t('businessUnits.saving')
                     : editingId
-                    ? 'Update'
-                    : 'Create'}
+                    ? t('businessUnits.update')
+                    : t('businessUnits.create')}
                 </button>
               </div>
             </form>

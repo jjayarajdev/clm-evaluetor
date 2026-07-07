@@ -6,6 +6,7 @@ import {
   MagnifyingGlassIcon,
   TagIcon,
 } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn } from '@/lib/utils'
 
@@ -56,7 +57,11 @@ interface Props {
 }
 
 export default function DefinitionsSummary({ contractId }: Props) {
+  const { t } = useTranslation()
   const [searchTerm, setSearchTerm] = useState('')
+
+  const categoryLabel = (category: string) =>
+    t(`summaries.definitionCategories.${category}`, { defaultValue: CATEGORY_LABELS[category] || category })
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -88,7 +93,7 @@ export default function DefinitionsSummary({ contractId }: Props) {
         <div className="card-body text-center py-8">
           <BookOpenIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500">
-            No definitions extracted yet. Run analysis to extract defined terms.
+            {t('summaries.noDefinitions')}
           </p>
         </div>
       </div>
@@ -115,11 +120,11 @@ export default function DefinitionsSummary({ contractId }: Props) {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <BookOpenIcon className="h-6 w-6 text-primary-600" />
-              Contract Definitions ({data.total})
+              {t('summaries.contractDefinitions', { count: data.total })}
             </h3>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            Defined terms from the contract's Definitions section
+            {t('summaries.definitionsSubtitle')}
           </p>
         </div>
 
@@ -130,7 +135,7 @@ export default function DefinitionsSummary({ contractId }: Props) {
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search definitions..."
+                placeholder={t('summaries.searchDefinitions')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -149,7 +154,7 @@ export default function DefinitionsSummary({ contractId }: Props) {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               )}
             >
-              All ({data.total})
+              {t('summaries.allCount', { count: data.total })}
             </button>
             {Object.entries(data.by_category).map(([category, count]) => {
               const colors = CATEGORY_COLORS[category] || CATEGORY_COLORS.uncategorized
@@ -167,7 +172,7 @@ export default function DefinitionsSummary({ contractId }: Props) {
                   )}
                 >
                   <TagIcon className="h-3 w-3" />
-                  {CATEGORY_LABELS[category] || category} ({count})
+                  {categoryLabel(category)} ({count})
                 </button>
               )
             })}
@@ -202,7 +207,7 @@ export default function DefinitionsSummary({ contractId }: Props) {
                               "text-xs px-2 py-0.5 rounded-full",
                               colors.bg, colors.text
                             )}>
-                              {CATEGORY_LABELS[def.category] || def.category}
+                              {categoryLabel(def.category)}
                             </span>
                           )}
                         </div>
@@ -224,16 +229,16 @@ export default function DefinitionsSummary({ contractId }: Props) {
 
                       <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
                         {def.section_reference && (
-                          <span>Section {def.section_reference}</span>
+                          <span>{t('summaries.section', { number: def.section_reference })}</span>
                         )}
                         {def.page_number && (
-                          <span>Page {def.page_number}</span>
+                          <span>{t('summaries.page', { number: def.page_number })}</span>
                         )}
                       </div>
 
                       {def.cross_references.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-gray-200">
-                          <p className="text-xs text-gray-500 mb-1">References:</p>
+                          <p className="text-xs text-gray-500 mb-1">{t('summaries.references')}:</p>
                           <div className="flex flex-wrap gap-1">
                             {def.cross_references.map((ref, i) => (
                               <span
@@ -255,7 +260,7 @@ export default function DefinitionsSummary({ contractId }: Props) {
 
           {filteredDefinitions.length === 0 && (
             <p className="text-center text-sm text-gray-500 py-8">
-              No definitions match your search.
+              {t('summaries.noDefinitionsMatch')}
             </p>
           )}
         </div>

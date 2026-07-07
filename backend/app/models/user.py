@@ -54,6 +54,12 @@ class User(Base, UUIDMixin, TimestampMixin):
         nullable=False,
         default=True,
     )
+    preferred_language: Mapped[str] = mapped_column(
+        String(5),
+        nullable=False,
+        default="en",
+        server_default="en",
+    )
 
     # Tenant association (nullable for super_admin who can access all)
     tenant_id: Mapped[uuid.UUID | None] = mapped_column(

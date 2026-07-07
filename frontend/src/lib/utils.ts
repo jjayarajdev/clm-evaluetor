@@ -1,13 +1,18 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import i18n from '@/i18n'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+function currentLocale(): string {
+  return i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US'
+}
+
 export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return '-'
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString(currentLocale(), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -16,7 +21,7 @@ export function formatDate(dateString: string | null | undefined): string {
 
 export function formatDateTime(dateString: string | null | undefined): string {
   if (!dateString) return '-'
-  return new Date(dateString).toLocaleString('en-US', {
+  return new Date(dateString).toLocaleString(currentLocale(), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -27,7 +32,7 @@ export function formatDateTime(dateString: string | null | undefined): string {
 
 export function formatCurrency(value: number | null | undefined, currency = 'USD'): string {
   if (value == null) return '-'
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat(currentLocale(), {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,
@@ -37,7 +42,7 @@ export function formatCurrency(value: number | null | undefined, currency = 'USD
 
 export function formatNumber(value: number | null | undefined): string {
   if (value == null) return '-'
-  return new Intl.NumberFormat('en-US').format(value)
+  return new Intl.NumberFormat(currentLocale()).format(value)
 }
 
 export function formatFileSize(bytes: number | null | undefined): string {

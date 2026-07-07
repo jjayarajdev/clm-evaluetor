@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useProcessingStatus, type ProcessingStage, type StageInfo } from '../../hooks/useProcessingStatus'
 import {
   CheckCircleIcon,
@@ -26,20 +27,24 @@ interface ProcessingStatusIndicatorProps {
 }
 
 // Group stages into logical phases for cleaner display
-const STAGE_GROUPS: { label: string; stages: string[] }[] = [
+const STAGE_GROUPS: { id: string; label: string; stages: string[] }[] = [
   {
+    id: 'documentIngestion',
     label: 'Document Ingestion',
     stages: ['queued', 'parsing', 'chunking', 'classifying'],
   },
   {
+    id: 'metadataRisk',
     label: 'Metadata & Risk',
     stages: ['metadata', 'custom_fields', 'risk', 'knowledge_graph'],
   },
   {
+    id: 'deepAnalysis',
     label: 'Deep Analysis',
     stages: ['clause_extraction', 'obligation_detection', 'sla_extraction', 'renewal_analysis'],
   },
   {
+    id: 'intelligence',
     label: 'Intelligence',
     stages: ['schema_extraction', 'link_detection', 'compliance_check', 'governance_bridge'],
   },
@@ -89,6 +94,7 @@ export function ProcessingStatusIndicator({
   className = '',
   compact = false,
 }: ProcessingStatusIndicatorProps) {
+  const { t } = useTranslation()
   const { progress, connect } = useProcessingStatus({
     onComplete: () => onComplete?.(),
     onError: (err) => onError?.(err),
@@ -138,7 +144,7 @@ export function ProcessingStatusIndicator({
               isFailed ? 'text-red-800' : isCompleted ? 'text-green-800' : 'text-gray-900'
             )}
           >
-            {progress.stage_description || 'Processing...'}
+            {progress.stage_description || t('processingStatus.processing')}
           </span>
         </div>
         <span
@@ -189,9 +195,9 @@ export function ProcessingStatusIndicator({
             if (groupStages.length === 0) return null
 
             return (
-              <div key={group.label}>
+              <div key={group.id}>
                 <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-1">
-                  {group.label}
+                  {t(`processingStatus.groups.${group.id}`, { defaultValue: group.label })}
                 </p>
                 <div className="grid grid-cols-4 gap-1">
                   {groupStages.map((stageId) => {
@@ -209,7 +215,9 @@ export function ProcessingStatusIndicator({
                         )}
                       >
                         <StageIcon status={status} />
-                        <span className="truncate">{stage?.label || stageId}</span>
+                        <span className="truncate">
+                          {t([`contract.stages.${stageId}`, `processingStatus.stages.${stageId}`], { defaultValue: stage?.label || stageId })}
+                        </span>
                       </div>
                     )
                   })}

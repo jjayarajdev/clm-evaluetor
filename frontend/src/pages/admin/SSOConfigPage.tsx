@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   CheckCircleIcon,
@@ -127,6 +128,7 @@ const ssoApi = {
 // ── Provider-specific help ────────────────────────────────────────────
 
 function ProviderHelp({ provider }: { provider: string }) {
+  const { t } = useTranslation()
   const hints: Record<string, { issuer: string; note: string }> = {
     azure_ad: {
       issuer: 'https://login.microsoftonline.com/{tenant-id}/v2.0',
@@ -150,12 +152,13 @@ function ProviderHelp({ provider }: { provider: string }) {
     },
   }
   const h = hints[provider] || hints.generic
+  const helpKey = provider in hints ? provider : 'generic'
 
   return (
     <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm">
-      <p className="font-medium text-blue-800 mb-1">Setup Guide</p>
-      <p className="text-blue-700 mb-2">{h.note}</p>
-      <p className="text-blue-600 text-xs font-mono">Example issuer: {h.issuer}</p>
+      <p className="font-medium text-blue-800 mb-1">{t('ssoConfig.setupGuide')}</p>
+      <p className="text-blue-700 mb-2">{t(`ssoConfig.help.${helpKey}`, { defaultValue: h.note })}</p>
+      <p className="text-blue-600 text-xs font-mono">{t('ssoConfig.exampleIssuer')} {h.issuer}</p>
     </div>
   )
 }
@@ -163,6 +166,7 @@ function ProviderHelp({ provider }: { provider: string }) {
 // ── Main Component ────────────────────────────────────────────────────
 
 export default function SSOConfigPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing] = useState(false)
   const [form, setForm] = useState<SSOConfigForm>(emptyForm)
@@ -242,16 +246,16 @@ export default function SSOConfigPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">SSO Configuration</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('ssoConfig.title')}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Configure Single Sign-On with your identity provider (OIDC)
+            {t('ssoConfig.subtitle')}
           </p>
         </div>
         {config && !isEditing && (
           <div className="flex items-center gap-3">
             <span className={cn('inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium', health.color)}>
               <HealthIcon className="h-4 w-4" />
-              {health.label}
+              {t(`ssoConfig.health.${config?.health_status || 'unknown'}`, { defaultValue: health.label })}
             </span>
           </div>
         )}
@@ -276,18 +280,18 @@ export default function SSOConfigPage() {
             <div className="flex gap-2">
               <button onClick={() => testMutation.mutate()} disabled={testMutation.isPending} className="btn-secondary text-sm">
                 {testMutation.isPending ? <LoadingSpinner size="sm" /> : <ArrowPathIcon className="h-4 w-4" />}
-                Test Connection
+                {t('ssoConfig.testConnection')}
               </button>
               <button onClick={startEditing} className="btn-secondary text-sm">
-                Edit
+                {t('common.edit')}
               </button>
               <button
                 onClick={() => {
-                  if (confirm('Disable SSO for this tenant?')) deleteMutation.mutate()
+                  if (confirm(t('ssoConfig.confirmDisable'))) deleteMutation.mutate()
                 }}
                 className="btn-secondary text-sm text-red-600 hover:text-red-700"
               >
-                Disable
+                {t('ssoConfig.disable')}
               </button>
             </div>
           </div>
@@ -297,7 +301,7 @@ export default function SSOConfigPage() {
             <div className={cn('rounded-lg p-4 text-sm', testResult.healthy ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800')}>
               <div className="flex items-center gap-2">
                 {testResult.healthy ? <CheckCircleIcon className="h-5 w-5" /> : <XCircleIcon className="h-5 w-5" />}
-                <span className="font-medium">{testResult.healthy ? 'Connection Successful' : 'Connection Failed'}</span>
+                <span className="font-medium">{testResult.healthy ? t('ssoConfig.connectionSuccessful') : t('ssoConfig.connectionFailed')}</span>
               </div>
               <p className="mt-1 ml-7">{testResult.message}</p>
             </div>
@@ -306,38 +310,38 @@ export default function SSOConfigPage() {
           {/* Config details */}
           <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
             <div>
-              <p className="text-gray-500">Issuer URL</p>
+              <p className="text-gray-500">{t('ssoConfig.issuerUrl')}</p>
               <p className="font-mono text-gray-900 truncate">{config.issuer_url}</p>
             </div>
             <div>
-              <p className="text-gray-500">Client ID</p>
+              <p className="text-gray-500">{t('ssoConfig.clientId')}</p>
               <p className="font-mono text-gray-900 truncate">{config.client_id}</p>
             </div>
             <div>
-              <p className="text-gray-500">Scopes</p>
+              <p className="text-gray-500">{t('ssoConfig.scopes')}</p>
               <p className="text-gray-900">{config.scopes.join(', ')}</p>
             </div>
             <div>
-              <p className="text-gray-500">Default Role</p>
-              <p className="text-gray-900 capitalize">{config.default_role}</p>
+              <p className="text-gray-500">{t('ssoConfig.defaultRole')}</p>
+              <p className="text-gray-900 capitalize">{t(`roles.${config.default_role}`, { defaultValue: config.default_role })}</p>
             </div>
             <div>
-              <p className="text-gray-500">Auto-Provision Users</p>
-              <p className="text-gray-900">{config.auto_provision ? 'Enabled' : 'Disabled'}</p>
+              <p className="text-gray-500">{t('ssoConfig.autoProvisionUsers')}</p>
+              <p className="text-gray-900">{config.auto_provision ? t('ssoConfig.enabled') : t('ssoConfig.disabled')}</p>
             </div>
             <div>
-              <p className="text-gray-500">Last Health Check</p>
-              <p className="text-gray-900">{config.last_health_check ? formatDateTime(config.last_health_check) : 'Never'}</p>
+              <p className="text-gray-500">{t('ssoConfig.lastHealthCheck')}</p>
+              <p className="text-gray-900">{config.last_health_check ? formatDateTime(config.last_health_check) : t('ssoConfig.never')}</p>
             </div>
             {config.role_mapping && Object.keys(config.role_mapping).length > 0 && (
               <div className="col-span-2">
-                <p className="text-gray-500 mb-2">Role Mapping</p>
+                <p className="text-gray-500 mb-2">{t('ssoConfig.roleMapping')}</p>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(config.role_mapping).map(([group, role]) => (
                     <span key={group} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs">
                       <span className="font-medium">{group}</span>
                       <span className="text-gray-400">&rarr;</span>
-                      <span className="capitalize">{role}</span>
+                      <span className="capitalize">{t(`roles.${role}`, { defaultValue: role })}</span>
                     </span>
                   ))}
                 </div>
@@ -349,7 +353,7 @@ export default function SSOConfigPage() {
           {config.tenant_slug && (
             <div className="pt-4 border-t border-gray-200">
               <p className="text-xs text-gray-500">
-                SSO Login URL: <span className="font-mono text-gray-700">{window.location.origin}/login?sso={config.tenant_slug}</span>
+                {t('ssoConfig.ssoLoginUrl')} <span className="font-mono text-gray-700">{window.location.origin}/login?sso={config.tenant_slug}</span>
               </p>
             </div>
           )}
@@ -360,12 +364,12 @@ export default function SSOConfigPage() {
       {!config && !isEditing && (
         <div className="card p-12 text-center">
           <ShieldCheckIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">SSO Not Configured</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('ssoConfig.notConfigured')}</h3>
           <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-            Set up Single Sign-On to allow users to authenticate with your organization's identity provider (Azure AD, Okta, Google, etc.)
+            {t('ssoConfig.notConfiguredHint')}
           </p>
           <button onClick={startEditing} className="btn-primary">
-            Configure SSO
+            {t('ssoConfig.configureSso')}
           </button>
         </div>
       )}
@@ -375,19 +379,19 @@ export default function SSOConfigPage() {
         <form onSubmit={handleSubmit} className="card p-6 space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">
-              {config ? 'Edit SSO Configuration' : 'Set Up SSO'}
+              {config ? t('ssoConfig.editConfiguration') : t('ssoConfig.setUpSso')}
             </h3>
           </div>
 
           {saveMutation.isError && (
             <div className="rounded-lg bg-red-50 p-4 text-sm text-red-800">
-              {saveMutation.error instanceof Error ? saveMutation.error.message : 'Failed to save configuration'}
+              {saveMutation.error instanceof Error ? saveMutation.error.message : t('ssoConfig.failedToSave')}
             </div>
           )}
 
           {/* Provider */}
           <div>
-            <label className="label">Identity Provider</label>
+            <label className="label">{t('ssoConfig.identityProvider')}</label>
             <select
               className="input"
               value={form.provider}
@@ -405,19 +409,19 @@ export default function SSOConfigPage() {
 
           {/* Name */}
           <div>
-            <label className="label">Display Name</label>
+            <label className="label">{t('ssoConfig.displayName')}</label>
             <input
               className="input"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g., Corporate SSO"
+              placeholder={t('ssoConfig.displayNamePlaceholder')}
             />
           </div>
 
           {/* OIDC Settings */}
           <div className="grid grid-cols-1 gap-4">
             <div>
-              <label className="label">Issuer URL</label>
+              <label className="label">{t('ssoConfig.issuerUrl')}</label>
               <input
                 className="input font-mono text-sm"
                 value={form.issuer_url}
@@ -426,30 +430,30 @@ export default function SSOConfigPage() {
                 required
               />
               <p className="mt-1 text-xs text-gray-400">
-                The OIDC discovery URL (.well-known/openid-configuration) will be appended automatically
+                {t('ssoConfig.discoveryHint')}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="label">Client ID</label>
+                <label className="label">{t('ssoConfig.clientId')}</label>
                 <input
                   className="input font-mono text-sm"
                   value={form.client_id}
                   onChange={(e) => setForm({ ...form, client_id: e.target.value })}
-                  placeholder="Application (client) ID"
+                  placeholder={t('ssoConfig.clientIdPlaceholder')}
                   required
                 />
               </div>
               <div>
-                <label className="label">Client Secret</label>
+                <label className="label">{t('ssoConfig.clientSecret')}</label>
                 <div className="relative">
                   <input
                     className="input font-mono text-sm pr-10"
                     type={showSecret ? 'text' : 'password'}
                     value={form.client_secret}
                     onChange={(e) => setForm({ ...form, client_secret: e.target.value })}
-                    placeholder={config ? '(unchanged if empty)' : 'Client secret value'}
+                    placeholder={config ? t('ssoConfig.secretUnchangedPlaceholder') : t('ssoConfig.secretValuePlaceholder')}
                     required={!config}
                   />
                   <button
@@ -464,20 +468,20 @@ export default function SSOConfigPage() {
             </div>
 
             <div>
-              <label className="label">Scopes</label>
+              <label className="label">{t('ssoConfig.scopes')}</label>
               <input
                 className="input text-sm"
                 value={form.scopes}
                 onChange={(e) => setForm({ ...form, scopes: e.target.value })}
                 placeholder="openid email profile"
               />
-              <p className="mt-1 text-xs text-gray-400">Space-separated list of OIDC scopes</p>
+              <p className="mt-1 text-xs text-gray-400">{t('ssoConfig.scopesHint')}</p>
             </div>
           </div>
 
           {/* User Provisioning */}
           <div className="pt-4 border-t border-gray-200">
-            <h4 className="font-medium text-gray-900 mb-4">User Provisioning</h4>
+            <h4 className="font-medium text-gray-900 mb-4">{t('ssoConfig.userProvisioning')}</h4>
 
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -489,12 +493,12 @@ export default function SSOConfigPage() {
                   className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
                 <label htmlFor="auto_provision" className="text-sm text-gray-700">
-                  Auto-create users on first SSO login
+                  {t('ssoConfig.autoCreateUsers')}
                 </label>
               </div>
 
               <div>
-                <label className="label">Default Role for New Users</label>
+                <label className="label">{t('ssoConfig.defaultRoleForNewUsers')}</label>
                 <select
                   className="input"
                   value={form.default_role}
@@ -502,7 +506,7 @@ export default function SSOConfigPage() {
                 >
                   {ROLES.map((r) => (
                     <option key={r.value} value={r.value}>
-                      {r.label}
+                      {t(`roles.${r.value}`, { defaultValue: r.label })}
                     </option>
                   ))}
                 </select>
@@ -510,29 +514,29 @@ export default function SSOConfigPage() {
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="label mb-0">Role Mapping</label>
+                  <label className="label mb-0">{t('ssoConfig.roleMapping')}</label>
                   <button
                     type="button"
                     onClick={() => setForm({ ...form, role_mappings: [...form.role_mappings, { idp_group: '', app_role: 'legal' }] })}
                     className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
                   >
                     <PlusIcon className="h-3.5 w-3.5" />
-                    Add Mapping
+                    {t('ssoConfig.addMapping')}
                   </button>
                 </div>
                 <p className="text-xs text-gray-400 mb-3">
-                  Map identity provider groups to application roles. Users in matched groups get the mapped role instead of the default.
+                  {t('ssoConfig.roleMappingHint')}
                 </p>
                 {form.role_mappings.length === 0 ? (
                   <div className="text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                    <p className="text-xs text-gray-500">No mappings — all SSO users will get the default role</p>
+                    <p className="text-xs text-gray-500">{t('ssoConfig.noMappings')}</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-center text-xs font-medium text-gray-500 px-1">
-                      <span>IdP Group Name</span>
+                      <span>{t('ssoConfig.idpGroupName')}</span>
                       <span></span>
-                      <span>App Role</span>
+                      <span>{t('ssoConfig.appRole')}</span>
                       <span></span>
                     </div>
                     {form.role_mappings.map((mapping, idx) => (
@@ -545,7 +549,7 @@ export default function SSOConfigPage() {
                             updated[idx] = { ...updated[idx], idp_group: e.target.value }
                             setForm({ ...form, role_mappings: updated })
                           }}
-                          placeholder="e.g., ContractAdmins"
+                          placeholder={t('ssoConfig.idpGroupPlaceholder')}
                         />
                         <span className="text-gray-400 text-sm px-1">&rarr;</span>
                         <select
@@ -557,7 +561,7 @@ export default function SSOConfigPage() {
                             setForm({ ...form, role_mappings: updated })
                           }}
                         >
-                          {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                          {ROLES.map((r) => <option key={r.value} value={r.value}>{t(`roles.${r.value}`, { defaultValue: r.label })}</option>)}
                         </select>
                         <button
                           type="button"
@@ -577,18 +581,18 @@ export default function SSOConfigPage() {
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
             <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary">
-              Cancel
+              {t('common.cancel')}
             </button>
             <button type="submit" disabled={saveMutation.isPending} className="btn-primary">
               {saveMutation.isPending ? (
                 <span className="flex items-center gap-2">
                   <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                  Saving...
+                  {t('ssoConfig.saving')}
                 </span>
               ) : config ? (
-                'Update Configuration'
+                t('ssoConfig.updateConfiguration')
               ) : (
-                'Enable SSO'
+                t('ssoConfig.enableSso')
               )}
             </button>
           </div>

@@ -4,6 +4,7 @@
  */
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   DocumentTextIcon,
   ExclamationTriangleIcon,
@@ -167,6 +168,7 @@ const WIDGET_ICON_MAP: Record<string, React.ElementType> = {
 
 export default function ModernDashboardPage() {
   const { user } = useAuth()
+  const { t } = useTranslation()
   const { config } = useTenantConfig()
   const userRole = (user?.role || 'viewer') as RoleType
 
@@ -227,31 +229,31 @@ export default function ModernDashboardPage() {
       badgeColor?: 'red' | 'amber' | 'blue'
     }>> = {
       legal: [
-        { label: 'High Risk', description: 'Review contracts', href: '/contracts?risk=high', icon: ExclamationTriangleIcon, badge: highRiskCount || undefined, badgeColor: 'red' },
-        { label: 'Pending Review', description: 'Awaiting approval', href: '/contracts?status=pending', icon: ClockIcon, badge: pendingCount || undefined, badgeColor: 'amber' },
-        { label: 'Ask AI', description: 'Query contracts', href: '/query', icon: SparklesIcon },
+        { label: t('dashboard.actions.highRisk'), description: t('dashboard.actions.highRiskDesc'), href: '/contracts?risk=high', icon: ExclamationTriangleIcon, badge: highRiskCount || undefined, badgeColor: 'red' },
+        { label: t('dashboard.actions.pendingReview'), description: t('dashboard.actions.pendingReviewDesc'), href: '/contracts?status=pending', icon: ClockIcon, badge: pendingCount || undefined, badgeColor: 'amber' },
+        { label: t('dashboard.actions.askAi'), description: t('dashboard.actions.askAiDesc'), href: '/query', icon: SparklesIcon },
       ],
       procurement: [
-        { label: 'Expiring Soon', description: 'Next 30 days', href: '/renewals?window=30', icon: ClockIcon, badge: expiringCount || undefined, badgeColor: 'amber' },
-        { label: 'Vendors', description: 'Performance scores', href: '/vendors', icon: ChartBarIcon },
-        { label: 'New Contract', description: 'Upload & analyze', href: '/upload', icon: SparklesIcon },
+        { label: t('dashboard.actions.expiringSoon'), description: t('dashboard.actions.expiringSoonDesc'), href: '/renewals?window=30', icon: ClockIcon, badge: expiringCount || undefined, badgeColor: 'amber' },
+        { label: t('dashboard.actions.vendors'), description: t('dashboard.actions.vendorsDesc'), href: '/vendors', icon: ChartBarIcon },
+        { label: t('dashboard.actions.newContract'), description: t('dashboard.actions.newContractDesc'), href: '/upload', icon: SparklesIcon },
       ],
       admin: [
-        { label: 'SLA Breaches', description: 'Escalate immediately', href: '/compliance', icon: ExclamationTriangleIcon, badge: slaBreaches || undefined, badgeColor: 'red' },
-        { label: 'Overdue', description: 'Obligations past due', href: '/compliance', icon: BellAlertIcon, badge: overdueCount || undefined, badgeColor: 'amber' },
-        { label: 'Renewals', description: 'Expiring soon', href: '/renewals', icon: ClockIcon, badge: expiringCount || undefined, badgeColor: 'amber' },
-        { label: 'System Health', description: 'Monitor services', href: '/admin/scheduler', icon: ChartBarIcon },
-        { label: 'Settings', description: 'Manage access', href: '/settings', icon: Cog6ToothIcon },
+        { label: t('dashboard.actions.slaBreaches'), description: t('dashboard.actions.slaBreachesDesc'), href: '/compliance', icon: ExclamationTriangleIcon, badge: slaBreaches || undefined, badgeColor: 'red' },
+        { label: t('dashboard.actions.overdue'), description: t('dashboard.actions.overdueDesc'), href: '/compliance', icon: BellAlertIcon, badge: overdueCount || undefined, badgeColor: 'amber' },
+        { label: t('dashboard.actions.renewals'), description: t('dashboard.actions.renewalsDesc'), href: '/renewals', icon: ClockIcon, badge: expiringCount || undefined, badgeColor: 'amber' },
+        { label: t('dashboard.actions.systemHealth'), description: t('dashboard.actions.systemHealthDesc'), href: '/admin/scheduler', icon: ChartBarIcon },
+        { label: t('dashboard.actions.settings'), description: t('dashboard.actions.settingsDesc'), href: '/settings', icon: Cog6ToothIcon },
       ],
       bu_head: [
-        { label: 'My Contracts', description: 'Business unit contracts', href: '/contracts', icon: DocumentTextIcon },
-        { label: 'Expiring Soon', description: 'Next 30 days', href: '/renewals?window=30', icon: ClockIcon, badge: expiringCount || undefined, badgeColor: 'amber' },
-        { label: 'Reports', description: 'Unit analytics', href: '/reports', icon: ChartBarIcon },
+        { label: t('dashboard.actions.myContracts'), description: t('dashboard.actions.myContractsDesc'), href: '/contracts', icon: DocumentTextIcon },
+        { label: t('dashboard.actions.expiringSoon'), description: t('dashboard.actions.expiringSoonDesc'), href: '/renewals?window=30', icon: ClockIcon, badge: expiringCount || undefined, badgeColor: 'amber' },
+        { label: t('dashboard.actions.reports'), description: t('dashboard.actions.reportsDesc'), href: '/reports', icon: ChartBarIcon },
       ],
       viewer: [
-        { label: 'Browse', description: 'All contracts', href: '/contracts', icon: ChartBarIcon },
-        { label: 'Ask AI', description: 'Query contracts', href: '/query', icon: SparklesIcon },
-        { label: 'Reports', description: 'View analytics', href: '/reports', icon: ChartBarIcon },
+        { label: t('dashboard.actions.browse'), description: t('dashboard.actions.browseDesc'), href: '/contracts', icon: ChartBarIcon },
+        { label: t('dashboard.actions.askAi'), description: t('dashboard.actions.askAiDesc'), href: '/query', icon: SparklesIcon },
+        { label: t('dashboard.actions.reports'), description: t('dashboard.actions.viewAnalyticsDesc'), href: '/reports', icon: ChartBarIcon },
       ],
     }
 
@@ -284,7 +286,7 @@ export default function ModernDashboardPage() {
             color: 'primary',
             trend: (trendData?.total_contracts?.length ?? 0) >= 2 ? {
               value: Math.round(((trendData!.total_contracts![trendData!.total_contracts!.length - 1] - trendData!.total_contracts![0]) / Math.max(trendData!.total_contracts![0], 1)) * 100),
-              label: 'vs last week'
+              label: t('dashboard.vsLastWeek')
             } : undefined,
             chart: trendData?.total_contracts,
           },
@@ -294,7 +296,7 @@ export default function ModernDashboardPage() {
             color: 'danger',
             trend: (trendData?.contracts_at_risk?.length ?? 0) >= 2 ? {
               value: Math.round(((trendData!.contracts_at_risk![trendData!.contracts_at_risk!.length - 1] - trendData!.contracts_at_risk![0]) / Math.max(trendData!.contracts_at_risk![0], 1)) * 100),
-              label: 'vs last week'
+              label: t('dashboard.vsLastWeek')
             } : undefined,
             chart: trendData?.contracts_at_risk,
           },
@@ -302,10 +304,10 @@ export default function ModernDashboardPage() {
             value: `${(complianceData?.compliance?.overall_compliance_rate || 0).toFixed(1)}%`,
             icon: CheckCircleIcon,
             color: 'success',
-            info: 'Percentage of SLAs meeting or within warning threshold of their targets.',
+            info: t('dashboard.complianceInfo'),
             trend: (trendData?.compliance_rate?.length ?? 0) >= 2 ? {
               value: Math.round(trendData!.compliance_rate![trendData!.compliance_rate!.length - 1] - trendData!.compliance_rate![0]),
-              label: 'vs last week'
+              label: t('dashboard.vsLastWeek')
             } : undefined,
             chart: trendData?.compliance_rate,
           },
@@ -315,7 +317,7 @@ export default function ModernDashboardPage() {
             color: 'blue',
             trend: (trendData?.total_contract_value?.length ?? 0) >= 2 ? {
               value: Math.round(((trendData!.total_contract_value![trendData!.total_contract_value!.length - 1] - trendData!.total_contract_value![0]) / Math.max(trendData!.total_contract_value![0], 1)) * 100),
-              label: 'vs last week'
+              label: t('dashboard.vsLastWeek')
             } : undefined,
             chart: trendData?.total_contract_value,
           },
@@ -334,12 +336,12 @@ export default function ModernDashboardPage() {
         }
 
         const widgets = config?.ui?.dashboard_widgets || [
-          { key: 'total_contracts', label: 'Total Contracts', icon: 'document', color: 'primary' },
-          { key: 'at_risk', label: 'At Risk', icon: 'warning', color: 'danger' },
-          { key: 'compliance_rate', label: 'Compliance', icon: 'check', color: 'success' },
-          { key: 'total_value', label: 'Contract Value', icon: 'currency', color: 'blue' },
-          { key: 'obligation_rate', label: 'Obligations', icon: 'scale', color: 'warning' },
-          { key: 'sla_rate', label: 'SLA Performance', icon: 'chart', color: 'success' },
+          { key: 'total_contracts', label: t('dashboard.widgets.totalContracts'), icon: 'document', color: 'primary' },
+          { key: 'at_risk', label: t('dashboard.widgets.atRisk'), icon: 'warning', color: 'danger' },
+          { key: 'compliance_rate', label: t('dashboard.widgets.compliance'), icon: 'check', color: 'success' },
+          { key: 'total_value', label: t('dashboard.widgets.contractValue'), icon: 'currency', color: 'blue' },
+          { key: 'obligation_rate', label: t('dashboard.widgets.obligations'), icon: 'scale', color: 'warning' },
+          { key: 'sla_rate', label: t('dashboard.widgets.slaPerformance'), icon: 'chart', color: 'success' },
         ]
 
         const colClass = widgets.length <= 4 ? 'lg:grid-cols-4' : widgets.length <= 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-6'
@@ -378,7 +380,7 @@ export default function ModernDashboardPage() {
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                   <BellAlertIcon className="w-5 h-5 text-amber-500" />
-                  Priority Actions
+                  {t('dashboard.priorityActions')}
                 </h2>
                 <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full">
                   {complianceData.priority_actions.length}
@@ -424,7 +426,7 @@ export default function ModernDashboardPage() {
                 to="/compliance"
                 className="block px-5 py-3 text-center text-sm font-medium text-primary-600 hover:bg-primary-50 border-t border-gray-100"
               >
-                View All Actions
+                {t('dashboard.viewAllActions')}
               </Link>
             </div>
           )}
@@ -432,9 +434,9 @@ export default function ModernDashboardPage() {
           {/* Recent Contracts */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Recent Contracts</h2>
+              <h2 className="font-semibold text-gray-900">{t('dashboard.recentContracts')}</h2>
               <Link to="/contracts" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
-                View all
+                {t('dashboard.viewAll')}
               </Link>
             </div>
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -458,7 +460,7 @@ export default function ModernDashboardPage() {
           <div className="space-y-3">
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
               <SparklesIcon className="w-5 h-5 text-primary-500" />
-              AI Insights
+              {t('dashboard.aiInsights')}
             </h2>
             {insightsData?.insights?.map((insight, idx) => (
               <InsightCard
@@ -472,14 +474,14 @@ export default function ModernDashboardPage() {
             ))}
             {insightsError ? (
               <div className="p-4 rounded-lg bg-red-50 text-sm text-red-600">
-                Failed to load insights. Try refreshing the page.
+                {t('dashboard.insightsError')}
               </div>
             ) : !insightsData?.insights?.length && (
               <InsightCard
-                title="All Clear"
-                description="No critical issues detected. All contracts and obligations are on track."
+                title={t('dashboard.allClear')}
+                description={t('dashboard.allClearDesc')}
                 action="/contracts"
-                actionLabel="View contracts"
+                actionLabel={t('dashboard.viewContracts')}
                 variant="success"
               />
             )}
@@ -488,7 +490,7 @@ export default function ModernDashboardPage() {
           {/* Activity Feed */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">Recent Activity</h2>
+              <h2 className="font-semibold text-gray-900">{t('dashboard.recentActivity')}</h2>
             </div>
             <div className="px-5 divide-y divide-gray-50">
               {activityData?.activities?.slice(0, 5).map((activity, idx) => {
@@ -514,11 +516,11 @@ export default function ModernDashboardPage() {
               })}
               {activityError ? (
                 <div className="py-4 text-center text-sm text-red-500">
-                  Failed to load activity
+                  {t('dashboard.activityError')}
                 </div>
               ) : !activityData?.activities?.length && (
                 <div className="py-4 text-center text-sm text-gray-500">
-                  No recent activity
+                  {t('dashboard.noRecentActivity')}
                 </div>
               )}
             </div>
@@ -526,7 +528,7 @@ export default function ModernDashboardPage() {
               to="/compliance"
               className="block px-5 py-3 text-center text-sm font-medium text-primary-600 hover:bg-primary-50 border-t border-gray-100"
             >
-              View Compliance
+              {t('dashboard.viewCompliance')}
             </Link>
           </div>
 

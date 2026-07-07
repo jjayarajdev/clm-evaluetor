@@ -1,20 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useTranslation } from 'react-i18next'
 import { DocumentTextIcon, ExclamationCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
 import { client } from '@/lib/api/client'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
-const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
-  password: z.string().min(1, 'Password is required'),
-})
-
-type LoginForm = z.infer<typeof loginSchema>
+type LoginForm = { username: string; password: string }
 
 interface SSOProvider {
   tenant_slug: string
@@ -25,6 +21,15 @@ interface SSOProvider {
 
 export default function LoginPage() {
   const { user, login } = useAuth()
+  const { t } = useTranslation()
+  const loginSchema = useMemo(
+    () =>
+      z.object({
+        username: z.string().min(1, t('auth.usernameRequired')),
+        password: z.string().min(1, t('auth.passwordRequired')),
+      }),
+    [t]
+  )
   const [searchParams] = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -55,7 +60,7 @@ export default function LoginPage() {
       const r = await client.get(`/auth/sso/init?tenant_slug=${encodeURIComponent(tenantSlug)}`)
       window.location.href = r.data.redirect_url
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'SSO initialization failed'
+      const msg = err instanceof Error ? err.message : t('auth.ssoFailed')
       setError(msg)
       setSsoLoading(null)
     }
@@ -81,7 +86,7 @@ export default function LoginPage() {
     try {
       await login(data)
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Invalid credentials'
+      const errorMessage = err instanceof Error ? err.message : t('auth.invalidCredentials')
       setError(errorMessage)
     } finally {
       setIsSubmitting(false)
@@ -100,7 +105,7 @@ export default function LoginPage() {
             Evaluetor
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Sign in to access your contracts
+            {t('auth.subtitle')}
           </p>
         </div>
 
@@ -116,14 +121,14 @@ export default function LoginPage() {
           <div className="space-y-4">
             <div>
               <label htmlFor="username" className="label">
-                Username
+                {t('auth.username')}
               </label>
               <input
                 id="username"
                 type="text"
                 autoComplete="username"
                 className="input"
-                placeholder="Enter your username"
+                placeholder={t('auth.usernamePlaceholder')}
                 {...register('username')}
               />
               {errors.username && (
@@ -133,14 +138,14 @@ export default function LoginPage() {
 
             <div>
               <label htmlFor="password" className="label">
-                Password
+                {t('auth.password')}
               </label>
               <input
                 id="password"
                 type="password"
                 autoComplete="current-password"
                 className="input"
-                placeholder="Enter your password"
+                placeholder={t('auth.passwordPlaceholder')}
                 {...register('password')}
               />
               {errors.password && (
@@ -157,10 +162,10 @@ export default function LoginPage() {
             {isSubmitting ? (
               <div className="flex items-center justify-center gap-2">
                 <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                <span>Signing in...</span>
+                <span>{t('auth.signingIn')}</span>
               </div>
             ) : (
-              'Sign in'
+              t('auth.signIn')
             )}
           </button>
         </form>
@@ -173,7 +178,7 @@ export default function LoginPage() {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-gray-50 px-2 text-gray-500">or continue with</span>
+                <span className="bg-gray-50 px-2 text-gray-500">{t('auth.orContinueWith')}</span>
               </div>
             </div>
 
@@ -191,7 +196,7 @@ export default function LoginPage() {
                   ) : (
                     <ShieldCheckIcon className="h-5 w-5 text-primary-500" />
                   )}
-                  Sign in with {p.tenant_name} SSO
+                  {t('auth.signInWithSso', { tenant: p.tenant_name })}
                 </button>
               ))}
             </div>

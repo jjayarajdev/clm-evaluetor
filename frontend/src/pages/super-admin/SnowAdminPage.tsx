@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import {
   CheckCircleIcon,
   XCircleIcon,
@@ -22,6 +23,7 @@ const HEALTH_BADGE: Record<string, { color: string; icon: typeof CheckCircleIcon
 }
 
 export default function SnowAdminPage() {
+  const { t } = useTranslation()
   // Queries
   const { data: overview, isLoading: overviewLoading, error: overviewError } = useQuery({
     queryKey: ['snow-admin-overview'],
@@ -50,7 +52,7 @@ export default function SnowAdminPage() {
   if (overviewError) {
     return (
       <div className="rounded-lg bg-red-50 p-4 text-red-700">
-        Error loading integration data. Please try again.
+        {t('integrations.snowAdmin.loadError')}
       </div>
     )
   }
@@ -59,9 +61,9 @@ export default function SnowAdminPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">ServiceNow Integrations</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('integrations.snowAdmin.title')}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Manage ServiceNow connections across all tenants
+          {t('integrations.snowAdmin.subtitle')}
         </p>
       </div>
 
@@ -73,7 +75,7 @@ export default function SnowAdminPage() {
               <ServerIcon className="h-5 w-5 text-primary-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Configurations</p>
+              <p className="text-sm text-gray-500">{t('integrations.snowAdmin.totalConfigurations')}</p>
               <p className="text-xl font-bold text-gray-900">{totalConfigs}</p>
             </div>
           </div>
@@ -85,7 +87,7 @@ export default function SnowAdminPage() {
               <CheckCircleIcon className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Healthy</p>
+              <p className="text-sm text-gray-500">{t('integrations.health.healthy')}</p>
               <p className="text-xl font-bold text-gray-900">{healthyCount}</p>
             </div>
           </div>
@@ -97,7 +99,7 @@ export default function SnowAdminPage() {
               <XCircleIcon className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Unhealthy</p>
+              <p className="text-sm text-gray-500">{t('integrations.health.unhealthy')}</p>
               <p className="text-xl font-bold text-gray-900">{unhealthyCount}</p>
             </div>
           </div>
@@ -109,7 +111,7 @@ export default function SnowAdminPage() {
               <ArrowPathIcon className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Requests</p>
+              <p className="text-sm text-gray-500">{t('integrations.snowAdmin.totalRequests')}</p>
               <p className="text-xl font-bold text-gray-900">{totalSyncs}</p>
             </div>
           </div>
@@ -120,29 +122,29 @@ export default function SnowAdminPage() {
       <div className="card overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
           <CloudArrowUpIcon className="h-5 w-5 text-primary-600" />
-          <h3 className="text-sm font-medium text-gray-900">Tenant Configurations</h3>
+          <h3 className="text-sm font-medium text-gray-900">{t('integrations.snowAdmin.tenantConfigurations')}</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tenant
+                  {t('superadmin.tenant')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Instance URL
+                  {t('integrations.snow.instanceUrl')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('common.status')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Sync
+                  {t('integrations.snowAdmin.lastSync')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Mappings
+                  {t('integrations.snowAdmin.mappings')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Requests
+                  {t('integrations.snowAdmin.requests')}
                 </th>
               </tr>
             </thead>
@@ -164,7 +166,7 @@ export default function SnowAdminPage() {
                           {tenant.config.base_url}
                         </span>
                       ) : (
-                        <span className="text-sm text-gray-400 italic">Not configured</span>
+                        <span className="text-sm text-gray-400 italic">{t('integrations.snowAdmin.notConfigured')}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -174,11 +176,11 @@ export default function SnowAdminPage() {
                           badge.color
                         )}>
                           {BadgeIcon && <BadgeIcon className="h-3 w-3" />}
-                          {tenant.config.health_status}
+                          {t(`integrations.health.${tenant.config.health_status}`, { defaultValue: tenant.config.health_status })}
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
-                          No config
+                          {t('integrations.snowAdmin.noConfig')}
                         </span>
                       )}
                     </td>
@@ -201,7 +203,7 @@ export default function SnowAdminPage() {
                           <span className="text-gray-900">{tenant.config.total_requests}</span>
                           {tenant.config.failed_requests > 0 && (
                             <span className="text-red-600 ml-1">
-                              ({tenant.config.failed_requests} failed)
+                              ({t('integrations.snowAdmin.failedCount', { count: tenant.config.failed_requests })})
                             </span>
                           )}
                         </div>
@@ -217,7 +219,7 @@ export default function SnowAdminPage() {
         </div>
         {(!overview || overview.length === 0) && (
           <div className="text-center py-12 text-gray-500">
-            No tenant data available.
+            {t('integrations.snowAdmin.noTenantData')}
           </div>
         )}
       </div>
@@ -225,7 +227,7 @@ export default function SnowAdminPage() {
       {/* Recent Integration Logs */}
       <div className="card overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-sm font-medium text-gray-900">Recent Integration Logs</h3>
+          <h3 className="text-sm font-medium text-gray-900">{t('integrations.snowAdmin.recentLogs')}</h3>
         </div>
         {logsLoading ? (
           <div className="flex items-center justify-center h-32">
@@ -238,25 +240,25 @@ export default function SnowAdminPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Time
+                      {t('integrations.snowAdmin.time')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Operation
+                      {t('integrations.snowAdmin.operation')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Method
+                      {t('integrations.snowAdmin.method')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Endpoint
+                      {t('integrations.snowAdmin.endpoint')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
+                      {t('common.status')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Duration
+                      {t('integrations.snowAdmin.duration')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Error
+                      {t('integrations.snowAdmin.error')}
                     </th>
                   </tr>
                 </thead>
@@ -292,7 +294,7 @@ export default function SnowAdminPage() {
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
                             <XCircleIcon className="h-3 w-3" />
-                            {log.status_code || 'Error'}
+                            {log.status_code || t('integrations.snowAdmin.error')}
                           </span>
                         )}
                       </td>
@@ -309,7 +311,7 @@ export default function SnowAdminPage() {
             </div>
             {(!logs || logs.length === 0) && (
               <div className="text-center py-12 text-gray-500">
-                No integration logs available.
+                {t('integrations.snowAdmin.noLogs')}
               </div>
             )}
           </>

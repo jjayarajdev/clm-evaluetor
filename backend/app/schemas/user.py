@@ -28,6 +28,13 @@ class UserUpdate(BaseModel):
     role: Role | None = None
     is_active: bool | None = None
     business_unit_id: str | None = None
+    preferred_language: str | None = Field(None, pattern=r'^(en|fr)$')
+
+
+class UserPreferencesUpdate(BaseModel):
+    """Schema for a user updating their own preferences."""
+
+    preferred_language: str = Field(..., pattern=r'^(en|fr)$')
 
 
 class UserPasswordUpdate(BaseModel):
@@ -45,6 +52,7 @@ class UserResponse(BaseModel):
     full_name: str | None = None
     role: str
     is_active: bool
+    preferred_language: str = "en"
     tenant_id: str | None = None
     tenant_name: str | None = None
     business_unit_id: str | None = None

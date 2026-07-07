@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   PencilIcon,
@@ -37,6 +38,7 @@ function InlineEdit({
   onSave: (val: string | number | boolean | null) => void
   options?: { value: string; label: string }[]
 }) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [editValue, setEditValue] = useState(String(value ?? ''))
 
@@ -56,7 +58,7 @@ function InlineEdit({
   const displayValue = type === 'date' && value
     ? formatDate(String(value))
     : type === 'checkbox'
-    ? value ? 'Yes' : 'No'
+    ? value ? t('common.yes') : t('common.no')
     : type === 'number' && value
     ? String(value)
     : String(value || '-')
@@ -102,7 +104,7 @@ function InlineEdit({
               onChange={(e) => setEditValue(String(e.target.checked))}
               className="rounded"
             />
-            {editValue === 'true' ? 'Yes' : 'No'}
+            {editValue === 'true' ? t('common.yes') : t('common.no')}
           </label>
         ) : (
           <input
@@ -173,10 +175,11 @@ const RISK_COLORS: Record<string, string> = {
 }
 
 function RiskBadge({ level }: { level: string | null }) {
+  const { t } = useTranslation()
   if (!level) return null
   return (
     <span className={cn('px-1.5 py-0.5 rounded text-xs font-medium capitalize', RISK_COLORS[level] || 'bg-gray-100 text-gray-700')}>
-      {level}
+      {t(`risk.${level}`, { defaultValue: level })}
     </span>
   )
 }
@@ -230,6 +233,7 @@ const CONTRACT_TYPE_OPTIONS = [
 // ═══════════════════════════════════════════════════════════════════
 
 export default function ContractReviewPane({ contractId, contract }: ContractReviewPaneProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const canEdit = user?.role === 'admin' || user?.role === 'legal' || user?.role === 'super_admin'
@@ -370,14 +374,25 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900 capitalize">
-                  {intelligence.risk_summary?.risk_level || 'Unknown'} Risk
+                  {t('contract.riskLabel', {
+                    level: intelligence.risk_summary?.risk_level
+                      ? t(`risk.${intelligence.risk_summary.risk_level}`, { defaultValue: intelligence.risk_summary.risk_level })
+                      : t('reviewPane.unknown'),
+                  })}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {allClauses.length} clauses · {allObligations.length} obligations · {slas?.length || 0} SLAs
+                  {t('reviewPane.summaryCounts', {
+                    clauses: allClauses.length,
+                    obligations: allObligations.length,
+                    slas: slas?.length || 0,
+                  })}
                 </p>
                 {intelligence.extraction_status && (
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {intelligence.extraction_status.classified_clauses}/{intelligence.extraction_status.total_clauses} classified
+                    {t('reviewPane.classifiedCount', {
+                      classified: intelligence.extraction_status.classified_clauses,
+                      total: intelligence.extraction_status.total_clauses,
+                    })}
                   </p>
                 )}
               </div>
@@ -387,11 +402,13 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
             {intelligence.risk_summary?.high_risk_clauses?.length > 0 && (
               <div className="mt-3 space-y-1.5">
                 <p className="text-xs font-medium text-red-600">
-                  {intelligence.risk_summary.high_risk_clauses.length} High-Risk Clause{intelligence.risk_summary.high_risk_clauses.length > 1 ? 's' : ''}
+                  {t('reviewPane.highRiskClauses', { count: intelligence.risk_summary.high_risk_clauses.length })}
                 </p>
                 {intelligence.risk_summary.high_risk_clauses.map((c) => (
                   <div key={c.id} className="text-xs bg-red-50 border border-red-100 rounded p-2">
-                    <span className="font-medium text-red-700 capitalize">{c.clause_type.replace(/_/g, ' ')}</span>
+                    <span className="font-medium text-red-700 capitalize">
+                      {t([`clauses.${c.clause_type}`, `reviewPane.clauseTypes.${c.clause_type}`], { defaultValue: c.clause_type.replace(/_/g, ' ') })}
+                    </span>
                     <span className="text-gray-600 ml-1">— {c.excerpt}</span>
                   </div>
                 ))}
@@ -401,62 +418,65 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
         )}
 
         {/* Metadata Section */}
-        <Section title="Contract Details" defaultOpen={true}>
+        <Section title={t('contract.contractDetails')} defaultOpen={true}>
           <div className="px-4 py-3 grid grid-cols-2 gap-3">
             <InlineEdit
-              label="Counterparty"
+              label={t('reviewPane.counterparty')}
               value={contract.counterparty}
               onSave={(v) => canEdit && updateMeta.mutate({ counterparty: v })}
             />
             <InlineEdit
-              label="Contract Type"
+              label={t('contract.contractType')}
               value={contract.contract_type}
               type="select"
-              options={CONTRACT_TYPE_OPTIONS}
+              options={CONTRACT_TYPE_OPTIONS.map((o) => ({
+                ...o,
+                label: t(`reviewPane.contractTypes.${o.value}`, { defaultValue: o.label }),
+              }))}
               onSave={(v) => canEdit && updateMeta.mutate({ contract_type: v })}
             />
             <InlineEdit
-              label="Effective Date"
+              label={t('contract.effectiveDate')}
               value={contract.effective_date}
               type="date"
               onSave={(v) => canEdit && updateMeta.mutate({ effective_date: v })}
             />
             <InlineEdit
-              label="Expiration Date"
+              label={t('contract.expirationDate')}
               value={contract.expiration_date}
               type="date"
               onSave={(v) => canEdit && updateMeta.mutate({ expiration_date: v })}
             />
             <InlineEdit
-              label="Contract Value"
+              label={t('contract.contractValue')}
               value={contract.contract_value}
               type="number"
               onSave={(v) => canEdit && updateMeta.mutate({ contract_value: v })}
             />
             <InlineEdit
-              label="Currency"
+              label={t('reviewPane.currency')}
               value={contract.currency}
               onSave={(v) => canEdit && updateMeta.mutate({ currency: v })}
             />
             <InlineEdit
-              label="Jurisdiction"
+              label={t('contract.jurisdiction')}
               value={contract.jurisdiction}
               onSave={(v) => canEdit && updateMeta.mutate({ jurisdiction: v })}
             />
             <InlineEdit
-              label="Auto-Renewal"
+              label={t('contract.autoRenewal')}
               value={contract.auto_renewal}
               type="checkbox"
               onSave={(v) => canEdit && updateMeta.mutate({ auto_renewal: v })}
             />
             <InlineEdit
-              label="Notice Period (days)"
+              label={t('reviewPane.noticePeriodDays')}
               value={contract.notice_period_days}
               type="number"
               onSave={(v) => canEdit && updateMeta.mutate({ notice_period_days: v })}
             />
             <InlineEdit
-              label="Renewal Term (months)"
+              label={t('reviewPane.renewalTermMonths')}
               value={contract.renewal_term_months}
               type="number"
               onSave={(v) => canEdit && updateMeta.mutate({ renewal_term_months: v })}
@@ -465,11 +485,11 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
         </Section>
 
         {/* Clauses Section */}
-        <Section title="Clauses" count={allClauses.length} defaultOpen={true}>
+        <Section title={t('contract.clauses')} count={allClauses.length} defaultOpen={true}>
           {(intLoading || clausesLoading) ? (
             <div className="flex justify-center py-4"><LoadingSpinner size="sm" /></div>
           ) : allClauses.length === 0 ? (
-            <p className="text-sm text-gray-500 px-4 py-3">No clauses extracted</p>
+            <p className="text-sm text-gray-500 px-4 py-3">{t('reviewPane.noClauses')}</p>
           ) : (
             <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
               {allClauses.map((clause) => (
@@ -499,11 +519,11 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
         </Section>
 
         {/* Obligations Section */}
-        <Section title="Obligations" count={allObligations.length}>
+        <Section title={t('contract.obligations')} count={allObligations.length}>
           {intLoading ? (
             <div className="flex justify-center py-4"><LoadingSpinner size="sm" /></div>
           ) : allObligations.length === 0 ? (
-            <p className="text-sm text-gray-500 px-4 py-3">No obligations extracted</p>
+            <p className="text-sm text-gray-500 px-4 py-3">{t('reviewPane.noObligations')}</p>
           ) : (
             <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
               {allObligations.map((obl) => (
@@ -533,11 +553,11 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
         </Section>
 
         {/* SLAs Section */}
-        <Section title="SLAs" count={slas?.length || 0}>
+        <Section title={t('contract.slas')} count={slas?.length || 0}>
           {slaLoading ? (
             <div className="flex justify-center py-4"><LoadingSpinner size="sm" /></div>
           ) : !slas || slas.length === 0 ? (
-            <p className="text-sm text-gray-500 px-4 py-3">No SLAs extracted</p>
+            <p className="text-sm text-gray-500 px-4 py-3">{t('reviewPane.noSlas')}</p>
           ) : (
             <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
               {slas.map((sla: any) => (
@@ -606,6 +626,7 @@ function InlineComments({
   comments: ContractCommentItem[]
   onAddComment: (content: string) => void
 }) {
+  const { t } = useTranslation()
   const [showComments, setShowComments] = useState(false)
   const [newComment, setNewComment] = useState('')
 
@@ -627,7 +648,7 @@ function InlineComments({
         )}
       >
         <ChatBubbleLeftIcon className="h-3 w-3" />
-        {comments.length > 0 ? `${comments.length} comment${comments.length > 1 ? 's' : ''}` : 'Comment'}
+        {comments.length > 0 ? t('reviewPane.comments', { count: comments.length }) : t('reviewPane.comment')}
       </button>
 
       {showComments && (
@@ -635,9 +656,9 @@ function InlineComments({
           {comments.map((c) => (
             <div key={c.id} className="text-xs">
               <div className="flex items-center gap-1.5">
-                <span className="font-medium text-gray-800">{c.author_name || 'Unknown'}</span>
+                <span className="font-medium text-gray-800">{c.author_name || t('reviewPane.unknownAuthor')}</span>
                 {!c.is_internal_author && (
-                  <span className="text-[10px] bg-blue-50 text-blue-600 px-1 rounded">External</span>
+                  <span className="text-[10px] bg-blue-50 text-blue-600 px-1 rounded">{t('reviewPane.external')}</span>
                 )}
                 <span className="text-gray-400">{formatDate(c.created_at)}</span>
               </div>
@@ -650,7 +671,7 @@ function InlineComments({
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
-              placeholder="Add comment..."
+              placeholder={t('reviewPane.addCommentPlaceholder')}
               className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-primary-400"
             />
             <button
@@ -658,7 +679,7 @@ function InlineComments({
               disabled={!newComment.trim()}
               className="text-xs px-2 py-1 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-40"
             >
-              Send
+              {t('reviewPane.send')}
             </button>
           </div>
         </div>
@@ -684,6 +705,7 @@ function ClauseRow({
   onViewSource: () => void
   onUpdate: (data: Record<string, unknown>) => void
 }) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const [editingText, setEditingText] = useState(false)
   const [editText, setEditText] = useState(clause.text)
@@ -694,7 +716,7 @@ function ClauseRow({
         <button onClick={() => setExpanded(!expanded)} className="flex-1 flex items-center gap-2 text-left min-w-0">
           {expanded ? <ChevronDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" /> : <ChevronRightIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />}
           <span className="text-xs font-medium text-primary-600 flex-shrink-0">
-            {CLAUSE_TYPE_LABELS[clause._type] || clause._type}
+            {t([`clauses.${clause._type}`, `reviewPane.clauseTypes.${clause._type}`], { defaultValue: CLAUSE_TYPE_LABELS[clause._type] || clause._type })}
           </span>
           {clause.section_number && (
             <span className="text-xs text-gray-400 flex-shrink-0">{clause.section_number}</span>
@@ -704,7 +726,7 @@ function ClauseRow({
         <RiskBadge level={clause.risk_level} />
         <button
           onClick={onViewSource}
-          title={clause.page_number ? `View on page ${clause.page_number}` : 'Find in document'}
+          title={clause.page_number ? t('contract.viewOnPage', { page: clause.page_number }) : t('reviewPane.findInDocument')}
           className="p-1 rounded hover:bg-primary-100 text-primary-600 flex-shrink-0"
         >
           <DocumentMagnifyingGlassIcon className="h-4 w-4" />
@@ -726,13 +748,13 @@ function ClauseRow({
                   onClick={() => { onUpdate({ text: editText }); setEditingText(false) }}
                   className="text-xs px-2 py-1 bg-primary-600 text-white rounded hover:bg-primary-700"
                 >
-                  Save
+                  {t('common.save')}
                 </button>
                 <button
                   onClick={() => { setEditText(clause.text); setEditingText(false) }}
                   className="text-xs px-2 py-1 text-gray-500 hover:bg-gray-100 rounded"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>
@@ -750,7 +772,7 @@ function ClauseRow({
             </div>
           )}
           {clause.page_number && (
-            <p className="text-xs text-gray-400">Page {clause.page_number}</p>
+            <p className="text-xs text-gray-400">{t('reviewPane.page', { page: clause.page_number })}</p>
           )}
           <InlineComments comments={comments} onAddComment={onAddComment} />
         </div>
@@ -777,6 +799,7 @@ function ObligationRow({
   onViewSource: () => void
   onUpdate: (data: Record<string, unknown>) => void
 }) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const [editingDesc, setEditingDesc] = useState(false)
   const [editDesc, setEditDesc] = useState(obligation.description)
@@ -797,7 +820,9 @@ function ObligationRow({
           <span className="text-xs text-gray-600 truncate">{obligation.description.substring(0, 100)}...</span>
         </button>
         <span className={cn('px-1.5 py-0.5 rounded text-xs font-medium capitalize flex-shrink-0', statusColors[obligation.status] || 'bg-gray-100')}>
-          {obligation.status?.replace('_', ' ')}
+          {obligation.status
+            ? t([`status.${obligation.status}`, `reviewPane.obligationStatus.${obligation.status}`], { defaultValue: obligation.status.replace('_', ' ') })
+            : null}
         </span>
         {comments.length > 0 && (
           <span className="flex items-center gap-0.5 text-xs text-primary-600 flex-shrink-0">
@@ -807,7 +832,7 @@ function ObligationRow({
         )}
         <button
           onClick={onViewSource}
-          title="View in document"
+          title={t('reviewPane.viewInDocument')}
           className="p-1 rounded hover:bg-primary-100 text-primary-600 flex-shrink-0"
         >
           <DocumentMagnifyingGlassIcon className="h-4 w-4" />
@@ -829,13 +854,13 @@ function ObligationRow({
                   onClick={() => { onUpdate({ description: editDesc }); setEditingDesc(false) }}
                   className="text-xs px-2 py-1 bg-primary-600 text-white rounded hover:bg-primary-700"
                 >
-                  Save
+                  {t('common.save')}
                 </button>
                 <button
                   onClick={() => { setEditDesc(obligation.description); setEditingDesc(false) }}
                   className="text-xs px-2 py-1 text-gray-500 hover:bg-gray-100 rounded"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>
@@ -854,8 +879,8 @@ function ObligationRow({
           )}
           <div className="flex items-center gap-4 text-xs text-gray-500">
             <span className="capitalize">{obligation.obligation_type}</span>
-            {obligation.obligated_party && <span>Party: {obligation.obligated_party}</span>}
-            {obligation.deadline && <span>Deadline: {formatDate(obligation.deadline)}</span>}
+            {obligation.obligated_party && <span>{t('reviewPane.party', { party: obligation.obligated_party })}</span>}
+            {obligation.deadline && <span>{t('reviewPane.deadline', { date: formatDate(obligation.deadline) })}</span>}
           </div>
           <InlineComments comments={comments} onAddComment={onAddComment} />
         </div>
@@ -878,6 +903,7 @@ function SLARow({
   onAddComment: (content: string) => void
   onViewSource: () => void
 }) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -897,7 +923,7 @@ function SLARow({
         {sla.source_text && (
           <button
             onClick={onViewSource}
-            title="View in document"
+            title={t('reviewPane.viewInDocument')}
             className="p-1 rounded hover:bg-primary-100 text-primary-600 flex-shrink-0"
           >
             <DocumentMagnifyingGlassIcon className="h-4 w-4" />
@@ -908,7 +934,7 @@ function SLARow({
         <span>{sla.metric_type?.replace(/_/g, ' ')}</span>
         <span>{sla.target_operator} {sla.target_value} {sla.metric_unit}</span>
         {sla.has_penalty && (
-          <span className="text-orange-600">Has penalty</span>
+          <span className="text-orange-600">{t('reviewPane.hasPenalty')}</span>
         )}
       </div>
       {expanded && (

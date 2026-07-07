@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -176,6 +177,7 @@ type TabId = 'document' | 'clauses' | 'obligations' | 'sla' | 'comments' | 'gove
 // ── Main Component ─────────────────────────────────────────────────
 
 export default function ExternalContractPage() {
+  const { t } = useTranslation()
   const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
@@ -294,7 +296,7 @@ export default function ExternalContractPage() {
       link.remove()
       window.URL.revokeObjectURL(url)
     } catch {
-      alert('Failed to download contract')
+      alert(t('external.downloadFailed'))
     }
   }
 
@@ -322,7 +324,7 @@ export default function ExternalContractPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <LoadingSpinner size="lg" />
-          <p className="mt-4 text-gray-600">Validating access...</p>
+          <p className="mt-4 text-gray-600">{t('external.validatingAccess')}</p>
         </div>
       </div>
     )
@@ -335,11 +337,9 @@ export default function ExternalContractPage() {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">{t('external.accessDenied')}</h1>
           <p className="text-gray-600">
-            {!accessToken
-              ? 'No access token provided. Please use the link from your invitation email.'
-              : 'This link is invalid or has expired. Please contact the sender for a new link.'}
+            {!accessToken ? t('external.noToken') : t('external.invalidLink')}
           </p>
         </div>
       </div>
@@ -353,8 +353,8 @@ export default function ExternalContractPage() {
       <div className="min-h-screen bg-gray-50">
         <PortalHeader user={validation.external_user} expiresAt={validation.token_expires_at} />
         <main className="max-w-5xl mx-auto px-4 py-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Shared Contracts</h2>
-          <p className="text-sm text-gray-500 mb-6">{validation.contracts.length} contracts shared with you. Click to view details.</p>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">{t('external.sharedContracts')}</h2>
+          <p className="text-sm text-gray-500 mb-6">{t('external.contractsSharedWithYou', { count: validation.contracts.length })}</p>
           <div className="space-y-3">
             {validation.contracts.map((c) => (
               <button key={c.id}
@@ -370,12 +370,12 @@ export default function ExternalContractPage() {
                     {c.counterparty && <p className="text-sm text-gray-500 mt-0.5">{c.counterparty}</p>}
                     <div className="flex items-center gap-2 mt-2">
                       {c.contract_type && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{c.contract_type.replace(/_/g, ' ')}</span>}
-                      {c.expires_at && <span className="text-xs text-gray-400 flex items-center gap-1"><ClockIcon className="w-3 h-3" />Expires {formatDate(c.expires_at)}</span>}
+                      {c.expires_at && <span className="text-xs text-gray-400 flex items-center gap-1"><ClockIcon className="w-3 h-3" />{t('external.expires', { date: formatDate(c.expires_at) })}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {c.can_download && <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded flex items-center gap-1"><ArrowDownTrayIcon className="w-3 h-3" /> Download</span>}
-                    {c.can_comment && <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded flex items-center gap-1"><ChatBubbleLeftIcon className="w-3 h-3" /> Comment</span>}
+                    {c.can_download && <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded flex items-center gap-1"><ArrowDownTrayIcon className="w-3 h-3" /> {t('external.download')}</span>}
+                    {c.can_comment && <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded flex items-center gap-1"><ChatBubbleLeftIcon className="w-3 h-3" /> {t('external.comment')}</span>}
                     <ChevronLeftIcon className="w-5 h-5 text-gray-300 rotate-180 group-hover:text-primary-400 transition-colors" />
                   </div>
                 </div>
@@ -392,7 +392,7 @@ export default function ExternalContractPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         <PortalHeader user={validation?.external_user} expiresAt={validation?.token_expires_at} />
-        <main className="max-w-5xl mx-auto px-4 py-8 text-center"><p className="text-gray-600">No contracts have been shared with you yet.</p></main>
+        <main className="max-w-5xl mx-auto px-4 py-8 text-center"><p className="text-gray-600">{t('external.noContractsShared')}</p></main>
         <PortalFooter />
       </div>
     )
@@ -410,7 +410,7 @@ export default function ExternalContractPage() {
         {showBackButton && (
           <button onClick={() => { setSelectedContractId(null); setActiveTab('document'); }}
             className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-800 mb-4">
-            <ChevronLeftIcon className="w-4 h-4" /> All contracts
+            <ChevronLeftIcon className="w-4 h-4" /> {t('external.allContracts')}
           </button>
         )}
 
@@ -426,35 +426,35 @@ export default function ExternalContractPage() {
                     <div className="p-3 bg-primary-100 rounded-lg"><DocumentTextIcon className="w-8 h-8 text-primary-600" /></div>
                     <div>
                       <h2 className="text-xl font-semibold text-gray-900">{contract.filename}</h2>
-                      {contract.counterparty && <p className="text-gray-600 mt-1">Counterparty: {contract.counterparty}</p>}
+                      {contract.counterparty && <p className="text-gray-600 mt-1">{t('contracts.counterparty')}: {contract.counterparty}</p>}
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         {contract.contract_type && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded capitalize">{contract.contract_type.replace(/_/g, ' ')}</span>}
                         {contract.risk_level && (
                           <span className={cn("text-xs px-2 py-1 rounded capitalize",
                             contract.risk_level === 'high' || contract.risk_level === 'critical' ? 'bg-red-100 text-red-700' :
                             contract.risk_level === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-                          )}>{contract.risk_level} risk</span>
+                          )}>{t('contract.riskLabel', { level: t(`risk.${contract.risk_level}`, { defaultValue: contract.risk_level }) })}</span>
                         )}
-                        {contract.auto_renewal && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded flex items-center gap-1"><ArrowPathIcon className="w-3 h-3" /> Auto-renewal</span>}
-                        <span className={cn("text-xs px-2 py-1 rounded capitalize", contract.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600')}>{contract.status}</span>
+                        {contract.auto_renewal && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded flex items-center gap-1"><ArrowPathIcon className="w-3 h-3" /> {t('external.autoRenewal')}</span>}
+                        <span className={cn("text-xs px-2 py-1 rounded capitalize", contract.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600')}>{t(`status.${contract.status}`, { defaultValue: contract.status })}</span>
                       </div>
                     </div>
                   </div>
                   {contract.can_download && (
                     <button onClick={handleDownload} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shrink-0">
-                      <ArrowDownTrayIcon className="w-5 h-5" /> Download
+                      <ArrowDownTrayIcon className="w-5 h-5" /> {t('external.download')}
                     </button>
                   )}
                 </div>
               </div>
               <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-                {contract.effective_date && <DetailCell label="Effective Date" value={formatDate(contract.effective_date)} />}
-                {contract.expiration_date && <DetailCell label="Expiration Date" value={formatDate(contract.expiration_date)} />}
-                {(contract.total_value || contract.contract_value) && <DetailCell label="Total Value" value={`${contract.currency || 'USD'} ${(contract.total_value || contract.contract_value || 0).toLocaleString()}`} />}
-                {contract.jurisdiction && <DetailCell label="Jurisdiction" value={contract.jurisdiction} />}
-                {contract.governing_law && <DetailCell label="Governing Law" value={contract.governing_law} />}
-                {contract.notice_period_days != null && contract.notice_period_days > 0 && <DetailCell label="Notice Period" value={`${contract.notice_period_days} days`} />}
-                {contract.risk_score != null && <DetailCell label="Risk Score" value={`${contract.risk_score}/100`} />}
+                {contract.effective_date && <DetailCell label={t('external.effectiveDate')} value={formatDate(contract.effective_date)} />}
+                {contract.expiration_date && <DetailCell label={t('external.expirationDate')} value={formatDate(contract.expiration_date)} />}
+                {(contract.total_value || contract.contract_value) && <DetailCell label={t('external.totalValue')} value={`${contract.currency || 'USD'} ${(contract.total_value || contract.contract_value || 0).toLocaleString()}`} />}
+                {contract.jurisdiction && <DetailCell label={t('external.jurisdiction')} value={contract.jurisdiction} />}
+                {contract.governing_law && <DetailCell label={t('external.governingLaw')} value={contract.governing_law} />}
+                {contract.notice_period_days != null && contract.notice_period_days > 0 && <DetailCell label={t('external.noticePeriod')} value={t('external.days', { count: contract.notice_period_days })} />}
+                {contract.risk_score != null && <DetailCell label={t('external.riskScore')} value={`${contract.risk_score}/100`} />}
               </div>
               {contract.shared_message && (
                 <div className="px-6 pb-6">
@@ -467,7 +467,7 @@ export default function ExternalContractPage() {
 
             {contract.summary && (
               <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="font-semibold text-gray-900 mb-2">Contract Summary</h3>
+                <h3 className="font-semibold text-gray-900 mb-2">{t('external.contractSummary')}</h3>
                 <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">{contract.summary}</p>
               </div>
             )}
@@ -475,14 +475,14 @@ export default function ExternalContractPage() {
             {/* Tabs */}
             <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="border-b border-gray-200 flex overflow-x-auto">
-                <TabButton active={activeTab === 'document'} onClick={() => setActiveTab('document')} icon={<EyeIcon className="w-4 h-4" />} label="Document" />
-                <TabButton active={activeTab === 'clauses'} onClick={() => setActiveTab('clauses')} icon={<DocumentTextIcon className="w-4 h-4" />} label="Key Clauses" count={contract.clauses?.length} />
-                <TabButton active={activeTab === 'obligations'} onClick={() => setActiveTab('obligations')} icon={<BellAlertIcon className="w-4 h-4" />} label="Obligations" count={contract.obligations?.length} />
-                <TabButton active={activeTab === 'sla'} onClick={() => setActiveTab('sla')} icon={<ChartBarIcon className="w-4 h-4" />} label="SLAs" count={contract.slas?.length} />
+                <TabButton active={activeTab === 'document'} onClick={() => setActiveTab('document')} icon={<EyeIcon className="w-4 h-4" />} label={t('external.document')} />
+                <TabButton active={activeTab === 'clauses'} onClick={() => setActiveTab('clauses')} icon={<DocumentTextIcon className="w-4 h-4" />} label={t('external.keyClauses')} count={contract.clauses?.length} />
+                <TabButton active={activeTab === 'obligations'} onClick={() => setActiveTab('obligations')} icon={<BellAlertIcon className="w-4 h-4" />} label={t('contract.obligations')} count={contract.obligations?.length} />
+                <TabButton active={activeTab === 'sla'} onClick={() => setActiveTab('sla')} icon={<ChartBarIcon className="w-4 h-4" />} label={t('contract.slas')} count={contract.slas?.length} />
                 {governanceData?.has_governance && (
-                  <TabButton active={activeTab === 'governance'} onClick={() => setActiveTab('governance')} icon={<ShieldCheckIcon className="w-4 h-4" />} label="Governance" count={governanceData.kpis.length} />
+                  <TabButton active={activeTab === 'governance'} onClick={() => setActiveTab('governance')} icon={<ShieldCheckIcon className="w-4 h-4" />} label={t('external.governance')} count={governanceData.kpis.length} />
                 )}
-                <TabButton active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} icon={<ChatBubbleLeftIcon className="w-4 h-4" />} label="All Comments" count={commentsData?.total} />
+                <TabButton active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} icon={<ChatBubbleLeftIcon className="w-4 h-4" />} label={t('external.allComments')} count={commentsData?.total} />
               </div>
 
               <div className="p-6">
@@ -516,7 +516,7 @@ export default function ExternalContractPage() {
                 {activeTab === 'comments' && (
                   <AllCommentsSection comments={allComments} newComment={newComment} setNewComment={setNewComment}
                     onSubmit={handleSubmitGeneralComment} isPending={addCommentMutation.isPending} canComment={canComment}
-                    error={addCommentMutation.error ? 'Failed to post comment.' : undefined} />
+                    error={addCommentMutation.error ? t('external.postCommentFailed') : undefined} />
                 )}
               </div>
             </div>
@@ -548,6 +548,7 @@ function InlineCommentWidget({
   sectionRef, clauseId, canComment, commentingOn, setCommentingOn,
   itemComment, setItemComment, onSubmitItemComment, isPending, comments,
 }: InlineCommentProps) {
+  const { t } = useTranslation()
   const isOpen = commentingOn === sectionRef
   const count = comments.length
 
@@ -567,7 +568,7 @@ function InlineCommentWidget({
             )}
           >
             <ChatBubbleLeftIcon className="w-3.5 h-3.5" />
-            {isOpen ? 'Cancel' : 'Comment'}
+            {isOpen ? t('common.cancel') : t('external.comment')}
           </button>
         )}
         {count > 0 && !isOpen && (
@@ -576,7 +577,7 @@ function InlineCommentWidget({
             className="text-xs text-gray-400 hover:text-primary-600 flex items-center gap-1"
           >
             <ChatBubbleLeftIcon className="w-3 h-3" />
-            {count} {count === 1 ? 'comment' : 'comments'}
+            {t('external.commentCount', { count })}
           </button>
         )}
       </div>
@@ -598,7 +599,7 @@ function InlineCommentWidget({
                   <span className="text-xs font-medium text-gray-800">{c.author_name}</span>
                   <span className={cn("text-[10px] px-1 py-0.5 rounded",
                     c.is_internal_author ? "bg-blue-50 text-blue-600" : "bg-primary-50 text-primary-600"
-                  )}>{c.is_internal_author ? 'Internal' : 'You'}</span>
+                  )}>{c.is_internal_author ? t('external.internal') : t('external.you')}</span>
                   <span className="text-[10px] text-gray-400">{formatDate(c.created_at)}</span>
                 </div>
                 <p className="text-xs text-gray-700 mt-0.5">{c.content}</p>
@@ -612,7 +613,7 @@ function InlineCommentWidget({
               <textarea
                 value={itemComment}
                 onChange={(e) => setItemComment(e.target.value)}
-                placeholder="Add your comment..."
+                placeholder={t('external.addYourComment')}
                 rows={2}
                 className="flex-1 text-xs px-3 py-2 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
                 autoFocus
@@ -636,6 +637,7 @@ function InlineCommentWidget({
 // ── Sub-components ─────────────────────────────────────────────────
 
 function PortalHeader({ user, expiresAt }: { user?: ValidateResponse['external_user']; expiresAt?: string }) {
+  const { t } = useTranslation()
   return (
     <header className="bg-white border-b border-gray-200">
       <div className="max-w-5xl mx-auto px-4 py-4">
@@ -646,11 +648,11 @@ function PortalHeader({ user, expiresAt }: { user?: ValidateResponse['external_u
             </div>
             <div>
               <h1 className="font-semibold text-gray-900">Evaluetor</h1>
-              <p className="text-xs text-gray-500">Shared Contract Portal</p>
+              <p className="text-xs text-gray-500">{t('external.sharedContractPortal')}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            {expiresAt && <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400"><ClockIcon className="w-3.5 h-3.5" /><span>Expires {formatDate(expiresAt)}</span></div>}
+            {expiresAt && <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400"><ClockIcon className="w-3.5 h-3.5" /><span>{t('external.expires', { date: formatDate(expiresAt) })}</span></div>}
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <ShieldCheckIcon className="w-4 h-4 text-green-600" />
               <span className="hidden sm:inline">{user?.full_name || user?.email}</span>
@@ -663,9 +665,10 @@ function PortalHeader({ user, expiresAt }: { user?: ValidateResponse['external_u
 }
 
 function PortalFooter() {
+  const { t } = useTranslation()
   return (
     <footer className="border-t border-gray-200 bg-white mt-12">
-      <div className="max-w-5xl mx-auto px-4 py-6 text-center text-sm text-gray-500">Powered by Evaluetor Contract Intelligence Platform</div>
+      <div className="max-w-5xl mx-auto px-4 py-6 text-center text-sm text-gray-500">{t('external.poweredBy')}</div>
     </footer>
   )
 }
@@ -691,6 +694,7 @@ function TabButton({ active, onClick, icon, label, count }: {
 // ── Document Preview ────────────────────────────────────────────────
 
 function DocumentPreview({ contractId, accessToken, filename }: { contractId: string; accessToken: string; filename: string }) {
+  const { t } = useTranslation()
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -704,15 +708,15 @@ function DocumentPreview({ contractId, accessToken, filename }: { contractId: st
         if (cancelled) return
         setPdfUrl(URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' })))
         setLoading(false)
-      }).catch(() => { if (!cancelled) { setError('Unable to load document preview.'); setLoading(false) } })
+      }).catch(() => { if (!cancelled) { setError(t('external.previewLoadFailed')); setLoading(false) } })
     return () => { cancelled = true; if (pdfUrl) URL.revokeObjectURL(pdfUrl) }
   }, [contractId, accessToken])
 
   const isPdf = filename?.toLowerCase().endsWith('.pdf')
 
-  if (loading) return <div className="flex flex-col items-center justify-center py-16"><LoadingSpinner size="lg" /><p className="mt-4 text-sm text-gray-500">Loading document preview...</p></div>
-  if (error || !pdfUrl) return <div className="text-center py-12"><DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">{error || 'Preview not available.'}</p><p className="text-xs text-gray-400 mt-1">Use the Download button to view the full document.</p></div>
-  if (!isPdf) return <div className="text-center py-12"><DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">Preview is available for PDF documents only.</p></div>
+  if (loading) return <div className="flex flex-col items-center justify-center py-16"><LoadingSpinner size="lg" /><p className="mt-4 text-sm text-gray-500">{t('external.loadingPreview')}</p></div>
+  if (error || !pdfUrl) return <div className="text-center py-12"><DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">{error || t('external.previewNotAvailable')}</p><p className="text-xs text-gray-400 mt-1">{t('external.useDownloadButton')}</p></div>
+  if (!isPdf) return <div className="text-center py-12"><DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">{t('external.pdfOnly')}</p></div>
 
   if (fullscreen) {
     return (
@@ -722,7 +726,7 @@ function DocumentPreview({ contractId, accessToken, filename }: { contractId: st
             <p className="text-white text-sm font-medium truncate">{filename}</p>
             <button onClick={() => setFullscreen(false)} className="text-gray-300 hover:text-white p-1 rounded-lg hover:bg-gray-700 transition-colors"><XMarkIcon className="w-6 h-6" /></button>
           </div>
-          <div className="flex-1"><iframe src={`${pdfUrl}#toolbar=1&navpanes=1`} className="w-full h-full border-0" title="Contract Document" /></div>
+          <div className="flex-1"><iframe src={`${pdfUrl}#toolbar=1&navpanes=1`} className="w-full h-full border-0" title={t('external.contractDocument')} /></div>
         </div>
         <div className="h-[600px]" />
       </>
@@ -733,10 +737,10 @@ function DocumentPreview({ contractId, accessToken, filename }: { contractId: st
     <div>
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-gray-500">{filename}</p>
-        <button onClick={() => setFullscreen(true)} className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1"><EyeIcon className="w-3.5 h-3.5" /> Fullscreen</button>
+        <button onClick={() => setFullscreen(true)} className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1"><EyeIcon className="w-3.5 h-3.5" /> {t('external.fullscreen')}</button>
       </div>
       <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-100">
-        <iframe src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1`} className="w-full border-0" style={{ height: '700px' }} title="Contract Document" />
+        <iframe src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1`} className="w-full border-0" style={{ height: '700px' }} title={t('external.contractDocument')} />
       </div>
     </div>
   )
@@ -758,7 +762,8 @@ interface CommentableProps {
 // ── Clauses ────────────────────────────────────────────────────────
 
 function ClausesSection({ clauses, ...cp }: { clauses: Clause[] } & CommentableProps) {
-  if (!clauses?.length) return <EmptyState text="No clauses extracted for this contract." />
+  const { t } = useTranslation()
+  if (!clauses?.length) return <EmptyState text={t('external.noClauses')} />
 
   return (
     <div className="space-y-4">
@@ -768,10 +773,10 @@ function ClausesSection({ clauses, ...cp }: { clauses: Clause[] } & CommentableP
           <div key={clause.id} className="border border-gray-200 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
               {clause.section_number && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{clause.section_number}</span>}
-              {clause.clause_type && <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded capitalize">{clause.clause_type.replace(/_/g, ' ')}</span>}
+              {clause.clause_type && <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded capitalize">{t(`clauses.${clause.clause_type}`, { defaultValue: clause.clause_type.replace(/_/g, ' ') })}</span>}
               {clause.risk_level && <span className={cn("text-xs px-2 py-0.5 rounded capitalize",
                 clause.risk_level === 'high' ? 'bg-red-100 text-red-700' : clause.risk_level === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-              )}>{clause.risk_level}</span>}
+              )}>{t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level })}</span>}
             </div>
             {clause.title && <p className="font-medium text-gray-900 mb-1">{clause.title}</p>}
             <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{clause.text}</p>
@@ -789,7 +794,8 @@ function ClausesSection({ clauses, ...cp }: { clauses: Clause[] } & CommentableP
 // ── Obligations ────────────────────────────────────────────────────
 
 function ObligationsSection({ obligations, ...cp }: { obligations: ObligationItem[] } & CommentableProps) {
-  if (!obligations?.length) return <EmptyState text="No obligations found for this contract." />
+  const { t } = useTranslation()
+  if (!obligations?.length) return <EmptyState text={t('external.noObligations')} />
 
   const now = new Date()
   const sorted = [...obligations].sort((a, b) => {
@@ -811,15 +817,15 @@ function ObligationsSection({ obligations, ...cp }: { obligations: ObligationIte
                   <p className="font-medium text-gray-900">{ob.description}</p>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                  {ob.obligation_type && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{ob.obligation_type.replace(/_/g, ' ')}</span>}
+                  {ob.obligation_type && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{t(`obligation.type.${ob.obligation_type}`, { defaultValue: ob.obligation_type.replace(/_/g, ' ') })}</span>}
                   {ob.responsible_party && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{ob.responsible_party}</span>}
-                  {ob.priority && <span className={cn("px-2 py-0.5 rounded capitalize", ob.priority === 'critical' ? 'bg-red-100 text-red-700' : ob.priority === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600')}>{ob.priority}</span>}
+                  {ob.priority && <span className={cn("px-2 py-0.5 rounded capitalize", ob.priority === 'critical' ? 'bg-red-100 text-red-700' : ob.priority === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600')}>{t(`risk.${ob.priority}`, { defaultValue: ob.priority })}</span>}
                 </div>
-                {ob.consequence && <p className="text-xs text-gray-500 mt-2 italic">Consequence: {ob.consequence}</p>}
+                {ob.consequence && <p className="text-xs text-gray-500 mt-2 italic">{t('external.consequence', { text: ob.consequence })}</p>}
               </div>
               <div className="text-right shrink-0">
-                {ob.deadline && <p className={cn("text-sm font-medium", isOverdue ? "text-red-700" : "text-gray-700")}>{isOverdue ? 'OVERDUE' : formatDate(ob.deadline)}</p>}
-                <p className={cn("text-xs mt-1 capitalize", ob.status === 'completed' ? "text-green-600" : "text-gray-500")}>{ob.status || 'pending'}</p>
+                {ob.deadline && <p className={cn("text-sm font-medium", isOverdue ? "text-red-700" : "text-gray-700")}>{isOverdue ? t('external.overdue') : formatDate(ob.deadline)}</p>}
+                <p className={cn("text-xs mt-1 capitalize", ob.status === 'completed' ? "text-green-600" : "text-gray-500")}>{t(`status.${ob.status || 'pending'}`, { defaultValue: ob.status || 'pending' })}</p>
               </div>
             </div>
             <InlineCommentWidget sectionRef={ref} comments={cp.getCommentsFor(ref)}
@@ -836,7 +842,8 @@ function ObligationsSection({ obligations, ...cp }: { obligations: ObligationIte
 // ── SLAs ───────────────────────────────────────────────────────────
 
 function SLASection({ slas, ...cp }: { slas: SLAItem[] } & CommentableProps) {
-  if (!slas?.length) return <EmptyState text="No SLAs defined for this contract." />
+  const { t } = useTranslation()
+  if (!slas?.length) return <EmptyState text={t('external.noSlas')} />
 
   return (
     <div className="space-y-3">
@@ -853,11 +860,11 @@ function SLASection({ slas, ...cp }: { slas: SLAItem[] } & CommentableProps) {
                 {sla.sla_description && <p className="text-sm text-gray-600 mt-1">{sla.sla_description}</p>}
                 <div className="flex flex-wrap gap-2 mt-2 text-xs">
                   {sla.metric_type && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{sla.metric_type.replace(/_/g, ' ')}</span>}
-                  {sla.target_value != null && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">Target: {sla.target_operator || '>='} {sla.target_value}{sla.metric_unit || ''}</span>}
-                  {sla.severity && <span className={cn("px-2 py-0.5 rounded capitalize", sla.severity === 'critical' ? 'bg-red-100 text-red-700' : sla.severity === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600')}>{sla.severity}</span>}
+                  {sla.target_value != null && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{t('external.target', { value: `${sla.target_operator || '>='} ${sla.target_value}${sla.metric_unit || ''}` })}</span>}
+                  {sla.severity && <span className={cn("px-2 py-0.5 rounded capitalize", sla.severity === 'critical' ? 'bg-red-100 text-red-700' : sla.severity === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600')}>{t(`risk.${sla.severity}`, { defaultValue: sla.severity })}</span>}
                   {sla.measurement_period && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{sla.measurement_period}</span>}
                 </div>
-                {sla.has_penalty && sla.penalty_description && <p className="text-xs text-gray-500 mt-2 italic">Penalty: {sla.penalty_description}</p>}
+                {sla.has_penalty && sla.penalty_description && <p className="text-xs text-gray-500 mt-2 italic">{t('external.penalty', { text: sla.penalty_description })}</p>}
               </div>
               <div className="text-right shrink-0">
                 {compliance != null ? (
@@ -867,7 +874,7 @@ function SLASection({ slas, ...cp }: { slas: SLAItem[] } & CommentableProps) {
                     {complianceColor === 'red' && <ExclamationCircleIcon className="w-5 h-5 text-red-600" />}
                     <span className={cn("text-lg font-bold", complianceColor === 'green' ? 'text-green-700' : complianceColor === 'amber' ? 'text-amber-700' : 'text-red-700')}>{compliance.toFixed(1)}%</span>
                   </div>
-                ) : <span className="text-sm text-gray-400">No data</span>}
+                ) : <span className="text-sm text-gray-400">{t('external.noData')}</span>}
               </div>
             </div>
             <InlineCommentWidget sectionRef={ref} comments={cp.getCommentsFor(ref)}
@@ -887,30 +894,31 @@ function AllCommentsSection({ comments, newComment, setNewComment, onSubmit, isP
   comments: Comment[]; newComment: string; setNewComment: (v: string) => void
   onSubmit: (e: React.FormEvent) => void; isPending: boolean; canComment: boolean; error?: string
 }) {
+  const { t } = useTranslation()
   return (
     <div>
       {canComment ? (
         <form onSubmit={onSubmit} className="mb-6">
           <div className="border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
             <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a general comment about this contract..." rows={3}
+              placeholder={t('external.addGeneralComment')} rows={3}
               className="w-full px-4 py-3 border-0 resize-none focus:ring-0 text-sm" />
             <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200">
-              <p className="text-xs text-gray-400">Comments are visible to both parties</p>
+              <p className="text-xs text-gray-400">{t('external.commentsVisibleBoth')}</p>
               <button type="submit" disabled={!newComment.trim() || isPending}
                 className="px-4 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center gap-2">
-                <PaperAirplaneIcon className="w-4 h-4" />{isPending ? 'Sending...' : 'Send'}
+                <PaperAirplaneIcon className="w-4 h-4" />{isPending ? t('external.sending') : t('external.send')}
               </button>
             </div>
           </div>
           {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
         </form>
       ) : (
-        <div className="mb-6 p-3 bg-gray-50 rounded-lg text-sm text-gray-500 text-center">Commenting is not enabled for this shared contract.</div>
+        <div className="mb-6 p-3 bg-gray-50 rounded-lg text-sm text-gray-500 text-center">{t('external.commentingDisabled')}</div>
       )}
 
       {comments.length === 0 ? (
-        <EmptyState text={canComment ? "No comments yet. Be the first to add one." : "No comments on this contract."} />
+        <EmptyState text={canComment ? t('external.noCommentsYet') : t('external.noComments')} />
       ) : (
         <div className="space-y-4">
           {comments.map((comment) => (
@@ -923,11 +931,11 @@ function AllCommentsSection({ comments, newComment, setNewComment, onSubmit, isP
                   <span className="font-medium text-gray-900 text-sm">{comment.author_name}</span>
                   <span className={cn("text-xs px-1.5 py-0.5 rounded",
                     comment.is_internal_author ? "bg-blue-100 text-blue-600" : "bg-primary-100 text-primary-600"
-                  )}>{comment.is_internal_author ? 'Internal' : 'External'}</span>
+                  )}>{comment.is_internal_author ? t('external.internal') : t('external.external')}</span>
                   <span className="text-xs text-gray-400">{formatDate(comment.created_at)}</span>
                   {comment.section_reference && (
                     <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
-                      on {comment.section_reference.replace(':', ': #').replace(/-.*/, '...')}
+                      {t('external.onSection', { section: comment.section_reference.replace(':', ': #').replace(/-.*/, '...') })}
                     </span>
                   )}
                 </div>
@@ -979,6 +987,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 function GovernanceSection({ data }: { data: GovernanceData }) {
+  const { t } = useTranslation()
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [showSection, setShowSection] = useState<'kpis' | 'improvements'>('kpis')
 
@@ -999,7 +1008,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
         <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-indigo-50 rounded-lg border border-primary-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Business Relationship</p>
+              <p className="text-sm text-gray-500">{t('external.businessRelationship')}</p>
               <p className="font-semibold text-gray-900">
                 {rel.org_a_name} <span className="text-primary-500 mx-1">&harr;</span> {rel.org_b_name}
               </p>
@@ -1010,7 +1019,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
               )}
               {rel.health_score != null && (
                 <div className="text-right">
-                  <p className="text-xs text-gray-500">Health</p>
+                  <p className="text-xs text-gray-500">{t('external.health')}</p>
                   <p className={cn("text-lg font-bold",
                     rel.health_score >= 80 ? "text-green-600" : rel.health_score >= 60 ? "text-amber-600" : "text-red-600"
                   )}>{rel.health_score.toFixed(0)}</p>
@@ -1029,7 +1038,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
             showSection === 'kpis' ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           )}
         >
-          KPIs ({kpis.length})
+          {t('external.kpisCount', { count: kpis.length })}
         </button>
         <button
           onClick={() => setShowSection('improvements')}
@@ -1037,7 +1046,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
             showSection === 'improvements' ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           )}
         >
-          Improvements ({improvements.length})
+          {t('external.improvementsCount', { count: improvements.length })}
         </button>
       </div>
 
@@ -1052,7 +1061,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
                   selectedCategory === 'all' ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 )}
               >
-                All ({kpis.length})
+                {t('external.allCount', { count: kpis.length })}
               </button>
               {categories.map((cat) => (
                 <button key={cat}
@@ -1061,14 +1070,14 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
                     selectedCategory === cat ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   )}
                 >
-                  {CATEGORY_LABELS[cat] || cat} ({kpis.filter(k => (k.category || 'other') === cat).length})
+                  {t(`external.category.${cat}`, { defaultValue: CATEGORY_LABELS[cat] || cat })} ({kpis.filter(k => (k.category || 'other') === cat).length})
                 </button>
               ))}
             </div>
           )}
 
           {filteredKpis.length === 0 ? (
-            <EmptyState text="No KPIs found for this relationship." />
+            <EmptyState text={t('external.noKpis')} />
           ) : (
             <div className="space-y-3">
               {filteredKpis.map((kpi) => {
@@ -1082,9 +1091,9 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
                         <p className="font-medium text-gray-900">{kpi.name}</p>
                         {kpi.description && <p className="text-sm text-gray-600 mt-1">{kpi.description}</p>}
                         <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                          {kpi.category && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{CATEGORY_LABELS[kpi.category] || kpi.category}</span>}
-                          {kpi.target_value != null && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">Target: {kpi.target_value}</span>}
-                          {kpi.is_perception_based && <span className="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">Perception-based</span>}
+                          {kpi.category && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{t(`external.category.${kpi.category}`, { defaultValue: CATEGORY_LABELS[kpi.category] || kpi.category })}</span>}
+                          {kpi.target_value != null && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{t('external.target', { value: kpi.target_value })}</span>}
+                          {kpi.is_perception_based && <span className="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">{t('external.perceptionBased')}</span>}
                         </div>
                       </div>
                       {gap && (
@@ -1092,13 +1101,13 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
                           <div className="flex items-center gap-3 text-sm">
                             {intScore != null && (
                               <div>
-                                <p className="text-[10px] text-gray-400 uppercase">Internal</p>
+                                <p className="text-[10px] text-gray-400 uppercase">{t('external.internal')}</p>
                                 <p className="font-semibold text-gray-700">{intScore.toFixed(1)}</p>
                               </div>
                             )}
                             {extScore != null && (
                               <div>
-                                <p className="text-[10px] text-gray-400 uppercase">External</p>
+                                <p className="text-[10px] text-gray-400 uppercase">{t('external.external')}</p>
                                 <p className="font-semibold text-gray-700">{extScore.toFixed(1)}</p>
                               </div>
                             )}
@@ -1106,7 +1115,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
                           {gap.gap_severity && (
                             <span className={cn("text-xs px-2 py-0.5 rounded capitalize inline-block",
                               SEVERITY_COLORS[gap.gap_severity] || 'bg-gray-100 text-gray-600'
-                            )}>{gap.gap_severity}</span>
+                            )}>{t(`external.severity.${gap.gap_severity}`, { defaultValue: gap.gap_severity })}</span>
                           )}
                         </div>
                       )}
@@ -1122,7 +1131,7 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
       {showSection === 'improvements' && (
         <>
           {improvements.length === 0 ? (
-            <EmptyState text="No improvement plans found for this relationship." />
+            <EmptyState text={t('external.noImprovements')} />
           ) : (
             <div className="space-y-3">
               {improvements.map((imp) => (
@@ -1132,18 +1141,18 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
                       <p className="font-medium text-gray-900">{imp.title}</p>
                       {imp.description && <p className="text-sm text-gray-600 mt-1">{imp.description}</p>}
                       <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                        {imp.priority && <span className={cn("px-2 py-0.5 rounded capitalize", PRIORITY_COLORS[imp.priority] || 'bg-gray-100 text-gray-600')}>{imp.priority}</span>}
-                        {imp.status && <span className={cn("px-2 py-0.5 rounded capitalize", STATUS_COLORS[imp.status] || 'bg-gray-100 text-gray-600')}>{imp.status.replace(/_/g, ' ')}</span>}
+                        {imp.priority && <span className={cn("px-2 py-0.5 rounded capitalize", PRIORITY_COLORS[imp.priority] || 'bg-gray-100 text-gray-600')}>{t(`risk.${imp.priority}`, { defaultValue: imp.priority })}</span>}
+                        {imp.status && <span className={cn("px-2 py-0.5 rounded capitalize", STATUS_COLORS[imp.status] || 'bg-gray-100 text-gray-600')}>{t(`external.status.${imp.status}`, { defaultValue: imp.status.replace(/_/g, ' ') })}</span>}
                         {imp.source && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{imp.source.replace(/_/g, ' ')}</span>}
-                        {imp.kpi_name && <span className="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">KPI: {imp.kpi_name}</span>}
+                        {imp.kpi_name && <span className="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">{t('external.kpiLabel', { name: imp.kpi_name })}</span>}
                       </div>
-                      {imp.target_outcome && <p className="text-xs text-gray-500 mt-2">Target: {imp.target_outcome}</p>}
-                      {imp.actual_outcome && <p className="text-xs text-green-600 mt-1">Outcome: {imp.actual_outcome}</p>}
+                      {imp.target_outcome && <p className="text-xs text-gray-500 mt-2">{t('external.target', { value: imp.target_outcome })}</p>}
+                      {imp.actual_outcome && <p className="text-xs text-green-600 mt-1">{t('external.outcome', { text: imp.actual_outcome })}</p>}
                     </div>
                     <div className="text-right shrink-0">
                       {imp.due_date && <p className="text-sm text-gray-700">{formatDate(imp.due_date)}</p>}
                       {imp.impact_score != null && (
-                        <p className="text-xs text-gray-500 mt-1">Impact: {imp.impact_score}/10</p>
+                        <p className="text-xs text-gray-500 mt-1">{t('external.impact', { score: imp.impact_score })}</p>
                       )}
                     </div>
                   </div>

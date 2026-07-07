@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { setAppLanguage, type AppLanguage } from '@/i18n'
 import {
   Cog6ToothIcon,
   BellIcon,
@@ -73,6 +75,7 @@ const sections: SettingsSection[] = [
 ]
 
 export default function SettingsPage() {
+  const { t } = useTranslation()
   const { isAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
 
@@ -85,9 +88,9 @@ export default function SettingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('nav.settings')}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Manage your application preferences
+          {t('settings.subtitle')}
         </p>
       </div>
 
@@ -107,7 +110,7 @@ export default function SettingsPage() {
                 )}
               >
                 <section.icon className="h-5 w-5" />
-                {section.name}
+                {t(`settings.tabs.${section.id}`, { defaultValue: section.name })}
               </button>
             ))}
           </nav>
@@ -118,10 +121,10 @@ export default function SettingsPage() {
           <div className="card">
             <div className="card-header">
               <h2 className="text-lg font-medium text-gray-900">
-                {sections.find((s) => s.id === activeTab)?.name}
+                {t(`settings.tabs.${activeTab}`, { defaultValue: sections.find((s) => s.id === activeTab)?.name })}
               </h2>
               <p className="text-sm text-gray-500">
-                {sections.find((s) => s.id === activeTab)?.description}
+                {t(`settings.tabDescriptions.${activeTab}`, { defaultValue: sections.find((s) => s.id === activeTab)?.description })}
               </p>
             </div>
             <div className="card-body">
@@ -146,7 +149,41 @@ export default function SettingsPage() {
   )
 }
 
+function LanguageSetting() {
+  const { t, i18n } = useTranslation()
+  const { user } = useAuth()
+
+  const changeLanguage = async (code: AppLanguage) => {
+    setAppLanguage(code)
+    if (user) {
+      try {
+        await api.updateMyPreferences(code)
+      } catch {
+        // Preference persists locally even if the API call fails
+      }
+    }
+  }
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {t('common.language')}
+      </label>
+      <select
+        className="input max-w-md"
+        value={i18n.language?.startsWith('fr') ? 'fr' : 'en'}
+        onChange={(e) => changeLanguage(e.target.value as AppLanguage)}
+      >
+        <option value="en">{t('common.english')}</option>
+        <option value="fr">{t('common.french')}</option>
+      </select>
+    </div>
+  )
+}
+
+
 function GeneralSettings() {
+  const { t } = useTranslation()
   const { user, isAdmin } = useAuth()
   const { config, refresh: refreshConfig } = useTenantConfig()
   const queryClient = useQueryClient()
@@ -186,10 +223,10 @@ function GeneralSettings() {
         <div className="pb-6 border-b border-gray-200">
           <div className="flex items-center gap-2 mb-3">
             <SwatchIcon className="h-5 w-5 text-violet-500" />
-            <h3 className="text-sm font-medium text-gray-900">Industry Profile</h3>
+            <h3 className="text-sm font-medium text-gray-900">{t('settings.general.industryProfile')}</h3>
           </div>
           <p className="text-xs text-gray-500 mb-4">
-            Choose an industry profile to configure AI extraction, contract types, risk categories, and SLA metrics for your organization.
+            {t('settings.general.industryProfileDescription')}
           </p>
 
           {/* Current profile display */}
@@ -202,10 +239,10 @@ function GeneralSettings() {
                     {config.industry_name}
                   </span>
                   <div className="flex items-center gap-3 mt-1 text-xs text-violet-600">
-                    <span>{config.contract_types?.length || 0} contract types</span>
-                    <span>{config.clause_types?.length || 0} clause types</span>
-                    <span>{config.risk_categories?.length || 0} risk categories</span>
-                    <span>{config.sla_metrics?.length || 0} SLA metrics</span>
+                    <span>{t('settings.general.contractTypesCount', { count: config.contract_types?.length || 0 })}</span>
+                    <span>{t('settings.general.clauseTypesCount', { count: config.clause_types?.length || 0 })}</span>
+                    <span>{t('settings.general.riskCategoriesCount', { count: config.risk_categories?.length || 0 })}</span>
+                    <span>{t('settings.general.slaMetricsCount', { count: config.sla_metrics?.length || 0 })}</span>
                   </div>
                 </div>
               </div>
@@ -215,7 +252,7 @@ function GeneralSettings() {
               <div className="flex items-center gap-2">
                 <SparklesIcon className="h-4 w-4 text-amber-600 flex-shrink-0" />
                 <span className="text-sm text-amber-800">
-                  No industry profile selected. AI extraction will use generic defaults.
+                  {t('settings.general.noProfileSelected')}
                 </span>
               </div>
             </div>
@@ -254,11 +291,11 @@ function GeneralSettings() {
                     {profile.description}
                   </p>
                   <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                    <span>{profile.contract_type_count} types</span>
+                    <span>{t('settings.general.typesCount', { count: profile.contract_type_count })}</span>
                     <span className="text-gray-300">|</span>
-                    <span>{profile.clause_type_count} clauses</span>
+                    <span>{t('settings.general.clausesCount', { count: profile.clause_type_count })}</span>
                     <span className="text-gray-300">|</span>
-                    <span>{profile.risk_category_count} risks</span>
+                    <span>{t('settings.general.risksCount', { count: profile.risk_category_count })}</span>
                   </div>
                 </button>
               )
@@ -272,13 +309,13 @@ function GeneralSettings() {
               disabled={assignMutation.isPending}
               className="mt-2 text-xs text-gray-500 hover:text-red-600 transition-colors"
             >
-              Clear industry profile
+              {t('settings.general.clearProfile')}
             </button>
           )}
 
           {assignMutation.isError && (
             <p className="mt-2 text-xs text-red-600">
-              {(assignMutation.error as any)?.response?.data?.detail || 'Failed to update profile'}
+              {(assignMutation.error as any)?.response?.data?.detail || t('settings.general.updateProfileFailed')}
             </p>
           )}
         </div>
@@ -287,9 +324,11 @@ function GeneralSettings() {
       {/* Party Aliases */}
       {isAdmin && <PartyAliasesSection />}
 
+      <LanguageSetting />
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Organization Name
+          {t('settings.general.organizationName')}
         </label>
         <input
           type="text"
@@ -300,21 +339,21 @@ function GeneralSettings() {
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Default Currency
+          {t('settings.general.defaultCurrency')}
         </label>
         <select
           className="input max-w-md"
           value={settings.currency}
           onChange={(e) => setSettings(s => ({ ...s, currency: e.target.value }))}
         >
-          <option value="USD">USD - US Dollar</option>
-          <option value="EUR">EUR - Euro</option>
-          <option value="GBP">GBP - British Pound</option>
+          <option value="USD">{t('settings.general.currencyUsd')}</option>
+          <option value="EUR">{t('settings.general.currencyEur')}</option>
+          <option value="GBP">{t('settings.general.currencyGbp')}</option>
         </select>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Date Format
+          {t('settings.general.dateFormat')}
         </label>
         <select
           className="input max-w-md"
@@ -327,14 +366,15 @@ function GeneralSettings() {
         </select>
       </div>
       <div className="pt-4 flex items-center gap-3">
-        <button className="btn-primary" onClick={handleSave}>Save Changes</button>
-        {saved && <span className="text-sm text-green-600">Settings saved</span>}
+        <button className="btn-primary" onClick={handleSave}>{t('settings.general.saveChanges')}</button>
+        {saved && <span className="text-sm text-green-600">{t('settings.general.saved')}</span>}
       </div>
     </div>
   )
 }
 
 function PartyAliasesSection() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [newAlias, setNewAlias] = useState('')
   const [saving, setSaving] = useState(false)
@@ -371,12 +411,10 @@ function PartyAliasesSection() {
     <div className="pb-6 border-b border-gray-200">
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheckIcon className="h-5 w-5 text-violet-500" />
-        <h3 className="text-sm font-medium text-gray-900">Legal Entity Names</h3>
+        <h3 className="text-sm font-medium text-gray-900">{t('settings.aliases.title')}</h3>
       </div>
       <p className="text-xs text-gray-500 mb-4">
-        Register your organization's legal entity names (e.g. holding companies, subsidiaries, trading names).
-        The AI uses these to correctly identify the counterparty when extracting contract metadata — any name listed here
-        will be recognized as <em>your</em> organization, not the vendor.
+        {t('settings.aliases.description')}
       </p>
 
       {isLoading ? (
@@ -396,7 +434,7 @@ function PartyAliasesSection() {
                     onClick={() => removeAlias(alias)}
                     disabled={saving}
                     className="text-violet-400 hover:text-red-500 transition-colors disabled:opacity-50"
-                    title="Remove"
+                    title={t('settings.aliases.remove')}
                   >
                     <TrashIcon className="h-3.5 w-3.5" />
                   </button>
@@ -412,7 +450,7 @@ function PartyAliasesSection() {
               value={newAlias}
               onChange={(e) => setNewAlias(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addAlias()}
-              placeholder="e.g. Acme Holdings Ltd."
+              placeholder={t('settings.aliases.placeholder')}
               className="input flex-1"
               disabled={saving}
             />
@@ -422,7 +460,7 @@ function PartyAliasesSection() {
               className="btn-primary flex items-center gap-1.5 disabled:opacity-50"
             >
               <PlusIcon className="h-4 w-4" />
-              Add
+              {t('settings.aliases.add')}
             </button>
           </div>
         </>
@@ -471,6 +509,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 }
 
 function NotificationSettings() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [showTemplates, setShowTemplates] = useState(false)
 
@@ -516,15 +555,15 @@ function NotificationSettings() {
       {/* Header with Add Button */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-medium text-gray-900">Notification Rules</h3>
-          <p className="text-xs text-gray-500">Configure when and how you receive notifications</p>
+          <h3 className="text-sm font-medium text-gray-900">{t('settings.notifications.title')}</h3>
+          <p className="text-xs text-gray-500">{t('settings.notifications.subtitle')}</p>
         </div>
         <button
           onClick={() => setShowTemplates(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700"
         >
           <PlusIcon className="h-4 w-4" />
-          Add Rule
+          {t('settings.notifications.addRule')}
         </button>
       </div>
 
@@ -533,7 +572,7 @@ function NotificationSettings() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Choose a Rule Template
+              {t('settings.notifications.chooseTemplate')}
             </h3>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {templates?.map((template, index) => (
@@ -548,14 +587,14 @@ function NotificationSettings() {
                       'px-2 py-0.5 rounded text-xs font-medium',
                       PRIORITY_COLORS[template.priority] || PRIORITY_COLORS.normal
                     )}>
-                      {template.priority}
+                      {t(`settings.notifications.priority.${template.priority}`, { defaultValue: template.priority })}
                     </span>
                   </div>
                   <p className="text-sm text-gray-500">{template.description}</p>
                   <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
-                    <span>{EVENT_TYPE_LABELS[template.event_type] || template.event_type}</span>
+                    <span>{t(`settings.notifications.eventTypes.${template.event_type}`, { defaultValue: EVENT_TYPE_LABELS[template.event_type] || template.event_type })}</span>
                     <span>•</span>
-                    <span>{template.days_before} days before</span>
+                    <span>{t('settings.notifications.daysBefore', { count: template.days_before })}</span>
                     <span>•</span>
                     <span>{template.channels.join(', ')}</span>
                   </div>
@@ -567,7 +606,7 @@ function NotificationSettings() {
                 onClick={() => setShowTemplates(false)}
                 className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </div>
@@ -598,11 +637,11 @@ function NotificationSettings() {
                       'px-2 py-0.5 rounded text-xs font-medium',
                       PRIORITY_COLORS[rule.priority] || PRIORITY_COLORS.normal
                     )}>
-                      {rule.priority}
+                      {t(`settings.notifications.priority.${rule.priority}`, { defaultValue: rule.priority })}
                     </span>
                     {!rule.is_active && (
                       <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-xs">
-                        Disabled
+                        {t('settings.notifications.disabled')}
                       </span>
                     )}
                   </div>
@@ -611,13 +650,13 @@ function NotificationSettings() {
                   )}
                   <div className="flex items-center gap-3 text-xs text-gray-400">
                     <span className="px-2 py-0.5 bg-gray-100 rounded">
-                      {EVENT_TYPE_LABELS[rule.event_type] || rule.event_type}
+                      {t(`settings.notifications.eventTypes.${rule.event_type}`, { defaultValue: EVENT_TYPE_LABELS[rule.event_type] || rule.event_type })}
                     </span>
-                    <span>{rule.days_before} days before</span>
+                    <span>{t('settings.notifications.daysBefore', { count: rule.days_before })}</span>
                     <span>{rule.channels.join(', ')}</span>
                     {rule.trigger_count > 0 && (
                       <span className="text-green-600">
-                        Triggered {rule.trigger_count} times
+                        {t('settings.notifications.triggeredTimes', { count: rule.trigger_count })}
                       </span>
                     )}
                   </div>
@@ -634,7 +673,7 @@ function NotificationSettings() {
                   </label>
                   <button
                     onClick={() => {
-                      if (confirm('Are you sure you want to delete this rule?')) {
+                      if (confirm(t('settings.notifications.confirmDelete'))) {
                         deleteMutation.mutate(rule.id)
                       }
                     }}
@@ -650,8 +689,8 @@ function NotificationSettings() {
       ) : (
         <div className="text-center py-8 text-gray-500">
           <BellIcon className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-          <p className="text-sm font-medium mb-1">No notification rules configured</p>
-          <p className="text-xs">Add rules to get notified about important contract events</p>
+          <p className="text-sm font-medium mb-1">{t('settings.notifications.noRules')}</p>
+          <p className="text-xs">{t('settings.notifications.noRulesHint')}</p>
         </div>
       )}
     </div>
@@ -659,6 +698,7 @@ function NotificationSettings() {
 }
 
 function SecuritySettings() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' })
   const [passwordError, setPasswordError] = useState('')
@@ -667,15 +707,15 @@ function SecuritySettings() {
   const handleUpdatePassword = async () => {
     setPasswordError('')
     if (!passwords.current || !passwords.newPass || !passwords.confirm) {
-      setPasswordError('All fields are required')
+      setPasswordError(t('settings.security.allFieldsRequired'))
       return
     }
     if (passwords.newPass.length < 6) {
-      setPasswordError('New password must be at least 6 characters')
+      setPasswordError(t('settings.security.passwordTooShort'))
       return
     }
     if (passwords.newPass !== passwords.confirm) {
-      setPasswordError('Passwords do not match')
+      setPasswordError(t('settings.security.passwordsDoNotMatch'))
       return
     }
     try {
@@ -684,63 +724,63 @@ function SecuritySettings() {
       setPasswordSuccess(true)
       setTimeout(() => setPasswordSuccess(false), 3000)
     } catch (err: any) {
-      setPasswordError(err?.response?.data?.detail || 'Failed to update password')
+      setPasswordError(err?.response?.data?.detail || t('settings.security.updateFailed'))
     }
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-medium text-gray-900 mb-3">Change Password</h3>
+        <h3 className="text-sm font-medium text-gray-900 mb-3">{t('settings.security.changePassword')}</h3>
         <div className="space-y-3 max-w-md">
           <input
             type="password"
-            placeholder="Current password"
+            placeholder={t('settings.security.currentPassword')}
             value={passwords.current}
             onChange={(e) => setPasswords(p => ({ ...p, current: e.target.value }))}
             className="input"
           />
           <input
             type="password"
-            placeholder="New password"
+            placeholder={t('settings.security.newPassword')}
             value={passwords.newPass}
             onChange={(e) => setPasswords(p => ({ ...p, newPass: e.target.value }))}
             className="input"
           />
           <input
             type="password"
-            placeholder="Confirm new password"
+            placeholder={t('settings.security.confirmPassword')}
             value={passwords.confirm}
             onChange={(e) => setPasswords(p => ({ ...p, confirm: e.target.value }))}
             className="input"
           />
           <div className="flex items-center gap-3">
-            <button className="btn-primary" onClick={handleUpdatePassword}>Update Password</button>
-            {passwordSuccess && <span className="text-sm text-green-600">Password updated</span>}
+            <button className="btn-primary" onClick={handleUpdatePassword}>{t('settings.security.updatePassword')}</button>
+            {passwordSuccess && <span className="text-sm text-green-600">{t('settings.security.passwordUpdated')}</span>}
           </div>
           {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
         </div>
       </div>
       <div className="pt-4 border-t border-gray-200">
-        <h3 className="text-sm font-medium text-gray-900 mb-3">Two-Factor Authentication</h3>
+        <h3 className="text-sm font-medium text-gray-900 mb-3">{t('settings.security.twoFactor')}</h3>
         <p className="text-sm text-gray-500 mb-3">
-          Add an extra layer of security to your account
+          {t('settings.security.twoFactorDescription')}
         </p>
         <div className="flex items-center gap-2">
-          <button className="btn-secondary opacity-60 cursor-not-allowed" disabled>Enable 2FA</button>
-          <span className="text-xs text-gray-400">Coming soon</span>
+          <button className="btn-secondary opacity-60 cursor-not-allowed" disabled>{t('settings.security.enable2fa')}</button>
+          <span className="text-xs text-gray-400">{t('settings.comingSoon')}</span>
         </div>
       </div>
       <div className="pt-4 border-t border-gray-200">
-        <h3 className="text-sm font-medium text-gray-900 mb-3">Active Sessions</h3>
+        <h3 className="text-sm font-medium text-gray-900 mb-3">{t('settings.security.activeSessions')}</h3>
         <p className="text-sm text-gray-500 mb-3">
-          Manage your active sessions across devices
+          {t('settings.security.activeSessionsDescription')}
         </p>
         <div className="flex items-center gap-2">
           <button className="btn-secondary text-red-600 hover:text-red-700 opacity-60 cursor-not-allowed" disabled>
-            Sign Out All Devices
+            {t('settings.security.signOutAllDevices')}
           </button>
-          <span className="text-xs text-gray-400">Coming soon</span>
+          <span className="text-xs text-gray-400">{t('settings.comingSoon')}</span>
         </div>
       </div>
     </div>
@@ -748,13 +788,14 @@ function SecuritySettings() {
 }
 
 function IntegrationSettings() {
+  const { t } = useTranslation()
   const integrations = [
-    { name: 'OpenAI', description: 'AI-powered contract analysis', connected: true, configurable: false },
-    { name: 'ServiceNow', description: 'SLA sync and incident management', connected: false, configurable: true, configPath: '/admin/integrations/servicenow' },
-    { name: 'SharePoint', description: 'Import contracts from document libraries', connected: false, configurable: true, configPath: '/admin/integrations/sharepoint' },
-    { name: 'SSO (OIDC)', description: 'Single Sign-On with Azure AD, Okta, Google', connected: false, configurable: true, configPath: '/admin/sso' },
-    { name: 'Microsoft Teams', description: 'Send notifications to Teams channels', connected: false, configurable: false },
-    { name: 'Slack', description: 'Send notifications to Slack', connected: false, configurable: false },
+    { name: 'OpenAI', description: t('settings.integrations.descriptions.openai'), connected: true, configurable: false },
+    { name: 'ServiceNow', description: t('settings.integrations.descriptions.servicenow'), connected: false, configurable: true, configPath: '/admin/integrations/servicenow' },
+    { name: 'SharePoint', description: t('settings.integrations.descriptions.sharepoint'), connected: false, configurable: true, configPath: '/admin/integrations/sharepoint' },
+    { name: 'SSO (OIDC)', description: t('settings.integrations.descriptions.sso'), connected: false, configurable: true, configPath: '/admin/sso' },
+    { name: 'Microsoft Teams', description: t('settings.integrations.descriptions.teams'), connected: false, configurable: false },
+    { name: 'Slack', description: t('settings.integrations.descriptions.slack'), connected: false, configurable: false },
   ]
 
   return (
@@ -770,18 +811,18 @@ function IntegrationSettings() {
           </div>
           {integration.connected ? (
             <span className="text-sm font-medium px-3 py-1.5 rounded-lg bg-green-100 text-green-700">
-              Connected
+              {t('settings.integrations.connected')}
             </span>
           ) : integration.configurable ? (
             <a
               href={integration.configPath}
               className="text-sm font-medium px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
             >
-              Configure
+              {t('settings.integrations.configure')}
             </a>
           ) : (
             <span className="text-sm font-medium px-3 py-1.5 rounded-lg bg-gray-50 text-gray-400">
-              Coming soon
+              {t('settings.comingSoon')}
             </span>
           )}
         </div>
@@ -791,35 +832,36 @@ function IntegrationSettings() {
 }
 
 function AppearanceSettings() {
+  const { t } = useTranslation()
   const [theme, setTheme] = useState('light')
 
   const themes = [
-    { id: 'light', label: 'Light', preview: 'bg-white border border-gray-200' },
-    { id: 'dark', label: 'Dark', preview: 'bg-gray-800', disabled: true },
-    { id: 'system', label: 'System', preview: 'bg-gradient-to-b from-white to-gray-800', disabled: true },
+    { id: 'light', label: t('settings.appearance.light'), preview: 'bg-white border border-gray-200' },
+    { id: 'dark', label: t('settings.appearance.dark'), preview: 'bg-gray-800', disabled: true },
+    { id: 'system', label: t('settings.appearance.system'), preview: 'bg-gradient-to-b from-white to-gray-800', disabled: true },
   ]
 
   return (
     <div className="space-y-6">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-3">
-          Theme
+          {t('settings.appearance.theme')}
         </label>
         <div className="flex gap-3">
-          {themes.map((t) => (
+          {themes.map((th) => (
             <button
-              key={t.id}
-              onClick={() => !t.disabled && setTheme(t.id)}
+              key={th.id}
+              onClick={() => !th.disabled && setTheme(th.id)}
               className={cn(
                 'flex-1 p-4 border-2 rounded-lg bg-white transition-colors',
-                theme === t.id ? 'border-primary-500' : 'border-gray-200 hover:border-gray-300',
-                t.disabled && 'opacity-50 cursor-not-allowed',
+                theme === th.id ? 'border-primary-500' : 'border-gray-200 hover:border-gray-300',
+                th.disabled && 'opacity-50 cursor-not-allowed',
               )}
             >
-              <div className={cn('h-16 rounded mb-2', t.preview)} />
+              <div className={cn('h-16 rounded mb-2', th.preview)} />
               <div className="flex items-center justify-center gap-1">
-                <p className="text-sm font-medium text-gray-900">{t.label}</p>
-                {t.disabled && <span className="text-[10px] text-gray-400">(soon)</span>}
+                <p className="text-sm font-medium text-gray-900">{th.label}</p>
+                {th.disabled && <span className="text-[10px] text-gray-400">{t('settings.appearance.soon')}</span>}
               </div>
             </button>
           ))}
@@ -827,26 +869,26 @@ function AppearanceSettings() {
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Sidebar Position
+          {t('settings.appearance.sidebarPosition')}
         </label>
         <div className="flex items-center gap-2">
           <select className="input max-w-md opacity-60" disabled>
-            <option value="left">Left</option>
-            <option value="right">Right</option>
+            <option value="left">{t('settings.appearance.left')}</option>
+            <option value="right">{t('settings.appearance.right')}</option>
           </select>
-          <span className="text-xs text-gray-400">Coming soon</span>
+          <span className="text-xs text-gray-400">{t('settings.comingSoon')}</span>
         </div>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Density
+          {t('settings.appearance.density')}
         </label>
         <div className="flex items-center gap-2">
           <select className="input max-w-md opacity-60" disabled>
-            <option value="comfortable">Comfortable</option>
-            <option value="compact">Compact</option>
+            <option value="comfortable">{t('settings.appearance.comfortable')}</option>
+            <option value="compact">{t('settings.appearance.compact')}</option>
           </select>
-          <span className="text-xs text-gray-400">Coming soon</span>
+          <span className="text-xs text-gray-400">{t('settings.comingSoon')}</span>
         </div>
       </div>
     </div>
@@ -865,6 +907,7 @@ const EXTRACTION_FIELD_LABELS: Record<string, string> = {
 }
 
 function ExtractionThresholdsSettings() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery({
     queryKey: ['extraction-thresholds'],
@@ -895,7 +938,7 @@ function ExtractionThresholdsSettings() {
       queryClient.invalidateQueries({ queryKey: ['extraction-thresholds'] })
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.detail || err?.message || 'Failed to save thresholds')
+      setError(err?.response?.data?.detail || err?.message || t('settings.extraction.saveFailed'))
     },
   })
 
@@ -943,18 +986,16 @@ function ExtractionThresholdsSettings() {
   return (
     <div className="space-y-6">
       <div className="text-sm text-gray-600">
-        AI metadata extraction returns a confidence score (0–1) for each field. Fields below the
-        applicable threshold are dropped instead of overwriting existing values. Raise thresholds
-        on critical fields if you'd rather have a blank than a low-confidence guess.
+        {t('settings.extraction.intro')}
       </div>
 
       {/* Default threshold */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Default Threshold
+          {t('settings.extraction.defaultThreshold')}
         </label>
         <p className="text-xs text-gray-500 mb-2">
-          Applied to any field without a specific override below.
+          {t('settings.extraction.defaultThresholdHint')}
         </p>
         <div className="flex items-center gap-3 max-w-xs">
           <input
@@ -975,17 +1016,17 @@ function ExtractionThresholdsSettings() {
 
       {/* Per-field overrides */}
       <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-2">Per-Field Overrides</h3>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">{t('settings.extraction.perFieldOverrides')}</h3>
         {Object.keys(fields).length === 0 ? (
           <p className="text-sm text-gray-400 italic mb-3">
-            No overrides yet. All fields use the default threshold.
+            {t('settings.extraction.noOverrides')}
           </p>
         ) : (
           <div className="space-y-2 mb-3">
             {Object.entries(fields).map(([field, value]) => (
               <div key={field} className="flex items-center gap-3">
                 <span className="w-40 text-sm text-gray-700">
-                  {EXTRACTION_FIELD_LABELS[field] || field}
+                  {t(`settings.extraction.fields.${field}`, { defaultValue: EXTRACTION_FIELD_LABELS[field] || field })}
                 </span>
                 <input
                   type="number"
@@ -1003,7 +1044,7 @@ function ExtractionThresholdsSettings() {
                   type="button"
                   onClick={() => removeField(field)}
                   className="text-gray-400 hover:text-red-600"
-                  title="Remove override (use default)"
+                  title={t('settings.extraction.removeOverride')}
                 >
                   <TrashIcon className="h-4 w-4" />
                 </button>
@@ -1022,10 +1063,10 @@ function ExtractionThresholdsSettings() {
                 e.currentTarget.value = ''
               }}
             >
-              <option value="">+ Add field override…</option>
+              <option value="">{t('settings.extraction.addFieldOverride')}</option>
               {unsetFields.map((f) => (
                 <option key={f} value={f}>
-                  {EXTRACTION_FIELD_LABELS[f] || f}
+                  {t(`settings.extraction.fields.${f}`, { defaultValue: EXTRACTION_FIELD_LABELS[f] || f })}
                 </option>
               ))}
             </select>
@@ -1044,11 +1085,11 @@ function ExtractionThresholdsSettings() {
             (!isDirty || mutation.isPending) && 'opacity-60 cursor-not-allowed'
           )}
         >
-          {mutation.isPending ? 'Saving…' : 'Save Thresholds'}
+          {mutation.isPending ? t('settings.saving') : t('settings.extraction.saveThresholds')}
         </button>
         {saved && (
           <span className="text-sm text-green-600 inline-flex items-center gap-1">
-            <CheckCircleIcon className="h-4 w-4" /> Saved
+            <CheckCircleIcon className="h-4 w-4" /> {t('settings.saved')}
           </span>
         )}
         {error && <span className="text-sm text-red-600">{error}</span>}
@@ -1084,6 +1125,7 @@ const PROMPT_ADDENDA_LABELS: Record<string, { label: string; placeholder: string
 const PROMPT_ADDENDA_ORDER = ['metadata', 'clauses', 'obligations', 'slas', 'risks']
 
 function PromptAddendaSettings() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery({
     queryKey: ['prompt-addenda'],
@@ -1108,7 +1150,7 @@ function PromptAddendaSettings() {
       queryClient.invalidateQueries({ queryKey: ['prompt-addenda'] })
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.detail || err?.message || 'Failed to save prompt addenda')
+      setError(err?.response?.data?.detail || err?.message || t('settings.prompts.saveFailed'))
     },
   })
 
@@ -1136,12 +1178,9 @@ function PromptAddendaSettings() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-base font-medium text-gray-900">Prompt Customization</h3>
+        <h3 className="text-base font-medium text-gray-900">{t('settings.prompts.title')}</h3>
         <p className="text-sm text-gray-600 mt-1">
-          Extra instructions appended to the AI prompts for every contract in your
-          tenant. Use this to give the AI domain knowledge it couldn't otherwise know
-          — your terminology, your industry quirks, what to flag. Keep each
-          instruction tight; max {maxChars} characters per agent.
+          {t('settings.prompts.description', { maxChars })}
         </p>
       </div>
 
@@ -1154,7 +1193,7 @@ function PromptAddendaSettings() {
             <div key={agent}>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-sm font-medium text-gray-700">
-                  {info.label}
+                  {t(`settings.prompts.labels.${agent}`, { defaultValue: info.label })}
                 </label>
                 <span className={cn(
                   'text-xs',
@@ -1166,7 +1205,7 @@ function PromptAddendaSettings() {
               <textarea
                 value={value}
                 onChange={(e) => handleChange(agent, e.target.value)}
-                placeholder={info.placeholder}
+                placeholder={t(`settings.prompts.placeholders.${agent}`, { defaultValue: info.placeholder })}
                 rows={3}
                 className={cn(
                   'w-full text-sm border rounded-md p-2 focus:outline-none focus:ring-1',
@@ -1190,11 +1229,11 @@ function PromptAddendaSettings() {
             (!isDirty || mutation.isPending) && 'opacity-60 cursor-not-allowed'
           )}
         >
-          {mutation.isPending ? 'Saving…' : 'Save Prompt Addenda'}
+          {mutation.isPending ? t('settings.saving') : t('settings.prompts.savePromptAddenda')}
         </button>
         {saved && (
           <span className="text-sm text-green-600 inline-flex items-center gap-1">
-            <CheckCircleIcon className="h-4 w-4" /> Saved
+            <CheckCircleIcon className="h-4 w-4" /> {t('settings.saved')}
           </span>
         )}
         {error && <span className="text-sm text-red-600">{error}</span>}

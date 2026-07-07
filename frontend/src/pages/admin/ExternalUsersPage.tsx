@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   PlusIcon,
@@ -30,6 +31,7 @@ const emptyFormData: FormData = {
 }
 
 export default function ExternalUsersPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -53,7 +55,7 @@ export default function ExternalUsersPage() {
       setFormError(null)
     },
     onError: (err: Error) => {
-      setFormError(err.message || 'Failed to create external user')
+      setFormError(err.message || t('externalUsers.createFailed'))
     },
   })
 
@@ -67,7 +69,7 @@ export default function ExternalUsersPage() {
       setFormError(null)
     },
     onError: (err: Error) => {
-      setFormError(err.message || 'Failed to update external user')
+      setFormError(err.message || t('externalUsers.updateFailed'))
     },
   })
 
@@ -78,7 +80,7 @@ export default function ExternalUsersPage() {
       queryClient.invalidateQueries({ queryKey: ['external-users'] })
     },
     onError: (err: Error) => {
-      alert(err.message || 'Failed to delete external user')
+      alert(err.message || t('externalUsers.deleteFailed'))
     },
   })
 
@@ -126,7 +128,7 @@ export default function ExternalUsersPage() {
   }
 
   const handleDelete = (user: { id: string; email: string; full_name?: string }) => {
-    if (confirm(`Are you sure you want to deactivate ${user.full_name || user.email}?`)) {
+    if (confirm(t('externalUsers.confirmDeactivate', { name: user.full_name || user.email }))) {
       deleteMutation.mutate(user.id)
     }
   }
@@ -143,7 +145,7 @@ export default function ExternalUsersPage() {
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700">Failed to load external users. Please try again.</p>
+          <p className="text-red-700">{t('externalUsers.loadFailed')}</p>
         </div>
       </div>
     )
@@ -154,9 +156,9 @@ export default function ExternalUsersPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">External Users</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.externalUsers')}</h1>
           <p className="text-gray-500 mt-1">
-            Manage counterparty contacts who can access shared contracts
+            {t('externalUsers.subtitle')}
           </p>
         </div>
         <button
@@ -164,7 +166,7 @@ export default function ExternalUsersPage() {
           className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
           <PlusIcon className="w-5 h-5" />
-          Add External User
+          {t('externalUsers.addExternalUser')}
         </button>
       </div>
 
@@ -174,7 +176,7 @@ export default function ExternalUsersPage() {
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search by name, email, or company..."
+            placeholder={t('externalUsers.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -187,27 +189,27 @@ export default function ExternalUsersPage() {
         {!data?.items.length ? (
           <div className="text-center py-12 text-gray-500">
             <UserIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">No external users yet</p>
-            <p className="mt-1">Create your first external user to share contracts.</p>
+            <p className="text-lg font-medium">{t('externalUsers.noUsers')}</p>
+            <p className="mt-1">{t('externalUsers.noUsersHint')}</p>
           </div>
         ) : (
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
+                  {t('externalUsers.user')}
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Company
+                  {t('externalUsers.company')}
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('common.status')}
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Activity
+                  {t('externalUsers.activity')}
                 </th>
                 <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -223,7 +225,7 @@ export default function ExternalUsersPage() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">
-                          {user.full_name || 'No name'}
+                          {user.full_name || t('externalUsers.noName')}
                         </p>
                         <p className="text-sm text-gray-500 flex items-center gap-1">
                           <EnvelopeIcon className="w-3 h-3" />
@@ -252,14 +254,14 @@ export default function ExternalUsersPage() {
                         ? "bg-green-100 text-green-700"
                         : "bg-gray-100 text-gray-600"
                     )}>
-                      {user.is_active ? 'Active' : 'Inactive'}
+                      {user.is_active ? t('status.active') : t('status.inactive')}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {user.access_count > 0 ? (
-                      <span>{user.access_count} access{user.access_count !== 1 ? 'es' : ''}</span>
+                      <span>{t('externalUsers.accessCount', { count: user.access_count })}</span>
                     ) : (
-                      <span className="text-gray-400">Never accessed</span>
+                      <span className="text-gray-400">{t('externalUsers.neverAccessed')}</span>
                     )}
                   </td>
                   <td className="px-6 py-4">
@@ -267,14 +269,14 @@ export default function ExternalUsersPage() {
                       <button
                         onClick={() => openEditModal(user)}
                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                        title="Edit"
+                        title={t('common.edit')}
                       >
                         <PencilSquareIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(user)}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                        title="Delete"
+                        title={t('common.delete')}
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>
@@ -293,7 +295,7 @@ export default function ExternalUsersPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
             <div className="p-6 border-b">
               <h2 className="text-xl font-semibold">
-                {editingId ? 'Edit External User' : 'Add External User'}
+                {editingId ? t('externalUsers.editExternalUser') : t('externalUsers.addExternalUser')}
               </h2>
             </div>
 
@@ -305,67 +307,67 @@ export default function ExternalUsersPage() {
               )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
+                  {t('externalUsers.email')} *
                 </label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="john@example.com"
+                  placeholder={t('externalUsers.emailPlaceholder')}
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name
+                  {t('externalUsers.fullName')}
                 </label>
                 <input
                   type="text"
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="John Smith"
+                  placeholder={t('externalUsers.fullNamePlaceholder')}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Company
+                  {t('externalUsers.company')}
                 </label>
                 <input
                   type="text"
                   value={formData.company_name}
                   onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Acme Inc"
+                  placeholder={t('externalUsers.companyPlaceholder')}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Title
+                  {t('externalUsers.title')}
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Contract Manager"
+                  placeholder={t('externalUsers.titlePlaceholder')}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone
+                  {t('externalUsers.phone')}
                 </label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="+1 (555) 123-4567"
+                  placeholder={t('externalUsers.phonePlaceholder')}
                 />
               </div>
 
@@ -375,7 +377,7 @@ export default function ExternalUsersPage() {
                   onClick={closeModal}
                   className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -383,10 +385,10 @@ export default function ExternalUsersPage() {
                   className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
                 >
                   {createMutation.isPending || updateMutation.isPending
-                    ? 'Saving...'
+                    ? t('externalUsers.saving')
                     : editingId
-                    ? 'Update'
-                    : 'Create'}
+                    ? t('externalUsers.update')
+                    : t('externalUsers.create')}
                 </button>
               </div>
             </form>

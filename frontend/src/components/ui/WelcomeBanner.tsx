@@ -3,6 +3,7 @@
  * Dark gradient header with date and quick actions
  */
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowRightIcon,
   Cog6ToothIcon,
@@ -12,6 +13,7 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
+import i18n from '@/i18n'
 import type { RoleType } from '@/styles/theme'
 
 interface QuickAction {
@@ -28,14 +30,6 @@ interface WelcomeBannerProps {
   role: RoleType
   greeting?: string
   quickActions?: QuickAction[]
-}
-
-const roleLabels: Record<RoleType, string> = {
-  legal: 'Legal',
-  procurement: 'Procurement',
-  admin: 'Admin',
-  bu_head: 'Business Unit',
-  viewer: 'Viewer',
 }
 
 const defaultQuickActions: Record<RoleType, QuickAction[]> = {
@@ -66,15 +60,16 @@ const defaultQuickActions: Record<RoleType, QuickAction[]> = {
   ],
 }
 
-function getTimeBasedGreeting(): string {
+function getTimeBasedGreetingKey(): string {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 12) return 'dashboard.goodMorning'
+  if (hour < 17) return 'dashboard.goodAfternoon'
+  return 'dashboard.goodEvening'
 }
 
 function formatDate(): string {
-  return new Date().toLocaleDateString('en-US', {
+  const locale = i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US'
+  return new Date().toLocaleDateString(locale, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -88,8 +83,9 @@ export default function WelcomeBanner({
   greeting,
   quickActions,
 }: WelcomeBannerProps) {
+  const { t } = useTranslation()
   const actions = quickActions || defaultQuickActions[role]
-  const displayGreeting = greeting || getTimeBasedGreeting()
+  const displayGreeting = greeting || t(getTimeBasedGreetingKey())
   const firstName = userName.split(' ')[0]
 
   return (
@@ -100,7 +96,7 @@ export default function WelcomeBanner({
           {displayGreeting}, {firstName}
         </h1>
         <p className="mt-1.5 text-sm text-gray-300">
-          {formatDate()} — {roleLabels[role]} Portfolio Overview
+          {formatDate()} — {t('dashboard.portfolioOverview', { role: t(`roles.${role}`) })}
         </p>
       </div>
 

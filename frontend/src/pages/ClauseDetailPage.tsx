@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -58,7 +59,15 @@ const RISK_COLORS: Record<string, string> = {
 }
 
 export default function ClauseDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
+
+  const clauseTypeLabel = (type: string) =>
+    t(`clauses.${type}`, {
+      defaultValue: t(`clause.type.${type}`, {
+        defaultValue: CLAUSE_TYPE_LABELS[type] || type,
+      }),
+    })
 
   const { data: clause, isLoading, error } = useQuery({
     queryKey: ['clause', id],
@@ -77,9 +86,9 @@ export default function ClauseDetailPage() {
   if (error || !clause) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Clause not found</p>
+        <p className="text-red-600">{t('clause.notFound')}</p>
         <Link to="/dashboard" className="text-primary-600 hover:underline mt-2 inline-block">
-          Back to dashboard
+          {t('clause.backToDashboard')}
         </Link>
       </div>
     )
@@ -101,7 +110,7 @@ export default function ClauseDetailPage() {
               'px-3 py-1 rounded-full text-sm font-medium border',
               CLAUSE_TYPE_COLORS[clause.clause_type] || CLAUSE_TYPE_COLORS.other
             )}>
-              {CLAUSE_TYPE_LABELS[clause.clause_type] || clause.clause_type}
+              {clauseTypeLabel(clause.clause_type)}
             </span>
             {clause.risk_level && (
               <span className={cn(
@@ -109,24 +118,26 @@ export default function ClauseDetailPage() {
                 RISK_COLORS[clause.risk_level] || RISK_COLORS.low
               )}>
                 <ShieldExclamationIcon className="h-3.5 w-3.5" />
-                {clause.risk_level} risk
+                {t('contract.riskLabel', {
+                  level: t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level }),
+                })}
               </span>
             )}
           </div>
           <h1 className="text-lg font-bold text-gray-900">
-            Clause from {clause.contract_filename}
+            {t('clause.clauseFrom', { filename: clause.contract_filename })}
           </h1>
           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
             {clause.page_number && (
               <span className="flex items-center gap-1">
                 <DocumentTextIcon className="h-4 w-4" />
-                Page {clause.page_number}
+                {t('clause.page', { number: clause.page_number })}
               </span>
             )}
             {clause.section_number && (
               <span className="flex items-center gap-1">
                 <HashtagIcon className="h-4 w-4" />
-                Section {clause.section_number}
+                {t('clause.section', { number: clause.section_number })}
               </span>
             )}
           </div>
@@ -141,7 +152,7 @@ export default function ClauseDetailPage() {
             <div className="card-header">
               <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
                 <DocumentMagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-                Full Clause Text
+                {t('clause.fullClauseText')}
               </h2>
             </div>
             <div className="card-body">
@@ -159,7 +170,7 @@ export default function ClauseDetailPage() {
               <div className="card-header">
                 <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
                   <ExclamationTriangleIcon className="h-5 w-5 text-gray-400" />
-                  Risk Analysis
+                  {t('clause.riskAnalysis')}
                 </h2>
               </div>
               <div className="card-body">
@@ -182,7 +193,7 @@ export default function ClauseDetailPage() {
             <div className="card">
               <div className="card-header">
                 <h2 className="text-sm font-medium text-gray-900">
-                  Other Clauses in this Contract ({clause.related_clauses.length})
+                  {t('clause.otherClauses', { count: clause.related_clauses.length })}
                 </h2>
               </div>
               <div className="card-body p-0">
@@ -200,11 +211,11 @@ export default function ClauseDetailPage() {
                               'px-2 py-0.5 rounded text-xs font-medium border',
                               CLAUSE_TYPE_COLORS[related.clause_type] || CLAUSE_TYPE_COLORS.other
                             )}>
-                              {CLAUSE_TYPE_LABELS[related.clause_type] || related.clause_type}
+                              {clauseTypeLabel(related.clause_type)}
                             </span>
                             {related.page_number && (
                               <span className="text-xs text-gray-400">
-                                Page {related.page_number}
+                                {t('clause.page', { number: related.page_number })}
                               </span>
                             )}
                           </div>
@@ -217,7 +228,7 @@ export default function ClauseDetailPage() {
                             'text-xs px-2 py-0.5 rounded shrink-0',
                             RISK_COLORS[related.risk_level] || RISK_COLORS.low
                           )}>
-                            {related.risk_level}
+                            {t(`risk.${related.risk_level}`, { defaultValue: related.risk_level })}
                           </span>
                         )}
                       </div>
@@ -236,19 +247,19 @@ export default function ClauseDetailPage() {
             <div className="card-header">
               <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
                 <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
-                Source Contract
+                {t('clause.sourceContract')}
               </h2>
             </div>
             <div className="card-body space-y-4">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Document</p>
+                <p className="text-xs text-gray-500 mb-1">{t('clause.document')}</p>
                 <p className="text-sm font-medium text-gray-900 break-all">
                   {clause.contract_filename}
                 </p>
               </div>
               {clause.counterparty && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Counterparty</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('contracts.counterparty')}</p>
                   <p className="text-sm font-medium text-gray-900">
                     {clause.counterparty}
                   </p>
@@ -256,7 +267,7 @@ export default function ClauseDetailPage() {
               )}
               {clause.contract_type && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Contract Type</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('clause.contractType')}</p>
                   <p className="text-sm font-medium text-gray-900 uppercase">
                     {clause.contract_type}
                   </p>
@@ -267,7 +278,7 @@ export default function ClauseDetailPage() {
                   to={`/contracts/${clause.contract_id}`}
                   className="btn-primary w-full justify-center"
                 >
-                  View Full Contract
+                  {t('clause.viewFullContract')}
                 </Link>
               </div>
             </div>
@@ -276,14 +287,14 @@ export default function ClauseDetailPage() {
           {/* Quick Actions */}
           <div className="card">
             <div className="card-header">
-              <h2 className="text-sm font-medium text-gray-900">Actions</h2>
+              <h2 className="text-sm font-medium text-gray-900">{t('common.actions')}</h2>
             </div>
             <div className="card-body space-y-2">
               <Link
                 to={`/query?clause=${clause.id}&contract=${clause.contract_id}`}
                 className="btn-secondary w-full justify-center"
               >
-                Ask AI about this clause
+                {t('clause.askAi')}
               </Link>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowPathIcon,
@@ -52,6 +53,7 @@ const emptyFormData: ConfigFormData = {
 }
 
 export default function SnowIntegrationPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<ConfigFormData>(emptyFormData)
@@ -87,7 +89,7 @@ export default function SnowIntegrationPage() {
       setTestResult(result)
     },
     onError: () => {
-      setTestResult({ healthy: false, message: 'Connection test failed. Please check your configuration.' })
+      setTestResult({ healthy: false, message: t('integrations.snow.testFailed') })
     },
   })
 
@@ -154,7 +156,7 @@ export default function SnowIntegrationPage() {
   if (configError) {
     return (
       <div className="rounded-lg bg-red-50 p-4 text-red-700">
-        Error loading ServiceNow configuration. Please try again.
+        {t('integrations.snow.loadError')}
       </div>
     )
   }
@@ -163,9 +165,9 @@ export default function SnowIntegrationPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">ServiceNow Integration</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('integrations.snow.title')}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Connect your ServiceNow instance to synchronize SLA data with the platform
+          {t('integrations.snow.subtitle')}
         </p>
       </div>
 
@@ -174,11 +176,11 @@ export default function SnowIntegrationPage() {
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CloudArrowUpIcon className="h-5 w-5 text-primary-600" />
-            <h3 className="text-sm font-medium text-gray-900">Connection Configuration</h3>
+            <h3 className="text-sm font-medium text-gray-900">{t('integrations.snow.connectionConfiguration')}</h3>
           </div>
           {config && !isEditing && (
             <button onClick={() => openEditForm(config)} className="btn-secondary text-sm py-1 px-3">
-              Edit Configuration
+              {t('integrations.snow.editConfiguration')}
             </button>
           )}
         </div>
@@ -187,12 +189,12 @@ export default function SnowIntegrationPage() {
         {!config && !isEditing && (
           <div className="p-8 text-center">
             <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-3 text-sm font-semibold text-gray-900">No ServiceNow connection configured</h3>
+            <h3 className="mt-3 text-sm font-semibold text-gray-900">{t('integrations.snow.noConnectionTitle')}</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Set up a connection to your ServiceNow instance to begin syncing SLA data.
+              {t('integrations.snow.noConnectionSubtitle')}
             </p>
             <button onClick={() => openEditForm()} className="btn-primary mt-4">
-              Configure Connection
+              {t('integrations.snow.configureConnection')}
             </button>
           </div>
         )}
@@ -203,16 +205,16 @@ export default function SnowIntegrationPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Health Status */}
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">Connection Status</p>
+                <p className="text-xs text-gray-500 mb-1">{t('integrations.snow.connectionStatus')}</p>
                 <div className="flex items-center gap-2">
                   <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium', healthInfo.color)}>
                     <HealthIcon className="h-3 w-3" />
-                    {healthInfo.label}
+                    {t(`integrations.health.${config.health_status}`, { defaultValue: healthInfo.label })}
                   </span>
                 </div>
                 {config.last_health_check && (
                   <p className="text-xs text-gray-500 mt-2">
-                    Last checked: {formatDateTime(config.last_health_check)}
+                    {t('integrations.snow.lastChecked', { date: formatDateTime(config.last_health_check) })}
                   </p>
                 )}
                 {config.last_health_message && (
@@ -222,28 +224,28 @@ export default function SnowIntegrationPage() {
 
               {/* Instance Info */}
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">Instance</p>
+                <p className="text-xs text-gray-500 mb-1">{t('integrations.snow.instance')}</p>
                 <p className="text-sm font-medium text-gray-900 truncate">{config.name}</p>
                 <p className="text-xs text-gray-500 mt-1 truncate">{config.base_url}</p>
-                <p className="text-xs text-gray-500 mt-1">Auth: {config.auth_type === 'basic' ? 'Basic Auth' : 'OAuth 2.0'}</p>
+                <p className="text-xs text-gray-500 mt-1">{t('integrations.snow.auth')}: {config.auth_type === 'basic' ? t('integrations.snow.basicAuth') : t('integrations.snow.oauth2')}</p>
               </div>
 
               {/* Request Stats */}
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">Request Statistics</p>
+                <p className="text-xs text-gray-500 mb-1">{t('integrations.snow.requestStatistics')}</p>
                 <div className="flex items-end gap-3">
                   <div>
                     <p className="text-2xl font-bold text-gray-900">{config.total_requests}</p>
-                    <p className="text-xs text-gray-500">Total</p>
+                    <p className="text-xs text-gray-500">{t('integrations.snow.total')}</p>
                   </div>
                   <div>
                     <p className="text-lg font-semibold text-red-600">{config.failed_requests}</p>
-                    <p className="text-xs text-gray-500">Failed</p>
+                    <p className="text-xs text-gray-500">{t('integrations.failed')}</p>
                   </div>
                 </div>
                 {config.last_used_at && (
                   <p className="text-xs text-gray-500 mt-2">
-                    Last used: {formatDateTime(config.last_used_at)}
+                    {t('integrations.snow.lastUsed', { date: formatDateTime(config.last_used_at) })}
                   </p>
                 )}
               </div>
@@ -261,7 +263,7 @@ export default function SnowIntegrationPage() {
                 ) : (
                   <SignalIcon className="h-4 w-4 mr-2" />
                 )}
-                Test Connection
+                {t('integrations.snow.testConnection')}
               </button>
 
               {testResult && (
@@ -287,13 +289,13 @@ export default function SnowIntegrationPage() {
             <form onSubmit={handleSave} className="space-y-4 max-w-lg">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Connection Name *
+                  {t('integrations.snow.connectionName')} *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., Production ServiceNow"
+                  placeholder={t('integrations.snow.connectionNamePlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   required
                 />
@@ -301,7 +303,7 @@ export default function SnowIntegrationPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Instance URL *
+                  {t('integrations.snow.instanceUrl')} *
                 </label>
                 <input
                   type="url"
@@ -312,13 +314,13 @@ export default function SnowIntegrationPage() {
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Your ServiceNow instance URL (e.g., https://yourcompany.service-now.com)
+                  {t('integrations.snow.instanceUrlHint')}
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Authentication Type *
+                  {t('integrations.snow.authenticationType')} *
                 </label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -330,7 +332,7 @@ export default function SnowIntegrationPage() {
                       onChange={() => setFormData({ ...formData, auth_type: 'basic' })}
                       className="text-primary-600 focus:ring-primary-500"
                     />
-                    <span className="text-sm text-gray-700">Basic Auth</span>
+                    <span className="text-sm text-gray-700">{t('integrations.snow.basicAuth')}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -341,7 +343,7 @@ export default function SnowIntegrationPage() {
                       onChange={() => setFormData({ ...formData, auth_type: 'oauth2' })}
                       className="text-primary-600 focus:ring-primary-500"
                     />
-                    <span className="text-sm text-gray-700">OAuth 2.0</span>
+                    <span className="text-sm text-gray-700">{t('integrations.snow.oauth2')}</span>
                   </label>
                 </div>
               </div>
@@ -351,27 +353,27 @@ export default function SnowIntegrationPage() {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Username *
+                      {t('integrations.snow.username')} *
                     </label>
                     <input
                       type="text"
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      placeholder="ServiceNow username"
+                      placeholder={t('integrations.snow.usernamePlaceholder')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                       required
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Password *
+                      {t('integrations.snow.password')} *
                     </label>
                     <div className="relative">
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        placeholder="ServiceNow password"
+                        placeholder={t('integrations.snow.passwordPlaceholder')}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-primary-500"
                         required
                       />
@@ -396,27 +398,27 @@ export default function SnowIntegrationPage() {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Client ID *
+                      {t('integrations.snow.clientId')} *
                     </label>
                     <input
                       type="text"
                       value={formData.client_id}
                       onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                      placeholder="OAuth2 Client ID"
+                      placeholder={t('integrations.snow.clientIdPlaceholder')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                       required
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Client Secret *
+                      {t('integrations.snow.clientSecret')} *
                     </label>
                     <div className="relative">
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={formData.client_secret}
                         onChange={(e) => setFormData({ ...formData, client_secret: e.target.value })}
-                        placeholder="OAuth2 Client Secret"
+                        placeholder={t('integrations.snow.clientSecretPlaceholder')}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-primary-500"
                         required
                       />
@@ -435,7 +437,7 @@ export default function SnowIntegrationPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Token URL *
+                      {t('integrations.snow.tokenUrl')} *
                     </label>
                     <input
                       type="url"
@@ -452,7 +454,7 @@ export default function SnowIntegrationPage() {
               {/* Save Error */}
               {saveMutation.isError && (
                 <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                  Failed to save configuration. Please check your inputs and try again.
+                  {t('integrations.snow.saveError')}
                 </div>
               )}
 
@@ -485,7 +487,7 @@ export default function SnowIntegrationPage() {
                       ) : (
                         <SignalIcon className="h-4 w-4 mr-2" />
                       )}
-                      Test Connection
+                      {t('integrations.snow.testConnection')}
                     </button>
                   )}
                 </div>
@@ -498,7 +500,7 @@ export default function SnowIntegrationPage() {
                     }}
                     className="btn-secondary"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
@@ -508,9 +510,9 @@ export default function SnowIntegrationPage() {
                     {saveMutation.isPending ? (
                       <LoadingSpinner size="sm" className="border-white border-t-transparent" />
                     ) : config ? (
-                      'Update Configuration'
+                      t('integrations.snow.updateConfiguration')
                     ) : (
-                      'Save Configuration'
+                      t('integrations.snow.saveConfiguration')
                     )}
                   </button>
                 </div>
@@ -524,13 +526,13 @@ export default function SnowIntegrationPage() {
       {config && (
         <div className="card overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-900">SLA Mappings</h3>
+            <h3 className="text-sm font-medium text-gray-900">{t('integrations.snow.slaMappings')}</h3>
             <div className="flex items-center gap-3">
               {syncResult && (
                 <span className="text-xs text-gray-500">
-                  Fetched: {syncResult.fetched} | Created: {syncResult.created} | Updated: {syncResult.updated}
+                  {t('integrations.snow.syncSummary', { fetched: syncResult.fetched, created: syncResult.created, updated: syncResult.updated })}
                   {syncResult.errors > 0 && (
-                    <span className="text-red-600"> | Errors: {syncResult.errors}</span>
+                    <span className="text-red-600"> | {t('integrations.snow.syncErrorCount', { count: syncResult.errors })}</span>
                   )}
                 </span>
               )}
@@ -544,14 +546,14 @@ export default function SnowIntegrationPage() {
                 ) : (
                   <ArrowPathIcon className="h-4 w-4 mr-2" />
                 )}
-                Sync Now
+                {t('integrations.snow.syncNow')}
               </button>
             </div>
           </div>
 
           {syncMutation.isError && (
             <div className="mx-4 mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-              Sync failed. Please check your ServiceNow connection and try again.
+              {t('integrations.snow.syncFailed')}
             </div>
           )}
 
@@ -566,22 +568,22 @@ export default function SnowIntegrationPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        SLA Name
+                        {t('integrations.snow.slaName')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Metric Type
+                        {t('integrations.snow.metricType')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Target
+                        {t('integrations.snow.target')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        {t('common.status')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Last Synced
+                        {t('integrations.snow.lastSynced')}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
+                        {t('common.actions')}
                       </th>
                     </tr>
                   </thead>
@@ -603,11 +605,11 @@ export default function SnowIntegrationPage() {
                             'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
                             MAPPING_STATUS_COLORS[mapping.mapping_status] || 'bg-gray-100 text-gray-600'
                           )}>
-                            {mapping.mapping_status}
+                            {t(`integrations.snow.mappingStatus.${mapping.mapping_status}`, { defaultValue: t(`status.${mapping.mapping_status}`, { defaultValue: mapping.mapping_status }) })}
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                          {mapping.last_synced_at ? formatDateTime(mapping.last_synced_at) : 'Never'}
+                          {mapping.last_synced_at ? formatDateTime(mapping.last_synced_at) : t('integrations.never')}
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
                           <select
@@ -616,9 +618,9 @@ export default function SnowIntegrationPage() {
                             disabled={updateMappingMutation.isPending}
                             className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-primary-500"
                           >
-                            <option value="pending">Pending</option>
-                            <option value="mapped">Mapped</option>
-                            <option value="ignored">Ignored</option>
+                            <option value="pending">{t('status.pending')}</option>
+                            <option value="mapped">{t('integrations.snow.mappingStatus.mapped')}</option>
+                            <option value="ignored">{t('integrations.snow.mappingStatus.ignored')}</option>
                           </select>
                         </td>
                       </tr>
@@ -628,8 +630,8 @@ export default function SnowIntegrationPage() {
               </div>
               {(!mappings || mappings.length === 0) && (
                 <div className="text-center py-12 text-gray-500">
-                  <p className="text-sm">No SLA mappings found.</p>
-                  <p className="text-xs mt-1">Click "Sync Now" to fetch SLAs from ServiceNow.</p>
+                  <p className="text-sm">{t('integrations.snow.noMappings')}</p>
+                  <p className="text-xs mt-1">{t('integrations.snow.noMappingsHint')}</p>
                 </div>
               )}
             </>

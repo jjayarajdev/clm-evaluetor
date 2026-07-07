@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
@@ -148,6 +149,7 @@ function ProfileSelector({
   currentSlug: string | null
   onSwitch: (slug: string) => void
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const current = profiles.find((p) => p.slug === currentSlug)
@@ -167,7 +169,7 @@ function ProfileSelector({
         className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors text-sm"
       >
         <CheckCircleIcon className="h-4 w-4 text-violet-500" />
-        <span className="font-medium text-gray-900">{current?.name || 'No profile'}</span>
+        <span className="font-medium text-gray-900">{current?.name || t('industry.noProfile')}</span>
         <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition-transform', open && 'rotate-180')} />
       </button>
       {open && (
@@ -184,9 +186,9 @@ function ProfileSelector({
               </div>
               <div className="text-xs text-gray-500">{p.description}</div>
               <div className="flex gap-3 mt-1">
-                <span className="text-[10px] text-gray-400">{p.contract_type_count} types</span>
-                <span className="text-[10px] text-gray-400">{p.clause_type_count} clauses</span>
-                <span className="text-[10px] text-gray-400">{p.sla_metric_count} SLAs</span>
+                <span className="text-[10px] text-gray-400">{t('industry.typesCount', { count: p.contract_type_count })}</span>
+                <span className="text-[10px] text-gray-400">{t('industry.clausesCount', { count: p.clause_type_count })}</span>
+                <span className="text-[10px] text-gray-400">{t('industry.slasCount', { count: p.sla_metric_count })}</span>
               </div>
             </button>
           ))}
@@ -248,6 +250,7 @@ function SlideOver({
 function ItemEditForm({
   item,
   fields,
+  tabId,
   onSave,
   onDelete,
   onCancel,
@@ -256,12 +259,14 @@ function ItemEditForm({
 }: {
   item: Record<string, unknown>
   fields: typeof TAB_FIELDS[string]
+  tabId: string
   onSave: (item: TaxonomyItem) => void
   onDelete?: () => void
   onCancel: () => void
   isNew: boolean
   accuracy?: TaxonomyAccuracyItem
 }) {
+  const { t } = useTranslation()
   const [draft, setDraft] = useState<Record<string, string>>(() => {
     const d: Record<string, string> = {}
     fields.forEach((f) => { d[f.key] = String(item[f.key] ?? '') })
@@ -288,18 +293,18 @@ function ItemEditForm({
       {accuracy && accuracy.total > 0 && (
         <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-600">Extraction Accuracy</span>
+            <span className="text-xs font-medium text-gray-600">{t('industry.extractionAccuracy')}</span>
             <AccuracyBadge score={accuracy.accuracy} size="md" />
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            {accuracy.correct}/{accuracy.total} verified correct
+            {t('industry.verifiedCorrect', { correct: accuracy.correct, total: accuracy.total })}
           </div>
           {accuracy.accuracy < 70 && (
             <Link
               to={`/admin/extraction-quality?entity_type=clause&taxonomy_code=${item.code}`}
               className="text-xs text-red-600 hover:text-red-700 font-medium mt-1 inline-block"
             >
-              Review extractions →
+              {t('industry.reviewExtractions')}
             </Link>
           )}
         </div>
@@ -309,7 +314,7 @@ function ItemEditForm({
       {fields.map((f) => (
         <div key={f.key}>
           <label className="block text-xs font-medium text-gray-600 mb-1">
-            {f.label} {f.required && <span className="text-red-400">*</span>}
+            {t(`industry.fields.${f.key}`, { defaultValue: f.label })} {f.required && <span className="text-red-400">*</span>}
           </label>
           {f.key === 'direction' ? (
             <select
@@ -318,8 +323,8 @@ function ItemEditForm({
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
             >
               <option value="">—</option>
-              <option value="higher_is_better">Higher is better</option>
-              <option value="lower_is_better">Lower is better</option>
+              <option value="higher_is_better">{t('industry.higherIsBetter')}</option>
+              <option value="lower_is_better">{t('industry.lowerIsBetter')}</option>
             </select>
           ) : (
             <input
@@ -327,7 +332,7 @@ function ItemEditForm({
               value={draft[f.key] || ''}
               onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSave() }}
-              placeholder={f.placeholder}
+              placeholder={t(`industry.ph.${tabId}.${f.key}`, { defaultValue: f.placeholder })}
               disabled={f.key === 'code' && !isNew}
               className={cn(
                 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400',
@@ -347,20 +352,20 @@ function ItemEditForm({
               className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
             >
               <TrashIcon className="h-4 w-4" />
-              Delete
+              {t('common.delete')}
             </button>
           )}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!canSave}
             className="px-4 py-2 text-sm font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-40 transition-colors"
           >
-            {isNew ? 'Add' : 'Save'}
+            {isNew ? t('industry.add') : t('common.save')}
           </button>
         </div>
       </div>
@@ -383,6 +388,7 @@ function SuggestionPill({
   onReject: (id: string) => void
   isProcessing: boolean
 }) {
+  const { t } = useTranslation()
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm">
       <SparklesIcon className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
@@ -392,7 +398,7 @@ function SuggestionPill({
         onClick={() => onApprove(suggestion.id)}
         disabled={isProcessing}
         className="p-0.5 text-green-600 hover:bg-green-100 rounded disabled:opacity-40"
-        title="Approve"
+        title={t('industry.approve')}
       >
         <CheckIcon className="h-3.5 w-3.5" />
       </button>
@@ -400,7 +406,7 @@ function SuggestionPill({
         onClick={() => onReject(suggestion.id)}
         disabled={isProcessing}
         className="p-0.5 text-red-500 hover:bg-red-100 rounded disabled:opacity-40"
-        title="Reject"
+        title={t('industry.reject')}
       >
         <XMarkIcon className="h-3.5 w-3.5" />
       </button>
@@ -423,6 +429,7 @@ function TaxonomyRow({
   accuracy?: TaxonomyAccuracyItem
   isCustom?: boolean
 }) {
+  const { t } = useTranslation()
   return (
     <button
       onClick={onClick}
@@ -438,7 +445,7 @@ function TaxonomyRow({
     >
       <span className="text-[13px] font-medium text-gray-900 truncate flex-1">{item.label}</span>
       {isCustom && (
-        <span className="text-[8px] font-semibold uppercase px-1 py-px rounded bg-violet-100 text-violet-600 flex-shrink-0">custom</span>
+        <span className="text-[8px] font-semibold uppercase px-1 py-px rounded bg-violet-100 text-violet-600 flex-shrink-0">{t('industry.custom')}</span>
       )}
       {accuracy && accuracy.total > 0 && <AccuracyBadge score={accuracy.accuracy} />}
       <ChevronDownIcon className="h-3.5 w-3.5 text-gray-300 -rotate-90 flex-shrink-0" />
@@ -492,6 +499,7 @@ function ExtractionHintsContent({
   onSave: (hints: Record<string, string>) => void
   qualityHints?: QualityHint[]
 }) {
+  const { t } = useTranslation()
   const [editKey, setEditKey] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [addMode, setAddMode] = useState(false)
@@ -528,7 +536,7 @@ function ExtractionHintsContent({
           <div className="flex items-center gap-2 mb-2">
             <SparklesIcon className="h-4 w-4 text-amber-500" />
             <span className="text-xs font-semibold text-gray-700">
-              Suggested improvements based on extraction quality ({qualityHints.length})
+              {t('industry.suggestedImprovements', { count: qualityHints.length })}
             </span>
           </div>
           <div className="max-h-64 overflow-y-auto">
@@ -536,14 +544,14 @@ function ExtractionHintsContent({
             <div key={h.code} className="flex items-center justify-between py-1.5 border-t border-amber-100">
               <div>
                 <span className="text-sm text-gray-800">{h.label}</span>
-                <span className="text-xs text-red-500 ml-2">{Math.round(h.accuracy)}% accuracy</span>
+                <span className="text-xs text-red-500 ml-2">{t('industry.accuracyPercent', { percent: Math.round(h.accuracy) })}</span>
               </div>
               {h.suggested_hint && (
                 <button
                   onClick={() => { setEditKey(h.category); setEditValue(h.suggested_hint); handleSave(h.category, h.suggested_hint) }}
                   className="text-xs text-violet-600 hover:text-violet-800 font-medium"
                 >
-                  Apply
+                  {t('industry.apply')}
                 </button>
               )}
             </div>
@@ -563,7 +571,7 @@ function ExtractionHintsContent({
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-gray-700 uppercase">{key.replace(/_/g, ' ')}</span>
-                {isCustom && <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-violet-100 text-violet-600">custom</span>}
+                {isCustom && <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-violet-100 text-violet-600">{t('industry.custom')}</span>}
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => { setEditKey(key); setEditValue(value) }} className="p-1 text-gray-400 hover:text-blue-600">
@@ -587,10 +595,10 @@ function ExtractionHintsContent({
                 />
                 <div className="flex items-center gap-2">
                   <button onClick={() => handleSave(key, editValue)} className="px-3 py-1.5 text-xs bg-violet-600 text-white rounded-lg hover:bg-violet-700">
-                    Save
+                    {t('common.save')}
                   </button>
                   <button onClick={() => setEditKey(null)} className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800">
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               </div>
@@ -608,22 +616,22 @@ function ExtractionHintsContent({
             type="text"
             value={newKey}
             onChange={(e) => setNewKey(e.target.value)}
-            placeholder="Agent key (e.g. clause_extraction)"
+            placeholder={t('industry.agentKeyPlaceholder')}
             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
             autoFocus
           />
           <textarea
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
-            placeholder="Extraction hint text..."
+            placeholder={t('industry.hintTextPlaceholder')}
             rows={3}
             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
           />
           <div className="flex items-center gap-2">
             <button onClick={handleAdd} disabled={!newKey.trim() || !newValue.trim()} className="px-3 py-1.5 text-xs bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-40">
-              Add
+              {t('industry.add')}
             </button>
-            <button onClick={() => setAddMode(false)} className="px-3 py-1.5 text-xs text-gray-600">Cancel</button>
+            <button onClick={() => setAddMode(false)} className="px-3 py-1.5 text-xs text-gray-600">{t('common.cancel')}</button>
           </div>
         </div>
       ) : (
@@ -631,7 +639,7 @@ function ExtractionHintsContent({
           onClick={() => setAddMode(true)}
           className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-800 font-medium"
         >
-          <PlusIcon className="h-4 w-4" /> Add Custom Hint
+          <PlusIcon className="h-4 w-4" /> {t('industry.addCustomHint')}
         </button>
       )}
     </div>
@@ -649,6 +657,7 @@ function CompanyNamesContent({
   aliases: string[]
   onSave: (aliases: string[]) => void
 }) {
+  const { t } = useTranslation()
   const [newName, setNewName] = useState('')
 
   const handleAdd = () => {
@@ -662,7 +671,7 @@ function CompanyNamesContent({
     <div className="space-y-4">
       <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
         <p className="text-sm text-blue-700">
-          Add legal entity names, subsidiaries, and DBAs so the AI correctly identifies counterparties in your contracts.
+          {t('industry.companyNamesInfo')}
         </p>
       </div>
 
@@ -683,24 +692,24 @@ function CompanyNamesContent({
       ) : (
         <div className="p-8 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
           <BuildingOffice2Icon className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-          <p className="text-sm text-gray-500">No company names configured.</p>
+          <p className="text-sm text-gray-500">{t('industry.noCompanyNames')}</p>
         </div>
       )}
 
       <div className="flex items-end gap-2">
         <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Add Company Name</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">{t('industry.addCompanyName')}</label>
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
-            placeholder="e.g. Vialto Partners, Galaxy US OpCo Inc."
+            placeholder={t('industry.companyNamePlaceholder')}
             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
           />
         </div>
         <button onClick={handleAdd} disabled={!newName.trim()} className="px-4 py-2 text-sm font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-40">
-          Add
+          {t('industry.add')}
         </button>
       </div>
     </div>
@@ -712,6 +721,7 @@ function CompanyNamesContent({
 // ============================================================================
 
 export default function IndustryProfilesPage() {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<TabId>('contract_types')
   const [search, setSearch] = useState('')
   const [slideOver, setSlideOver] = useState<{ item: TaxonomyItem; isNew: boolean; isCustom: boolean; isBase: boolean } | null>(null)
@@ -921,8 +931,8 @@ export default function IndustryProfilesPage() {
         <div className="flex items-center gap-3">
           <SwatchIcon className="h-6 w-6 text-violet-500" />
           <div>
-            <h1 className="text-lg font-bold text-gray-900">Industry Profile</h1>
-            <p className="text-xs text-gray-500">Configure extraction taxonomy and AI behavior</p>
+            <h1 className="text-lg font-bold text-gray-900">{t('industry.title')}</h1>
+            <p className="text-xs text-gray-500">{t('industry.subtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -932,7 +942,7 @@ export default function IndustryProfilesPage() {
               className="btn-primary text-sm flex items-center gap-1.5"
             >
               <PlusIcon className="h-4 w-4" />
-              New Industry
+              {t('industry.newIndustry')}
             </button>
           )}
           <ProfileSelector
@@ -974,7 +984,7 @@ export default function IndustryProfilesPage() {
                   )}
                 >
                   <Icon className={cn('h-4 w-4 flex-shrink-0', isActive ? 'text-violet-600' : 'text-gray-400')} />
-                  <span className="flex-1 text-left truncate">{tab.label}</span>
+                  <span className="flex-1 text-left truncate">{t(`industry.tabs.${tab.id}`, { defaultValue: tab.label })}</span>
                   <div className="flex items-center gap-1">
                     <AccuracyBadge score={tabScore} />
                     {tabSugCount > 0 && (
@@ -992,14 +1002,14 @@ export default function IndustryProfilesPage() {
           {qualityOverview?.avg_overall_score != null && (
             <div className="px-3 py-3 border-t border-gray-200">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-semibold uppercase text-gray-400">Accuracy</span>
+                <span className="text-[10px] font-semibold uppercase text-gray-400">{t('industry.accuracy')}</span>
                 <AccuracyBadge score={qualityOverview.avg_overall_score} size="md" />
               </div>
               <Link
                 to="/admin/extraction-quality"
                 className="flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-800 font-medium mt-1"
               >
-                View Details <ArrowTopRightOnSquareIcon className="h-3 w-3" />
+                {t('industry.viewDetails')} <ArrowTopRightOnSquareIcon className="h-3 w-3" />
               </Link>
             </div>
           )}
@@ -1010,7 +1020,7 @@ export default function IndustryProfilesPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <SparklesIcon className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-[11px] font-semibold text-gray-600">{pendingCount} suggestions</span>
+                  <span className="text-[11px] font-semibold text-gray-600">{t('industry.suggestionsCount', { count: pendingCount })}</span>
                 </div>
                 {suggestions.length > 1 && (
                   <button
@@ -1018,7 +1028,7 @@ export default function IndustryProfilesPage() {
                     disabled={approveAllMutation.isPending}
                     className="text-[10px] text-green-600 hover:text-green-800 font-medium disabled:opacity-40"
                   >
-                    Approve All
+                    {t('industry.approveAll')}
                   </button>
                 )}
               </div>
@@ -1038,7 +1048,7 @@ export default function IndustryProfilesPage() {
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder={`Search ${TABS.find((t) => t.id === activeTab)?.label.toLowerCase()}...`}
+                    placeholder={t('industry.searchPlaceholder', { items: t(`industry.tabs.${activeTab}`, { defaultValue: TABS.find((tab) => tab.id === activeTab)?.label ?? '' }).toLowerCase() })}
                     className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
                   />
                 </div>
@@ -1047,7 +1057,7 @@ export default function IndustryProfilesPage() {
                   className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
                 >
                   <PlusIcon className="h-4 w-4" />
-                  Add
+                  {t('industry.add')}
                 </button>
               </div>
 
@@ -1069,7 +1079,7 @@ export default function IndustryProfilesPage() {
               {/* Base items */}
               <div className="mb-6">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">
-                  Base Profile ({filterItems(tabData.base).length})
+                  {t('industry.baseProfile', { count: filterItems(tabData.base).length })}
                 </h3>
 
                 {activeTab === 'clause_types' && groupedBase ? (
@@ -1109,7 +1119,7 @@ export default function IndustryProfilesPage() {
               {filterItems(tabData.custom).length > 0 && (
                 <div>
                   <h3 className="text-[11px] font-semibold uppercase tracking-wider text-violet-500 mb-2">
-                    Tenant Custom ({filterItems(tabData.custom).length})
+                    {t('industry.tenantCustom', { count: filterItems(tabData.custom).length })}
                   </h3>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
                     {filterItems(tabData.custom).map((item) => (
@@ -1152,12 +1162,13 @@ export default function IndustryProfilesPage() {
       <SlideOver
         open={!!slideOver}
         onClose={() => setSlideOver(null)}
-        title={slideOver?.isNew ? `Add ${TABS.find((t) => t.id === activeTab)?.label.replace(/s$/, '') || 'Item'}` : (slideOver?.item.label || 'Edit')}
+        title={slideOver?.isNew ? t(`industry.addItem.${activeTab}`, { defaultValue: `Add ${TABS.find((tab) => tab.id === activeTab)?.label.replace(/s$/, '') || 'Item'}` }) : (slideOver?.item.label || t('common.edit'))}
       >
         {slideOver && TAB_FIELDS[activeTab] && (
           <ItemEditForm
             item={slideOver.item as Record<string, unknown>}
             fields={TAB_FIELDS[activeTab]}
+            tabId={activeTab}
             isNew={slideOver.isNew}
             accuracy={tabData.accuracyMap?.[slideOver.item.code]}
             onSave={(item) => {
@@ -1177,7 +1188,7 @@ export default function IndustryProfilesPage() {
       {(saveMutation.isError || updateProfileMutation.isError) && (
         <div className="fixed bottom-4 right-4 p-3 bg-red-50 border border-red-200 rounded-lg shadow-lg z-50">
           <p className="text-xs text-red-600">
-            {(saveMutation.error as Error)?.message || (updateProfileMutation.error as Error)?.message || 'Failed to save'}
+            {(saveMutation.error as Error)?.message || (updateProfileMutation.error as Error)?.message || t('industry.failedToSave')}
           </p>
         </div>
       )}

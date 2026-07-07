@@ -31,6 +31,7 @@ export const api = {
   getToken: clientModule.getToken,
   login: clientModule.login,
   getCurrentUser: clientModule.getCurrentUser,
+  updateMyPreferences: clientModule.updateMyPreferences,
   logout: clientModule.logout,
 
   // Contracts
@@ -58,4 +59,4 @@ export * from './compliance'
 export * from './governance'
 export * from './admin'
 export * from './ai'
-export { setToken, clearToken, getToken, login, getCurrentUser, logout } from './client'
+export { setToken, clearToken, getToken, login, getCurrentUser, updateMyPreferences, logout } from './client'
