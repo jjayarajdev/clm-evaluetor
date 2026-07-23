@@ -96,15 +96,39 @@ async def _load_extraction_hints(
     return {}
 
 
+# Maps Industry enum values to keywords found in profile names/slugs, used
+# to disambiguate when a contract type (e.g. "msa") exists in many profiles.
+_INDUSTRY_PROFILE_KEYWORDS = {
+    "technology": ["it ", "it_", "it-", "tech", "software", "digital"],
+    "telecommunications": ["telecom", "it ", "tech"],
+    "pharmaceutical": ["pharma", "life science"],
+    "healthcare": ["health", "medi"],
+    "manufacturing": ["manufactur"],
+    "chemical": ["chemical"],
+    "financial_services": ["financ", "bank", "insur"],
+    "energy": ["energy", "utilit"],
+    "aerospace_defense": ["aerospace", "defense"],
+    "food_beverage": ["food", "beverage"],
+    "automotive": ["automotive"],
+    "retail": ["retail"],
+    "construction": ["construction", "real estate", "vastgoed"],
+}
+
+
 async def _match_profile_for_contract_type(
     db: AsyncSession,
     contract_type: str | None,
+    tenant_id=None,
+    detected_industry: str | None = None,
 ):
-    """Find the industry profile whose contract_types best match the given type.
+    """Find the industry profile whose contract_types match the given type.
 
-    Match priority per profile: exact code, code substring, exact label,
-    description substring. Returns the IndustryProfile or None. Used both to
-    resolve extraction hints and to persist per-contract profile assignment.
+    Generic types (msa, sow, nda) exist in many profiles, so a bare
+    first-match is wrong. Candidates are collected by match tier (exact code
+    > code substring > exact label > description substring), then
+    disambiguated: tenant's default profile wins, else a unique
+    detected-industry keyword match, else a unique candidate. Ambiguity
+    returns None — no assignment beats a wrong one.
     """
     from sqlalchemy import select
     from app.models.industry_profile import IndustryProfile
@@ -120,29 +144,52 @@ async def _match_profile_for_contract_type(
         return None
 
     ct_lower = contract_type.strip().lower()
+    tiers: list[list] = [[], [], [], []]
     for profile in all_profiles:
         if not profile.contract_types:
             continue
-        profile_codes = {
-            (ct.get("code") or "").lower() for ct in profile.contract_types
-        }
-        profile_labels = {
-            (ct.get("label") or "").lower() for ct in profile.contract_types
-        }
-        profile_descriptions = {
-            (ct.get("description") or "").lower() for ct in profile.contract_types
-        }
+        codes = {(ct.get("code") or "").lower() for ct in profile.contract_types}
+        labels = {(ct.get("label") or "").lower() for ct in profile.contract_types}
+        descs = {(ct.get("description") or "").lower() for ct in profile.contract_types}
 
-        if ct_lower in profile_codes:
-            return profile
-        for code in profile_codes:
-            if code and (ct_lower in code or code in ct_lower):
-                return profile
-        if ct_lower in profile_labels:
-            return profile
-        for desc in profile_descriptions:
-            if desc and ct_lower in desc:
-                return profile
+        if ct_lower in codes:
+            tiers[0].append(profile)
+        elif any(c and (ct_lower in c or c in ct_lower) for c in codes):
+            tiers[1].append(profile)
+        elif ct_lower in labels:
+            tiers[2].append(profile)
+        elif any(d and ct_lower in d for d in descs):
+            tiers[3].append(profile)
+
+    candidates = next((t for t in tiers if t), [])
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+
+    # Tie-break 1: the tenant's default profile is the most likely context
+    if tenant_id:
+        tenant = await db.get(Tenant, tenant_id)
+        if tenant and tenant.industry_profile_id:
+            for profile in candidates:
+                if profile.id == tenant.industry_profile_id:
+                    return profile
+
+    # Tie-break 2: unique match against the detected industry
+    if detected_industry:
+        keywords = _INDUSTRY_PROFILE_KEYWORDS.get(str(detected_industry).lower(), [])
+        if keywords:
+            hits = [
+                p for p in candidates
+                if any(kw in f"{p.name} {p.slug or ''}".lower() for kw in keywords)
+            ]
+            if len(hits) == 1:
+                return hits[0]
+
+    logger.info(
+        f"Contract type '{contract_type}' is ambiguous across "
+        f"{len(candidates)} profiles — not auto-assigning"
+    )
     return None
 
 
@@ -175,7 +222,9 @@ async def _resolve_hints_for_contract(
     if not contract_type:
         return await _load_extraction_hints(db, tenant_id)
 
-    best_profile = await _match_profile_for_contract_type(db, contract_type)
+    best_profile = await _match_profile_for_contract_type(
+        db, contract_type, tenant_id=tenant_id
+    )
     if best_profile is None:
         return await _load_extraction_hints(db, tenant_id)
 
@@ -403,6 +452,18 @@ class IndexingService:
                 logger.warning(f"Metadata extraction failed for {contract.id}: {e}")
                 recorder.failed(ProcessingStage.METADATA, error=str(e))
 
+            # Signal-based industry detection (no LLM cost) — persisted as a
+            # supporting signal and used to disambiguate profile matching.
+            try:
+                from app.services.industry_detector import IndustryDetector
+
+                detection = await IndustryDetector(self.db).detect_industry(contract)
+                if detection and detection.industry:
+                    contract.detected_industry = detection.industry
+                    contract.industry_confidence = detection.confidence
+            except Exception as e:
+                logger.debug(f"Industry detection skipped for {contract.id}: {e}")
+
             # Re-resolve extraction hints based on detected contract type.
             # The initial hints came from the tenant's default profile, but now
             # that we know the contract type we can pick the best-fit profile.
@@ -413,7 +474,14 @@ class IndexingService:
                 # resolution priority 1; the tenant profile is fallback only.
                 if contract.industry_profile_id is None:
                     matched = await _match_profile_for_contract_type(
-                        self.db, contract.contract_type
+                        self.db,
+                        contract.contract_type,
+                        tenant_id=contract.tenant_id,
+                        detected_industry=(
+                            contract.detected_industry.value
+                            if contract.detected_industry
+                            else None
+                        ),
                     )
                     if matched:
                         contract.industry_profile_id = matched.id
@@ -430,18 +498,6 @@ class IndexingService:
                 )
                 if resolved_hints:
                     extraction_hints = resolved_hints
-
-            # Signal-based industry detection (no LLM cost) — supporting
-            # signal for profile review; does not affect hint resolution.
-            try:
-                from app.services.industry_detector import IndustryDetector
-
-                detection = await IndustryDetector(self.db).detect_industry(contract)
-                if detection and detection.industry:
-                    contract.detected_industry = detection.industry
-                    contract.industry_confidence = detection.confidence
-            except Exception as e:
-                logger.debug(f"Industry detection skipped for {contract.id}: {e}")
 
             # Extract custom fields if tenant has them defined
             if contract.tenant_id:

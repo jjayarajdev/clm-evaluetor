@@ -2161,9 +2161,15 @@ async def batch_assign_profiles(
         if not ct:
             unmatched.add("(no contract_type)")
             continue
-        if ct not in match_cache:
-            match_cache[ct] = await _match_profile_for_contract_type(db, ct)
-        profile = match_cache[ct]
+        detected = (
+            contract.detected_industry.value if contract.detected_industry else None
+        )
+        cache_key = f"{ct}|{detected}"
+        if cache_key not in match_cache:
+            match_cache[cache_key] = await _match_profile_for_contract_type(
+                db, ct, tenant_id=tenant_id, detected_industry=detected
+            )
+        profile = match_cache[cache_key]
         if profile is None:
             unmatched.add(ct)
             continue
