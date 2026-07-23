@@ -35,6 +35,7 @@ class ProcessingStage(str, Enum):
     LINK_DETECTION = "link_detection"
     COMPLIANCE_CHECK = "compliance_check"
     GOVERNANCE_BRIDGE = "governance_bridge"
+    GRAPH_VERIFICATION = "graph_verification"
 
     # Terminal stages
     COMPLETED = "completed"
@@ -59,6 +60,7 @@ STAGE_DESCRIPTIONS = {
     ProcessingStage.LINK_DETECTION: "Finding related contracts",
     ProcessingStage.COMPLIANCE_CHECK: "Checking compliance",
     ProcessingStage.GOVERNANCE_BRIDGE: "Setting up governance",
+    ProcessingStage.GRAPH_VERIFICATION: "Verifying metadata consistency",
     ProcessingStage.COMPLETED: "Processing complete",
     ProcessingStage.FAILED: "Processing failed",
 }
@@ -81,6 +83,7 @@ STAGE_WEIGHTS = {
     ProcessingStage.LINK_DETECTION: 82,
     ProcessingStage.COMPLIANCE_CHECK: 88,
     ProcessingStage.GOVERNANCE_BRIDGE: 94,
+    ProcessingStage.GRAPH_VERIFICATION: 97,
     ProcessingStage.COMPLETED: 100,
     ProcessingStage.FAILED: 100,
 }
@@ -103,6 +106,7 @@ STAGE_ORDER = [
     ProcessingStage.LINK_DETECTION,
     ProcessingStage.COMPLIANCE_CHECK,
     ProcessingStage.GOVERNANCE_BRIDGE,
+    ProcessingStage.GRAPH_VERIFICATION,
     ProcessingStage.COMPLETED,
 ]
 
