@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import Any
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.clause import Clause, ClauseType
