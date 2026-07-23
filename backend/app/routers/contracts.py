@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.audit import log_audit
-from app.core.deps import AdminUser, CurrentUser, CurrentTenantId
+from app.core.deps import AdminUser, CurrentUser, CurrentTenantId, require_admin, require_write
 from app.models.contract import Contract
 from app.database import get_db
 from app.models.audit import AuditAction
@@ -163,7 +163,7 @@ async def _process_batch_concurrently(
     )
 
 
-@router.post("/upload", response_model=ContractUploadResponse)
+@router.post("/upload", response_model=ContractUploadResponse, dependencies=[Depends(require_write)])
 async def upload_single_file(
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
@@ -983,7 +983,7 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             pass
 
 
-@router.post("/upload/batch", response_model=BatchUploadResponse)
+@router.post("/upload/batch", response_model=BatchUploadResponse, dependencies=[Depends(require_write)])
 async def upload_batch_files(
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
@@ -1110,7 +1110,7 @@ async def upload_batch_files(
     )
 
 
-@router.post("/upload/zip", response_model=BatchUploadResponse)
+@router.post("/upload/zip", response_model=BatchUploadResponse, dependencies=[Depends(require_write)])
 async def upload_zip_archive(
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
@@ -1325,7 +1325,7 @@ class ProcessingResponse(BaseModel):
     queued: int
 
 
-@router.post("/process", response_model=ProcessingResponse)
+@router.post("/process", response_model=ProcessingResponse, dependencies=[Depends(require_write)])
 async def process_contracts(
     request_body: ProcessingRequest,
     current_user: AdminUser,
@@ -1406,7 +1406,7 @@ async def process_contracts(
     )
 
 
-@router.post("/{contract_id}/process", response_model=ProcessingResponse)
+@router.post("/{contract_id}/process", response_model=ProcessingResponse, dependencies=[Depends(require_write)])
 async def process_single_contract(
     contract_id: str,
     current_user: CurrentUser,
@@ -1934,7 +1934,7 @@ class CreateLinkResponse(BaseModel):
     message: str
 
 
-@router.post("/links", response_model=CreateLinkResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/links", response_model=CreateLinkResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_write)])
 async def create_contract_link(
     body: CreateLinkRequest,
     current_user: CurrentUser,
@@ -1995,7 +1995,7 @@ async def create_contract_link(
     )
 
 
-@router.delete("/links/{link_id}", status_code=status.HTTP_200_OK)
+@router.delete("/links/{link_id}", status_code=status.HTTP_200_OK, dependencies=[Depends(require_write)])
 async def delete_contract_link(
     link_id: str,
     current_user: CurrentUser,
@@ -2021,7 +2021,7 @@ class MoveContractRequest(BaseModel):
     link_type: str = "related"
 
 
-@router.post("/links/move", response_model=CreateLinkResponse | dict)
+@router.post("/links/move", response_model=CreateLinkResponse | dict, dependencies=[Depends(require_write)])
 async def move_contract(
     body: MoveContractRequest,
     current_user: CurrentUser,
@@ -2161,7 +2161,7 @@ async def get_contract(
     return contract_to_response(contract, clause_count=clause_ct, obligation_count=obligation_ct, sla_count=sla_ct)
 
 
-@router.delete("/{contract_id}")
+@router.delete("/{contract_id}", dependencies=[Depends(require_write)])
 async def delete_contract(
     contract_id: str,
     current_user: CurrentUser,
@@ -2221,7 +2221,7 @@ class BatchDeleteResponse(BaseModel):
     total_failed: int
 
 
-@router.post("/batch-delete", response_model=BatchDeleteResponse)
+@router.post("/batch-delete", response_model=BatchDeleteResponse, dependencies=[Depends(require_write)])
 async def batch_delete_contracts(
     request_body: BatchDeleteRequest,
     current_user: CurrentUser,
@@ -2360,7 +2360,7 @@ async def list_contract_files(
     }
 
 
-@router.post("/{contract_id}/files")
+@router.post("/{contract_id}/files", dependencies=[Depends(require_write)])
 async def add_file_to_contract(
     contract_id: str,
     current_user: CurrentUser,
@@ -2436,7 +2436,7 @@ async def add_file_to_contract(
     }
 
 
-@router.post("/{contract_id}/analyze")
+@router.post("/{contract_id}/analyze", dependencies=[Depends(require_write)])
 async def analyze_contract(
     contract_id: str,
     current_user: CurrentUser,
@@ -2844,7 +2844,7 @@ class ReExtractMetadataResponse(BaseModel):
     reason: str | None = None  # populated when applied=False
 
 
-@router.post("/{contract_id}/re-extract-metadata", response_model=ReExtractMetadataResponse)
+@router.post("/{contract_id}/re-extract-metadata", response_model=ReExtractMetadataResponse, dependencies=[Depends(require_write)])
 async def re_extract_metadata_field(
     contract_id: str,
     body: ReExtractMetadataRequest,
@@ -3077,7 +3077,7 @@ async def get_current_processing_status(
     return progress.to_dict()
 
 
-@router.patch("/{contract_id}", response_model=ContractResponse)
+@router.patch("/{contract_id}", response_model=ContractResponse, dependencies=[Depends(require_write)])
 async def update_contract_metadata(
     contract_id: str,
     update_data: "ContractUpdate",
@@ -3140,7 +3140,7 @@ async def update_contract_metadata(
     return contract_to_response(contract, clause_count=clause_ct, obligation_count=obligation_ct, sla_count=sla_ct)
 
 
-@router.put("/{contract_id}/custom-fields", response_model=ContractResponse)
+@router.put("/{contract_id}/custom-fields", response_model=ContractResponse, dependencies=[Depends(require_write)])
 async def update_contract_custom_fields(
     contract_id: str,
     custom_fields: dict[str, Any],
@@ -3243,7 +3243,7 @@ class BatchCustomFieldExtractionResponse(BaseModel):
     results: list[CustomFieldExtractionResult]
 
 
-@router.post("/{contract_id}/extract-custom-fields", response_model=CustomFieldExtractionResult)
+@router.post("/{contract_id}/extract-custom-fields", response_model=CustomFieldExtractionResult, dependencies=[Depends(require_write)])
 async def extract_contract_custom_fields(
     contract_id: str,
     current_user: CurrentUser,
@@ -3349,7 +3349,7 @@ async def extract_contract_custom_fields(
         )
 
 
-@router.post("/batch/extract-custom-fields", response_model=BatchCustomFieldExtractionResponse)
+@router.post("/batch/extract-custom-fields", response_model=BatchCustomFieldExtractionResponse, dependencies=[Depends(require_write)])
 async def batch_extract_custom_fields(
     request_data: BatchCustomFieldExtractionRequest,
     current_user: CurrentUser,
@@ -3482,7 +3482,7 @@ class ReindexResponse(BaseModel):
     errors: list[str]
 
 
-@router.post("/admin/reindex-all", response_model=ReindexResponse)
+@router.post("/admin/reindex-all", response_model=ReindexResponse, dependencies=[Depends(require_admin)])
 async def reindex_all_contracts(
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
@@ -3624,7 +3624,7 @@ from app.schemas.external_user import ExternalUserSummary
 from sqlalchemy import select, func
 
 
-@router.post("/{contract_id}/share", response_model=ShareInviteResponse)
+@router.post("/{contract_id}/share", response_model=ShareInviteResponse, dependencies=[Depends(require_write)])
 async def share_contract(
     contract_id: str,
     share_data: ContractShareCreate,
@@ -3843,7 +3843,7 @@ async def list_contract_shares(
     return ContractShareListResponse(items=items, total=len(items))
 
 
-@router.delete("/{contract_id}/shares/{share_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{contract_id}/shares/{share_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_write)])
 async def revoke_contract_share(
     contract_id: str,
     share_id: str,
@@ -3963,7 +3963,7 @@ async def list_contract_comments(
     return ContractCommentListResponse(items=items, total=len(items))
 
 
-@router.post("/{contract_id}/comments", response_model=ContractCommentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{contract_id}/comments", response_model=ContractCommentResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_write)])
 async def add_contract_comment(
     contract_id: str,
     comment_data: ContractCommentCreate,
@@ -4035,7 +4035,7 @@ async def add_contract_comment(
     )
 
 
-@router.post("/{contract_id}/comments/{comment_id}/resolve", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/{contract_id}/comments/{comment_id}/resolve", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_write)])
 async def resolve_contract_comment(
     contract_id: str,
     comment_id: str,
@@ -4073,7 +4073,7 @@ async def resolve_contract_comment(
     await db.commit()
 
 
-@router.delete("/{contract_id}/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{contract_id}/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_write)])
 async def delete_contract_comment(
     contract_id: str,
     comment_id: str,
@@ -4303,7 +4303,7 @@ async def get_contract_highlights(
     }
 
 
-@router.patch("/{contract_id}/clauses/{clause_id}")
+@router.patch("/{contract_id}/clauses/{clause_id}", dependencies=[Depends(require_write)])
 async def update_clause(
     contract_id: str,
     clause_id: str,

@@ -2662,7 +2662,8 @@
     "profileHint": "Override the tenant's default profile for this BU. Contracts in this BU will use this profile for taxonomy and extraction.",
     "saving": "Saving...",
     "update": "Update",
-    "create": "Create"
+    "create": "Create",
+    "saveFailed": "Failed to save business unit"
   },
   "externalUsers": {
     "subtitle": "Manage counterparty contacts who can access shared contracts",

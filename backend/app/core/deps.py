@@ -260,6 +260,10 @@ require_admin = require_role(Role.ADMIN)
 require_legal = require_role(Role.ADMIN, Role.LEGAL)
 require_procurement = require_role(Role.ADMIN, Role.PROCUREMENT)
 
+# Any role that may modify contract data — everyone except read-only VIEWER
+# (super_admin passes require_role automatically)
+require_write = require_role(Role.ADMIN, Role.LEGAL, Role.PROCUREMENT, Role.BU_HEAD)
+
 
 # Pre-configured role dependencies for BU_HEAD
 require_bu_head = require_role(Role.ADMIN, Role.BU_HEAD)
