@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import * as d3 from 'd3'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -39,7 +39,7 @@ const TYPE_COLORS: Record<string, string> = {
   sla_metric: '#2dd4bf',   // Teal
 }
 
-export default function KnowledgeGraphTab({ contractId, tenantId }: { contractId: string, tenantId: string }) {
+export default function KnowledgeGraphTab({ contractId }: { contractId: string; tenantId?: string }) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [selectedNode, setSelectedNode] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -59,7 +59,7 @@ export default function KnowledgeGraphTab({ contractId, tenantId }: { contractId
   })
 
   const inconsistencies = useMemo(() => {
-    return (contract?.schema_data as any)?._graph_inconsistencies || []
+    return ((contract as any)?.schema_data)?._graph_inconsistencies || []
   }, [contract])
 
   useEffect(() => {
