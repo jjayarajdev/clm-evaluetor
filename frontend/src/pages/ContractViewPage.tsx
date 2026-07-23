@@ -272,7 +272,15 @@ export default function ContractViewPage() {
     'annual_maintenance', 'rate_contract', 'distribution', 'vendor',
   ])
   const tabs = useMemo(() => {
-    const mapped = (config?.ui?.detail_tabs || DEFAULT_TABS).map((t) => ({
+    // Industry profiles can define arbitrary detail_tabs; only ids this page
+    // can actually render are shown — unknown ids would be blank panels.
+    const RENDERED_TAB_IDS = new Set([
+      'overview', 'review', 'quality', 'supply_chain', 'slas',
+      'related', 'documents', 'sharing',
+    ])
+    const mapped = (config?.ui?.detail_tabs || DEFAULT_TABS)
+      .filter((t) => RENDERED_TAB_IDS.has(t.id))
+      .map((t) => ({
       id: t.id,
       label: t.label,
       iconComponent: TAB_ICON_MAP[t.icon || ''] || InformationCircleIcon,
