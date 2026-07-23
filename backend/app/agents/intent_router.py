@@ -275,9 +275,11 @@ async def _enhance_with_llm(
         user_message = (
             f"Intent: {intent}\n"
             f"User question: {question}\n\n"
-            f"Short answer: {answer[:answer_budget]}\n\n"
-            f"Full data summary (use this to build visualizations):\n"
-            f"{json.dumps(data_summary, indent=2, default=str)[:6000]}"
+            f"Data summary (SOURCE OF TRUTH — compose the answer and "
+            f"visualizations from this):\n"
+            f"{json.dumps(data_summary, indent=2, default=str)[:6000]}\n\n"
+            f"Generic reference summary (reuse ONLY if the question is a "
+            f"generic overview request):\n{answer[:answer_budget]}"
         )
 
         response = await client.chat.completions.create(
