@@ -7,6 +7,7 @@ concise executive summaries with rich LLM-generated visualizations.
 
 import json
 import logging
+import unicodedata
 from collections import Counter, defaultdict
 from datetime import date, timedelta
 from typing import Any
@@ -95,34 +96,59 @@ def _dedup_contracts(contracts: list) -> list:
 # Intent detection
 # ---------------------------------------------------------------------------
 
+# Keywords are matched against the accent-stripped, lowercased question, so
+# French entries are listed without diacritics ("echeance" matches "échéance").
 STRUCTURED_INTENTS = {
     "renewals": [
         "renewal", "renew", "expiring", "expiration", "expire", "auto-renewal",
         "auto renewal", "up for renewal", "notice period", "notice deadline",
+        # French
+        "renouvellement", "renouveler", "renouvelle", "reconduction",
+        "arrivant a renouvellement", "a renouveler", "echeance", "expirent",
+        "expirant", "preavis", "delai de preavis",
     ],
     "obligations": [
         "obligation", "obligations due", "upcoming deadline", "overdue",
         "compliance", "what do i owe", "what must", "deliverable",
+        # French ("obligation" also matches French)
+        "livrable", "conformite", "en retard", "que dois-je",
+        "engagements", "date limite",
     ],
     "risk": [
-        "high risk", "risky", "risk summary", "risk score", "risk level",
-        "most risky", "risk assessment", "risk overview",
+        "high risk", "highest risk", "risky", "risk summary", "risk score",
+        "risk level", "most risky", "risk assessment", "risk overview",
+        # French
+        "risque", "risques", "a risque", "risque eleve", "score de risque",
+        "niveau de risque", "plus risques", "resume des risques",
     ],
     "portfolio": [
         "how many contracts", "total contracts", "contract summary",
         "portfolio", "total value", "contract count", "overview",
         "all contracts", "list contracts", "my contracts",
+        # French
+        "combien de contrats", "nombre de contrats", "tous les contrats",
+        "mes contrats", "portefeuille", "valeur totale", "liste des contrats",
+        "apercu des contrats",
     ],
     "sla": [
         "sla performance", "service level", "breached sla", "sla breach",
         "sla status", "sla metric", "what are my sla",
+        # French
+        "niveau de service", "niveaux de service", "violation de sla",
+        "violations de sla", "depassement de sla", "performance des sla",
+        "mes sla", "statut des sla",
     ],
 }
 
 
+def _strip_accents(text: str) -> str:
+    """Fold diacritics so French keywords match with or without accents."""
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
+
 def detect_intent(question: str) -> str:
     """Detect whether a question maps to a structured query or needs RAG."""
-    q = question.lower().strip()
+    q = _strip_accents(question.lower().strip())
 
     # Clause analysis requests should always go to document Q&A (RAG),
     # not structured queries — even if the clause text contains keywords
