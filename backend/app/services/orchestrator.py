@@ -205,8 +205,13 @@ If unsure, respond with: {self._default_agent}"""
                 pass
 
         try:
-            # Classify intent and get agent
-            agent_name = await self._classify_intent(request.query)
+            # Classify intent and get agent. Chat Q&A requests must never be
+            # routed to extraction agents (their prompts demand raw JSON
+            # output) — pin them to the conversational contract_qa agent.
+            if request.context and request.context.get("task") == "contract_qa":
+                agent_name = "contract_qa"
+            else:
+                agent_name = await self._classify_intent(request.query)
             agent = self._agents.get(agent_name) or self._agents.get(self._default_agent)
 
             if not agent:
