@@ -28,6 +28,11 @@ from app.models.contract_link import ContractLink
 logger = logging.getLogger(__name__)
 
 
+# Weak association types don't define family membership — one loose
+# "related" link would otherwise merge unrelated contract families.
+_FAMILY_LINK_TYPES_EXCLUDED = ("related", "references")
+
+
 async def _load_link_graph(
     db: AsyncSession, tenant_id: uuid.UUID
 ) -> tuple[dict[uuid.UUID, set[uuid.UUID]], set[uuid.UUID]]:
@@ -36,7 +41,11 @@ async def _load_link_graph(
         await db.execute(
             select(ContractLink.parent_contract_id, ContractLink.child_contract_id)
             .join(Contract, ContractLink.parent_contract_id == Contract.id)
-            .where(ContractLink.is_active == True, Contract.tenant_id == tenant_id)  # noqa: E712
+            .where(
+                ContractLink.is_active == True,  # noqa: E712
+                Contract.tenant_id == tenant_id,
+                ContractLink.link_type.notin_(_FAMILY_LINK_TYPES_EXCLUDED),
+            )
         )
     ).all()
 

@@ -1230,15 +1230,21 @@ def get_auto_link_detector(
     return AutoLinkDetector(db, tenant_id)
 
 
+# Weak association types are never auto-approved — a wrong "related" link
+# merges unrelated contract families. They stay in the review queue.
+WEAK_LINK_TYPES = {"related", "references"}
+
+
 async def auto_approve_batch_links(
     db: AsyncSession,
     batch_contract_ids: list[str],
-    confidence_threshold: float = 0.35,
+    confidence_threshold: float = 0.75,
 ) -> list:
     """Auto-approve suggested links above threshold for same-batch contracts.
 
     When all contracts in a batch have been processed, promote high-confidence
-    suggested links to actual contract_links.
+    suggested links to actual contract_links. Only strong hierarchical types
+    qualify; weak types (related/references) always require human review.
 
     Args:
         db: Database session.
@@ -1258,6 +1264,7 @@ async def auto_approve_batch_links(
         SuggestedContractLink.source_contract_id.in_(batch_uuids),
         SuggestedContractLink.status == "pending",
         SuggestedContractLink.confidence_score >= confidence_threshold,
+        SuggestedContractLink.suggested_link_type.notin_(WEAK_LINK_TYPES),
     )
     result = await db.execute(query)
     suggestions = result.scalars().all()
