@@ -221,13 +221,17 @@ RULES:
 - Table column headers should be short (1-2 words)
 - Table cell values should be concise
 
-ANSWER TAILORING:
-- Also include a top-level "answer" field (markdown string).
-- If the user's question asks something more specific than the short answer
-  covers (e.g. which counterparties, which contract types, total value),
-  compose a concise answer that DIRECTLY addresses the question using ONLY
-  the data summary. Never invent numbers or names not present in the data.
-- Otherwise, reuse the short answer as-is.
+ANSWER TAILORING (most important rule):
+- Include a top-level "answer" field (markdown string) that DIRECTLY answers
+  the user's question — not a generic overview.
+- Example: if asked "which counterparties have expired contracts?", the answer
+  must NAME the counterparties from the data summary ("Les contrats expirés
+  concernent **Acme Corp** et **Beta SAS**..."), not restate totals.
+- Only reuse the short answer verbatim when the question is itself a generic
+  overview request that the short answer already directly addresses.
+- Use ONLY facts present in the data summary. Never invent numbers or names.
+- If the data summary genuinely lacks what the question asks for, say so
+  briefly and give the closest available facts.
 
 Respond with ONLY valid JSON:
 {
@@ -273,7 +277,7 @@ async def _enhance_with_llm(
             f"User question: {question}\n\n"
             f"Short answer: {answer[:answer_budget]}\n\n"
             f"Full data summary (use this to build visualizations):\n"
-            f"{json.dumps(data_summary, indent=2, default=str)[:3000]}"
+            f"{json.dumps(data_summary, indent=2, default=str)[:6000]}"
         )
 
         response = await client.chat.completions.create(
