@@ -96,6 +96,56 @@ async def _load_extraction_hints(
     return {}
 
 
+async def _match_profile_for_contract_type(
+    db: AsyncSession,
+    contract_type: str | None,
+):
+    """Find the industry profile whose contract_types best match the given type.
+
+    Match priority per profile: exact code, code substring, exact label,
+    description substring. Returns the IndustryProfile or None. Used both to
+    resolve extraction hints and to persist per-contract profile assignment.
+    """
+    from sqlalchemy import select
+    from app.models.industry_profile import IndustryProfile
+
+    if not contract_type:
+        return None
+
+    try:
+        result = await db.execute(select(IndustryProfile))
+        all_profiles = result.scalars().all()
+    except Exception as e:
+        logger.debug(f"Profile matching skipped: {e}")
+        return None
+
+    ct_lower = contract_type.strip().lower()
+    for profile in all_profiles:
+        if not profile.contract_types:
+            continue
+        profile_codes = {
+            (ct.get("code") or "").lower() for ct in profile.contract_types
+        }
+        profile_labels = {
+            (ct.get("label") or "").lower() for ct in profile.contract_types
+        }
+        profile_descriptions = {
+            (ct.get("description") or "").lower() for ct in profile.contract_types
+        }
+
+        if ct_lower in profile_codes:
+            return profile
+        for code in profile_codes:
+            if code and (ct_lower in code or code in ct_lower):
+                return profile
+        if ct_lower in profile_labels:
+            return profile
+        for desc in profile_descriptions:
+            if desc and ct_lower in desc:
+                return profile
+    return None
+
+
 async def _resolve_hints_for_contract(
     db: AsyncSession,
     tenant_id,
@@ -125,55 +175,12 @@ async def _resolve_hints_for_contract(
     if not contract_type:
         return await _load_extraction_hints(db, tenant_id)
 
-    try:
-        result = await db.execute(select(IndustryProfile))
-        all_profiles = result.scalars().all()
-    except Exception as e:
-        logger.debug(f"Profile resolution skipped: {e}")
+    best_profile = await _match_profile_for_contract_type(db, contract_type)
+    if best_profile is None:
         return await _load_extraction_hints(db, tenant_id)
 
-    if not all_profiles:
-        return await _load_extraction_hints(db, tenant_id)
-
-    ct_lower = contract_type.strip().lower()
     tenant = await db.get(Tenant, tenant_id)
     tenant_profile_id = tenant.industry_profile_id if tenant else None
-    best_profile = None
-
-    for profile in all_profiles:
-        if not profile.contract_types:
-            continue
-        profile_codes = {
-            ct.get("code", "").lower() for ct in profile.contract_types
-        }
-        profile_labels = {
-            ct.get("label", "").lower() for ct in profile.contract_types
-        }
-        profile_descriptions = {
-            ct.get("description", "").lower() for ct in profile.contract_types
-        }
-
-        if ct_lower in profile_codes:
-            best_profile = profile
-            break
-
-        for code in profile_codes:
-            if ct_lower in code or code in ct_lower:
-                best_profile = profile
-                break
-        if best_profile:
-            break
-
-        if ct_lower in profile_labels:
-            best_profile = profile
-            break
-
-        for desc in profile_descriptions:
-            if ct_lower in desc:
-                best_profile = profile
-                break
-        if best_profile:
-            break
 
     if best_profile and best_profile.extraction_hints:
         if best_profile.id != tenant_profile_id:
@@ -400,6 +407,21 @@ class IndexingService:
             # The initial hints came from the tenant's default profile, but now
             # that we know the contract type we can pick the best-fit profile.
             if contract.contract_type:
+                # Persist the matched profile on the contract itself so every
+                # contract carries its own profile (never overwrite a manual
+                # assignment). Deep analysis and later re-runs then use it via
+                # resolution priority 1; the tenant profile is fallback only.
+                if contract.industry_profile_id is None:
+                    matched = await _match_profile_for_contract_type(
+                        self.db, contract.contract_type
+                    )
+                    if matched:
+                        contract.industry_profile_id = matched.id
+                        logger.info(
+                            f"Auto-assigned profile '{matched.name}' to contract "
+                            f"{contract.id} (type: {contract.contract_type})"
+                        )
+
                 resolved_hints = await _resolve_hints_for_contract(
                     self.db,
                     contract.tenant_id,
@@ -408,6 +430,18 @@ class IndexingService:
                 )
                 if resolved_hints:
                     extraction_hints = resolved_hints
+
+            # Signal-based industry detection (no LLM cost) — supporting
+            # signal for profile review; does not affect hint resolution.
+            try:
+                from app.services.industry_detector import IndustryDetector
+
+                detection = await IndustryDetector(self.db).detect_industry(contract)
+                if detection and detection.industry:
+                    contract.detected_industry = detection.industry
+                    contract.industry_confidence = detection.confidence
+            except Exception as e:
+                logger.debug(f"Industry detection skipped for {contract.id}: {e}")
 
             # Extract custom fields if tenant has them defined
             if contract.tenant_id:
