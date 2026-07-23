@@ -241,6 +241,14 @@ export async function removeGroupMember(groupId: string, contractId: string): Pr
   await client.delete(`/groups/${groupId}/members/${contractId}`)
 }
 
+export async function updateGroupFinding(
+  groupId: string,
+  findingId: string,
+  status: 'open' | 'dismissed',
+): Promise<void> {
+  await client.patch(`/groups/${groupId}/findings/${findingId}`, { status })
+}
+
 export async function processContract(id: string): Promise<void> {
   await client.post(`/contracts/${id}/process`)
 }

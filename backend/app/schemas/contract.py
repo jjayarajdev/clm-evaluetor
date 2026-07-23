@@ -17,6 +17,8 @@ class ContractUploadResponse(BaseModel):
     status: str
     message: str
     group_id: str | None = None
+    duplicate_of_id: str | None = None
+    duplicate_of_filename: str | None = None
 
 
 class BatchUploadResponse(BaseModel):

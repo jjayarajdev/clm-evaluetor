@@ -29,6 +29,7 @@ interface FileUpload {
   status: 'pending' | 'uploading' | 'uploaded' | 'processing' | 'completed' | 'error'
   progress: number
   error?: string
+  warning?: string
   contractId?: string
   clauseCount?: number
   obligationCount?: number
@@ -325,6 +326,9 @@ export default function UploadPage() {
               status: 'uploaded' as const,
               progress: 100,
               contractId: fileResult.id,
+              warning: fileResult.duplicate_of_filename
+                ? t('upload.duplicateWarning', { filename: fileResult.duplicate_of_filename })
+                : undefined,
             }
           } else if (fileResult?.status === 'rejected') {
             return {
@@ -645,6 +649,9 @@ export default function UploadPage() {
                   </p>
                   {fileUpload.error && (
                     <p className="text-xs text-red-600 mt-1">{fileUpload.error}</p>
+                  )}
+                  {fileUpload.warning && (
+                    <p className="text-xs text-amber-600 mt-1">⚠ {fileUpload.warning}</p>
                   )}
                   {fileUpload.status === 'completed' && (
                     <p className="text-xs text-green-600 mt-1">

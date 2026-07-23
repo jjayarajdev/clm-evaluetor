@@ -68,6 +68,13 @@ export default function GroupDetailPage() {
     onError: (err: Error) => setActionError(err.message || t('groups.removeFailed')),
   })
 
+  const findingMutation = useMutation({
+    mutationFn: ({ findingId, status }: { findingId: string; status: 'open' | 'dismissed' }) =>
+      api.updateGroupFinding(groupId!, findingId, status),
+    onSuccess: invalidate,
+    onError: (err: Error) => setActionError(err.message || t('groups.findingUpdateFailed')),
+  })
+
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteGroup(groupId!),
     onSuccess: () => {
@@ -137,6 +144,46 @@ export default function GroupDetailPage() {
       {actionError && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {actionError}
+        </div>
+      )}
+
+      {group.findings.length > 0 && (
+        <div className="card p-5">
+          <h2 className="mb-3 font-semibold text-gray-900">{t('groups.findingsTitle')}</h2>
+          <ul className="space-y-2">
+            {group.findings.map((finding) => (
+              <li
+                key={finding.id}
+                className={cn(
+                  'flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm',
+                  finding.status === 'open'
+                    ? 'border-amber-200 bg-amber-50'
+                    : 'border-gray-100 bg-gray-50 text-gray-400',
+                )}
+              >
+                <span>
+                  {finding.status === 'open'
+                    ? t('groups.findingMissing', { label: finding.reference_label })
+                    : finding.status === 'resolved'
+                      ? t('groups.findingResolved', { label: finding.reference_label })
+                      : t('groups.findingDismissed', { label: finding.reference_label })}
+                </span>
+                {canWrite && finding.status !== 'resolved' && (
+                  <button
+                    className="whitespace-nowrap text-xs font-medium text-gray-500 hover:text-gray-800"
+                    onClick={() =>
+                      findingMutation.mutate({
+                        findingId: finding.id,
+                        status: finding.status === 'open' ? 'dismissed' : 'open',
+                      })
+                    }
+                  >
+                    {finding.status === 'open' ? t('groups.dismiss') : t('groups.reopen')}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

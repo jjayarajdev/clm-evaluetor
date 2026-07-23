@@ -163,6 +163,39 @@ async def _process_batch_concurrently(
     )
 
 
+async def _find_tenant_duplicates(
+    db: AsyncSession, tenant_id, contracts: list
+) -> dict:
+    """Map contract.id -> (existing_id, existing_filename) for uploads whose
+    content already exists elsewhere in the tenant (warn-only, never blocks).
+    """
+    duplicates: dict = {}
+    if not contracts or tenant_id is None:
+        return duplicates
+    hashes = [c.content_hash for c in contracts if c.content_hash]
+    if not hashes:
+        return duplicates
+    new_ids = {c.id for c in contracts}
+    rows = (
+        await db.execute(
+            select(Contract.id, Contract.filename, Contract.content_hash)
+            .where(
+                Contract.tenant_id == tenant_id,
+                Contract.content_hash.in_(hashes),
+                Contract.id.notin_(new_ids),
+            )
+            .order_by(Contract.created_at.asc())
+        )
+    ).all()
+    by_hash = {}
+    for cid, filename, chash in rows:
+        by_hash.setdefault(chash, (cid, filename))
+    for c in contracts:
+        if c.content_hash in by_hash:
+            duplicates[c.id] = by_hash[c.content_hash]
+    return duplicates
+
+
 async def _attach_upload_group(
     db: AsyncSession,
     tenant_id,
@@ -307,13 +340,21 @@ async def upload_single_file(
             db, tenant_id, current_user, [contract],
             group_name=group_name, group_id=group_id,
         )
+        duplicates = await _find_tenant_duplicates(db, tenant_id, [contract])
+        dup = duplicates.get(contract.id)
 
         return ContractUploadResponse(
             id=str(contract.id),
             filename=contract.filename,
             status=contract.status.value,
-            message="File uploaded successfully. Processing queued.",
+            message=(
+                f"File uploaded. Warning: identical content already exists as '{dup[1]}'."
+                if dup
+                else "File uploaded successfully. Processing queued."
+            ),
             group_id=attached_group_id,
+            duplicate_of_id=str(dup[0]) if dup else None,
+            duplicate_of_filename=dup[1] if dup else None,
         )
 
     except UploadError as e:
@@ -1050,6 +1091,24 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
         except Exception as e:
             logger.warning(f"[DEEP ANALYSIS] Persisting extraction_health failed for {contract_id}: {e}")
 
+        # Missing-reference findings: this contract may reference absent
+        # schedules, or may resolve another contract's open finding.
+        try:
+            from app.services.group_sync import detect_missing_references
+
+            async with async_session_maker() as session:
+                row = await session.execute(
+                    select(Contract.tenant_id).where(Contract.id == cid_uuid)
+                )
+                doc_tenant_id = row.scalar_one_or_none()
+                if doc_tenant_id:
+                    await detect_missing_references(
+                        session, doc_tenant_id, [cid_uuid]
+                    )
+                    await session.commit()
+        except Exception as e:
+            logger.warning(f"[DEEP ANALYSIS] Missing-reference detection failed for {contract_id}: {e}")
+
         tracker.update_progress(contract_id, ProcessingStage.COMPLETED, "Processing complete")
         logger.info(f"[DEEP ANALYSIS] Completed for {contract_id}")
 
@@ -1156,17 +1215,25 @@ async def upload_batch_files(
         db, tenant_id, current_user, successful,
         group_name=group_name, group_id=group_id, batch_id=batch_id,
     )
+    duplicates = await _find_tenant_duplicates(db, tenant_id, successful)
 
     # Build response
     file_responses = []
 
     for contract in successful:
+        dup = duplicates.get(contract.id)
         file_responses.append(
             ContractUploadResponse(
                 id=str(contract.id),
                 filename=contract.filename,
                 status="accepted",
-                message="Uploaded successfully, analysis queued",
+                message=(
+                    f"Uploaded. Warning: identical content already exists as '{dup[1]}'."
+                    if dup
+                    else "Uploaded successfully, analysis queued"
+                ),
+                duplicate_of_id=str(dup[0]) if dup else None,
+                duplicate_of_filename=dup[1] if dup else None,
             )
         )
 
@@ -1258,17 +1325,25 @@ async def upload_zip_archive(
         db, tenant_id, current_user, successful,
         group_name=group_name, group_id=group_id, batch_id=batch_id,
     )
+    duplicates = await _find_tenant_duplicates(db, tenant_id, successful)
 
     # Build response
     file_responses = []
 
     for contract in successful:
+        dup = duplicates.get(contract.id)
         file_responses.append(
             ContractUploadResponse(
                 id=str(contract.id),
                 filename=contract.filename,
                 status=contract.status.value,
-                message="Extracted and uploaded, analysis queued",
+                message=(
+                    f"Extracted. Warning: identical content already exists as '{dup[1]}'."
+                    if dup
+                    else "Extracted and uploaded, analysis queued"
+                ),
+                duplicate_of_id=str(dup[0]) if dup else None,
+                duplicate_of_filename=dup[1] if dup else None,
             )
         )
 
@@ -2042,13 +2117,17 @@ class CreateLinkResponse(BaseModel):
 async def _sync_family_groups(db: AsyncSession, tenant_id, contract_ids: list) -> None:
     """Best-effort auto_family group sync after a link mutation."""
     try:
-        from app.services.group_sync import sync_auto_family_groups
+        from app.services.group_sync import (
+            detect_missing_references,
+            sync_auto_family_groups,
+        )
 
         if tenant_id is None and contract_ids:
             c = await db.get(Contract, contract_ids[0])
             tenant_id = c.tenant_id if c else None
         if tenant_id:
             await sync_auto_family_groups(db, tenant_id, contract_ids)
+            await detect_missing_references(db, tenant_id, contract_ids)
             await db.commit()
     except Exception as e:
         logger.warning(f"Auto-family group sync failed: {e}")
