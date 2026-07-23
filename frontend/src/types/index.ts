@@ -141,6 +141,9 @@ export interface UploadResponse {
   filename: string
   status: string
   message: string
+  group_id?: string | null
+  duplicate_of_id?: string | null
+  duplicate_of_filename?: string | null
 }
 
 export interface BatchUploadResponse {
@@ -149,6 +152,7 @@ export interface BatchUploadResponse {
   accepted: number
   rejected: number
   files: UploadResponse[]
+  group_id?: string | null
 }
 
 // Query types

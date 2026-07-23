@@ -209,7 +209,8 @@
     "batchUploadFailed": "Batch upload failed",
     "groupLabel": "Contract group (optional)",
     "groupPlaceholder": "Type a group name — pick an existing one or create a new one",
-    "defaultBuHint": "Uploads will be assigned to your business unit: {{bu}}"
+    "defaultBuHint": "Uploads will be assigned to your business unit: {{bu}}",
+    "duplicateWarning": "Identical content already exists as \"{{filename}}\""
   },
   "clauses": {
     "quality_assurance": "Quality Assurance",
@@ -2857,6 +2858,13 @@
     "removeFromGroup": "Remove from group",
     "searchContracts": "Search contracts...",
     "addSelected_one": "Add {{count}} contract",
-    "addSelected_other": "Add {{count}} contracts"
+    "addSelected_other": "Add {{count}} contracts",
+    "findingsTitle": "Completeness findings",
+    "findingMissing": "The contract references \"{{label}}\" — no matching document found in the system",
+    "findingResolved": "\"{{label}}\" — matching document found",
+    "findingDismissed": "\"{{label}}\" — dismissed",
+    "dismiss": "Dismiss",
+    "reopen": "Re-open",
+    "findingUpdateFailed": "Failed to update finding"
   }
 }

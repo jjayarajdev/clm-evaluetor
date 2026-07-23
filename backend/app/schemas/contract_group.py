@@ -30,6 +30,10 @@ class GroupMemberAdd(BaseModel):
     contract_ids: List[UUID] = Field(..., min_length=1)
 
 
+class FindingStatusUpdate(BaseModel):
+    status: Literal["open", "dismissed"]
+
+
 # ===== Response Schemas =====
 
 class GroupSummary(BaseModel):
