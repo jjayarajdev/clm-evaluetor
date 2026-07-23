@@ -21,7 +21,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import PageHeader from '@/components/ui/PageHeader'
-import { ProcessingStatusIndicator } from '@/components/contracts/ProcessingStatusIndicator'
 import { cn, formatFileSize } from '@/lib/utils'
 
 interface FileUpload {
@@ -480,25 +479,6 @@ export default function UploadPage() {
         icon={CloudArrowUpIcon}
         variant="bordered"
       />
-
-      {/* Processing progress trackers */}
-      {processingContractIds.map((contractId) => {
-        const file = files.find(f => f.contractId === contractId)
-        return (
-          <div key={contractId}>
-            {file && (
-              <p className="text-xs text-gray-500 mb-1 font-medium">{file.file.name}</p>
-            )}
-            <ProcessingStatusIndicator
-              contractId={contractId}
-              autoConnect
-              onComplete={() => {
-                queryClient.invalidateQueries({ queryKey: ['contracts-status'] })
-              }}
-            />
-          </div>
-        )
-      })}
 
       {/* Tenant context + optional Client Selector */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">

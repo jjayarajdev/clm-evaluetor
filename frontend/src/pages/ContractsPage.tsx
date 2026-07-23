@@ -556,7 +556,7 @@ export default function ContractsPage() {
                     {contract.risk_level ? (
                       <RiskBadge level={contract.risk_level} />
                     ) : (
-                      <span className="text-sm text-gray-400">\u2014</span>
+                      <span className="text-sm text-gray-400">{'\u2014'}</span>
                     )}
                   </td>
                   <td className="px-4 py-3.5">
