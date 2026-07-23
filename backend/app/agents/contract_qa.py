@@ -115,8 +115,11 @@ async def ask_question(
     intent = detect_intent(question)
     logger.info(f"Q&A intent detected: '{intent}' for question: {question[:80]}")
 
-    # Step 2: Try structured query for non-document intents
-    if intent != "document_qa":
+    # Step 2: Try structured query for non-document intents.
+    # When the user has scoped the chat to a specific document, always use
+    # RAG on that document — portfolio-level dashboards would answer about
+    # other contracts and ignore the selection.
+    if intent != "document_qa" and not contract_id:
         try:
             from app.database import async_session_maker
 

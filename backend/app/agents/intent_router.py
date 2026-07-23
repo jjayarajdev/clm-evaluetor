@@ -221,8 +221,17 @@ RULES:
 - Table column headers should be short (1-2 words)
 - Table cell values should be concise
 
+ANSWER TAILORING:
+- Also include a top-level "answer" field (markdown string).
+- If the user's question asks something more specific than the short answer
+  covers (e.g. which counterparties, which contract types, total value),
+  compose a concise answer that DIRECTLY addresses the question using ONLY
+  the data summary. Never invent numbers or names not present in the data.
+- Otherwise, reuse the short answer as-is.
+
 Respond with ONLY valid JSON:
 {
+  "answer": "...",
   "follow_up_questions": ["question1", "question2", "question3"],
   "visualizations": [
     {"chart_type": "stat_cards|bar|pie|table", "title": "...", "data": ...}
@@ -239,8 +248,9 @@ async def _enhance_with_llm(
 ) -> tuple[list[str], list[dict], str | None]:
     """Use LLM to generate contextual follow-ups and adaptive visualizations.
 
-    Returns (follow_ups, visualizations, translated_answer). translated_answer
-    is None unless a non-English language was requested.
+    Returns (follow_ups, visualizations, tailored_answer). tailored_answer is
+    the answer rewritten to directly address the user's question (and in the
+    user's language), or None to keep the template answer.
     """
     try:
         client = AsyncOpenAI(api_key=settings.openai_api_key)
@@ -249,14 +259,13 @@ async def _enhance_with_llm(
         answer_budget = 500
         if language == "fr":
             # Structured answers are template-built in English; the same LLM
-            # call translates them instead of duplicating every template.
+            # call rewrites them in French instead of duplicating templates.
             answer_budget = 3000
             system_prompt += (
-                "\n\nLANGUAGE: The user speaks French. Write ALL follow-up "
-                "questions, visualization titles, stat card labels, and table "
-                "column headers in French. Additionally include a top-level "
-                '"answer_fr" field containing a faithful French translation '
-                "of the short answer (keep numbers, names, and markdown intact)."
+                "\n\nLANGUAGE: The user speaks French. Write the \"answer\" "
+                "field, ALL follow-up questions, visualization titles, stat "
+                "card labels, and table column headers in French (keep "
+                "numbers, names, and markdown intact)."
             )
 
         user_message = (
@@ -281,7 +290,11 @@ async def _enhance_with_llm(
         result = json.loads(response.choices[0].message.content)
         follow_ups = result.get("follow_up_questions", [])[:3]
         visualizations = result.get("visualizations", [])[:4]
-        translated_answer = result.get("answer_fr") if language == "fr" else None
+        tailored_answer = result.get("answer") or (
+            result.get("answer_fr") if language == "fr" else None
+        )
+        if not isinstance(tailored_answer, str) or not tailored_answer.strip():
+            tailored_answer = None
 
         # Validate visualization structure
         valid_viz = []
@@ -299,7 +312,7 @@ async def _enhance_with_llm(
             logger.warning("LLM enhancement incomplete, using fallback")
             return _fallback_enhancement(intent, data_summary, language)
 
-        return follow_ups, valid_viz, translated_answer
+        return follow_ups, valid_viz, tailored_answer
 
     except Exception as e:
         logger.warning(f"LLM enhancement failed, using fallback: {e}")
@@ -428,7 +441,7 @@ async def handle_structured_query(
         return None
 
     # Enhance with LLM-generated follow-ups and visualizations
-    follow_ups, visualizations, translated_answer = await _enhance_with_llm(
+    follow_ups, visualizations, tailored_answer = await _enhance_with_llm(
         intent=intent,
         question=question,
         answer=result["answer"],
@@ -436,8 +449,8 @@ async def handle_structured_query(
         language=language,
     )
 
-    if translated_answer:
-        result["answer"] = translated_answer
+    if tailored_answer:
+        result["answer"] = tailored_answer
     result["visualizations"] = visualizations
     result["follow_up_questions"] = follow_ups
     return result
