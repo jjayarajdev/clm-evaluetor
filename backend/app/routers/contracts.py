@@ -1466,6 +1466,93 @@ async def get_queue_stats(
     return await queue.get_queue_stats()
 
 
+@router.get("/processing-queue/status")
+async def get_queue_status(
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Tenant-scoped queue view for uploaders: active jobs with global
+    position and an ETA estimated from recent job durations."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.models.processing_job import ContractProcessingJob, ProcessingJobStatus
+
+    # Global active queue (positions depend on all tenants' jobs)
+    active = (
+        (
+            await db.execute(
+                select(ContractProcessingJob)
+                .where(
+                    ContractProcessingJob.status.in_(
+                        [ProcessingJobStatus.QUEUED.value, ProcessingJobStatus.PROCESSING.value]
+                    )
+                )
+                .order_by(
+                    ContractProcessingJob.priority.desc(),
+                    ContractProcessingJob.created_at.asc(),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    # Average duration over recent completed jobs → ETA basis
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    recent = (
+        (
+            await db.execute(
+                select(ContractProcessingJob).where(
+                    ContractProcessingJob.status == ProcessingJobStatus.COMPLETED.value,
+                    ContractProcessingJob.completed_at.isnot(None),
+                    ContractProcessingJob.started_at.isnot(None),
+                    ContractProcessingJob.completed_at > cutoff,
+                )
+                .order_by(ContractProcessingJob.completed_at.desc())
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    durations = [
+        (j.completed_at - j.started_at).total_seconds() for j in recent
+    ]
+    avg_seconds = (sum(durations) / len(durations)) if durations else 120.0
+    concurrency = 2  # worker semaphore
+
+    tenant_jobs = []
+    queued_ahead = 0
+    for position, job in enumerate(active):
+        is_processing = job.status == ProcessingJobStatus.PROCESSING.value
+        if str(job.tenant_id) == str(tenant_id) if tenant_id else True:
+            eta_seconds = (
+                0 if is_processing
+                else int((queued_ahead // concurrency + 1) * avg_seconds)
+            )
+            tenant_jobs.append(
+                {
+                    "contract_id": str(job.contract_id),
+                    "status": job.status,
+                    "stage": job.stage,
+                    "position": position + 1,
+                    "eta_seconds": eta_seconds,
+                }
+            )
+        if not is_processing:
+            queued_ahead += 1
+
+    return {
+        "queue_depth": len(active),
+        "processing": sum(
+            1 for j in active if j.status == ProcessingJobStatus.PROCESSING.value
+        ),
+        "avg_job_seconds": int(avg_seconds),
+        "jobs": tenant_jobs,
+    }
+
+
 @router.get("/{contract_id}/processing-job")
 async def get_contract_processing_job(
     contract_id: str,

@@ -210,7 +210,11 @@
     "groupLabel": "Contract group (optional)",
     "groupPlaceholder": "Type a group name — pick an existing one or create a new one",
     "defaultBuHint": "Uploads will be assigned to your business unit: {{bu}}",
-    "duplicateWarning": "Identical content already exists as \"{{filename}}\""
+    "duplicateWarning": "Identical content already exists as \"{{filename}}\"",
+    "retry": "Retry",
+    "queueDepth": "{{count}} job(s) in the processing queue",
+    "queueProcessing": "{{count}} processing now",
+    "queuePosition": "Your next file is #{{position}} in line (~{{minutes}} min)"
   },
   "clauses": {
     "quality_assurance": "Quality Assurance",
