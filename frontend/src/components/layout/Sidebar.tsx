@@ -57,6 +57,7 @@ interface NavGroup {
 const mainSection: NavItem[] = [
   { name: 'nav.dashboard', href: '/dashboard', icon: HomeIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
   { name: 'nav.contracts', href: '/contracts', icon: DocumentTextIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
+  { name: 'nav.groups', href: '/groups', icon: FolderIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
   { name: 'nav.compliance', href: '/compliance', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
   { name: 'nav.renewals', href: '/renewals', icon: CalendarDaysIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
 ]

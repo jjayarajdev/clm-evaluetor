@@ -1,5 +1,6 @@
 """Suggested contract links router for AI-detected relationship management."""
 
+import logging
 import uuid
 from datetime import datetime
 from typing import Annotated
@@ -14,6 +15,8 @@ from app.core.audit import log_audit
 from app.core.deps import CurrentUser, CurrentTenantId
 from app.database import get_db
 from app.models.audit import AuditAction
+
+logger = logging.getLogger(__name__)
 from app.models.contract import Contract
 from app.models.contract_link import ContractLink, LinkType
 from app.models.suggested_link import SuggestedContractLink, SuggestionStatus
@@ -393,6 +396,21 @@ async def review_suggested_link(
     suggestion.reviewed_at = datetime.utcnow()
 
     await db.commit()
+
+    # Keep auto_family groups in sync with the link graph
+    if created_link_id:
+        try:
+            from app.services.group_sync import sync_auto_family_groups
+
+            await sync_auto_family_groups(
+                db,
+                tenant_id or suggestion.tenant_id,
+                [suggestion.source_contract_id, suggestion.target_contract_id],
+            )
+            await db.commit()
+        except Exception as e:
+            logger.warning(f"Auto-family group sync failed after link approval: {e}")
+            await db.rollback()
 
     # Audit log
     await log_audit(

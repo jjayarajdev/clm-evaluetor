@@ -12,7 +12,9 @@
     "english": "English",
     "french": "French",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "create": "Create",
+    "saving": "Saving..."
   },
   "roles": {
     "admin": "Admin",
@@ -204,7 +206,10 @@
     "uploadFailed": "Upload failed",
     "uploadRejected": "Upload rejected",
     "uploadFailedNoResponse": "Upload failed - no response",
-    "batchUploadFailed": "Batch upload failed"
+    "batchUploadFailed": "Batch upload failed",
+    "groupLabel": "Contract group (optional)",
+    "groupPlaceholder": "Type a group name — pick an existing one or create a new one",
+    "defaultBuHint": "Uploads will be assigned to your business unit: {{bu}}"
   },
   "clauses": {
     "quality_assurance": "Quality Assurance",
@@ -285,7 +290,8 @@
     "collapseSidebar": "Collapse sidebar",
     "viewNotifications": "View notifications",
     "profile": "Profile",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "groups": "Groups"
   },
   "dashboard": {
     "goodMorning": "Good morning",
@@ -2812,5 +2818,45 @@
       "serviceTower": "Service Tower",
       "serviceTowerPlaceholder": "e.g., Desktop Services"
     }
+  },
+  "groups": {
+    "title": "Contract Groups",
+    "subtitle": "Families of related contracts — manual, from uploads, or auto-detected",
+    "newGroup": "New group",
+    "searchPlaceholder": "Search groups...",
+    "allTypes": "All types",
+    "typeManual": "Manual",
+    "typeUploadBatch": "Upload batch",
+    "typeAutoFamily": "Auto family",
+    "empty": "No groups yet. Create one, or set a group name when uploading contracts.",
+    "memberCount_one": "{{count}} contract",
+    "memberCount_other": "{{count}} contracts",
+    "openFindings_one": "{{count}} open finding",
+    "openFindings_other": "{{count}} open findings",
+    "updated": "Updated",
+    "name": "Name",
+    "description": "Description",
+    "createFailed": "Failed to create group",
+    "backToGroups": "Back to groups",
+    "owner": "Owner",
+    "addContracts": "Add contracts",
+    "deleteConfirm": "Delete this group? Contracts are not deleted.",
+    "deleteFailed": "Failed to delete group",
+    "addFailed": "Failed to add contracts",
+    "removeFailed": "Failed to remove contract",
+    "subGroups": "Sub-groups",
+    "colContract": "Contract",
+    "colCounterparty": "Counterparty",
+    "colType": "Type",
+    "colExpires": "Expires",
+    "colSource": "Source",
+    "noMembers": "No contracts in this group yet",
+    "sourceManual": "Manual",
+    "sourceUploadBatch": "Upload",
+    "sourceAutoFamily": "Auto-detected",
+    "removeFromGroup": "Remove from group",
+    "searchContracts": "Search contracts...",
+    "addSelected_one": "Add {{count}} contract",
+    "addSelected_other": "Add {{count}} contracts"
   }
 }

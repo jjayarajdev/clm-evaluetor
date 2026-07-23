@@ -8,6 +8,11 @@ from app.models.clause_indicator import ContractClauseIndicator
 from app.models.client import Client
 from app.models.contract import Contract, ContractStatus, ContractType, RiskLevel
 from app.models.contract_link import ContractLink, LinkType
+from app.models.contract_group import (
+    ContractGroup,
+    ContractGroupFinding,
+    ContractGroupMember,
+)
 from app.models.suggested_link import SuggestedContractLink, SuggestionStatus
 from app.models.definition import ContractDefinition
 from app.models.process_step import ContractProcessStep, StepType, StepStatus

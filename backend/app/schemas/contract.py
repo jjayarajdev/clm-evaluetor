@@ -16,6 +16,7 @@ class ContractUploadResponse(BaseModel):
     filename: str
     status: str
     message: str
+    group_id: str | None = None
 
 
 class BatchUploadResponse(BaseModel):
@@ -26,6 +27,7 @@ class BatchUploadResponse(BaseModel):
     accepted: int
     rejected: int
     files: list[ContractUploadResponse]
+    group_id: str | None = None
 
 
 class UploadStatusResponse(BaseModel):

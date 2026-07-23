@@ -67,6 +67,7 @@ class SchedulerService:
     def _register_default_executors(self) -> None:
         """Register default job executors."""
         self._job_executors["sla_comparison"] = self._execute_sla_comparison_job
+        self._job_executors["auto_family_sync"] = self._execute_auto_family_sync_job
 
     def register_executor(self, job_name: str, executor: JobExecutor) -> None:
         """Register a job executor.
@@ -136,6 +137,23 @@ class SchedulerService:
                 db.add(job)
                 await db.commit()
                 logger.info("Created default SLA comparison job")
+
+            # Nightly auto_family group reconcile
+            result = await db.execute(
+                select(SchedulerJob).where(SchedulerJob.job_name == "auto_family_sync")
+            )
+            if not result.scalars().first():
+                job = SchedulerJob(
+                    job_name="auto_family_sync",
+                    job_type="maintenance",
+                    description="Reconciles auto_family contract groups with the contract link graph",
+                    interval_seconds=86400,  # nightly
+                    is_enabled=True,
+                    next_run_at=datetime.now(timezone.utc) + timedelta(seconds=300),
+                )
+                db.add(job)
+                await db.commit()
+                logger.info("Created default auto_family sync job")
 
     async def _run_loop(self) -> None:
         """Main scheduler loop."""
@@ -288,6 +306,23 @@ class SchedulerService:
                     f"Job {job_name} completed with status {status.value} "
                     f"in {duration_ms}ms. Next run: {next_run_at}"
                 )
+
+    async def _execute_auto_family_sync_job(self, db: AsyncSession) -> dict:
+        """Nightly reconcile of auto_family contract groups for all tenants."""
+        from app.models.tenant import Tenant
+        from app.services.group_sync import sync_auto_family_groups
+
+        tenant_ids = (await db.execute(select(Tenant.id))).scalars().all()
+        touched = 0
+        errors = []
+        for tid in tenant_ids:
+            try:
+                touched += await sync_auto_family_groups(db, tid)
+                await db.commit()
+            except Exception as e:
+                errors.append(f"{tid}: {e}")
+                await db.rollback()
+        return {"tenants": len(tenant_ids), "groups_touched": touched, "errors": errors}
 
     async def _execute_sla_comparison_job(self, db: AsyncSession) -> dict:
         """Execute SLA comparison for all active contracts.
