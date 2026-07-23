@@ -1,11 +1,12 @@
 """Industry profiles router — list and manage industry profiles."""
 
 import logging
+import re
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,6 +50,100 @@ class IndustryProfileSummary(BaseModel):
         )
 
 
+class ContractTypeDef(BaseModel):
+    code: str
+    label: str
+    description: str | None = None
+    icon: str | None = None
+
+
+class ClauseTypeDef(BaseModel):
+    code: str
+    label: str
+    category: str | None = None
+    risk_weight: int = Field(default=5, ge=0, le=15)
+    description: str | None = None
+
+
+class RiskCategoryDef(BaseModel):
+    code: str
+    label: str
+    severity: Literal["low", "medium", "high", "critical"] = "medium"
+    weight: int = Field(default=10, ge=0, le=30)
+    description: str | None = None
+
+
+class SLAMetricDef(BaseModel):
+    code: str
+    label: str
+    unit: str | None = None
+    direction: Literal["lower_is_better", "higher_is_better"] = "lower_is_better"
+    default_target: float | None = None
+    description: str | None = None
+
+
+EXTRACTION_HINT_KEYS = {"metadata", "clauses", "risks", "slas", "obligations"}
+
+
+class IndustryProfileCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=255)
+    slug: str = Field(min_length=2, max_length=100)
+    description: str | None = None
+    contract_types: list[ContractTypeDef] = []
+    clause_types: list[ClauseTypeDef] = []
+    risk_categories: list[RiskCategoryDef] = []
+    sla_metrics: list[SLAMetricDef] = []
+    field_definitions: dict[str, list[dict]] = {}
+    extraction_hints: dict[str, str] = {}
+    ui_config: dict = {}
+
+    @field_validator("slug")
+    @classmethod
+    def slug_is_kebab(cls, v: str) -> str:
+        if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", v):
+            raise ValueError("slug must be lowercase kebab-case (a-z, 0-9, hyphens)")
+        return v
+
+    @field_validator("extraction_hints")
+    @classmethod
+    def hints_keys_known(cls, v: dict[str, str]) -> dict[str, str]:
+        unknown = set(v.keys()) - EXTRACTION_HINT_KEYS
+        if unknown:
+            raise ValueError(
+                f"Unknown extraction_hints keys: {unknown}. "
+                f"Allowed: {EXTRACTION_HINT_KEYS}"
+            )
+        return v
+
+
+class GenerateProfileRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=255)
+    description: str = Field(min_length=10, max_length=2000)
+    sample_contract_text: str | None = None
+
+
+def _slugify(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return slug[:100] or "industry"
+
+
+def _profile_to_dict(profile: IndustryProfile) -> dict:
+    return {
+        "id": str(profile.id),
+        "name": profile.name,
+        "slug": profile.slug,
+        "description": profile.description,
+        "contract_types": profile.contract_types,
+        "clause_types": profile.clause_types,
+        "risk_categories": profile.risk_categories,
+        "sla_metrics": profile.sla_metrics,
+        "field_definitions": profile.field_definitions,
+        "extraction_hints": profile.extraction_hints,
+        "ui_config": profile.ui_config,
+        "is_active": profile.is_active,
+    }
+
+
 # =============================================================================
 # Endpoints
 # =============================================================================
@@ -67,6 +162,98 @@ async def list_industry_profiles(
     )
     profiles = result.scalars().all()
     return [IndustryProfileSummary.from_model(p) for p in profiles]
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+async def create_industry_profile(
+    payload: IndustryProfileCreate,
+    current_user: SuperAdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Create a new industry profile (super-admin only)."""
+    existing = await db.execute(
+        select(IndustryProfile).where(IndustryProfile.slug == payload.slug)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=409,
+            detail=f"Profile with slug '{payload.slug}' already exists",
+        )
+
+    profile = IndustryProfile(
+        name=payload.name,
+        slug=payload.slug,
+        description=payload.description,
+        contract_types=[ct.model_dump() for ct in payload.contract_types],
+        clause_types=[ct.model_dump() for ct in payload.clause_types],
+        risk_categories=[rc.model_dump() for rc in payload.risk_categories],
+        sla_metrics=[m.model_dump() for m in payload.sla_metrics],
+        field_definitions=payload.field_definitions,
+        extraction_hints=payload.extraction_hints,
+        ui_config=payload.ui_config,
+        is_active=True,
+    )
+    db.add(profile)
+    await db.commit()
+    await db.refresh(profile)
+
+    logger.info(f"Industry profile created: {profile.name} ({profile.slug})")
+    return _profile_to_dict(profile)
+
+
+@router.post("/generate")
+async def generate_industry_profile(
+    payload: GenerateProfileRequest,
+    current_user: SuperAdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Generate a draft industry profile with AI (super-admin only).
+
+    Returns a draft for review — nothing is saved. The draft is validated
+    against the same schema as the create endpoint; sections that fail
+    validation are returned as-is with warnings so the admin can fix them
+    in the review UI.
+    """
+    from app.services.industry_profile_generator import generate_profile_draft
+
+    try:
+        draft = await generate_profile_draft(
+            db,
+            name=payload.name,
+            description=payload.description,
+            sample_contract_text=payload.sample_contract_text,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    slug = _slugify(payload.name)
+    candidate = {
+        "name": payload.name,
+        "slug": slug,
+        "description": draft.get("description") or payload.description,
+        "contract_types": draft.get("contract_types", []),
+        "clause_types": draft.get("clause_types", []),
+        "risk_categories": draft.get("risk_categories", []),
+        "sla_metrics": draft.get("sla_metrics", []),
+        "field_definitions": draft.get("field_definitions", {}),
+        "extraction_hints": draft.get("extraction_hints", {}),
+        "ui_config": draft.get("ui_config", {}),
+    }
+
+    warnings: list[str] = []
+    try:
+        validated = IndustryProfileCreate.model_validate(candidate)
+        candidate = validated.model_dump()
+    except Exception as e:
+        warnings.append(f"Draft has validation issues to fix before saving: {e}")
+
+    existing = await db.execute(
+        select(IndustryProfile).where(IndustryProfile.slug == slug)
+    )
+    if existing.scalar_one_or_none():
+        warnings.append(f"Slug '{slug}' is already taken — change it before saving")
+
+    return {"draft": candidate, "warnings": warnings}
 
 
 @router.get("/{profile_id}")
@@ -154,10 +341,10 @@ async def set_my_tenant_profile(
 async def update_industry_profile(
     profile_id: uuid.UUID,
     updates: dict,
-    current_user: AdminUser,
+    current_user: SuperAdminUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
-    """Update industry profile JSONB fields (admin only).
+    """Update industry profile JSONB fields (super-admin only).
 
     Accepts partial updates to any JSONB column:
     contract_types, clause_types, risk_categories, sla_metrics,

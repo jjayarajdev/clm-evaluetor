@@ -17,7 +17,7 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.deps import get_db
+from app.core.deps import get_db, require_admin_if_enterprise
 from app.models.approval import Approver
 from app.models.event import EventType
 from app.models.integration import IntegrationConfig, IntegrationSystem, IntegrationStatus
@@ -29,7 +29,11 @@ from app.models.workflow import (
     WorkflowStep,
 )
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    dependencies=[Depends(require_admin_if_enterprise)],
+)
 
 
 # ============== Pydantic Models ==============

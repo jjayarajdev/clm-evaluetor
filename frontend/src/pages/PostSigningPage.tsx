@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
@@ -83,7 +84,8 @@ interface MilestoneRow {
 }
 
 function RAGBadge({ status }: { status: string | null }) {
-  if (!status) return <span className="text-gray-400 text-xs">N/A</span>
+  const { t } = useTranslation()
+  if (!status) return <span className="text-gray-400 text-xs">{t('postsigning.na')}</span>
 
   const colors: Record<string, string> = {
     green: 'bg-green-100 text-green-800',
@@ -93,7 +95,7 @@ function RAGBadge({ status }: { status: string | null }) {
 
   return (
     <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', colors[status] || 'bg-gray-100 text-gray-800')}>
-      {status.toUpperCase()}
+      {t(`postsigning.rag.${status}`, { defaultValue: status }).toUpperCase()}
     </span>
   )
 }
@@ -105,6 +107,7 @@ function SLABreachDetailModal({
   breach: SLABreachDetail
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const severityColors: Record<string, string> = {
     critical: 'bg-red-100 text-red-800 border-red-200',
     major: 'bg-orange-100 text-orange-800 border-orange-200',
@@ -143,25 +146,25 @@ function SLABreachDetailModal({
                 'px-3 py-1 rounded-full text-sm font-medium border',
                 severityColors[breach.breach_severity] || 'bg-gray-100 text-gray-800'
               )}>
-                {breach.breach_severity.toUpperCase()} Breach
+                {t('postsigning.severityBreach', { severity: t(`risk.${breach.breach_severity}`, { defaultValue: breach.breach_severity }).toUpperCase() })}
               </span>
               <span className="text-sm text-gray-500">
-                {breach.consecutive_breaches} consecutive breach{breach.consecutive_breaches !== 1 ? 'es' : ''}
+                {t('postsigning.consecutiveBreaches', { count: breach.consecutive_breaches })}
               </span>
             </div>
 
             {/* Metrics Comparison */}
             <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Performance Metrics</h4>
+              <h4 className="text-sm font-medium text-gray-700 mb-3">{t('postsigning.performanceMetrics')}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase">Target</p>
+                  <p className="text-xs text-gray-500 uppercase">{t('postsigning.target')}</p>
                   <p className="text-xl font-semibold text-gray-900">
                     {breach.target_display || `${breach.target_value}`}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 uppercase">Actual</p>
+                  <p className="text-xs text-gray-500 uppercase">{t('postsigning.actual')}</p>
                   <p className={cn('text-xl font-semibold', deviationColor)}>
                     {breach.actual_display || `${breach.actual_value}`}
                   </p>
@@ -169,7 +172,7 @@ function SLABreachDetailModal({
               </div>
               <div className="mt-3 pt-3 border-t border-gray-200">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">Deviation</span>
+                  <span className="text-sm text-gray-500">{t('postsigning.deviation')}</span>
                   <span className={cn('text-sm font-medium', deviationColor)}>
                     {breach.deviation_percentage > 0 ? '+' : ''}{breach.deviation_percentage.toFixed(1)}%
                   </span>
@@ -180,20 +183,20 @@ function SLABreachDetailModal({
             {/* Additional Info */}
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Metric Type</span>
+                <span className="text-gray-500">{t('postsigning.metricType')}</span>
                 <span className="font-medium text-gray-900 capitalize">
                   {breach.metric_type.replace(/_/g, ' ')}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Last Measured</span>
+                <span className="text-gray-500">{t('postsigning.lastMeasured')}</span>
                 <span className="font-medium text-gray-900">
                   {new Date(breach.measured_at).toLocaleString()}
                 </span>
               </div>
               {breach.penalty_amount && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Penalty Amount</span>
+                  <span className="text-gray-500">{t('postsigning.penaltyAmount')}</span>
                   <span className="font-medium text-red-600">
                     ${breach.penalty_amount.toLocaleString()}
                   </span>
@@ -206,7 +209,7 @@ function SLABreachDetailModal({
               <div>
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
                   <span>0%</span>
-                  <span>Target: {breach.target_value.toFixed(1)}%</span>
+                  <span>{t('postsigning.targetValue', { value: breach.target_value.toFixed(1) })}</span>
                   <span>100%</span>
                 </div>
                 <div className="h-3 bg-gray-200 rounded-full overflow-hidden relative">
@@ -234,10 +237,10 @@ function SLABreachDetailModal({
               to={`/contracts/${breach.contract_id}`}
               className="btn btn-secondary text-sm"
             >
-              View Contract
+              {t('postsigning.viewContract')}
             </Link>
             <button onClick={onClose} className="btn btn-primary text-sm">
-              Close
+              {t('postsigning.close')}
             </button>
           </div>
         </div>
@@ -247,6 +250,7 @@ function SLABreachDetailModal({
 }
 
 function PriorityActionItem({ action }: { action: PriorityAction }) {
+  const { t } = useTranslation()
   const severityColors: Record<string, string> = {
     critical: 'border-l-red-500 bg-red-50',
     high: 'border-l-amber-500 bg-amber-50',
@@ -272,7 +276,7 @@ function PriorityActionItem({ action }: { action: PriorityAction }) {
           action.type === 'sla' ? 'bg-purple-100 text-purple-700' :
           'bg-green-100 text-green-700'
         )}>
-          {action.type}
+          {t(`postsigning.actionType.${action.type}`, { defaultValue: action.type })}
         </span>
       </div>
     </div>
@@ -285,7 +289,14 @@ function PriorityActionItem({ action }: { action: PriorityAction }) {
 }
 
 export default function PostSigningPage() {
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
+
+  // Translate item statuses, reusing existing status.* keys where available
+  const statusLabel = (s: string) =>
+    ['pending', 'completed'].includes(s)
+      ? t(`status.${s}`)
+      : t(`postsigning.status.${s}`, { defaultValue: s.replace(/_/g, ' ') })
   const [activeTab, setActiveTab] = useState<'overview' | 'obligations' | 'slas' | 'renewals' | 'vendors' | 'milestones'>('overview')
   const [selectedBreach, setSelectedBreach] = useState<SLABreachDetail | null>(null)
   const [oblStatusFilter, setOblStatusFilter] = useState<string>('')
@@ -460,7 +471,7 @@ export default function PostSigningPage() {
   if (error || !dashboard) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Failed to load dashboard data</p>
+        <p className="text-red-600">{t('postsigning.loadError')}</p>
       </div>
     )
   }
@@ -469,12 +480,12 @@ export default function PostSigningPage() {
   const trendChange = trendData?.overall_change_pct
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: ChartBarIcon },
-    { id: 'obligations', label: `Obligations (${dashboard.obligations.total})`, icon: CheckCircleIcon },
-    { id: 'slas', label: `SLAs (${dashboard.slas.active_slas})`, icon: FlagIcon },
-    { id: 'milestones', label: `Milestones (${dashboard.milestones.total_milestones})`, icon: ClockIcon },
-    { id: 'renewals', label: 'Renewals', icon: CalendarIcon },
-    { id: 'vendors', label: `Vendors (${dashboard.vendors.total_vendors})`, icon: BuildingOfficeIcon },
+    { id: 'overview', label: t('postsigning.tabs.overview'), icon: ChartBarIcon },
+    { id: 'obligations', label: t('postsigning.tabs.obligations', { count: dashboard.obligations.total }), icon: CheckCircleIcon },
+    { id: 'slas', label: t('postsigning.tabs.slas', { count: dashboard.slas.active_slas }), icon: FlagIcon },
+    { id: 'milestones', label: t('postsigning.tabs.milestones', { count: dashboard.milestones.total_milestones }), icon: ClockIcon },
+    { id: 'renewals', label: t('postsigning.tabs.renewals'), icon: CalendarIcon },
+    { id: 'vendors', label: t('postsigning.tabs.vendors', { count: dashboard.vendors.total_vendors }), icon: BuildingOfficeIcon },
   ]
 
   const obligations = (allObligations || []) as ObligationRow[]
@@ -483,8 +494,8 @@ export default function PostSigningPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Compliance & Performance"
-        description="Monitor obligations, SLAs, milestones, renewals, and vendor performance"
+        title={t('postsigning.title')}
+        description={t('postsigning.description')}
         icon={ShieldCheckIcon}
         variant="bordered"
         actions={
@@ -493,7 +504,7 @@ export default function PostSigningPage() {
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
           >
             <DocumentChartBarIcon className="h-4 w-4" />
-            Generate Report
+            {t('postsigning.generateReport')}
           </Link>
         }
       />
@@ -501,36 +512,36 @@ export default function PostSigningPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Overall Compliance"
+          title={t('postsigning.overallCompliance')}
           value={`${dashboard.compliance.overall_compliance_rate.toFixed(1)}%`}
-          subtitle={trendDirection ? `Trend: ${trendDirection}` : undefined}
+          subtitle={trendDirection ? t('postsigning.trendSubtitle', { direction: t(`postsigning.trendDirections.${trendDirection}`, { defaultValue: trendDirection }) }) : undefined}
           icon={CheckCircleIcon}
           color={dashboard.compliance.overall_compliance_rate >= 90 ? 'success' : dashboard.compliance.overall_compliance_rate >= 70 ? 'warning' : 'danger'}
           variant="filled"
           chart={complianceChart}
-          trend={trendChange != null ? { value: Math.round(trendChange), label: 'vs last period' } : undefined}
+          trend={trendChange != null ? { value: Math.round(trendChange), label: t('postsigning.vsLastPeriod') } : undefined}
         />
         <StatCard
-          title="Contracts At Risk"
+          title={t('postsigning.contractsAtRisk')}
           value={dashboard.contracts_needing_attention}
-          subtitle={`${dashboard.compliance.high_priority_actions} priority actions`}
+          subtitle={t('postsigning.priorityActionsCount', { count: dashboard.compliance.high_priority_actions })}
           icon={ExclamationTriangleIcon}
           color={dashboard.contracts_needing_attention > 0 ? 'danger' : 'success'}
           variant="filled"
           chart={breachChart}
         />
         <StatCard
-          title="Active Contracts"
+          title={t('postsigning.activeContracts')}
           value={dashboard.total_contracts}
-          subtitle={dashboard.total_value ? `$${(dashboard.total_value / 1000000).toFixed(1)}M total value` : 'N/A'}
+          subtitle={dashboard.total_value ? t('postsigning.totalValueSubtitle', { value: (dashboard.total_value / 1000000).toFixed(1) }) : t('postsigning.na')}
           icon={ChartBarIcon}
           color="primary"
           variant="filled"
         />
         <StatCard
-          title="Renewals (90 days)"
+          title={t('postsigning.renewals90Days')}
           value={dashboard.renewals.expiring_90_days}
-          subtitle={`${dashboard.renewals.past_notice_deadline} past notice deadline`}
+          subtitle={t('postsigning.pastNoticeDeadlineCount', { count: dashboard.renewals.past_notice_deadline })}
           icon={CalendarIcon}
           color={dashboard.renewals.past_notice_deadline > 0 ? 'warning' : 'default'}
           variant="filled"
@@ -564,7 +575,7 @@ export default function PostSigningPage() {
           {/* Priority Actions */}
           <div className="lg:col-span-2 card">
             <div className="card-header">
-              <h3 className="font-medium text-gray-900">Priority Actions</h3>
+              <h3 className="font-medium text-gray-900">{t('postsigning.priorityActions')}</h3>
             </div>
             <div className="p-4 space-y-3">
               {dashboard.priority_actions.length > 0 ? (
@@ -572,7 +583,7 @@ export default function PostSigningPage() {
                   <PriorityActionItem key={idx} action={action} />
                 ))
               ) : (
-                <p className="text-sm text-gray-500 text-center py-4">No priority actions at this time</p>
+                <p className="text-sm text-gray-500 text-center py-4">{t('postsigning.noPriorityActions')}</p>
               )}
             </div>
           </div>
@@ -582,12 +593,12 @@ export default function PostSigningPage() {
             {/* Obligations Summary */}
             <div className="card">
               <div className="card-header flex items-center justify-between">
-                <h3 className="font-medium text-gray-900">Obligations</h3>
+                <h3 className="font-medium text-gray-900">{t('postsigning.obligations')}</h3>
                 <button
                   onClick={() => setActiveTab('obligations')}
                   className="text-xs text-primary-600 hover:underline"
                 >
-                  View all
+                  {t('postsigning.viewAll')}
                 </button>
               </div>
               <div className="p-4">
@@ -595,35 +606,35 @@ export default function PostSigningPage() {
                   <span className="text-2xl font-bold text-gray-900">
                     {dashboard.obligations.compliance_rate.toFixed(1)}%
                   </span>
-                  <span className="text-sm text-gray-500">compliance</span>
+                  <span className="text-sm text-gray-500">{t('postsigning.compliance')}</span>
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Completed</span>
+                    <span className="text-gray-500">{t('status.completed')}</span>
                     <span className="font-medium text-green-600">{dashboard.obligations.completed}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">In Progress</span>
+                    <span className="text-gray-500">{t('postsigning.status.in_progress')}</span>
                     <span className="font-medium text-blue-600">{dashboard.obligations.in_progress}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Overdue</span>
+                    <span className="text-gray-500">{t('postsigning.status.overdue')}</span>
                     <span className="font-medium text-red-600">{dashboard.obligations.overdue}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">At Risk</span>
+                    <span className="text-gray-500">{t('postsigning.atRisk')}</span>
                     <span className="font-medium text-amber-600">{dashboard.obligations.at_risk}</span>
                   </div>
                 </div>
                 <div className="mt-3 flex gap-2">
                   <div className="flex-1 text-center py-1 rounded bg-green-50 text-green-700 text-xs">
-                    {dashboard.obligations.green} Green
+                    {dashboard.obligations.green} {t('postsigning.rag.green')}
                   </div>
                   <div className="flex-1 text-center py-1 rounded bg-amber-50 text-amber-700 text-xs">
-                    {dashboard.obligations.amber} Amber
+                    {dashboard.obligations.amber} {t('postsigning.rag.amber')}
                   </div>
                   <div className="flex-1 text-center py-1 rounded bg-red-50 text-red-700 text-xs">
-                    {dashboard.obligations.red} Red
+                    {dashboard.obligations.red} {t('postsigning.rag.red')}
                   </div>
                 </div>
               </div>
@@ -632,12 +643,12 @@ export default function PostSigningPage() {
             {/* SLA Summary */}
             <div className="card">
               <div className="card-header flex items-center justify-between">
-                <h3 className="font-medium text-gray-900">SLA Performance</h3>
+                <h3 className="font-medium text-gray-900">{t('postsigning.slaPerformance')}</h3>
                 <button
                   onClick={() => setActiveTab('slas')}
                   className="text-xs text-primary-600 hover:underline"
                 >
-                  View all
+                  {t('postsigning.viewAll')}
                 </button>
               </div>
               <div className="p-4">
@@ -645,19 +656,19 @@ export default function PostSigningPage() {
                   <span className="text-2xl font-bold text-gray-900">
                     {dashboard.slas.compliance_rate.toFixed(1)}%
                   </span>
-                  <span className="text-sm text-gray-500">compliance</span>
+                  <span className="text-sm text-gray-500">{t('postsigning.compliance')}</span>
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Active SLAs</span>
+                    <span className="text-gray-500">{t('postsigning.activeSlas')}</span>
                     <span className="font-medium">{dashboard.slas.active_slas}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Breached</span>
+                    <span className="text-gray-500">{t('status.breached')}</span>
                     <span className="font-medium text-red-600">{dashboard.slas.breached}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Penalties MTD</span>
+                    <span className="text-gray-500">{t('postsigning.penaltiesMtd')}</span>
                     <span className="font-medium text-red-600">
                       ${dashboard.slas.total_penalties_mtd.toLocaleString()}
                     </span>
@@ -669,12 +680,12 @@ export default function PostSigningPage() {
             {/* Milestones Summary */}
             <div className="card">
               <div className="card-header flex items-center justify-between">
-                <h3 className="font-medium text-gray-900">Milestones</h3>
+                <h3 className="font-medium text-gray-900">{t('postsigning.milestones')}</h3>
                 <button
                   onClick={() => setActiveTab('milestones')}
                   className="text-xs text-primary-600 hover:underline"
                 >
-                  View all
+                  {t('postsigning.viewAll')}
                 </button>
               </div>
               <div className="p-4">
@@ -682,23 +693,23 @@ export default function PostSigningPage() {
                   <span className="text-2xl font-bold text-gray-900">
                     {dashboard.milestones.completion_rate.toFixed(1)}%
                   </span>
-                  <span className="text-sm text-gray-500">complete</span>
+                  <span className="text-sm text-gray-500">{t('postsigning.complete')}</span>
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total</span>
+                    <span className="text-gray-500">{t('postsigning.total')}</span>
                     <span className="font-medium">{dashboard.milestones.total_milestones}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Completed</span>
+                    <span className="text-gray-500">{t('status.completed')}</span>
                     <span className="font-medium text-green-600">{dashboard.milestones.completed}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Overdue</span>
+                    <span className="text-gray-500">{t('postsigning.status.overdue')}</span>
                     <span className="font-medium text-red-600">{dashboard.milestones.overdue}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">At Risk</span>
+                    <span className="text-gray-500">{t('postsigning.atRisk')}</span>
                     <span className="font-medium text-amber-600">{dashboard.milestones.at_risk}</span>
                   </div>
                 </div>
@@ -711,7 +722,7 @@ export default function PostSigningPage() {
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {dashboard.milestones.completed} of {dashboard.milestones.total_milestones} completed
+                    {t('postsigning.completedOfTotal', { completed: dashboard.milestones.completed, total: dashboard.milestones.total_milestones })}
                   </p>
                 </div>
               </div>
@@ -723,7 +734,7 @@ export default function PostSigningPage() {
       {activeTab === 'obligations' && (
         <div className="card">
           <div className="card-header flex items-center justify-between">
-            <h3 className="font-medium text-gray-900">All Obligations</h3>
+            <h3 className="font-medium text-gray-900">{t('postsigning.allObligations')}</h3>
             <div className="flex items-center gap-3">
               {/* Status filter */}
               <div className="flex items-center gap-1.5">
@@ -733,12 +744,12 @@ export default function PostSigningPage() {
                   onChange={(e) => setOblStatusFilter(e.target.value)}
                   className="text-sm border-gray-300 rounded-md py-1 pl-2 pr-7"
                 >
-                  <option value="">All Statuses</option>
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                  <option value="overdue">Overdue</option>
-                  <option value="waived">Waived</option>
+                  <option value="">{t('postsigning.allStatuses')}</option>
+                  <option value="pending">{t('status.pending')}</option>
+                  <option value="in_progress">{t('postsigning.status.in_progress')}</option>
+                  <option value="completed">{t('status.completed')}</option>
+                  <option value="overdue">{t('postsigning.status.overdue')}</option>
+                  <option value="waived">{t('postsigning.status.waived')}</option>
                 </select>
               </div>
               {/* RAG filter */}
@@ -747,13 +758,13 @@ export default function PostSigningPage() {
                 onChange={(e) => setOblRagFilter(e.target.value)}
                 className="text-sm border-gray-300 rounded-md py-1 pl-2 pr-7"
               >
-                <option value="">All RAG</option>
-                <option value="green">Green</option>
-                <option value="amber">Amber</option>
-                <option value="red">Red</option>
+                <option value="">{t('postsigning.allRag')}</option>
+                <option value="green">{t('postsigning.rag.green')}</option>
+                <option value="amber">{t('postsigning.rag.amber')}</option>
+                <option value="red">{t('postsigning.rag.red')}</option>
               </select>
               <span className="text-sm text-gray-500">
-                {oblLoading ? '...' : `${obligations.length} items`}
+                {oblLoading ? '...' : t('postsigning.itemsCount', { count: obligations.length })}
               </span>
             </div>
           </div>
@@ -764,20 +775,20 @@ export default function PostSigningPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Owner</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">RAG</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.titleColumn')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.contract')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.category')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.owner')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.dueDate')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('common.status')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.ragColumn')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {obligations.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
-                        No obligations found matching filters
+                        {t('postsigning.noObligationsFound')}
                       </td>
                     </tr>
                   ) : (
@@ -806,7 +817,7 @@ export default function PostSigningPage() {
                           {item.owner || '-'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-500">
-                          {item.due_date ? new Date(item.due_date).toLocaleDateString() : 'No date'}
+                          {item.due_date ? new Date(item.due_date).toLocaleDateString() : t('postsigning.noDate')}
                         </td>
                         <td className="px-4 py-3">
                           <span className={cn(
@@ -817,7 +828,7 @@ export default function PostSigningPage() {
                             item.status === 'waived' ? 'bg-gray-100 text-gray-600' :
                             'bg-amber-100 text-amber-800'
                           )}>
-                            {item.status.replace(/_/g, ' ')}
+                            {statusLabel(item.status)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -837,16 +848,16 @@ export default function PostSigningPage() {
         <div className="space-y-4">
           {/* SLA Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard title="SLA Compliance" value={`${dashboard.slas.compliance_rate.toFixed(1)}%`} icon={CheckCircleIcon} color={dashboard.slas.compliance_rate >= 90 ? 'success' : 'warning'} variant="filled" chart={slaChart} />
-            <StatCard title="Active SLAs" value={dashboard.slas.active_slas} icon={FlagIcon} color="primary" variant="filled" />
-            <StatCard title="Breached" value={dashboard.slas.breached} icon={ExclamationTriangleIcon} color="danger" variant="filled" />
-            <StatCard title="Penalties MTD" value={`$${dashboard.slas.total_penalties_mtd.toLocaleString()}`} icon={ChartBarIcon} color="warning" variant="filled" />
+            <StatCard title={t('postsigning.slaCompliance')} value={`${dashboard.slas.compliance_rate.toFixed(1)}%`} icon={CheckCircleIcon} color={dashboard.slas.compliance_rate >= 90 ? 'success' : 'warning'} variant="filled" chart={slaChart} />
+            <StatCard title={t('postsigning.activeSlas')} value={dashboard.slas.active_slas} icon={FlagIcon} color="primary" variant="filled" />
+            <StatCard title={t('status.breached')} value={dashboard.slas.breached} icon={ExclamationTriangleIcon} color="danger" variant="filled" />
+            <StatCard title={t('postsigning.penaltiesMtd')} value={`$${dashboard.slas.total_penalties_mtd.toLocaleString()}`} icon={ChartBarIcon} color="warning" variant="filled" />
           </div>
 
           {/* All Active SLAs */}
           <div className="card">
             <div className="card-header flex items-center justify-between">
-              <h3 className="font-medium text-gray-900">All Active SLAs</h3>
+              <h3 className="font-medium text-gray-900">{t('postsigning.allActiveSlas')}</h3>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
                   <FunnelIcon className="h-4 w-4 text-gray-400" />
@@ -855,11 +866,11 @@ export default function PostSigningPage() {
                     onChange={(e) => setSlaSeverityFilter(e.target.value)}
                     className="text-sm border-gray-300 rounded-md py-1 pl-2 pr-7"
                   >
-                    <option value="">All Severities</option>
-                    <option value="critical">Critical</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
+                    <option value="">{t('postsigning.allSeverities')}</option>
+                    <option value="critical">{t('risk.critical')}</option>
+                    <option value="high">{t('risk.high')}</option>
+                    <option value="medium">{t('risk.medium')}</option>
+                    <option value="low">{t('risk.low')}</option>
                   </select>
                 </div>
                 <select
@@ -867,11 +878,11 @@ export default function PostSigningPage() {
                   onChange={(e) => setSlaBreachFilter(e.target.value)}
                   className="text-sm border-gray-300 rounded-md py-1 pl-2 pr-7"
                 >
-                  <option value="">All SLAs</option>
-                  <option value="breached">Breached Only</option>
-                  <option value="compliant">No Breaches</option>
+                  <option value="">{t('postsigning.allSlas')}</option>
+                  <option value="breached">{t('postsigning.breachedOnly')}</option>
+                  <option value="compliant">{t('postsigning.noBreaches')}</option>
                 </select>
-                <span className="text-sm text-gray-500">{filteredSLAs.length} SLAs</span>
+                <span className="text-sm text-gray-500">{t('postsigning.slasCount', { count: filteredSLAs.length })}</span>
               </div>
             </div>
             {slasLoading ? (
@@ -883,20 +894,20 @@ export default function PostSigningPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SLA Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metric</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Target</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Compliance</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Breaches</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.slaName')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.contract')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.metric')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.target')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.complianceColumn')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.breaches')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.severity')}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredSLAs.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
-                          No active SLAs found
+                          {t('postsigning.noActiveSlas')}
                         </td>
                       </tr>
                     ) : (
@@ -929,7 +940,7 @@ export default function PostSigningPage() {
                                 {sla.compliance_rate.toFixed(1)}%
                               </span>
                             ) : (
-                              <span className="text-sm text-gray-400">N/A</span>
+                              <span className="text-sm text-gray-400">{t('postsigning.na')}</span>
                             )}
                           </td>
                           <td className="px-4 py-3">
@@ -947,7 +958,7 @@ export default function PostSigningPage() {
                               sla.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
                               'bg-gray-100 text-gray-800'
                             )}>
-                              {sla.severity}
+                              {t(`risk.${sla.severity}`, { defaultValue: sla.severity })}
                             </span>
                           </td>
                         </tr>
@@ -963,19 +974,19 @@ export default function PostSigningPage() {
           {dashboard.slas.recent_breaches.length > 0 && (
             <div className="card">
               <div className="card-header flex items-center justify-between">
-                <h3 className="font-medium text-gray-900">Recent SLA Breaches</h3>
-                <span className="text-sm text-red-600">{dashboard.slas.critical_breaches} critical</span>
+                <h3 className="font-medium text-gray-900">{t('postsigning.recentSlaBreaches')}</h3>
+                <span className="text-sm text-red-600">{t('postsigning.criticalCount', { count: dashboard.slas.critical_breaches })}</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SLA Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Target</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actual</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consec. Fails</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.slaName')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.contract')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.target')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.actual')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.consecFails')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.severity')}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -1018,7 +1029,7 @@ export default function PostSigningPage() {
                             breach.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-gray-100 text-gray-800'
                           )}>
-                            {breach.severity}
+                            {t(`risk.${breach.severity}`, { defaultValue: breach.severity })}
                           </span>
                         </td>
                       </tr>
@@ -1027,7 +1038,7 @@ export default function PostSigningPage() {
                 </table>
               </div>
               <div className="p-3 border-t bg-gray-50 text-xs text-gray-500">
-                Click on a row to view detailed breach information
+                {t('postsigning.clickRowForDetails')}
               </div>
             </div>
           )}
@@ -1047,22 +1058,22 @@ export default function PostSigningPage() {
           {/* Milestone Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard
-              title="Completion Rate"
+              title={t('postsigning.completionRate')}
               value={`${dashboard.milestones.completion_rate.toFixed(1)}%`}
               icon={CheckCircleIcon}
               color={dashboard.milestones.completion_rate >= 80 ? 'success' : dashboard.milestones.completion_rate >= 50 ? 'warning' : 'danger'}
               variant="filled"
               chart={obligationChart}
             />
-            <StatCard title="Total Milestones" value={dashboard.milestones.total_milestones} icon={ClockIcon} color="primary" variant="filled" />
-            <StatCard title="Overdue" value={dashboard.milestones.overdue} icon={ExclamationTriangleIcon} color="danger" variant="filled" />
-            <StatCard title="At Risk" value={dashboard.milestones.at_risk} icon={ExclamationTriangleIcon} color="warning" variant="filled" />
+            <StatCard title={t('postsigning.totalMilestones')} value={dashboard.milestones.total_milestones} icon={ClockIcon} color="primary" variant="filled" />
+            <StatCard title={t('postsigning.status.overdue')} value={dashboard.milestones.overdue} icon={ExclamationTriangleIcon} color="danger" variant="filled" />
+            <StatCard title={t('postsigning.atRisk')} value={dashboard.milestones.at_risk} icon={ExclamationTriangleIcon} color="warning" variant="filled" />
           </div>
 
           {/* Completion Progress */}
           <div className="card">
             <div className="card-header">
-              <h3 className="font-medium text-gray-900">Milestone Progress</h3>
+              <h3 className="font-medium text-gray-900">{t('postsigning.milestoneProgress')}</h3>
             </div>
             <div className="p-4">
               <div className="flex items-center gap-4 mb-4">
@@ -1071,17 +1082,17 @@ export default function PostSigningPage() {
                     <div
                       className="h-full bg-green-500 transition-all"
                       style={{ width: `${dashboard.milestones.total_milestones > 0 ? (dashboard.milestones.completed / dashboard.milestones.total_milestones * 100) : 0}%` }}
-                      title={`Completed: ${dashboard.milestones.completed}`}
+                      title={`${t('status.completed')}: ${dashboard.milestones.completed}`}
                     />
                     <div
                       className="h-full bg-red-400 transition-all"
                       style={{ width: `${dashboard.milestones.total_milestones > 0 ? (dashboard.milestones.overdue / dashboard.milestones.total_milestones * 100) : 0}%` }}
-                      title={`Overdue: ${dashboard.milestones.overdue}`}
+                      title={`${t('postsigning.status.overdue')}: ${dashboard.milestones.overdue}`}
                     />
                     <div
                       className="h-full bg-amber-400 transition-all"
                       style={{ width: `${dashboard.milestones.total_milestones > 0 ? (dashboard.milestones.at_risk / dashboard.milestones.total_milestones * 100) : 0}%` }}
-                      title={`At Risk: ${dashboard.milestones.at_risk}`}
+                      title={`${t('postsigning.atRisk')}: ${dashboard.milestones.at_risk}`}
                     />
                   </div>
                 </div>
@@ -1089,20 +1100,20 @@ export default function PostSigningPage() {
               <div className="flex gap-6 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span className="text-gray-600">Completed ({dashboard.milestones.completed})</span>
+                  <span className="text-gray-600">{t('status.completed')} ({dashboard.milestones.completed})</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-red-400" />
-                  <span className="text-gray-600">Overdue ({dashboard.milestones.overdue})</span>
+                  <span className="text-gray-600">{t('postsigning.status.overdue')} ({dashboard.milestones.overdue})</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-amber-400" />
-                  <span className="text-gray-600">At Risk ({dashboard.milestones.at_risk})</span>
+                  <span className="text-gray-600">{t('postsigning.atRisk')} ({dashboard.milestones.at_risk})</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-gray-300" />
                   <span className="text-gray-600">
-                    Remaining ({dashboard.milestones.total_milestones - dashboard.milestones.completed - dashboard.milestones.overdue - dashboard.milestones.at_risk})
+                    {t('postsigning.remaining')} ({dashboard.milestones.total_milestones - dashboard.milestones.completed - dashboard.milestones.overdue - dashboard.milestones.at_risk})
                   </span>
                 </div>
               </div>
@@ -1112,7 +1123,7 @@ export default function PostSigningPage() {
           {/* All Milestones */}
           <div className="card">
             <div className="card-header flex items-center justify-between">
-              <h3 className="font-medium text-gray-900">All Milestones</h3>
+              <h3 className="font-medium text-gray-900">{t('postsigning.allMilestones')}</h3>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
                   <FunnelIcon className="h-4 w-4 text-gray-400" />
@@ -1121,14 +1132,14 @@ export default function PostSigningPage() {
                     onChange={(e) => setMsStatusFilter(e.target.value)}
                     className="text-sm border-gray-300 rounded-md py-1 pl-2 pr-7"
                   >
-                    <option value="">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="overdue">Overdue</option>
+                    <option value="">{t('postsigning.allStatuses')}</option>
+                    <option value="pending">{t('status.pending')}</option>
+                    <option value="in_progress">{t('postsigning.status.in_progress')}</option>
+                    <option value="completed">{t('status.completed')}</option>
+                    <option value="overdue">{t('postsigning.status.overdue')}</option>
                   </select>
                 </div>
-                <span className="text-sm text-gray-500">{filteredMilestones.length} milestones</span>
+                <span className="text-sm text-gray-500">{t('postsigning.milestonesCount', { count: filteredMilestones.length })}</span>
               </div>
             </div>
             {milestonesLoading ? (
@@ -1140,18 +1151,18 @@ export default function PostSigningPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Owner</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.titleColumn')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.contract')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.owner')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.dueDate')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('common.status')}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredMilestones.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
-                          No milestones found
+                          {t('postsigning.noMilestonesFound')}
                         </td>
                       </tr>
                     ) : (
@@ -1179,7 +1190,7 @@ export default function PostSigningPage() {
                               ms.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
                               'bg-amber-100 text-amber-800'
                             )}>
-                              {ms.status.replace(/_/g, ' ')}
+                              {statusLabel(ms.status)}
                             </span>
                           </td>
                         </tr>
@@ -1196,11 +1207,11 @@ export default function PostSigningPage() {
       {activeTab === 'renewals' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard title="30 Days" value={dashboard.renewals.expiring_30_days} icon={ClockIcon} color="danger" variant="filled" />
-            <StatCard title="60 Days" value={dashboard.renewals.expiring_60_days} icon={ClockIcon} color="warning" variant="filled" />
-            <StatCard title="90 Days" value={dashboard.renewals.expiring_90_days} icon={ClockIcon} color="blue" variant="filled" />
+            <StatCard title={t('renewals.days30')} value={dashboard.renewals.expiring_30_days} icon={ClockIcon} color="danger" variant="filled" />
+            <StatCard title={t('renewals.days60')} value={dashboard.renewals.expiring_60_days} icon={ClockIcon} color="warning" variant="filled" />
+            <StatCard title={t('renewals.days90')} value={dashboard.renewals.expiring_90_days} icon={ClockIcon} color="blue" variant="filled" />
             <StatCard
-              title="Value at Risk"
+              title={t('renewals.valueAtRisk')}
               value={dashboard.renewals.total_value_at_risk ? `$${(dashboard.renewals.total_value_at_risk / 1000000).toFixed(1)}M` : '$0'}
               icon={ExclamationTriangleIcon}
               color="primary"
@@ -1210,10 +1221,10 @@ export default function PostSigningPage() {
 
           <div className="card">
             <div className="card-header flex items-center justify-between">
-              <h3 className="font-medium text-gray-900">Renewal Calendar</h3>
+              <h3 className="font-medium text-gray-900">{t('renewals.title')}</h3>
               <div className="flex items-center gap-3">
                 <Link to="/renewals" className="inline-flex items-center gap-1 text-sm text-primary-600 hover:underline">
-                  View Full Calendar
+                  {t('postsigning.viewFullCalendar')}
                   <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
                 </Link>
                 <button
@@ -1222,7 +1233,7 @@ export default function PostSigningPage() {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
                 >
                   <ArrowDownTrayIcon className="h-4 w-4" />
-                  {isExporting ? 'Exporting...' : 'Export Calendar'}
+                  {isExporting ? t('renewals.exporting') : t('postsigning.exportCalendar')}
                 </button>
               </div>
             </div>
@@ -1233,21 +1244,21 @@ export default function PostSigningPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contract</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Counterparty</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expiration</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Left</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Risk</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Auto-Renew</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.contract')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('contracts.counterparty')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.type')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('renewals.expiration')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.daysLeft')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.risk')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('renewals.autoRenew')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('common.status')}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {allRenewals.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">
-                          No contracts approaching renewal
+                          {t('postsigning.noContractsApproachingRenewal')}
                         </td>
                       </tr>
                     ) : (
@@ -1273,8 +1284,8 @@ export default function PostSigningPage() {
                             )}>
                               {r.days_until_expiration != null
                                 ? r.days_until_expiration <= 0
-                                  ? `${Math.abs(r.days_until_expiration)}d overdue`
-                                  : `${r.days_until_expiration}d`
+                                  ? t('postsigning.daysOverdue', { days: Math.abs(r.days_until_expiration) })
+                                  : t('postsigning.daysShort', { days: r.days_until_expiration })
                                 : '-'}
                             </span>
                           </td>
@@ -1287,15 +1298,15 @@ export default function PostSigningPage() {
                                 r.risk_level === 'medium' ? 'bg-yellow-100 text-yellow-800' :
                                 'bg-green-100 text-green-800'
                               )}>
-                                {r.risk_level}
+                                {t(`risk.${r.risk_level}`, { defaultValue: r.risk_level })}
                               </span>
                             ) : <span className="text-sm text-gray-400">-</span>}
                           </td>
                           <td className="px-4 py-3">
                             {r.auto_renewal ? (
-                              <span className="text-green-600 text-sm">Yes</span>
+                              <span className="text-green-600 text-sm">{t('common.yes')}</span>
                             ) : (
-                              <span className="text-gray-400 text-sm">No</span>
+                              <span className="text-gray-400 text-sm">{t('common.no')}</span>
                             )}
                           </td>
                           <td className="px-4 py-3">
@@ -1310,10 +1321,10 @@ export default function PostSigningPage() {
                                 'bg-gray-50 text-gray-700 border-gray-200'
                               )}
                             >
-                              <option value="pending_review">Pending Review</option>
-                              <option value="approved">Approved</option>
-                              <option value="declined">Declined</option>
-                              <option value="renegotiating">Renegotiating</option>
+                              <option value="pending_review">{t('postsigning.renewalStatus.pending_review')}</option>
+                              <option value="approved">{t('postsigning.renewalStatus.approved')}</option>
+                              <option value="declined">{t('postsigning.renewalStatus.declined')}</option>
+                              <option value="renegotiating">{t('postsigning.renewalStatus.renegotiating')}</option>
                             </select>
                           </td>
                         </tr>
@@ -1330,10 +1341,10 @@ export default function PostSigningPage() {
       {activeTab === 'vendors' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard title="Total Vendors" value={dashboard.vendors.total_vendors} icon={BuildingOfficeIcon} color="primary" variant="filled" />
-            <StatCard title="At Risk" value={dashboard.vendors.at_risk_vendors} icon={ExclamationTriangleIcon} color="danger" variant="filled" />
+            <StatCard title={t('vendors.totalVendors')} value={dashboard.vendors.total_vendors} icon={BuildingOfficeIcon} color="primary" variant="filled" />
+            <StatCard title={t('vendors.atRisk')} value={dashboard.vendors.at_risk_vendors} icon={ExclamationTriangleIcon} color="danger" variant="filled" />
             <StatCard
-              title="Avg Score"
+              title={t('vendors.avgScore')}
               value={dashboard.vendors.avg_performance_score.toFixed(1)}
               icon={ChartBarIcon}
               color={dashboard.vendors.avg_performance_score >= 70 ? 'success' : 'warning'}
@@ -1343,14 +1354,14 @@ export default function PostSigningPage() {
 
           <div className="card">
             <div className="card-header flex items-center justify-between">
-              <h3 className="font-medium text-gray-900">All Vendors & Counterparties</h3>
+              <h3 className="font-medium text-gray-900">{t('postsigning.allVendorsCounterparties')}</h3>
               <div className="flex items-center gap-3">
                 <Link to="/vendors" className="inline-flex items-center gap-1 text-sm text-primary-600 hover:underline">
-                  View Details
+                  {t('postsigning.viewDetails')}
                   <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
                 </Link>
                 <span className="text-sm text-gray-500">
-                  {vendorsLoading ? '...' : `${(vendorData?.vendors || []).length} vendors`}
+                  {vendorsLoading ? '...' : t('postsigning.vendorsCount', { count: (vendorData?.vendors || []).length })}
                 </span>
               </div>
             </div>
@@ -1361,21 +1372,21 @@ export default function PostSigningPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Risk</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contracts</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exposure</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Obl %</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SLA %</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Breaches</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('vendors.vendor')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('vendors.score')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('vendors.risk')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('vendors.contracts')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('vendors.exposure')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.oblPercent')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.slaPercent')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('vendors.breaches')}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {(vendorData?.vendors || []).length === 0 ? (
                       <tr>
                         <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">
-                          No vendor data available
+                          {t('postsigning.noVendorData')}
                         </td>
                       </tr>
                     ) : (
@@ -1403,7 +1414,7 @@ export default function PostSigningPage() {
                               v.risk_level === 'medium' ? 'bg-amber-100 text-amber-800' :
                               'bg-green-100 text-green-800'
                             )}>
-                              {v.risk_level}
+                              {t(`risk.${v.risk_level}`, { defaultValue: v.risk_level })}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700">{v.contract_count}</td>
@@ -1420,7 +1431,7 @@ export default function PostSigningPage() {
                               )}>
                                 {v.obligation_compliance_rate.toFixed(0)}%
                               </span>
-                            ) : <span className="text-sm text-gray-400">N/A</span>}
+                            ) : <span className="text-sm text-gray-400">{t('postsigning.na')}</span>}
                           </td>
                           <td className="px-4 py-3">
                             {v.sla_compliance_rate != null ? (
@@ -1432,7 +1443,7 @@ export default function PostSigningPage() {
                               )}>
                                 {v.sla_compliance_rate.toFixed(0)}%
                               </span>
-                            ) : <span className="text-sm text-gray-400">N/A</span>}
+                            ) : <span className="text-sm text-gray-400">{t('postsigning.na')}</span>}
                           </td>
                           <td className="px-4 py-3">
                             {v.active_breaches > 0 ? (

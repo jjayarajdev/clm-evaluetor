@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -48,6 +49,7 @@ const ROLE_COLORS: Record<string, string> = {
 }
 
 export default function TenantDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<TabType>('overview')
@@ -107,9 +109,9 @@ export default function TenantDetailPage() {
   if (!tenant) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Tenant not found</p>
+        <p className="text-gray-500">{t('superadmin.tenantDetail.notFound')}</p>
         <Link to="/super-admin/tenants" className="text-primary-600 hover:text-primary-700 mt-2 inline-block">
-          Back to tenants
+          {t('superadmin.tenantDetail.backToTenants')}
         </Link>
       </div>
     )
@@ -117,8 +119,8 @@ export default function TenantDetailPage() {
 
   const handleToggleActive = () => {
     const message = tenant.is_active
-      ? `Are you sure you want to deactivate "${tenant.name}"?`
-      : `Are you sure you want to activate "${tenant.name}"?`
+      ? t('superadmin.tenants.deactivateConfirmShort', { name: tenant.name })
+      : t('superadmin.tenants.activateConfirm', { name: tenant.name })
 
     if (window.confirm(message)) {
       if (tenant.is_active) {
@@ -144,10 +146,10 @@ export default function TenantDetailPage() {
   }
 
   const tabs = [
-    { id: 'overview' as TabType, name: 'Overview' },
-    { id: 'users' as TabType, name: 'Users' },
-    { id: 'sso' as TabType, name: 'SSO' },
-    { id: 'settings' as TabType, name: 'Settings' },
+    { id: 'overview' as TabType, name: t('superadmin.tenantDetail.tabOverview') },
+    { id: 'users' as TabType, name: t('superadmin.tenantDetail.tabUsers') },
+    { id: 'sso' as TabType, name: t('superadmin.tenantDetail.tabSso') },
+    { id: 'settings' as TabType, name: t('superadmin.tenantDetail.tabSettings') },
   ]
 
   return (
@@ -176,7 +178,7 @@ export default function TenantDetailPage() {
             'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium',
             PLAN_COLORS[tenant.plan]
           )}>
-            {PLAN_LABELS[tenant.plan]}
+            {t(`superadmin.plans.${tenant.plan}`, { defaultValue: PLAN_LABELS[tenant.plan] })}
           </span>
           <button
             onClick={handleToggleActive}
@@ -191,12 +193,12 @@ export default function TenantDetailPage() {
             {tenant.is_active ? (
               <>
                 <CheckCircleIcon className="h-4 w-4" />
-                Active
+                {t('status.active')}
               </>
             ) : (
               <>
                 <XCircleIcon className="h-4 w-4" />
-                Inactive
+                {t('status.inactive')}
               </>
             )}
           </button>
@@ -206,25 +208,25 @@ export default function TenantDetailPage() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Users"
+          title={t('superadmin.tenantDetail.users')}
           value={stats?.user_count || 0}
           icon={UserGroupIcon}
           color="primary"
         />
         <StatCard
-          title="Contracts"
+          title={t('superadmin.tenants.contracts')}
           value={stats?.contract_count || 0}
           icon={DocumentTextIcon}
           color="blue"
         />
         <StatCard
-          title="Total Value"
+          title={t('superadmin.tenantDetail.totalValue')}
           value={formatCurrency(stats?.total_value || 0)}
           icon={CurrencyDollarIcon}
           color="success"
         />
         <StatCard
-          title="Storage Used"
+          title={t('superadmin.tenantDetail.storageUsed')}
           value={`${((stats?.storage_used_mb || 0) / 1024).toFixed(2)} GB`}
           icon={DocumentTextIcon}
           color="warning"
@@ -255,41 +257,41 @@ export default function TenantDetailPage() {
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="card p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">Tenant Information</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">{t('superadmin.tenantDetail.tenantInformation')}</h3>
             <dl className="space-y-3">
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500">Name</dt>
+                <dt className="text-sm text-gray-500">{t('superadmin.tenantDetail.name')}</dt>
                 <dd className="text-sm font-medium text-gray-900">{tenant.name}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500">Slug</dt>
+                <dt className="text-sm text-gray-500">{t('superadmin.tenants.slug')}</dt>
                 <dd className="text-sm font-mono text-gray-900">{tenant.slug}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500">Plan</dt>
+                <dt className="text-sm text-gray-500">{t('superadmin.plan')}</dt>
                 <dd>
                   <span className={cn(
                     'inline-flex px-2 py-0.5 rounded text-xs font-medium',
                     PLAN_COLORS[tenant.plan]
                   )}>
-                    {PLAN_LABELS[tenant.plan]}
+                    {t(`superadmin.plans.${tenant.plan}`, { defaultValue: PLAN_LABELS[tenant.plan] })}
                   </span>
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500">Contract Limit</dt>
+                <dt className="text-sm text-gray-500">{t('superadmin.contractLimit')}</dt>
                 <dd className="text-sm font-medium text-gray-900">
-                  {tenant.contract_limit || 'Unlimited'}
+                  {tenant.contract_limit || t('superadmin.tenantDetail.unlimited')}
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500">Contact Email</dt>
+                <dt className="text-sm text-gray-500">{t('superadmin.contactEmail')}</dt>
                 <dd className="text-sm font-medium text-gray-900">
                   {tenant.contact_email || '-'}
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-sm text-gray-500">Created</dt>
+                <dt className="text-sm text-gray-500">{t('superadmin.created')}</dt>
                 <dd className="text-sm font-medium text-gray-900">
                   {formatDate(tenant.created_at)}
                 </dd>
@@ -298,20 +300,20 @@ export default function TenantDetailPage() {
           </div>
 
           <div className="card p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">{t('superadmin.quickActions')}</h3>
             <div className="space-y-2">
               <Link
                 to={`/super-admin/custom-fields?tenant=${id}`}
                 className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
               >
-                <span className="text-sm font-medium text-gray-700">Configure Custom Fields</span>
+                <span className="text-sm font-medium text-gray-700">{t('superadmin.configureCustomFields')}</span>
                 <ArrowLeftIcon className="w-4 h-4 text-gray-400 rotate-180" />
               </Link>
               <button
                 onClick={() => setActiveTab('users')}
                 className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
               >
-                <span className="text-sm font-medium text-gray-700">Manage Users</span>
+                <span className="text-sm font-medium text-gray-700">{t('superadmin.tenantDetail.manageUsers')}</span>
                 <ArrowLeftIcon className="w-4 h-4 text-gray-400 rotate-180" />
               </button>
             </div>
@@ -322,28 +324,28 @@ export default function TenantDetailPage() {
       {activeTab === 'users' && (
         <div className="card overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">Users ({users?.length || 0})</h3>
+            <h3 className="font-semibold text-gray-900">{t('superadmin.tenantDetail.usersCount', { count: users?.length || 0 })}</h3>
             <Link
               to={`/super-admin/users?tenant=${id}`}
               className="text-sm text-primary-600 hover:text-primary-700 font-medium"
             >
-              Manage in Global Users
+              {t('superadmin.tenantDetail.manageInGlobalUsers')}
             </Link>
           </div>
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
+                  {t('superadmin.user')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
+                  {t('superadmin.role')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('common.status')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
+                  {t('superadmin.created')}
                 </th>
               </tr>
             </thead>
@@ -361,7 +363,7 @@ export default function TenantDetailPage() {
                       'inline-flex px-2 py-0.5 rounded text-xs font-medium capitalize',
                       ROLE_COLORS[user.role] || 'bg-gray-100 text-gray-700'
                     )}>
-                      {user.role}
+                      {t(`roles.${user.role}`, { defaultValue: user.role })}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -369,7 +371,7 @@ export default function TenantDetailPage() {
                       'inline-flex px-2 py-0.5 rounded text-xs font-medium',
                       user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                     )}>
-                      {user.is_active ? 'Active' : 'Inactive'}
+                      {user.is_active ? t('status.active') : t('status.inactive')}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
@@ -381,7 +383,7 @@ export default function TenantDetailPage() {
           </table>
           {users?.length === 0 && (
             <div className="text-center py-12 text-gray-500">
-              No users found for this tenant.
+              {t('superadmin.tenantDetail.noUsersForTenant')}
             </div>
           )}
         </div>
@@ -394,14 +396,14 @@ export default function TenantDetailPage() {
       {activeTab === 'settings' && (
         <div className="card p-5 max-w-2xl">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Tenant Settings</h3>
+            <h3 className="font-semibold text-gray-900">{t('superadmin.tenantDetail.tenantSettings')}</h3>
             {!isEditing && (
               <button
                 onClick={handleStartEdit}
                 className="btn-secondary text-sm"
               >
                 <PencilSquareIcon className="h-4 w-4 mr-1" />
-                Edit
+                {t('common.edit')}
               </button>
             )}
           </div>
@@ -416,7 +418,7 @@ export default function TenantDetailPage() {
             >
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Organization Name
+                  {t('superadmin.tenants.organizationName')}
                 </label>
                 <input
                   type="text"
@@ -427,7 +429,7 @@ export default function TenantDetailPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Plan
+                  {t('superadmin.plan')}
                 </label>
                 <select
                   value={editFormData.plan || ''}
@@ -436,14 +438,14 @@ export default function TenantDetailPage() {
                 >
                   {Object.entries(PLAN_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>
-                      {label}
+                      {t(`superadmin.plans.${value}`, { defaultValue: label })}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contract Limit
+                  {t('superadmin.contractLimit')}
                 </label>
                 <input
                   type="number"
@@ -453,12 +455,12 @@ export default function TenantDetailPage() {
                     contract_limit: e.target.value ? parseInt(e.target.value) : null,
                   })}
                   className="input"
-                  placeholder="Leave empty for unlimited"
+                  placeholder={t('superadmin.unlimitedPlaceholder')}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contact Email
+                  {t('superadmin.contactEmail')}
                 </label>
                 <input
                   type="email"
@@ -473,7 +475,7 @@ export default function TenantDetailPage() {
                   onClick={() => setIsEditing(false)}
                   className="btn-secondary"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -483,7 +485,7 @@ export default function TenantDetailPage() {
                   {updateMutation.isPending ? (
                     <LoadingSpinner size="sm" className="border-white border-t-transparent" />
                   ) : (
-                    'Save Changes'
+                    t('superadmin.saveChanges')
                   )}
                 </button>
               </div>
@@ -491,25 +493,25 @@ export default function TenantDetailPage() {
           ) : (
             <dl className="space-y-3">
               <div className="flex justify-between py-2 border-b border-gray-100">
-                <dt className="text-sm text-gray-500">Name</dt>
+                <dt className="text-sm text-gray-500">{t('superadmin.tenantDetail.name')}</dt>
                 <dd className="text-sm font-medium text-gray-900">{tenant.name}</dd>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
-                <dt className="text-sm text-gray-500">Slug</dt>
+                <dt className="text-sm text-gray-500">{t('superadmin.tenants.slug')}</dt>
                 <dd className="text-sm font-mono text-gray-900">{tenant.slug}</dd>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
-                <dt className="text-sm text-gray-500">Plan</dt>
-                <dd className="text-sm font-medium text-gray-900">{PLAN_LABELS[tenant.plan]}</dd>
+                <dt className="text-sm text-gray-500">{t('superadmin.plan')}</dt>
+                <dd className="text-sm font-medium text-gray-900">{t(`superadmin.plans.${tenant.plan}`, { defaultValue: PLAN_LABELS[tenant.plan] })}</dd>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
-                <dt className="text-sm text-gray-500">Contract Limit</dt>
+                <dt className="text-sm text-gray-500">{t('superadmin.contractLimit')}</dt>
                 <dd className="text-sm font-medium text-gray-900">
-                  {tenant.contract_limit || 'Unlimited'}
+                  {tenant.contract_limit || t('superadmin.tenantDetail.unlimited')}
                 </dd>
               </div>
               <div className="flex justify-between py-2">
-                <dt className="text-sm text-gray-500">Contact Email</dt>
+                <dt className="text-sm text-gray-500">{t('superadmin.contactEmail')}</dt>
                 <dd className="text-sm font-medium text-gray-900">
                   {tenant.contact_email || '-'}
                 </dd>
@@ -632,6 +634,7 @@ function ssoApi(tenantId: string) {
 }
 
 function ProviderHint({ provider }: { provider: string }) {
+  const { t } = useTranslation()
   const hints: Record<string, string> = {
     azure_ad: 'https://login.microsoftonline.com/{tenant-id}/v2.0',
     okta: 'https://{your-domain}.okta.com/oauth2/default',
@@ -641,12 +644,13 @@ function ProviderHint({ provider }: { provider: string }) {
   }
   return (
     <p className="mt-1 text-xs text-gray-400">
-      Example: <span className="font-mono">{hints[provider] || hints.generic}</span>
+      {t('superadmin.sso.exampleLabel')} <span className="font-mono">{hints[provider] || hints.generic}</span>
     </p>
   )
 }
 
 function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlug: string }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const api = ssoApi(tenantId)
   const [isEditing, setIsEditing] = useState(false)
@@ -730,25 +734,25 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
             <div>
               <p className="font-semibold text-gray-900">{config.name}</p>
               <p className="text-xs text-gray-500">
-                {SSO_PROVIDERS.find((p) => p.value === config.provider)?.label || config.provider}
+                {t(`superadmin.sso.providers.${config.provider}`, { defaultValue: SSO_PROVIDERS.find((p) => p.value === config.provider)?.label || config.provider })}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <span className={cn('inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium', health.color)}>
               <HealthIcon className="h-4 w-4" />
-              {health.label}
+              {t(`superadmin.sso.health.${config?.health_status || 'unknown'}`, { defaultValue: health.label })}
             </span>
             <button onClick={() => testMutation.mutate()} disabled={testMutation.isPending} className="btn-secondary text-sm">
               {testMutation.isPending ? <LoadingSpinner size="sm" /> : <ArrowPathIcon className="h-4 w-4" />}
-              Test
+              {t('integrations.test')}
             </button>
-            <button onClick={startEditing} className="btn-secondary text-sm">Edit</button>
+            <button onClick={startEditing} className="btn-secondary text-sm">{t('common.edit')}</button>
             <button
-              onClick={() => { if (confirm('Disable SSO for this tenant?')) deleteMutation.mutate() }}
+              onClick={() => { if (confirm(t('superadmin.sso.disableConfirm'))) deleteMutation.mutate() }}
               className="btn-secondary text-sm text-red-600 hover:text-red-700"
             >
-              Disable
+              {t('superadmin.sso.disable')}
             </button>
           </div>
         </div>
@@ -757,7 +761,7 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
           <div className={cn('rounded-lg p-4 text-sm', testResult.healthy ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800')}>
             <div className="flex items-center gap-2">
               {testResult.healthy ? <CheckCircleIcon className="h-5 w-5" /> : <XCircleIcon className="h-5 w-5" />}
-              <span className="font-medium">{testResult.healthy ? 'Connection Successful' : 'Connection Failed'}</span>
+              <span className="font-medium">{testResult.healthy ? t('superadmin.sso.connectionSuccessful') : t('superadmin.sso.connectionFailed')}</span>
             </div>
             <p className="mt-1 ml-7">{testResult.message}</p>
           </div>
@@ -765,38 +769,38 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
 
         <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
           <div>
-            <p className="text-gray-500">Issuer URL</p>
+            <p className="text-gray-500">{t('superadmin.sso.issuerUrl')}</p>
             <p className="font-mono text-gray-900 truncate">{config.issuer_url}</p>
           </div>
           <div>
-            <p className="text-gray-500">Client ID</p>
+            <p className="text-gray-500">{t('superadmin.sso.clientId')}</p>
             <p className="font-mono text-gray-900 truncate">{config.client_id}</p>
           </div>
           <div>
-            <p className="text-gray-500">Scopes</p>
+            <p className="text-gray-500">{t('superadmin.sso.scopes')}</p>
             <p className="text-gray-900">{config.scopes.join(', ')}</p>
           </div>
           <div>
-            <p className="text-gray-500">Default Role</p>
-            <p className="text-gray-900 capitalize">{config.default_role}</p>
+            <p className="text-gray-500">{t('superadmin.sso.defaultRole')}</p>
+            <p className="text-gray-900 capitalize">{t(`roles.${config.default_role}`, { defaultValue: config.default_role })}</p>
           </div>
           <div>
-            <p className="text-gray-500">Auto-Provision Users</p>
-            <p className="text-gray-900">{config.auto_provision ? 'Enabled' : 'Disabled'}</p>
+            <p className="text-gray-500">{t('superadmin.sso.autoProvisionUsers')}</p>
+            <p className="text-gray-900">{config.auto_provision ? t('superadmin.sso.enabled') : t('superadmin.sso.disabled')}</p>
           </div>
           <div>
-            <p className="text-gray-500">Last Health Check</p>
-            <p className="text-gray-900">{config.last_health_check ? formatDateTime(config.last_health_check) : 'Never'}</p>
+            <p className="text-gray-500">{t('superadmin.sso.lastHealthCheck')}</p>
+            <p className="text-gray-900">{config.last_health_check ? formatDateTime(config.last_health_check) : t('integrations.never')}</p>
           </div>
           {config.role_mapping && Object.keys(config.role_mapping).length > 0 && (
             <div className="col-span-2">
-              <p className="text-gray-500 mb-2">Role Mapping</p>
+              <p className="text-gray-500 mb-2">{t('superadmin.sso.roleMapping')}</p>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(config.role_mapping).map(([group, role]) => (
                   <span key={group} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs">
                     <span className="font-medium">{group}</span>
                     <span className="text-gray-400">&rarr;</span>
-                    <span className="capitalize">{role}</span>
+                    <span className="capitalize">{t(`roles.${role}`, { defaultValue: role })}</span>
                   </span>
                 ))}
               </div>
@@ -806,7 +810,7 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
 
         <div className="pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-500">
-            SSO Login URL: <span className="font-mono text-gray-700">{window.location.origin}/login?sso={tenantSlug}</span>
+            {t('superadmin.sso.loginUrl')}: <span className="font-mono text-gray-700">{window.location.origin}/login?sso={tenantSlug}</span>
           </p>
         </div>
       </div>
@@ -818,11 +822,11 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
     return (
       <div className="card p-12 text-center max-w-3xl">
         <ShieldCheckIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">SSO Not Configured</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('superadmin.sso.notConfiguredTitle')}</h3>
         <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-          Set up Single Sign-On so this tenant's users can authenticate with their identity provider
+          {t('superadmin.sso.notConfiguredDesc')}
         </p>
-        <button onClick={startEditing} className="btn-primary">Configure SSO</button>
+        <button onClick={startEditing} className="btn-primary">{t('superadmin.sso.configureSso')}</button>
       </div>
     )
   }
@@ -832,48 +836,48 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
     <form onSubmit={handleSubmit} className="card p-6 space-y-6 max-w-3xl">
       <div className="flex items-center justify-between pb-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900">
-          {config ? 'Edit SSO Configuration' : 'Set Up SSO'}
+          {config ? t('superadmin.sso.editConfigTitle') : t('superadmin.sso.setupTitle')}
         </h3>
       </div>
 
       {saveMutation.isError && (
         <div className="rounded-lg bg-red-50 p-4 text-sm text-red-800">
-          {saveMutation.error instanceof Error ? saveMutation.error.message : 'Failed to save'}
+          {saveMutation.error instanceof Error ? saveMutation.error.message : t('superadmin.sso.saveFailed')}
         </div>
       )}
 
       <div>
-        <label className="label">Identity Provider</label>
+        <label className="label">{t('superadmin.sso.identityProvider')}</label>
         <select className="input" value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })}>
-          {SSO_PROVIDERS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+          {SSO_PROVIDERS.map((p) => <option key={p.value} value={p.value}>{t(`superadmin.sso.providers.${p.value}`, { defaultValue: p.label })}</option>)}
         </select>
       </div>
 
       <div>
-        <label className="label">Display Name</label>
-        <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g., Corporate SSO" />
+        <label className="label">{t('superadmin.sso.displayName')}</label>
+        <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('superadmin.sso.displayNamePlaceholder')} />
       </div>
 
       <div>
-        <label className="label">Issuer URL</label>
+        <label className="label">{t('superadmin.sso.issuerUrl')}</label>
         <input className="input font-mono text-sm" value={form.issuer_url} onChange={(e) => setForm({ ...form, issuer_url: e.target.value })} required />
         <ProviderHint provider={form.provider} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="label">Client ID</label>
+          <label className="label">{t('superadmin.sso.clientId')}</label>
           <input className="input font-mono text-sm" value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })} required />
         </div>
         <div>
-          <label className="label">Client Secret</label>
+          <label className="label">{t('superadmin.sso.clientSecret')}</label>
           <div className="relative">
             <input
               className="input font-mono text-sm pr-10"
               type={showSecret ? 'text' : 'password'}
               value={form.client_secret}
               onChange={(e) => setForm({ ...form, client_secret: e.target.value })}
-              placeholder={config ? '(unchanged if empty)' : ''}
+              placeholder={config ? t('superadmin.sso.secretUnchangedPlaceholder') : ''}
               required={!config}
             />
             <button type="button" onClick={() => setShowSecret(!showSecret)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600">
@@ -884,51 +888,51 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
       </div>
 
       <div>
-        <label className="label">Scopes</label>
+        <label className="label">{t('superadmin.sso.scopes')}</label>
         <input className="input text-sm" value={form.scopes} onChange={(e) => setForm({ ...form, scopes: e.target.value })} />
       </div>
 
       <div className="pt-4 border-t border-gray-200 space-y-4">
-        <h4 className="font-medium text-gray-900">User Provisioning</h4>
+        <h4 className="font-medium text-gray-900">{t('superadmin.sso.userProvisioning')}</h4>
         <div className="flex items-center gap-3">
           <input
             type="checkbox" id="sso_auto_provision" checked={form.auto_provision}
             onChange={(e) => setForm({ ...form, auto_provision: e.target.checked })}
             className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
           />
-          <label htmlFor="sso_auto_provision" className="text-sm text-gray-700">Auto-create users on first SSO login</label>
+          <label htmlFor="sso_auto_provision" className="text-sm text-gray-700">{t('superadmin.sso.autoCreateUsers')}</label>
         </div>
         <div>
-          <label className="label">Default Role</label>
+          <label className="label">{t('superadmin.sso.defaultRole')}</label>
           <select className="input" value={form.default_role} onChange={(e) => setForm({ ...form, default_role: e.target.value })}>
-            {SSO_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+            {SSO_ROLES.map((r) => <option key={r.value} value={r.value}>{t(`roles.${r.value}`, { defaultValue: r.label })}</option>)}
           </select>
         </div>
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="label mb-0">Role Mapping</label>
+            <label className="label mb-0">{t('superadmin.sso.roleMapping')}</label>
             <button
               type="button"
               onClick={() => setForm({ ...form, role_mappings: [...form.role_mappings, { idp_group: '', app_role: 'legal' }] })}
               className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
             >
               <PlusIcon className="h-3.5 w-3.5" />
-              Add Mapping
+              {t('superadmin.sso.addMapping')}
             </button>
           </div>
           <p className="text-xs text-gray-400 mb-3">
-            Map identity provider groups to application roles. Users in matched groups get the mapped role instead of the default.
+            {t('superadmin.sso.roleMappingHint')}
           </p>
           {form.role_mappings.length === 0 ? (
             <div className="text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-              <p className="text-xs text-gray-500">No mappings configured — all SSO users will get the default role</p>
+              <p className="text-xs text-gray-500">{t('superadmin.sso.noMappings')}</p>
             </div>
           ) : (
             <div className="space-y-2">
               <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-center text-xs font-medium text-gray-500 px-1">
-                <span>IdP Group Name</span>
+                <span>{t('superadmin.sso.idpGroupName')}</span>
                 <span></span>
-                <span>App Role</span>
+                <span>{t('superadmin.sso.appRole')}</span>
                 <span></span>
               </div>
               {form.role_mappings.map((mapping, idx) => (
@@ -941,7 +945,7 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
                       updated[idx] = { ...updated[idx], idp_group: e.target.value }
                       setForm({ ...form, role_mappings: updated })
                     }}
-                    placeholder="e.g., ContractAdmins"
+                    placeholder={t('superadmin.sso.idpGroupPlaceholder')}
                   />
                   <span className="text-gray-400 text-sm px-1">&rarr;</span>
                   <select
@@ -953,7 +957,7 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
                       setForm({ ...form, role_mappings: updated })
                     }}
                   >
-                    {SSO_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    {SSO_ROLES.map((r) => <option key={r.value} value={r.value}>{t(`roles.${r.value}`, { defaultValue: r.label })}</option>)}
                   </select>
                   <button
                     type="button"
@@ -970,10 +974,10 @@ function TenantSSOConfig({ tenantId, tenantSlug }: { tenantId: string; tenantSlu
       </div>
 
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-        <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary">Cancel</button>
+        <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary">{t('common.cancel')}</button>
         <button type="submit" disabled={saveMutation.isPending} className="btn-primary">
-          {saveMutation.isPending ? <span className="flex items-center gap-2"><LoadingSpinner size="sm" className="border-white border-t-transparent" /> Saving...</span>
-            : config ? 'Update Configuration' : 'Enable SSO'}
+          {saveMutation.isPending ? <span className="flex items-center gap-2"><LoadingSpinner size="sm" className="border-white border-t-transparent" /> {t('integrations.saving')}</span>
+            : config ? t('integrations.snow.updateConfiguration') : t('superadmin.sso.enableSso')}
         </button>
       </div>
     </form>

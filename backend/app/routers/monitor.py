@@ -18,15 +18,20 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.deps import get_db
+from app.core.deps import get_db, require_admin_if_enterprise
 from app.models.approval import ApprovalRequest, ApprovalStatus
 from app.models.event import Event, EventStatus, EventType
+from app.models.user import User
 from app.models.workflow import ActionExecution, ExecutionStatus, WorkflowDefinition
 from app.workflows import run_on_demand_scan, run_on_demand_processing
 from app.workflows.orchestrator import WorkflowOrchestrator
 from app.generators import generate_test_data
 
-router = APIRouter(prefix="/monitor", tags=["monitor"])
+router = APIRouter(
+    prefix="/monitor",
+    tags=["monitor"],
+    dependencies=[Depends(require_admin_if_enterprise)],
+)
 
 
 # Request/Response Models
@@ -351,13 +356,13 @@ async def decide_approval(
     approval_id: UUID,
     decision: ApprovalDecision,
     db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(require_admin_if_enterprise),
 ):
     """Approve or reject an approval request."""
     orchestrator = WorkflowOrchestrator(db)
 
-    # For now, use a placeholder user ID
-    # In production, get from authentication
-    user_id = UUID("00000000-0000-0000-0000-000000000001")
+    # Demo profile has no authenticated user — fall back to placeholder ID
+    user_id = current_user.id if current_user else UUID("00000000-0000-0000-0000-000000000001")
 
     if decision.decision == "approve":
         success = await orchestrator.approve_request(

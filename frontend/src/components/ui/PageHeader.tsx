@@ -4,6 +4,7 @@
  */
 import { Link } from 'react-router-dom'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 interface PageHeaderProps {
@@ -27,6 +28,7 @@ export default function PageHeader({
   variant = 'default',
   accentColor = 'text-gray-900',
 }: PageHeaderProps) {
+  const { t } = useTranslation()
   return (
     <div className={cn(
       'pb-6',
@@ -38,7 +40,7 @@ export default function PageHeader({
           className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-4 transition-colors"
         >
           <ArrowLeftIcon className="w-4 h-4" />
-          {backLabel || 'Back'}
+          {backLabel || t('summaries.back')}
         </Link>
       )}
 

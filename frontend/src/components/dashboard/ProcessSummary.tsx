@@ -9,6 +9,7 @@ import {
   ArrowPathIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn } from '@/lib/utils'
 
@@ -61,6 +62,7 @@ interface Props {
 }
 
 export default function ProcessSummary({ contractId }: Props) {
+  const { t } = useTranslation()
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const { data, isLoading, error } = useQuery<ProcessResponse>({
@@ -91,7 +93,7 @@ export default function ProcessSummary({ contractId }: Props) {
         <div className="card-body text-center py-8">
           <ClipboardDocumentCheckIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500">
-            No process steps extracted yet. Run analysis to extract procedural clauses.
+            {t('summaries.noProcessSteps')}
           </p>
         </div>
       </div>
@@ -104,27 +106,27 @@ export default function ProcessSummary({ contractId }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
           <div className="card-body">
-            <p className="text-sm text-gray-500">Total Steps</p>
+            <p className="text-sm text-gray-500">{t('summaries.totalSteps')}</p>
             <p className="text-2xl font-bold text-gray-900">{data.total_steps}</p>
           </div>
         </div>
         <div className="card">
           <div className="card-body">
-            <p className="text-sm text-gray-500">Est. Duration</p>
+            <p className="text-sm text-gray-500">{t('summaries.estDuration')}</p>
             <p className="text-2xl font-bold text-gray-900">
-              {data.estimated_duration_days} days
+              {t('summaries.days', { count: data.estimated_duration_days })}
             </p>
           </div>
         </div>
         <div className="card">
           <div className="card-body">
-            <p className="text-sm text-gray-500">SLA Items</p>
+            <p className="text-sm text-gray-500">{t('summaries.slaItems')}</p>
             <p className="text-2xl font-bold text-gray-900">{data.sla_items}</p>
           </div>
         </div>
         <div className="card">
           <div className="card-body">
-            <p className="text-sm text-gray-500">Parties Involved</p>
+            <p className="text-sm text-gray-500">{t('summaries.partiesInvolved')}</p>
             <p className="text-2xl font-bold text-gray-900">
               {Object.keys(data.by_responsible_party).length}
             </p>
@@ -137,10 +139,10 @@ export default function ProcessSummary({ contractId }: Props) {
         <div className="card-header">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <ClipboardDocumentCheckIcon className="h-5 w-5 text-primary-600" />
-            Process Flow
+            {t('summaries.processFlow')}
           </h3>
           <p className="text-sm text-gray-500 mt-1">
-            Steps extracted from procedural clauses
+            {t('summaries.processFlowSubtitle')}
           </p>
         </div>
         <div className="card-body p-0">
@@ -177,7 +179,7 @@ export default function ProcessSummary({ contractId }: Props) {
                             {step.step_name}
                           </span>
                           <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                            {STEP_TYPE_LABELS[step.step_type] || step.step_type}
+                            {t(`summaries.stepTypes.${step.step_type}`, { defaultValue: STEP_TYPE_LABELS[step.step_type] || step.step_type })}
                           </span>
                           <StatusIcon className={cn("h-4 w-4 ml-auto", statusConfig.text)} />
                         </div>
@@ -193,18 +195,18 @@ export default function ProcessSummary({ contractId }: Props) {
 
                         <div className="flex items-center gap-4 text-xs text-gray-500">
                           {step.responsible_party && (
-                            <span>By: {step.responsible_party}</span>
+                            <span>{t('summaries.byParty', { party: step.responsible_party })}</span>
                           )}
                           {step.duration_days && (
                             <span className="flex items-center gap-1">
                               <ClockIcon className="h-3.5 w-3.5" />
-                              {step.duration_days} days
+                              {t('summaries.days', { count: step.duration_days })}
                             </span>
                           )}
                           {step.sla_days && (
                             <span className="flex items-center gap-1 text-amber-600">
                               <CalendarDaysIcon className="h-3.5 w-3.5" />
-                              SLA: {step.sla_days} days
+                              SLA: {t('summaries.days', { count: step.sla_days })}
                             </span>
                           )}
                         </div>
@@ -222,7 +224,7 @@ export default function ProcessSummary({ contractId }: Props) {
                       <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                         {step.dependencies.length > 0 && (
                           <div>
-                            <p className="text-xs font-medium text-gray-500 mb-1">Dependencies</p>
+                            <p className="text-xs font-medium text-gray-500 mb-1">{t('summaries.dependencies')}</p>
                             <div className="flex flex-wrap gap-1">
                               {step.dependencies.map((dep, i) => (
                                 <span key={i} className="text-xs px-2 py-0.5 bg-white border border-gray-200 rounded">
@@ -235,7 +237,7 @@ export default function ProcessSummary({ contractId }: Props) {
 
                         {step.deliverables.length > 0 && (
                           <div>
-                            <p className="text-xs font-medium text-gray-500 mb-1">Deliverables</p>
+                            <p className="text-xs font-medium text-gray-500 mb-1">{t('summaries.deliverables')}</p>
                             <ul className="list-disc list-inside text-sm text-gray-700">
                               {step.deliverables.map((del, i) => (
                                 <li key={i}>{del}</li>
@@ -246,7 +248,7 @@ export default function ProcessSummary({ contractId }: Props) {
 
                         {step.source_text && (
                           <div className="pt-3 border-t border-gray-200">
-                            <p className="text-xs font-medium text-gray-500 mb-1">Source Text</p>
+                            <p className="text-xs font-medium text-gray-500 mb-1">{t('summaries.sourceText')}</p>
                             <p className="text-xs text-gray-600 italic">
                               "{step.source_text}"
                             </p>
@@ -267,7 +269,7 @@ export default function ProcessSummary({ contractId }: Props) {
         <div className="card">
           <div className="card-header">
             <h3 className="text-sm font-medium text-gray-900">
-              Responsibility Distribution
+              {t('summaries.responsibilityDistribution')}
             </h3>
           </div>
           <div className="card-body">

@@ -15,6 +15,7 @@ import {
   ExclamationTriangleIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDate, formatCurrency } from '@/lib/utils'
@@ -108,7 +109,18 @@ const RISK_LEVEL_COLORS: Record<string, string> = {
 }
 
 export default function ContractIntelligence({ contractId }: Props) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
+
+  const clauseLabel = (type: string) =>
+    t(`clauses.${type}`, {
+      defaultValue: t(`summaries.clauseTypes.${type}`, {
+        defaultValue: CLAUSE_TYPE_LABELS[type] || type.replace(/_/g, ' '),
+      }),
+    })
+
+  const obligationTypeLabel = (type: string) =>
+    t(`summaries.obligationTypes.${type}`, { defaultValue: type })
   const [activeTab, setActiveTab] = useState<TabType>('clauses')
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null)
 
@@ -164,7 +176,7 @@ export default function ContractIntelligence({ contractId }: Props) {
   if (error || !data) {
     return (
       <div className="text-center py-8 text-red-600">
-        Failed to load contract intelligence
+        {t('summaries.intelligenceLoadError')}
       </div>
     )
   }
@@ -178,9 +190,9 @@ export default function ContractIntelligence({ contractId }: Props) {
   const coveragePercent = totalClauses > 0 ? Math.round((classifiedCount / totalClauses) * 100) : 0
 
   const tabs = [
-    { id: 'clauses' as const, label: 'Clauses', icon: ClipboardDocumentListIcon, count: totalClauses },
-    { id: 'risks' as const, label: 'Risks', icon: ShieldExclamationIcon, count: risk_summary.high_risk_clauses.length },
-    { id: 'obligations' as const, label: 'Obligations', icon: UserGroupIcon, count: obligations_matrix.total_count },
+    { id: 'clauses' as const, label: t('contract.clauses'), icon: ClipboardDocumentListIcon, count: totalClauses },
+    { id: 'risks' as const, label: t('summaries.risks'), icon: ShieldExclamationIcon, count: risk_summary.high_risk_clauses.length },
+    { id: 'obligations' as const, label: t('contract.obligations'), icon: UserGroupIcon, count: obligations_matrix.total_count },
   ]
 
   const renderDetailsPanel = () => {
@@ -188,7 +200,7 @@ export default function ContractIntelligence({ contractId }: Props) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
           <DocumentTextIcon className="h-12 w-12 mb-3" />
-          <p className="text-sm">Select an item to view details</p>
+          <p className="text-sm">{t('summaries.selectItemDetails')}</p>
         </div>
       )
     }
@@ -209,8 +221,8 @@ export default function ContractIntelligence({ contractId }: Props) {
             <div>
               <h4 className="font-medium text-gray-900">{selectedItem.label}</h4>
               <p className="text-xs text-gray-500">
-                {clauseDetails?.total || 0} clause{clauseDetails?.total !== 1 ? 's' : ''} found
-                {clauseDetails?.high_risk_count ? ` • ${clauseDetails.high_risk_count} high risk` : ''}
+                {t('summaries.clausesFound', { count: clauseDetails?.total || 0 })}
+                {clauseDetails?.high_risk_count ? ` • ${t('summaries.highRiskCount', { count: clauseDetails.high_risk_count })}` : ''}
               </p>
             </div>
             <button
@@ -247,7 +259,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                         "text-xs px-1.5 py-0.5 rounded font-medium uppercase",
                         RISK_LEVEL_COLORS[clause.risk_level] || 'bg-gray-100 text-gray-600'
                       )}>
-                        {clause.risk_level}
+                        {t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level })}
                       </span>
                     )}
                     <ChevronRightIcon className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
@@ -257,7 +269,7 @@ export default function ContractIntelligence({ contractId }: Props) {
               </Link>
             ))}
             {(!clauseDetails?.clauses || clauseDetails.clauses.length === 0) && (
-              <p className="text-sm text-gray-500 text-center py-4">No clauses found</p>
+              <p className="text-sm text-gray-500 text-center py-4">{t('summaries.noClausesFound')}</p>
             )}
           </div>
         </div>
@@ -281,10 +293,10 @@ export default function ContractIntelligence({ contractId }: Props) {
               <div className="flex items-center gap-2">
                 <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
                 <h4 className="font-medium text-red-900">
-                  {CLAUSE_TYPE_LABELS[selectedItem.clauseType] || selectedItem.clauseType}
+                  {clauseLabel(selectedItem.clauseType)}
                 </h4>
               </div>
-              <p className="text-xs text-red-600 mt-0.5">High Risk Clause</p>
+              <p className="text-xs text-red-600 mt-0.5">{t('summaries.highRiskClause')}</p>
             </div>
             <button
               onClick={() => setSelectedItem(null)}
@@ -301,7 +313,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                     <span className="font-mono text-gray-500">§ {riskClauseDetail.section_number}</span>
                   )}
                   {riskClauseDetail.page_number && (
-                    <span className="text-gray-400">Page {riskClauseDetail.page_number}</span>
+                    <span className="text-gray-400">{t('summaries.page', { number: riskClauseDetail.page_number })}</span>
                   )}
                 </div>
 
@@ -311,7 +323,7 @@ export default function ContractIntelligence({ contractId }: Props) {
 
                 {riskClauseDetail.risk_reason && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <h5 className="text-xs font-medium text-red-800 uppercase mb-2">Risk Assessment</h5>
+                    <h5 className="text-xs font-medium text-red-800 uppercase mb-2">{t('contract.riskAssessment')}</h5>
                     <p className="text-sm text-red-700">{riskClauseDetail.risk_reason}</p>
                   </div>
                 )}
@@ -320,7 +332,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                   to={`/clauses/${selectedItem.clauseId}`}
                   className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700"
                 >
-                  View full details
+                  {t('summaries.viewFullDetails')}
                   <ChevronRightIcon className="h-4 w-4" />
                 </Link>
               </div>
@@ -352,10 +364,10 @@ export default function ContractIntelligence({ contractId }: Props) {
               <div className="flex items-center gap-2">
                 <div className={cn("h-2 w-2 rounded-full", `bg-${partyColor}-500`)} />
                 <h4 className="font-medium text-gray-900 capitalize">
-                  {selectedItem.party} Obligation
+                  {t('summaries.partyObligation', { party: t(`summaries.${selectedItem.party}`) })}
                 </h4>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5 capitalize">{selectedItem.obligationType}</p>
+              <p className="text-xs text-gray-500 mt-0.5 capitalize">{obligationTypeLabel(selectedItem.obligationType)}</p>
             </div>
             <button
               onClick={() => setSelectedItem(null)}
@@ -374,25 +386,25 @@ export default function ContractIntelligence({ contractId }: Props) {
                 <div className="grid grid-cols-2 gap-4">
                   {obligationDetail.deadline && (
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Deadline</p>
+                      <p className="text-xs text-gray-500 mb-1">{t('summaries.deadline')}</p>
                       <p className="text-sm font-medium">{formatDate(obligationDetail.deadline)}</p>
                     </div>
                   )}
                   {obligationDetail.recurrence_pattern && (
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Recurrence</p>
+                      <p className="text-xs text-gray-500 mb-1">{t('summaries.recurrence')}</p>
                       <p className="text-sm font-medium capitalize">{obligationDetail.recurrence_pattern}</p>
                     </div>
                   )}
                   {obligationDetail.status && (
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Status</p>
-                      <p className="text-sm font-medium capitalize">{obligationDetail.status}</p>
+                      <p className="text-xs text-gray-500 mb-1">{t('common.status')}</p>
+                      <p className="text-sm font-medium capitalize">{t(`status.${obligationDetail.status}`, { defaultValue: obligationDetail.status })}</p>
                     </div>
                   )}
                   {obligationDetail.deadline_type && (
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Deadline Type</p>
+                      <p className="text-xs text-gray-500 mb-1">{t('summaries.deadlineType')}</p>
                       <p className="text-sm font-medium capitalize">{obligationDetail.deadline_type}</p>
                     </div>
                   )}
@@ -400,7 +412,7 @@ export default function ContractIntelligence({ contractId }: Props) {
 
                 {obligationDetail.consequence_of_breach && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <h5 className="text-xs font-medium text-amber-800 uppercase mb-2">Consequence if Not Met</h5>
+                    <h5 className="text-xs font-medium text-amber-800 uppercase mb-2">{t('summaries.consequenceIfNotMet')}</h5>
                     <p className="text-sm text-amber-700">{obligationDetail.consequence_of_breach}</p>
                   </div>
                 )}
@@ -409,7 +421,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                   to={`/obligations/${selectedItem.obligationId}`}
                   className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700"
                 >
-                  View full details
+                  {t('summaries.viewFullDetails')}
                   <ChevronRightIcon className="h-4 w-4" />
                 </Link>
               </div>
@@ -429,8 +441,8 @@ export default function ContractIntelligence({ contractId }: Props) {
         <div>
           <h2 className="text-lg font-semibold text-gray-900">{data.filename}</h2>
           <p className="text-sm text-gray-500">
-            {extraction_status.classified_clauses} of {extraction_status.total_clauses} clauses classified
-            {' • '}{extraction_status.total_obligations} obligations extracted
+            {t('summaries.clausesClassified', { classified: extraction_status.classified_clauses, total: extraction_status.total_clauses })}
+            {' • '}{t('summaries.obligationsExtracted', { count: extraction_status.total_obligations })}
           </p>
         </div>
         <button
@@ -439,7 +451,7 @@ export default function ContractIntelligence({ contractId }: Props) {
           className="btn-secondary flex items-center gap-2"
         >
           <ArrowPathIcon className={cn("h-4 w-4", analyzeMutation.isPending && "animate-spin")} />
-          {analyzeMutation.isPending ? 'Analyzing...' : 'Re-analyze'}
+          {analyzeMutation.isPending ? t('summaries.analyzing') : t('contract.reanalyze')}
         </button>
       </div>
 
@@ -448,7 +460,7 @@ export default function ContractIntelligence({ contractId }: Props) {
         <div className="card-header">
           <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
             <DocumentTextIcon className="h-5 w-5 text-gray-400" />
-            Key Contract Terms
+            {t('summaries.keyContractTerms')}
           </h3>
         </div>
         <div className="card-body">
@@ -456,35 +468,35 @@ export default function ContractIntelligence({ contractId }: Props) {
             <div className="flex items-start gap-3">
               <BuildingOfficeIcon className="h-5 w-5 text-gray-400 mt-0.5" />
               <div>
-                <p className="text-xs text-gray-500">Counterparty</p>
+                <p className="text-xs text-gray-500">{t('contracts.counterparty')}</p>
                 <p className="text-sm font-medium text-gray-900">{key_terms.counterparty || '—'}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <DocumentTextIcon className="h-5 w-5 text-gray-400 mt-0.5" />
               <div>
-                <p className="text-xs text-gray-500">Contract Type</p>
+                <p className="text-xs text-gray-500">{t('contract.contractType')}</p>
                 <p className="text-sm font-medium text-gray-900 uppercase">{key_terms.contract_type || '—'}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <CalendarIcon className="h-5 w-5 text-gray-400 mt-0.5" />
               <div>
-                <p className="text-xs text-gray-500">Effective Date</p>
+                <p className="text-xs text-gray-500">{t('contract.effectiveDate')}</p>
                 <p className="text-sm font-medium text-gray-900">{formatDate(key_terms.effective_date)}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <CalendarIcon className="h-5 w-5 text-gray-400 mt-0.5" />
               <div>
-                <p className="text-xs text-gray-500">Expiration Date</p>
+                <p className="text-xs text-gray-500">{t('contract.expirationDate')}</p>
                 <p className="text-sm font-medium text-gray-900">{formatDate(key_terms.expiration_date)}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <CurrencyDollarIcon className="h-5 w-5 text-gray-400 mt-0.5" />
               <div>
-                <p className="text-xs text-gray-500">Contract Value</p>
+                <p className="text-xs text-gray-500">{t('contract.contractValue')}</p>
                 <p className="text-sm font-medium text-gray-900">
                   {key_terms.contract_value ? formatCurrency(key_terms.contract_value, key_terms.currency || 'USD') : '—'}
                 </p>
@@ -493,25 +505,25 @@ export default function ContractIntelligence({ contractId }: Props) {
             <div className="flex items-start gap-3">
               <DocumentTextIcon className="h-5 w-5 text-gray-400 mt-0.5" />
               <div>
-                <p className="text-xs text-gray-500">Jurisdiction</p>
+                <p className="text-xs text-gray-500">{t('contract.jurisdiction')}</p>
                 <p className="text-sm font-medium text-gray-900">{key_terms.jurisdiction || '—'}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <CalendarIcon className="h-5 w-5 text-gray-400 mt-0.5" />
               <div>
-                <p className="text-xs text-gray-500">Notice Period</p>
+                <p className="text-xs text-gray-500">{t('summaries.noticePeriod')}</p>
                 <p className="text-sm font-medium text-gray-900">
-                  {key_terms.notice_period_days ? `${key_terms.notice_period_days} days` : '—'}
+                  {key_terms.notice_period_days ? t('summaries.days', { count: key_terms.notice_period_days }) : '—'}
                 </p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <ArrowPathIcon className="h-5 w-5 text-gray-400 mt-0.5" />
               <div>
-                <p className="text-xs text-gray-500">Auto-Renewal</p>
+                <p className="text-xs text-gray-500">{t('contract.autoRenewal')}</p>
                 <p className="text-sm font-medium text-gray-900">
-                  {key_terms.auto_renewal === true ? 'Yes' : key_terms.auto_renewal === false ? 'No' : '—'}
+                  {key_terms.auto_renewal === true ? t('common.yes') : key_terms.auto_renewal === false ? t('common.no') : '—'}
                 </p>
               </div>
             </div>
@@ -558,7 +570,7 @@ export default function ContractIntelligence({ contractId }: Props) {
               {activeTab === 'clauses' && (
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-gray-500">Classification Coverage</span>
+                    <span className="text-xs text-gray-500">{t('summaries.classificationCoverage')}</span>
                     <span className={cn(
                       "text-xs font-medium px-2 py-0.5 rounded-full",
                       coveragePercent >= 80 ? "bg-green-100 text-green-700" :
@@ -575,7 +587,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                         onClick={() => setSelectedItem({
                           type: 'clause_type',
                           clauseType: clause.clause_type,
-                          label: CLAUSE_TYPE_LABELS[clause.clause_type] || clause.clause_type.replace(/_/g, ' '),
+                          label: clauseLabel(clause.clause_type),
                         })}
                         className={cn(
                           "w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors",
@@ -589,12 +601,12 @@ export default function ContractIntelligence({ contractId }: Props) {
                             <span className="h-2 w-2 rounded-full bg-red-500" />
                           )}
                           <span className="text-sm text-gray-700">
-                            {CLAUSE_TYPE_LABELS[clause.clause_type] || clause.clause_type.replace(/_/g, ' ')}
+                            {clauseLabel(clause.clause_type)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           {clause.high_risk_count > 0 && (
-                            <span className="text-xs text-red-600">{clause.high_risk_count} risk</span>
+                            <span className="text-xs text-red-600">{t('summaries.riskCount', { count: clause.high_risk_count })}</span>
                           )}
                           <span className="text-sm font-medium text-gray-500">{clause.count}</span>
                           <ChevronRightIcon className="h-4 w-4 text-gray-400" />
@@ -607,7 +619,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                           onClick={() => setSelectedItem({
                             type: 'clause_type',
                             clauseType: 'other',
-                            label: 'Uncategorized Sections',
+                            label: t('summaries.uncategorizedSections'),
                           })}
                           className={cn(
                             "w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors",
@@ -616,7 +628,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                               : "hover:bg-gray-100"
                           )}
                         >
-                          <span className="text-sm text-gray-500">Uncategorized</span>
+                          <span className="text-sm text-gray-500">{t('summaries.uncategorized')}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-400">{unclassifiedCount}</span>
                             <ChevronRightIcon className="h-4 w-4 text-gray-300" />
@@ -640,16 +652,16 @@ export default function ContractIntelligence({ contractId }: Props) {
                       risk_summary.risk_level === 'critical' && "bg-purple-100 text-purple-800",
                       !risk_summary.risk_level && "bg-gray-100 text-gray-800",
                     )}>
-                      {risk_summary.risk_level?.toUpperCase() || 'NOT ASSESSED'}
+                      {risk_summary.risk_level ? t(`risk.${risk_summary.risk_level}`, { defaultValue: risk_summary.risk_level }).toUpperCase() : t('summaries.notAssessed').toUpperCase()}
                     </div>
                     {risk_summary.risk_score !== null && (
-                      <span className="text-sm text-gray-500">Score: {risk_summary.risk_score}/100</span>
+                      <span className="text-sm text-gray-500">{t('summaries.scoreOutOf', { score: risk_summary.risk_score })}</span>
                     )}
                   </div>
 
                   {risk_summary.high_risk_clauses.length > 0 ? (
                     <div className="space-y-1">
-                      <p className="text-xs font-medium text-gray-500 uppercase mb-2">High Risk Clauses</p>
+                      <p className="text-xs font-medium text-gray-500 uppercase mb-2">{t('summaries.highRiskClauses')}</p>
                       {risk_summary.high_risk_clauses.map((clause) => (
                         <button
                           key={clause.id}
@@ -669,7 +681,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-red-800 mb-1">
-                                {CLAUSE_TYPE_LABELS[clause.clause_type] || clause.clause_type}
+                                {clauseLabel(clause.clause_type)}
                               </p>
                               <p className="text-xs text-red-700 line-clamp-2">{clause.excerpt}</p>
                             </div>
@@ -681,7 +693,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                   ) : (
                     <div className="flex items-center gap-2 text-gray-500 py-4">
                       <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                      <span className="text-sm">No high-risk clauses identified</span>
+                      <span className="text-sm">{t('summaries.noHighRiskClauses')}</span>
                     </div>
                   )}
                 </div>
@@ -695,7 +707,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                     <div className="flex items-center gap-2 mb-2">
                       <div className="h-2 w-2 rounded-full bg-blue-500" />
                       <h4 className="text-xs font-medium text-gray-700 uppercase">
-                        Provider ({obligations_matrix.provider_obligations.length})
+                        {t('summaries.provider')} ({obligations_matrix.provider_obligations.length})
                       </h4>
                     </div>
                     <div className="space-y-1">
@@ -724,7 +736,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                                   "text-xs px-1.5 py-0.5 rounded",
                                   OBLIGATION_TYPE_COLORS[obl.obligation_type] || OBLIGATION_TYPE_COLORS.other
                                 )}>
-                                  {obl.obligation_type}
+                                  {obligationTypeLabel(obl.obligation_type)}
                                 </span>
                                 <ChevronRightIcon className="h-4 w-4 text-blue-400" />
                               </div>
@@ -732,7 +744,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                           </button>
                         ))
                       ) : (
-                        <p className="text-xs text-gray-400 py-2">No provider obligations</p>
+                        <p className="text-xs text-gray-400 py-2">{t('summaries.noProviderObligations')}</p>
                       )}
                     </div>
                   </div>
@@ -742,7 +754,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                     <div className="flex items-center gap-2 mb-2">
                       <div className="h-2 w-2 rounded-full bg-amber-500" />
                       <h4 className="text-xs font-medium text-gray-700 uppercase">
-                        Client ({obligations_matrix.client_obligations.length})
+                        {t('summaries.client')} ({obligations_matrix.client_obligations.length})
                       </h4>
                     </div>
                     <div className="space-y-1">
@@ -771,7 +783,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                                   "text-xs px-1.5 py-0.5 rounded",
                                   OBLIGATION_TYPE_COLORS[obl.obligation_type] || OBLIGATION_TYPE_COLORS.other
                                 )}>
-                                  {obl.obligation_type}
+                                  {obligationTypeLabel(obl.obligation_type)}
                                 </span>
                                 <ChevronRightIcon className="h-4 w-4 text-amber-400" />
                               </div>
@@ -779,7 +791,7 @@ export default function ContractIntelligence({ contractId }: Props) {
                           </button>
                         ))
                       ) : (
-                        <p className="text-xs text-gray-400 py-2">No client obligations</p>
+                        <p className="text-xs text-gray-400 py-2">{t('summaries.noClientObligations')}</p>
                       )}
                     </div>
                   </div>

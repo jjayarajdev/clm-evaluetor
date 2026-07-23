@@ -15,6 +15,7 @@ from app.schemas.user import (
     UserFilter,
     UserListResponse,
     UserPasswordUpdate,
+    UserPreferencesUpdate,
     UserResponse,
     UserUpdate,
 )
@@ -32,6 +33,7 @@ def user_to_response(user) -> UserResponse:
         full_name=user.full_name,
         role=user.role.value,
         is_active=user.is_active,
+        preferred_language=user.preferred_language,
         tenant_id=str(user.tenant_id) if user.tenant_id else None,
         tenant_name=user.tenant.name if user.tenant else None,
         business_unit_id=str(user.business_unit_id) if user.business_unit_id else None,
@@ -144,6 +146,19 @@ async def get_current_user_details(
     Returns:
         Current user details.
     """
+    return user_to_response(current_user)
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_my_preferences(
+    data: UserPreferencesUpdate,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> UserResponse:
+    """Update the current user's own preferences (self-service)."""
+    current_user.preferred_language = data.preferred_language
+    await db.commit()
+    await db.refresh(current_user)
     return user_to_response(current_user)
 
 

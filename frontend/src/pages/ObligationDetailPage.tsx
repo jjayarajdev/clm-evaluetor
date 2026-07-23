@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -92,6 +93,7 @@ const RAG_STATUS_CONFIG: Record<string, {
 }
 
 export default function ObligationDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const [showEvidenceModal, setShowEvidenceModal] = useState(false)
@@ -137,13 +139,18 @@ export default function ObligationDetailPage() {
   if (error || !obligation) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Obligation not found</p>
+        <p className="text-red-600">{t('obligation.notFound')}</p>
         <Link to="/dashboard" className="text-primary-600 hover:underline mt-2 inline-block">
-          Back to dashboard
+          {t('obligation.backToDashboard')}
         </Link>
       </div>
     )
   }
+
+  const ragKey: string =
+    obligation.rag_status && RAG_STATUS_CONFIG[obligation.rag_status]
+      ? obligation.rag_status
+      : 'not_assessed'
 
   return (
     <div className="space-y-6">
@@ -161,13 +168,15 @@ export default function ObligationDetailPage() {
               'px-3 py-1 rounded-full text-sm font-medium border',
               OBLIGATION_TYPE_COLORS[obligation.obligation_type] || OBLIGATION_TYPE_COLORS.other
             )}>
-              {OBLIGATION_TYPE_LABELS[obligation.obligation_type] || obligation.obligation_type}
+              {t(`obligation.type.${obligation.obligation_type}`, {
+                defaultValue: OBLIGATION_TYPE_LABELS[obligation.obligation_type] || obligation.obligation_type,
+              })}
             </span>
             <span className={cn(
               'px-2 py-0.5 rounded text-xs font-medium',
               STATUS_COLORS[obligation.status] || STATUS_COLORS.pending
             )}>
-              {obligation.status}
+              {t(`obligation.status.${obligation.status}`, { defaultValue: obligation.status })}
             </span>
             {/* RAG Status Indicator */}
             {obligation.rag_status && (
@@ -177,12 +186,12 @@ export default function ObligationDetailPage() {
                 RAG_STATUS_CONFIG[obligation.rag_status]?.text || RAG_STATUS_CONFIG.not_assessed.text
               )}>
                 <span className="text-base">{RAG_STATUS_CONFIG[obligation.rag_status]?.icon || '⚪'}</span>
-                {RAG_STATUS_CONFIG[obligation.rag_status]?.label || 'Not Assessed'}
+                {t(`obligation.rag.${ragKey}.label`, { defaultValue: RAG_STATUS_CONFIG[ragKey].label })}
               </span>
             )}
             {obligation.is_critical && (
               <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 text-xs font-bold uppercase tracking-wider">
-                Critical
+                {t('risk.critical')}
               </span>
             )}
           </div>
@@ -200,23 +209,23 @@ export default function ObligationDetailPage() {
             <div className="card-header">
               <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
                 <UserGroupIcon className="h-5 w-5 text-gray-400" />
-                Parties Involved
+                {t('obligation.partiesInvolved')}
               </h2>
             </div>
             <div className="card-body grid grid-cols-2 gap-6">
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Obligated Party</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('obligation.obligatedParty')}</p>
                 <p className="text-lg font-semibold text-gray-900">
                   {obligation.obligated_party || '—'}
                 </p>
-                <p className="text-sm text-gray-500">Responsible for fulfilling this obligation</p>
+                <p className="text-sm text-gray-500">{t('obligation.obligatedPartyDesc')}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Beneficiary</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('obligation.beneficiary')}</p>
                 <p className="text-lg font-semibold text-gray-900">
                   {obligation.beneficiary_party || '—'}
                 </p>
-                <p className="text-sm text-gray-500">Benefits from this obligation</p>
+                <p className="text-sm text-gray-500">{t('obligation.beneficiaryDesc')}</p>
               </div>
             </div>
           </div>
@@ -226,26 +235,26 @@ export default function ObligationDetailPage() {
             <div className="card-header">
               <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
                 <CalendarIcon className="h-5 w-5 text-gray-400" />
-                Deadline Information
+                {t('obligation.deadlineInformation')}
               </h2>
             </div>
             <div className="card-body">
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Deadline</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('obligation.deadline')}</p>
                   <p className="text-base font-medium text-gray-900">
-                    {obligation.deadline ? formatDate(obligation.deadline) : 'No fixed deadline'}
+                    {obligation.deadline ? formatDate(obligation.deadline) : t('obligation.noFixedDeadline')}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Deadline Type</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('obligation.deadlineType')}</p>
                   <p className="text-base font-medium text-gray-900 capitalize">
-                    {obligation.deadline_type?.replace('_', ' ') || 'Not specified'}
+                    {obligation.deadline_type?.replace('_', ' ') || t('obligation.notSpecified')}
                   </p>
                 </div>
                 {obligation.recurrence_pattern && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Recurrence</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('obligation.recurrence')}</p>
                     <p className="text-base font-medium text-gray-900">
                       {obligation.recurrence_pattern}
                     </p>
@@ -253,7 +262,7 @@ export default function ObligationDetailPage() {
                 )}
                 {obligation.relative_deadline_text && (
                   <div className="col-span-2">
-                    <p className="text-xs text-gray-500 mb-1">Relative Deadline</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('obligation.relativeDeadline')}</p>
                     <p className="text-base font-medium text-gray-900">
                       {obligation.relative_deadline_text}
                     </p>
@@ -269,14 +278,14 @@ export default function ObligationDetailPage() {
               <div className="card-header">
                 <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
                   <ExclamationTriangleIcon className="h-5 w-5 text-gray-400" />
-                  Triggers & Consequences
+                  {t('obligation.triggersConsequences')}
                 </h2>
               </div>
               <div className="card-body space-y-4">
                 {obligation.trigger_condition && (
                   <div>
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-                      Trigger Condition
+                      {t('obligation.triggerCondition')}
                     </p>
                     <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
                       {obligation.trigger_condition}
@@ -286,7 +295,7 @@ export default function ObligationDetailPage() {
                 {obligation.consequence_of_breach && (
                   <div>
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-                      Consequence of Breach
+                      {t('obligation.consequenceOfBreach')}
                     </p>
                     <p className="text-sm text-red-700 bg-red-50 p-3 rounded-lg">
                       {obligation.consequence_of_breach}
@@ -303,12 +312,14 @@ export default function ObligationDetailPage() {
               <div className="card-header flex items-center justify-between">
                 <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
                   <ClipboardDocumentListIcon className="h-5 w-5 text-gray-400" />
-                  Source from Contract
+                  {t('obligation.sourceFromContract')}
                 </h2>
                 <div className="flex items-center gap-2">
                   {obligation.clause_type && (
                     <span className="text-xs text-gray-500 capitalize">
-                      {obligation.clause_type.replace('_', ' ')}
+                      {t(`clauses.${obligation.clause_type}`, {
+                        defaultValue: obligation.clause_type.replace('_', ' '),
+                      })}
                     </span>
                   )}
                   {obligation.clause_risk_level && (
@@ -316,7 +327,11 @@ export default function ObligationDetailPage() {
                       'px-2 py-0.5 rounded text-xs font-medium',
                       RISK_COLORS[obligation.clause_risk_level] || RISK_COLORS.low
                     )}>
-                      {obligation.clause_risk_level} risk
+                      {t('contract.riskLabel', {
+                        level: t(`risk.${obligation.clause_risk_level}`, {
+                          defaultValue: obligation.clause_risk_level,
+                        }),
+                      })}
                     </span>
                   )}
                 </div>
@@ -326,13 +341,13 @@ export default function ObligationDetailPage() {
                   {obligation.clause_page_number && (
                     <span className="flex items-center gap-1">
                       <DocumentTextIcon className="h-4 w-4" />
-                      Page {obligation.clause_page_number}
+                      {t('obligation.page', { number: obligation.clause_page_number })}
                     </span>
                   )}
                   {obligation.clause_section_number && (
                     <span className="flex items-center gap-1">
                       <HashtagIcon className="h-4 w-4" />
-                      Section {obligation.clause_section_number}
+                      {t('obligation.section', { number: obligation.clause_section_number })}
                     </span>
                   )}
                 </div>
@@ -353,19 +368,19 @@ export default function ObligationDetailPage() {
             <div className="card-header">
               <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
                 <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
-                Source Contract
+                {t('obligation.sourceContract')}
               </h2>
             </div>
             <div className="card-body space-y-4">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Document</p>
+                <p className="text-xs text-gray-500 mb-1">{t('obligation.document')}</p>
                 <p className="text-sm font-medium text-gray-900 break-all">
                   {obligation.contract_filename}
                 </p>
               </div>
               {obligation.counterparty && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Counterparty</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('contracts.counterparty')}</p>
                   <p className="text-sm font-medium text-gray-900">
                     {obligation.counterparty}
                   </p>
@@ -373,7 +388,7 @@ export default function ObligationDetailPage() {
               )}
               {obligation.contract_type && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Contract Type</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('obligation.contractType')}</p>
                   <p className="text-sm font-medium text-gray-900 uppercase">
                     {obligation.contract_type}
                   </p>
@@ -384,7 +399,7 @@ export default function ObligationDetailPage() {
                   to={`/contracts/${obligation.contract_id}`}
                   className="btn-primary w-full justify-center"
                 >
-                  View Full Contract
+                  {t('obligation.viewFullContract')}
                 </Link>
               </div>
             </div>
@@ -404,16 +419,16 @@ export default function ObligationDetailPage() {
                       'font-semibold',
                       RAG_STATUS_CONFIG[obligation.rag_status]?.text || RAG_STATUS_CONFIG.not_assessed.text
                     )}>
-                      {RAG_STATUS_CONFIG[obligation.rag_status]?.label || 'Not Assessed'}
+                      {t(`obligation.rag.${ragKey}.label`, { defaultValue: RAG_STATUS_CONFIG[ragKey].label })}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {RAG_STATUS_CONFIG[obligation.rag_status]?.description || 'Status pending review'}
+                      {t(`obligation.rag.${ragKey}.description`, { defaultValue: RAG_STATUS_CONFIG[ragKey].description })}
                     </p>
                   </div>
                 </div>
                 {obligation.last_compliance_date && (
                   <p className="text-xs text-gray-500">
-                    Last compliance: {formatDate(obligation.last_compliance_date)}
+                    {t('obligation.lastCompliance', { date: formatDate(obligation.last_compliance_date) })}
                   </p>
                 )}
               </div>
@@ -425,13 +440,13 @@ export default function ObligationDetailPage() {
             <div className="card-header flex items-center justify-between">
               <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
                 <ShieldCheckIcon className="h-5 w-5 text-gray-400" />
-                Compliance Evidence
+                {t('obligation.complianceEvidence')}
               </h2>
               <button
                 onClick={() => setShowEvidenceModal(true)}
                 className="text-sm text-primary-600 hover:text-primary-700 font-medium"
               >
-                + Add Evidence
+                {t('obligation.addEvidence')}
               </button>
             </div>
             <div className="card-body">
@@ -447,18 +462,18 @@ export default function ObligationDetailPage() {
               ) : (
                 <div className="text-center py-4">
                   <DocumentArrowUpIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">No compliance evidence uploaded yet</p>
+                  <p className="text-sm text-gray-500">{t('obligation.noEvidence')}</p>
                   <button
                     onClick={() => setShowEvidenceModal(true)}
                     className="btn-primary mt-3"
                   >
-                    Upload Evidence
+                    {t('obligation.uploadEvidence')}
                   </button>
                 </div>
               )}
               {obligation.compliance_notes && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-xs text-gray-500 mb-1">Compliance Notes</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('obligation.complianceNotes')}</p>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{obligation.compliance_notes}</p>
                 </div>
               )}
@@ -468,14 +483,14 @@ export default function ObligationDetailPage() {
           {/* Quick Actions */}
           <div className="card">
             <div className="card-header">
-              <h2 className="text-sm font-medium text-gray-900">Actions</h2>
+              <h2 className="text-sm font-medium text-gray-900">{t('common.actions')}</h2>
             </div>
             <div className="card-body space-y-2">
               <Link
                 to={`/query?obligation=${obligation.id}`}
                 className="btn-secondary w-full justify-center"
               >
-                Ask AI about this obligation
+                {t('obligation.askAi')}
               </Link>
             </div>
           </div>
@@ -487,26 +502,26 @@ export default function ObligationDetailPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Upload Compliance Evidence
+              {t('obligation.uploadComplianceEvidence')}
             </h3>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description *
+                  {t('obligation.evidenceDescription')}
                 </label>
                 <textarea
                   value={evidenceDescription}
                   onChange={(e) => setEvidenceDescription(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   rows={3}
-                  placeholder="Describe the compliance evidence..."
+                  placeholder={t('obligation.evidencePlaceholder')}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Evidence Date
+                  {t('obligation.evidenceDate')}
                 </label>
                 <input
                   type="date"
@@ -518,7 +533,7 @@ export default function ObligationDetailPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Attachment (optional)
+                  {t('obligation.attachmentOptional')}
                 </label>
                 <input
                   type="file"
@@ -533,7 +548,7 @@ export default function ObligationDetailPage() {
                 onClick={() => setShowEvidenceModal(false)}
                 className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleEvidenceSubmit}
@@ -543,12 +558,12 @@ export default function ObligationDetailPage() {
                 {uploadEvidenceMutation.isPending ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    Uploading...
+                    {t('obligation.uploading')}
                   </>
                 ) : (
                   <>
                     <DocumentArrowUpIcon className="h-4 w-4" />
-                    Upload Evidence
+                    {t('obligation.uploadEvidence')}
                   </>
                 )}
               </button>

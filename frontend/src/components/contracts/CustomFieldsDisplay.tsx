@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
+import i18n from '@/i18n'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import type { CustomField, Contract } from '@/types'
 
@@ -13,6 +15,7 @@ interface CustomFieldsDisplayProps {
 type FieldValue = string | number | boolean | string[] | null | undefined
 
 export default function CustomFieldsDisplay({ contract, canEdit = false }: CustomFieldsDisplayProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing] = useState(false)
   const [editValues, setEditValues] = useState<Record<string, FieldValue>>({})
@@ -74,17 +77,19 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
     const value = contract.custom_fields?.[field.name]
 
     if (value === null || value === undefined || value === '') {
-      return <span className="text-gray-400 italic">Not set</span>
+      return <span className="text-gray-400 italic">{t('customFields.notSet')}</span>
     }
+
+    const locale = i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US'
 
     switch (field.field_type) {
       case 'checkbox':
-        return <>{value ? 'Yes' : 'No'}</>
+        return <>{value ? t('common.yes') : t('common.no')}</>
       case 'date':
-        return <>{new Date(value as string).toLocaleDateString()}</>
+        return <>{new Date(value as string).toLocaleDateString(locale)}</>
       case 'currency':
         return typeof value === 'number'
-          ? <>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)}</>
+          ? <>{new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(value)}</>
           : <>{String(value)}</>
       case 'multi_select':
         return <>{Array.isArray(value) ? value.join(', ') : String(value)}</>
@@ -116,7 +121,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             value={(value as string) || ''}
             onChange={(e) => handleValueChange(field.name, e.target.value)}
             className="input-field text-sm"
-            placeholder={field.help_text || `Enter ${field.label.toLowerCase()}`}
+            placeholder={field.help_text || t('customFields.enterField', { field: field.label.toLowerCase() })}
           />
         )
       case 'number':
@@ -127,7 +132,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             value={(value as number) ?? ''}
             onChange={(e) => handleValueChange(field.name, e.target.value ? Number(e.target.value) : null)}
             className="input-field text-sm"
-            placeholder={field.help_text || `Enter ${field.label.toLowerCase()}`}
+            placeholder={field.help_text || t('customFields.enterField', { field: field.label.toLowerCase() })}
           />
         )
       case 'date':
@@ -155,7 +160,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             onChange={(e) => handleValueChange(field.name, e.target.value)}
             className="input-field text-sm"
           >
-            <option value="">Select...</option>
+            <option value="">{t('customFields.select')}</option>
             {field.options?.map((opt) => (
               <option key={opt} value={opt}>{opt}</option>
             ))}
@@ -184,7 +189,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             value={(value as string) || ''}
             onChange={(e) => handleValueChange(field.name, e.target.value)}
             className="input-field text-sm"
-            placeholder="https://..."
+            placeholder={t('customFields.urlPlaceholder')}
           />
         )
       case 'email':
@@ -194,7 +199,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             value={(value as string) || ''}
             onChange={(e) => handleValueChange(field.name, e.target.value)}
             className="input-field text-sm"
-            placeholder="email@example.com"
+            placeholder={t('customFields.emailPlaceholder')}
           />
         )
       default:
@@ -212,12 +217,12 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
   return (
     <div className="card">
       <div className="card-header flex items-center justify-between">
-        <h2 className="text-sm font-medium text-gray-900">Custom Fields</h2>
+        <h2 className="text-sm font-medium text-gray-900">{t('customFields.title')}</h2>
         {canEdit && !isEditing && (
           <button
             onClick={startEditing}
             className="p-1 text-gray-400 hover:text-gray-600 rounded"
-            title="Edit custom fields"
+            title={t('customFields.editTitle')}
           >
             <PencilIcon className="h-4 w-4" />
           </button>
@@ -227,7 +232,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             <button
               onClick={cancelEditing}
               className="p-1 text-gray-400 hover:text-gray-600 rounded"
-              title="Cancel"
+              title={t('common.cancel')}
             >
               <XMarkIcon className="h-4 w-4" />
             </button>
@@ -235,7 +240,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
               onClick={saveChanges}
               disabled={updateMutation.isPending}
               className="p-1 text-green-500 hover:text-green-600 rounded disabled:opacity-50"
-              title="Save changes"
+              title={t('customFields.saveChanges')}
             >
               {updateMutation.isPending ? (
                 <LoadingSpinner size="sm" />
@@ -271,7 +276,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
         </div>
         {updateMutation.isError && (
           <p className="text-sm text-red-600 mt-3">
-            Failed to save changes. Please try again.
+            {t('customFields.saveFailed')}
           </p>
         )}
       </div>

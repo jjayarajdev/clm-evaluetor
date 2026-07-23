@@ -20,6 +20,7 @@ import {
   FolderIcon,
   CommandLineIcon,
 } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 interface CommandItem {
@@ -54,10 +55,19 @@ const categoryLabels = {
   recent: 'Recent',
 }
 
+// Convert command ids like "ask-ai" to camelCase i18n keys like "askAi"
+const toCamel = (id: string) => id.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
+
 export default function CommandPalette() {
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
   const navigate = useNavigate()
+
+  const commandName = (cmd: CommandItem) =>
+    t(`palette.${toCamel(cmd.id)}`, { defaultValue: cmd.name })
+  const commandDescription = (cmd: CommandItem) =>
+    cmd.description ? t(`palette.${toCamel(cmd.id)}Desc`, { defaultValue: cmd.description }) : undefined
 
   // Listen for keyboard shortcuts
   useEffect(() => {
@@ -78,8 +88,8 @@ export default function CommandPalette() {
   const filteredCommands = query === ''
     ? commands
     : commands.filter((cmd) =>
-        cmd.name.toLowerCase().includes(query.toLowerCase()) ||
-        cmd.description?.toLowerCase().includes(query.toLowerCase())
+        commandName(cmd).toLowerCase().includes(query.toLowerCase()) ||
+        commandDescription(cmd)?.toLowerCase().includes(query.toLowerCase())
       )
 
   const groupedCommands = filteredCommands.reduce((acc, cmd) => {
@@ -129,7 +139,7 @@ export default function CommandPalette() {
                   <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
                   <Combobox.Input
                     className="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
-                    placeholder="Search commands, pages, contracts..."
+                    placeholder={t('palette.searchPlaceholder')}
                     onChange={(e) => setQuery(e.target.value)}
                   />
                   <div className="absolute right-4 top-3 flex items-center gap-1">
@@ -144,7 +154,7 @@ export default function CommandPalette() {
                     {Object.entries(groupedCommands).map(([category, items]) => (
                       <div key={category}>
                         <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
-                          {categoryLabels[category as keyof typeof categoryLabels]}
+                          {t(`palette.categories.${category}`, { defaultValue: categoryLabels[category as keyof typeof categoryLabels] })}
                         </div>
                         {items.map((cmd) => (
                           <Combobox.Option
@@ -168,14 +178,14 @@ export default function CommandPalette() {
                                     'text-sm font-medium',
                                     active ? 'text-primary-900' : 'text-gray-900'
                                   )}>
-                                    {cmd.name}
+                                    {commandName(cmd)}
                                   </p>
                                   {cmd.description && (
                                     <p className={cn(
                                       'text-xs',
                                       active ? 'text-primary-700' : 'text-gray-500'
                                     )}>
-                                      {cmd.description}
+                                      {commandDescription(cmd)}
                                     </p>
                                   )}
                                 </div>
@@ -197,10 +207,10 @@ export default function CommandPalette() {
                   <div className="px-6 py-14 text-center sm:px-14">
                     <FolderIcon className="mx-auto h-6 w-6 text-gray-400" />
                     <p className="mt-4 text-sm text-gray-900">
-                      No results found for "<span className="font-semibold">{query}</span>"
+                      {t('palette.noResultsFor')} "<span className="font-semibold">{query}</span>"
                     </p>
                     <p className="mt-2 text-xs text-gray-500">
-                      Try searching for pages, actions, or contracts
+                      {t('palette.trySearching')}
                     </p>
                   </div>
                 )}
@@ -209,16 +219,16 @@ export default function CommandPalette() {
                   <div className="flex items-center gap-4">
                     <span className="flex items-center gap-1">
                       <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-medium">↑↓</kbd>
-                      Navigate
+                      {t('palette.navigate')}
                     </span>
                     <span className="flex items-center gap-1">
                       <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-medium">↵</kbd>
-                      Select
+                      {t('palette.select')}
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <CommandLineIcon className="h-3.5 w-3.5" />
-                    <span>Command Palette</span>
+                    <span>{t('palette.commandPalette')}</span>
                   </div>
                 </div>
               </Combobox>

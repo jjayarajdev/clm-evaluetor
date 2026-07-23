@@ -1,7 +1,7 @@
 """Add industry_profile_id and config_overrides to business_units, business_unit_id to taxonomy_suggestions.
 
 Revision ID: b2c3d4e5f6g7
-Revises: a1b2c3d4e5f6
+Revises: ts01_taxonomy_suggestions
 Create Date: 2026-04-23 14:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 # revision identifiers
 revision = "b2c3d4e5f6g7"
-down_revision = None
+down_revision = "ts01_taxonomy_suggestions"  # alters taxonomy_suggestions, must follow ts01
 branch_labels = None
 depends_on = None
 

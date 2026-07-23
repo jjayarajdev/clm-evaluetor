@@ -9,6 +9,7 @@ import {
   ChevronDownIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import type { ContractSummaryCard } from '@/types'
 
@@ -45,6 +46,7 @@ export default function ContractSummaryCards({
   byRisk,
   expiringSoon,
 }: Props) {
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -120,25 +122,25 @@ export default function ContractSummaryCards({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-white rounded-lg border border-gray-200 p-3">
           <p className="text-2xl font-bold text-gray-900">{totalContracts}</p>
-          <p className="text-xs text-gray-500">Total Contracts</p>
+          <p className="text-xs text-gray-500">{t('summaries.totalContracts')}</p>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-3">
           <p className="text-2xl font-bold text-green-600">{byStatus.completed || 0}</p>
-          <p className="text-xs text-gray-500">Processed</p>
+          <p className="text-xs text-gray-500">{t('summaries.processed')}</p>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-3">
           <p className="text-2xl font-bold text-red-600">{byRisk.high || 0}</p>
-          <p className="text-xs text-gray-500">High Risk</p>
+          <p className="text-xs text-gray-500">{t('summaries.highRisk')}</p>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-3">
           <p className="text-2xl font-bold text-amber-600">{expiringSoon}</p>
-          <p className="text-xs text-gray-500">Expiring Soon</p>
+          <p className="text-xs text-gray-500">{t('summaries.expiringSoon')}</p>
         </div>
       </div>
 
       {/* Contract Filter Dropdown */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <p className="text-sm font-medium text-gray-700 mb-3">Filter by Contract</p>
+        <p className="text-sm font-medium text-gray-700 mb-3">{t('summaries.filterByContract')}</p>
 
         <div className="relative" ref={dropdownRef}>
           {/* Dropdown trigger */}
@@ -172,7 +174,7 @@ export default function ContractSummaryCards({
               ) : (
                 <>
                   <DocumentTextIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                  <span className="text-gray-500">All Contracts ({totalContracts})</span>
+                  <span className="text-gray-500">{t('summaries.allContracts')} ({totalContracts})</span>
                 </>
               )}
             </div>
@@ -205,7 +207,7 @@ export default function ContractSummaryCards({
                   <input
                     ref={inputRef}
                     type="text"
-                    placeholder="Search contracts..."
+                    placeholder={t('summaries.searchContracts')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
@@ -232,7 +234,7 @@ export default function ContractSummaryCards({
                     "font-medium",
                     selectedContractId === null ? "text-primary-700" : "text-gray-700"
                   )}>
-                    All Contracts
+                    {t('summaries.allContracts')}
                   </span>
                   <span className="text-gray-400 text-sm">({totalContracts})</span>
                 </button>
@@ -277,7 +279,7 @@ export default function ContractSummaryCards({
                   })
                 ) : (
                   <div className="px-4 py-6 text-center text-sm text-gray-500">
-                    No contracts found matching "{searchQuery}"
+                    {t('summaries.noContractsMatching', { query: searchQuery })}
                   </div>
                 )}
               </div>
@@ -295,15 +297,15 @@ export default function ContractSummaryCards({
               <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
                 {selectedContract.counterparty && <span>{selectedContract.counterparty}</span>}
                 {selectedContract.contract_type && <span className="uppercase">{selectedContract.contract_type}</span>}
-                <span>{selectedContract.clause_count} clauses</span>
-                <span>{selectedContract.obligation_count} obligations</span>
+                <span>{t('summaries.clausesCount', { count: selectedContract.clause_count })}</span>
+                <span>{t('summaries.obligationsCount', { count: selectedContract.obligation_count })}</span>
               </div>
             </div>
             <Link
               to={`/contracts/${selectedContract.id}`}
               className="btn btn-primary text-sm"
             >
-              View Details
+              {t('summaries.viewDetails')}
             </Link>
           </div>
         </div>

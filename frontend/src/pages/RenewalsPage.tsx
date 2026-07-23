@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
@@ -17,6 +18,7 @@ import { cn } from '@/lib/utils'
 import type { ContractRenewalInfo } from '@/types/postsigning'
 
 function RenewalCard({ contract }: { contract: ContractRenewalInfo }) {
+  const { t } = useTranslation()
   const getWindowColor = (window: string) => {
     switch (window) {
       case 'expired': return 'bg-gray-100 border-gray-300'
@@ -32,7 +34,7 @@ function RenewalCard({ contract }: { contract: ContractRenewalInfo }) {
     if (contract.is_past_notice_deadline) {
       return (
         <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs font-medium">
-          Past Notice Deadline
+          {t('renewals.pastNoticeDeadline')}
         </span>
       )
     }
@@ -40,7 +42,7 @@ function RenewalCard({ contract }: { contract: ContractRenewalInfo }) {
       return (
         <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-medium flex items-center gap-1">
           <ArrowPathIcon className="h-3 w-3" />
-          Auto-Renew
+          {t('renewals.autoRenew')}
         </span>
       )
     }
@@ -57,41 +59,41 @@ function RenewalCard({ contract }: { contract: ContractRenewalInfo }) {
           >
             {contract.filename}
           </Link>
-          <p className="text-sm text-gray-600 mt-1">{contract.counterparty || 'Unknown Counterparty'}</p>
+          <p className="text-sm text-gray-600 mt-1">{contract.counterparty || t('renewals.unknownCounterparty')}</p>
         </div>
         {getStatusBadge()}
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
         <div>
-          <p className="text-gray-500">Expiration</p>
+          <p className="text-gray-500">{t('renewals.expiration')}</p>
           <p className="font-medium">
             {contract.expiration_date
               ? new Date(contract.expiration_date).toLocaleDateString()
-              : 'No date'}
+              : t('renewals.noDate')}
           </p>
         </div>
         <div>
-          <p className="text-gray-500">Days Remaining</p>
+          <p className="text-gray-500">{t('renewals.daysRemaining')}</p>
           <p className={cn(
             'font-medium',
             contract.days_until_expiration && contract.days_until_expiration <= 30 ? 'text-red-600' :
             contract.days_until_expiration && contract.days_until_expiration <= 60 ? 'text-amber-600' :
             'text-gray-900'
           )}>
-            {contract.days_until_expiration !== null ? `${contract.days_until_expiration} days` : '-'}
+            {contract.days_until_expiration !== null ? t('renewals.daysCount', { count: contract.days_until_expiration }) : '-'}
           </p>
         </div>
         <div>
-          <p className="text-gray-500">Contract Value</p>
+          <p className="text-gray-500">{t('renewals.contractValue')}</p>
           <p className="font-medium">
             {contract.contract_value ? `$${contract.contract_value.toLocaleString()}` : '-'}
           </p>
         </div>
         <div>
-          <p className="text-gray-500">Notice Period</p>
+          <p className="text-gray-500">{t('renewals.noticePeriod')}</p>
           <p className="font-medium">
-            {contract.notice_period_days ? `${contract.notice_period_days} days` : '-'}
+            {contract.notice_period_days ? t('renewals.daysCount', { count: contract.notice_period_days }) : '-'}
           </p>
         </div>
       </div>
@@ -99,7 +101,7 @@ function RenewalCard({ contract }: { contract: ContractRenewalInfo }) {
       {contract.sla_compliance_rate !== null && (
         <div className="mt-3 pt-3 border-t border-gray-200">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">SLA Compliance</span>
+            <span className="text-gray-500">{t('renewals.slaCompliance')}</span>
             <span className={cn(
               'font-medium',
               contract.sla_compliance_rate >= 90 ? 'text-green-600' :
@@ -111,7 +113,7 @@ function RenewalCard({ contract }: { contract: ContractRenewalInfo }) {
           </div>
           {contract.active_sla_breaches > 0 && (
             <p className="text-xs text-red-600 mt-1">
-              {contract.active_sla_breaches} active SLA breaches
+              {t('renewals.activeSlaBreaches', { count: contract.active_sla_breaches })}
             </p>
           )}
         </div>
@@ -121,6 +123,7 @@ function RenewalCard({ contract }: { contract: ContractRenewalInfo }) {
 }
 
 export default function RenewalsPage() {
+  const { t } = useTranslation()
   const [selectedWindow, setSelectedWindow] = useState<string>('all')
   const [isExporting, setIsExporting] = useState(false)
 
@@ -166,18 +169,18 @@ export default function RenewalsPage() {
   if (error || !calendar) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Failed to load renewal calendar</p>
+        <p className="text-red-600">{t('renewals.loadError')}</p>
       </div>
     )
   }
 
   const windows = [
-    { id: 'all', label: 'All', count: calendar.total_contracts },
-    { id: 'critical', label: 'Critical', count: calendar.critical.length, color: 'text-red-600' },
-    { id: 'within_30_days', label: '30 Days', count: calendar.within_30_days.length, color: 'text-red-500' },
-    { id: 'within_60_days', label: '60 Days', count: calendar.within_60_days.length, color: 'text-amber-600' },
-    { id: 'within_90_days', label: '90 Days', count: calendar.within_90_days.length, color: 'text-blue-600' },
-    { id: 'expired', label: 'Expired', count: calendar.expired.length, color: 'text-gray-500' },
+    { id: 'all', label: t('renewals.all'), count: calendar.total_contracts },
+    { id: 'critical', label: t('risk.critical'), count: calendar.critical.length, color: 'text-red-600' },
+    { id: 'within_30_days', label: t('renewals.days30'), count: calendar.within_30_days.length, color: 'text-red-500' },
+    { id: 'within_60_days', label: t('renewals.days60'), count: calendar.within_60_days.length, color: 'text-amber-600' },
+    { id: 'within_90_days', label: t('renewals.days90'), count: calendar.within_90_days.length, color: 'text-blue-600' },
+    { id: 'expired', label: t('status.expired'), count: calendar.expired.length, color: 'text-gray-500' },
   ]
 
   const getContracts = () => {
@@ -203,8 +206,8 @@ export default function RenewalsPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <PageHeader
-          title="Renewal Calendar"
-          description="Track contract renewals and notice deadlines"
+          title={t('renewals.title')}
+          description={t('renewals.description')}
           icon={CalendarDaysIcon}
           variant="bordered"
         />
@@ -216,12 +219,12 @@ export default function RenewalsPage() {
           {isExporting ? (
             <>
               <LoadingSpinner size="sm" />
-              Exporting...
+              {t('renewals.exporting')}
             </>
           ) : (
             <>
               <ArrowDownTrayIcon className="h-5 w-5" />
-              Export to Calendar
+              {t('renewals.exportToCalendar')}
             </>
           )}
         </button>
@@ -230,25 +233,25 @@ export default function RenewalsPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Need Action"
+          title={t('renewals.needAction')}
           value={calendar.requires_action_count}
           icon={ExclamationTriangleIcon}
           color="danger"
         />
         <StatCard
-          title="Auto-Renewing"
+          title={t('renewals.autoRenewing')}
           value={calendar.auto_renewal_count}
           icon={ArrowPathIcon}
           color="success"
         />
         <StatCard
-          title="Total Expiring"
+          title={t('renewals.totalExpiring')}
           value={calendar.total_contracts}
           icon={CalendarIcon}
           color="default"
         />
         <StatCard
-          title="Value at Risk"
+          title={t('renewals.valueAtRisk')}
           value={`$${(calendar.total_value_at_risk / 1000000).toFixed(1)}M`}
           icon={ClockIcon}
           color="primary"
@@ -283,7 +286,7 @@ export default function RenewalsPage() {
         ))}
         {contracts.length === 0 && (
           <div className="col-span-full text-center py-12 text-gray-500">
-            No contracts in this renewal window
+            {t('renewals.noContractsInWindow')}
           </div>
         )}
       </div>

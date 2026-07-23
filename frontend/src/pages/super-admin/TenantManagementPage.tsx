@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
@@ -46,6 +47,7 @@ const emptyFormData: TenantFormData = {
 }
 
 export default function TenantManagementPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
@@ -165,8 +167,8 @@ export default function TenantManagementPage() {
 
   const handleToggleActive = (tenant: Tenant) => {
     const message = tenant.is_active
-      ? `Are you sure you want to deactivate "${tenant.name}"? Users will not be able to log in.`
-      : `Are you sure you want to activate "${tenant.name}"?`
+      ? t('superadmin.tenants.deactivateConfirm', { name: tenant.name })
+      : t('superadmin.tenants.activateConfirm', { name: tenant.name })
 
     if (window.confirm(message)) {
       if (tenant.is_active) {
@@ -189,14 +191,14 @@ export default function TenantManagementPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tenant Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('superadmin.tenants.title')}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage organizations and their subscriptions
+            {t('superadmin.tenants.subtitle')}
           </p>
         </div>
         <button onClick={openCreateModal} className="btn-primary">
           <PlusIcon className="h-4 w-4 mr-2" />
-          Add Tenant
+          {t('superadmin.tenants.addTenant')}
         </button>
       </div>
 
@@ -209,14 +211,14 @@ export default function TenantManagementPage() {
             onChange={(e) => setShowInactive(e.target.checked)}
             className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
           />
-          <span className="text-gray-600">Show inactive tenants</span>
+          <span className="text-gray-600">{t('superadmin.tenants.showInactive')}</span>
         </label>
       </div>
 
       {/* Error state */}
       {error && (
         <div className="rounded-lg bg-red-50 p-4 text-red-700">
-          Error loading tenants. Please try again.
+          {t('superadmin.tenants.loadError')}
         </div>
       )}
 
@@ -231,22 +233,22 @@ export default function TenantManagementPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tenant
+                  {t('superadmin.tenant')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Plan
+                  {t('superadmin.plan')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contracts
+                  {t('superadmin.tenants.contracts')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('common.status')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
+                  {t('superadmin.created')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -269,7 +271,7 @@ export default function TenantManagementPage() {
                       'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
                       PLAN_COLORS[tenant.plan]
                     )}>
-                      {PLAN_LABELS[tenant.plan]}
+                      {t(`superadmin.plans.${tenant.plan}`, { defaultValue: PLAN_LABELS[tenant.plan] })}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm">
@@ -287,12 +289,12 @@ export default function TenantManagementPage() {
                       {tenant.is_active ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
                           <CheckCircleIcon className="h-3 w-3" />
-                          Active
+                          {t('status.active')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
                           <XCircleIcon className="h-3 w-3" />
-                          Inactive
+                          {t('status.inactive')}
                         </span>
                       )}
                     </button>
@@ -305,21 +307,21 @@ export default function TenantManagementPage() {
                       <Link
                         to={`/super-admin/tenants/${tenant.id}`}
                         className="p-1 text-gray-400 hover:text-primary-600"
-                        title="View details"
+                        title={t('superadmin.tenants.viewDetails')}
                       >
                         <EyeIcon className="h-5 w-5" />
                       </Link>
                       <button
                         onClick={() => openEditModal(tenant)}
                         className="p-1 text-gray-400 hover:text-gray-600"
-                        title="Edit tenant"
+                        title={t('superadmin.tenants.editTenant')}
                       >
                         <PencilSquareIcon className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => { setPurgingTenant(tenant); setPurgeConfirmText(''); setPurgeResult(null) }}
                         className="p-1 text-gray-400 hover:text-red-600"
-                        title="Permanently delete tenant"
+                        title={t('superadmin.tenants.deleteTenantPermanently')}
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -331,7 +333,7 @@ export default function TenantManagementPage() {
           </table>
           {tenants?.length === 0 && (
             <div className="text-center py-12 text-gray-500">
-              No tenants found.
+              {t('superadmin.tenants.noTenants')}
             </div>
           )}
         </div>
@@ -344,12 +346,12 @@ export default function TenantManagementPage() {
             <div className="fixed inset-0 bg-black/50" onClick={closeModal} />
             <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingTenant ? 'Edit Tenant' : 'Create Tenant'}
+                {editingTenant ? t('superadmin.tenants.editTenantTitle') : t('superadmin.tenants.createTenantTitle')}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Organization Name *
+                    {t('superadmin.tenants.organizationName')} *
                   </label>
                   <input
                     type="text"
@@ -369,7 +371,7 @@ export default function TenantManagementPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Slug *
+                    {t('superadmin.tenants.slug')} *
                   </label>
                   <input
                     type="text"
@@ -379,15 +381,15 @@ export default function TenantManagementPage() {
                     required
                     placeholder="acme-corp"
                     pattern="[a-z0-9-]+"
-                    title="Only lowercase letters, numbers, and hyphens allowed"
+                    title={t('superadmin.tenants.slugPattern')}
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    URL-friendly identifier (lowercase, no spaces)
+                    {t('superadmin.tenants.slugHint')}
                   </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Plan *
+                    {t('superadmin.plan')} *
                   </label>
                   <select
                     value={formData.plan}
@@ -396,27 +398,27 @@ export default function TenantManagementPage() {
                   >
                     {Object.entries(PLAN_LABELS).map(([value, label]) => (
                       <option key={value} value={value}>
-                        {label}
+                        {t(`superadmin.plans.${value}`, { defaultValue: label })}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contract Limit
+                    {t('superadmin.contractLimit')}
                   </label>
                   <input
                     type="number"
                     value={formData.contract_limit}
                     onChange={(e) => setFormData({ ...formData, contract_limit: e.target.value })}
                     className="input"
-                    placeholder="Leave empty for unlimited"
+                    placeholder={t('superadmin.unlimitedPlaceholder')}
                     min="1"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact Email
+                    {t('superadmin.contactEmail')}
                   </label>
                   <input
                     type="email"
@@ -428,7 +430,7 @@ export default function TenantManagementPage() {
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <button type="button" onClick={closeModal} className="btn-secondary">
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
@@ -438,9 +440,9 @@ export default function TenantManagementPage() {
                     {createMutation.isPending || updateMutation.isPending ? (
                       <LoadingSpinner size="sm" className="border-white border-t-transparent" />
                     ) : editingTenant ? (
-                      'Update'
+                      t('superadmin.update')
                     ) : (
-                      'Create'
+                      t('superadmin.create')
                     )}
                   </button>
                 </div>
@@ -462,21 +464,21 @@ export default function TenantManagementPage() {
                     <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Delete Tenant Permanently</h2>
-                    <p className="text-sm text-gray-500">This action cannot be undone</p>
+                    <h2 className="text-lg font-semibold text-gray-900">{t('superadmin.tenants.deleteTenantTitle')}</h2>
+                    <p className="text-sm text-gray-500">{t('superadmin.tenants.cannotBeUndone')}</p>
                   </div>
                 </div>
 
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
                   <p className="text-sm text-red-800">
-                    This will permanently delete <strong>{purgingTenant.name}</strong> and all its data:
+                    {t('superadmin.tenants.purgeWarningPrefix')} <strong>{purgingTenant.name}</strong> {t('superadmin.tenants.purgeWarningSuffix')}
                   </p>
                   <ul className="mt-2 text-sm text-red-700 space-y-1 list-disc list-inside">
-                    <li>All contracts, clauses, obligations, SLAs</li>
-                    <li>All users and business units</li>
-                    <li>All organizations and relationships</li>
-                    <li>All vector embeddings (ChromaDB)</li>
-                    <li>All notifications, integrations, settings</li>
+                    <li>{t('superadmin.tenants.purgeItemContracts')}</li>
+                    <li>{t('superadmin.tenants.purgeItemUsers')}</li>
+                    <li>{t('superadmin.tenants.purgeItemOrgs')}</li>
+                    <li>{t('superadmin.tenants.purgeItemVectors')}</li>
+                    <li>{t('superadmin.tenants.purgeItemSettings')}</li>
                   </ul>
                 </div>
 
@@ -484,12 +486,12 @@ export default function TenantManagementPage() {
                   <p className="text-sm text-gray-600 mb-2">
                     {tenantStatsMap?.[purgingTenant.id] && (
                       <span className="font-medium">
-                        {tenantStatsMap[purgingTenant.id].contract_count} contracts, {tenantStatsMap[purgingTenant.id].user_count} users will be deleted.
+                        {t('superadmin.tenants.purgeStats', { contracts: tenantStatsMap[purgingTenant.id].contract_count, users: tenantStatsMap[purgingTenant.id].user_count })}
                       </span>
                     )}
                   </p>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type <span className="font-mono text-red-600">{purgingTenant.slug}</span> to confirm:
+                    {t('superadmin.tenants.typeToConfirmPrefix')} <span className="font-mono text-red-600">{purgingTenant.slug}</span> {t('superadmin.tenants.typeToConfirmSuffix')}
                   </label>
                   <input
                     type="text"
@@ -507,7 +509,7 @@ export default function TenantManagementPage() {
                     onClick={() => setPurgingTenant(null)}
                     className="btn-secondary"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={() => purgeMutation.mutate(purgingTenant.id)}
@@ -517,17 +519,17 @@ export default function TenantManagementPage() {
                     {purgeMutation.isPending ? (
                       <div className="flex items-center gap-2">
                         <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                        <span>Deleting...</span>
+                        <span>{t('superadmin.tenants.deleting')}</span>
                       </div>
                     ) : (
-                      'Delete Permanently'
+                      t('superadmin.tenants.deletePermanently')
                     )}
                   </button>
                 </div>
 
                 {purgeMutation.isError && (
                   <div className="mt-3 p-3 bg-red-50 rounded-lg text-sm text-red-700">
-                    {(purgeMutation.error as Error)?.message || 'Failed to delete tenant'}
+                    {(purgeMutation.error as Error)?.message || t('superadmin.tenants.purgeFailed')}
                   </div>
                 )}
               </div>
@@ -548,7 +550,7 @@ export default function TenantManagementPage() {
                     <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
                       <CheckCircleIcon className="h-6 w-6 text-green-600" />
                     </div>
-                    <h2 className="text-lg font-semibold text-gray-900">Tenant Deleted</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">{t('superadmin.tenants.tenantDeleted')}</h2>
                   </div>
                   <button onClick={() => setPurgeResult(null)} className="p-1 hover:bg-gray-100 rounded">
                     <XMarkIcon className="h-5 w-5 text-gray-500" />
@@ -556,11 +558,11 @@ export default function TenantManagementPage() {
                 </div>
 
                 <p className="text-sm text-gray-600 mb-3">
-                  <strong>{purgeResult.tenant}</strong> has been permanently deleted.
+                  <strong>{purgeResult.tenant}</strong> {t('superadmin.tenants.deletedSuffix')}
                 </p>
 
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs font-medium text-gray-500 uppercase mb-2">Deletion Summary</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase mb-2">{t('superadmin.tenants.deletionSummary')}</p>
                   <div className="space-y-1 text-sm">
                     {Object.entries(purgeResult.deleted)
                       .filter(([, count]) => count > 0)
@@ -575,7 +577,7 @@ export default function TenantManagementPage() {
 
                 <div className="flex justify-end mt-4">
                   <button onClick={() => setPurgeResult(null)} className="btn-primary">
-                    Done
+                    {t('superadmin.tenants.done')}
                   </button>
                 </div>
               </div>

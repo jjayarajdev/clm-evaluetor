@@ -8,6 +8,7 @@ export interface User {
   full_name?: string | null
   role: Role
   is_active: boolean
+  preferred_language?: string
   tenant_id?: string | null
   tenant_name?: string | null
   business_unit_id?: string | null

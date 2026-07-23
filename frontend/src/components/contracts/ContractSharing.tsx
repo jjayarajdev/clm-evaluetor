@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   UserPlusIcon,
@@ -18,6 +19,7 @@ interface ContractSharingProps {
 }
 
 export default function ContractSharing({ contractId }: ContractSharingProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState('')
@@ -57,7 +59,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
       }
     },
     onError: (err: any) => {
-      setShareError(err?.response?.data?.detail || err?.message || 'Failed to share contract')
+      setShareError(err?.response?.data?.detail || err?.message || t('sharing.shareFailed'))
     },
   })
 
@@ -93,7 +95,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
   }
 
   const handleRevoke = (share: ContractShareWithUser) => {
-    if (confirm(`Revoke access for ${share.external_user.full_name || share.external_user.email}?`)) {
+    if (confirm(t('sharing.confirmRevoke', { name: share.external_user.full_name || share.external_user.email }))) {
       revokeMutation.mutate(share.id)
     }
   }
@@ -122,9 +124,9 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">External Sharing</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('sharing.title')}</h2>
           <p className="text-sm text-gray-500">
-            Share this contract with external parties for review and collaboration
+            {t('sharing.subtitle')}
           </p>
         </div>
         <button
@@ -132,7 +134,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
           className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
           <UserPlusIcon className="w-5 h-5" />
-          Share with External User
+          {t('sharing.shareWithExternalUser')}
         </button>
       </div>
 
@@ -140,7 +142,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
       {copiedToken && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
           <CheckIcon className="w-5 h-5 text-green-600" />
-          <span className="text-green-700">Access link copied to clipboard!</span>
+          <span className="text-green-700">{t('sharing.linkCopied')}</span>
         </div>
       )}
 
@@ -149,8 +151,8 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
         {!sharesData?.items.length ? (
           <div className="text-center py-12 text-gray-500">
             <UserPlusIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">No external shares</p>
-            <p className="mt-1">Share this contract with external parties to collaborate.</p>
+            <p className="text-lg font-medium">{t('sharing.noShares')}</p>
+            <p className="mt-1">{t('sharing.noSharesHint')}</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
@@ -180,19 +182,19 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                   <div className="flex gap-2">
                     {share.can_comment && (
                       <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                        Can Comment
+                        {t('sharing.canComment')}
                       </span>
                     )}
                     {share.can_download && (
                       <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                        Can Download
+                        {t('sharing.canDownload')}
                       </span>
                     )}
                   </div>
 
                   {/* Access count */}
                   <span className="text-sm text-gray-500">
-                    {share.access_count} view{share.access_count !== 1 ? 's' : ''}
+                    {t('sharing.views', { count: share.access_count })}
                   </span>
 
                   {/* Expiration */}
@@ -204,8 +206,8 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                         : "bg-gray-100 text-gray-600"
                     )}>
                       {new Date(share.expires_at) < new Date()
-                        ? 'Expired'
-                        : `Expires ${new Date(share.expires_at).toLocaleDateString()}`
+                        ? t('status.expired')
+                        : t('sharing.expires', { date: new Date(share.expires_at).toLocaleDateString() })
                       }
                     </span>
                   )}
@@ -215,14 +217,14 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                     <button
                       onClick={() => copyAccessLink(share.id)}
                       className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                      title="Copy access link"
+                      title={t('sharing.copyAccessLink')}
                     >
                       <ClipboardDocumentIcon className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleRevoke(share)}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                      title="Revoke access"
+                      title={t('sharing.revokeAccess')}
                     >
                       <TrashIcon className="w-4 h-4" />
                     </button>
@@ -239,7 +241,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-semibold">Share Contract</h2>
+              <h2 className="text-xl font-semibold">{t('sharing.shareContract')}</h2>
               <button
                 onClick={closeModal}
                 className="p-1 text-gray-400 hover:text-gray-600"
@@ -257,7 +259,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
               {/* External user select */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  External User *
+                  {t('sharing.externalUserLabel')}
                 </label>
                 <select
                   value={selectedUserId}
@@ -265,7 +267,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   required
                 >
-                  <option value="">Select an external user...</option>
+                  <option value="">{t('sharing.selectExternalUser')}</option>
                   {availableUsers.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.full_name || user.email}
@@ -275,7 +277,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                 </select>
                 {availableUsers.length === 0 && (
                   <p className="mt-1 text-sm text-amber-600">
-                    No available external users. Create one first in Admin &gt; External Users.
+                    {t('sharing.noAvailableUsers')}
                   </p>
                 )}
               </div>
@@ -283,7 +285,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
               {/* Permissions */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Permissions
+                  {t('sharing.permissions')}
                 </label>
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-2">
@@ -293,7 +295,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                       onChange={(e) => setCanComment(e.target.checked)}
                       className="rounded text-primary-600 focus:ring-primary-500"
                     />
-                    <span className="text-sm text-gray-700">Can comment</span>
+                    <span className="text-sm text-gray-700">{t('sharing.canComment')}</span>
                   </label>
                   <label className="flex items-center gap-2">
                     <input
@@ -302,7 +304,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                       onChange={(e) => setCanDownload(e.target.checked)}
                       className="rounded text-primary-600 focus:ring-primary-500"
                     />
-                    <span className="text-sm text-gray-700">Can download</span>
+                    <span className="text-sm text-gray-700">{t('sharing.canDownload')}</span>
                   </label>
                 </div>
               </div>
@@ -310,14 +312,14 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
               {/* Expiration */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Expires in (days)
+                  {t('sharing.expiresInDays')}
                 </label>
                 <input
                   type="number"
                   value={expiresInDays}
                   onChange={(e) => setExpiresInDays(e.target.value ? Number(e.target.value) : '')}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Leave empty for no expiration"
+                  placeholder={t('sharing.noExpirationPlaceholder')}
                   min={1}
                   max={365}
                 />
@@ -326,13 +328,13 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
               {/* Message */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Message (optional)
+                  {t('sharing.messageOptional')}
                 </label>
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Add a message for the recipient..."
+                  placeholder={t('sharing.messagePlaceholder')}
                   rows={2}
                 />
               </div>
@@ -344,14 +346,14 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                   onClick={closeModal}
                   className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={!selectedUserId || shareMutation.isPending}
                   className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
                 >
-                  {shareMutation.isPending ? 'Sharing...' : 'Share Contract'}
+                  {shareMutation.isPending ? t('sharing.sharing') : t('sharing.shareContract')}
                 </button>
               </div>
             </form>
@@ -368,7 +370,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                 <div className="p-2 bg-green-100 rounded-full">
                   <CheckIcon className="w-6 h-6 text-green-600" />
                 </div>
-                <h2 className="text-xl font-semibold">Contract Shared Successfully</h2>
+                <h2 className="text-xl font-semibold">{t('sharing.sharedSuccessfully')}</h2>
               </div>
               <button
                 onClick={() => setShowLinkModal(false)}
@@ -380,13 +382,13 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
 
             <div className="p-6 space-y-4">
               <p className="text-gray-600">
-                Share this link with the external user to give them access to the contract:
+                {t('sharing.shareLinkInstruction')}
               </p>
 
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <LinkIcon className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">Access Link</span>
+                  <span className="text-sm font-medium text-gray-700">{t('sharing.accessLink')}</span>
                 </div>
                 <div className="bg-white border rounded p-3 break-all text-sm text-gray-800 font-mono">
                   {generatedLink}
@@ -405,12 +407,12 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                   {copiedToken === 'link' ? (
                     <>
                       <CheckIcon className="w-5 h-5 text-green-600" />
-                      Copied!
+                      {t('sharing.copied')}
                     </>
                   ) : (
                     <>
                       <ClipboardDocumentIcon className="w-5 h-5" />
-                      Copy Link
+                      {t('sharing.copyLink')}
                     </>
                   )}
                 </button>
@@ -418,7 +420,7 @@ export default function ContractSharing({ contractId }: ContractSharingProps) {
                   onClick={() => setShowLinkModal(false)}
                   className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                 >
-                  Done
+                  {t('sharing.done')}
                 </button>
               </div>
             </div>

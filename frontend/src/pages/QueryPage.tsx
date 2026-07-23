@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -38,12 +39,12 @@ interface Message {
 const PIE_COLORS = ['#7c3aed', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#64748b']
 
 const SUGGESTED_QUESTIONS = [
-  { text: 'What are my contracts up for renewal?', icon: '\u{1F4C5}' },
-  { text: 'Show me my high risk contracts', icon: '\u{26A0}\u{FE0F}' },
-  { text: 'What are my SLAs?', icon: '\u{1F4CA}' },
-  { text: 'What obligations do we have?', icon: '\u{1F4CB}' },
-  { text: 'How many contracts do I have?', icon: '\u{1F4C1}' },
-  { text: 'Which contracts have auto-renewal?', icon: '\u{1F504}' },
+  { key: 'query.suggested.renewals', icon: '\u{1F4C5}' },
+  { key: 'query.suggested.highRisk', icon: '\u{26A0}\u{FE0F}' },
+  { key: 'query.suggested.slas', icon: '\u{1F4CA}' },
+  { key: 'query.suggested.obligations', icon: '\u{1F4CB}' },
+  { key: 'query.suggested.contractCount', icon: '\u{1F4C1}' },
+  { key: 'query.suggested.autoRenewal', icon: '\u{1F504}' },
 ]
 
 // --------------- Helpers ---------------
@@ -56,11 +57,11 @@ function groupSessionsByDate(sessions: ChatSession[]) {
   const monthAgo = new Date(today.getTime() - 30 * 86400000)
 
   const groups: { label: string; sessions: ChatSession[] }[] = [
-    { label: 'Today', sessions: [] },
-    { label: 'Yesterday', sessions: [] },
-    { label: 'Previous 7 days', sessions: [] },
-    { label: 'Previous 30 days', sessions: [] },
-    { label: 'Older', sessions: [] },
+    { label: 'query.groups.today', sessions: [] },
+    { label: 'query.groups.yesterday', sessions: [] },
+    { label: 'query.groups.previous7Days', sessions: [] },
+    { label: 'query.groups.previous30Days', sessions: [] },
+    { label: 'query.groups.older', sessions: [] },
   ]
 
   for (const session of sessions) {
@@ -223,6 +224,7 @@ function TypingIndicator() {
 }
 
 function SourcesCollapsible({ sources }: { sources?: QueryResponse['sources'] }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   if (!sources || sources.length === 0) return null
 
@@ -233,7 +235,7 @@ function SourcesCollapsible({ sources }: { sources?: QueryResponse['sources'] })
         className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
       >
         <ChevronDownIcon className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
-        {sources.length} source{sources.length !== 1 && 's'}
+        {t('query.sourcesCount', { count: sources.length })}
       </button>
       {open && (
         <div className="mt-2 space-y-2">
@@ -245,7 +247,7 @@ function SourcesCollapsible({ sources }: { sources?: QueryResponse['sources'] })
               <p className="font-medium text-gray-600">
                 {source.filename}
                 {source.chunk_index !== undefined && (
-                  <span className="text-gray-400 ml-1">Section {source.chunk_index + 1}</span>
+                  <span className="text-gray-400 ml-1">{t('query.section', { number: source.chunk_index + 1 })}</span>
                 )}
               </p>
               {source.excerpt && (
@@ -276,6 +278,7 @@ function ChatHistorySidebar({
   onDeleteSession: (id: string) => void
   isLoading: boolean
 }) {
+  const { t } = useTranslation()
   const groups = groupSessionsByDate(sessions)
 
   return (
@@ -287,7 +290,7 @@ function ChatHistorySidebar({
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-primary-50 hover:border-primary-200 hover:text-primary-700 transition-all shadow-sm"
         >
           <PlusIcon className="h-4 w-4" />
-          New Chat
+          {t('query.newChat')}
         </button>
       </div>
 
@@ -300,14 +303,14 @@ function ChatHistorySidebar({
         ) : sessions.length === 0 ? (
           <div className="text-center py-12 px-4">
             <ChatBubbleLeftRightIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-xs text-gray-400">No conversations yet</p>
-            <p className="text-[11px] text-gray-300 mt-1">Start a new chat to get going</p>
+            <p className="text-xs text-gray-400">{t('query.noConversations')}</p>
+            <p className="text-[11px] text-gray-300 mt-1">{t('query.startNewChatHint')}</p>
           </div>
         ) : (
           groups.map((group) => (
             <div key={group.label} className="mb-2">
               <p className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                {group.label}
+                {t(group.label)}
               </p>
               {group.sessions.map((session) => (
                 <div
@@ -340,7 +343,7 @@ function ChatHistorySidebar({
                       onDeleteSession(session.id)
                     }}
                     className="absolute right-3 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 hover:text-red-500 transition-all"
-                    title="Delete conversation"
+                    title={t('query.deleteConversation')}
                   >
                     <TrashIcon className="h-3.5 w-3.5" />
                   </button>
@@ -357,6 +360,7 @@ function ChatHistorySidebar({
 // --------------- Main Page ---------------
 
 export default function QueryPage() {
+  const { t } = useTranslation()
   const [searchParams] = useSearchParams()
   const contractId = searchParams.get('contract')
   const clauseId = searchParams.get('clause')
@@ -508,13 +512,13 @@ export default function QueryPage() {
       const errorMsg: Message = {
         id: `e-${Date.now()}`,
         role: 'assistant',
-        content: `Sorry, I encountered an error: ${error.response?.data?.detail || error.message || 'Unknown error'}`,
+        content: t('query.errorMessage', { error: error.response?.data?.detail || error.message || t('query.unknownError') }),
       }
       setMessages(prev => [...prev, errorMsg])
     } finally {
       setIsSubmitting(false)
     }
-  }, [isSubmitting, selectedContract, queryClient])
+  }, [isSubmitting, selectedContract, queryClient, t])
 
   // Auto-submit clause question when clause detail is loaded
   useEffect(() => {
@@ -563,7 +567,7 @@ export default function QueryPage() {
           <div className="flex-1 flex items-center justify-center">
             <div className="flex items-center gap-3 text-gray-400">
               <ClockIcon className="h-5 w-5 animate-pulse" />
-              <span className="text-sm">Loading conversation...</span>
+              <span className="text-sm">{t('query.loadingConversation')}</span>
             </div>
           </div>
         )}
@@ -578,16 +582,16 @@ export default function QueryPage() {
               </div>
             </div>
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-              Contract Intelligence
+              {t('query.title')}
             </h1>
             <p className="text-gray-500 mt-2 max-w-md text-center text-sm leading-relaxed">
-              Ask anything about your contracts &mdash; renewals, risks, obligations, SLAs, or specific clauses.
+              {t('query.subtitle')}
             </p>
 
             {selectedContract && selectedContractName && (
               <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-50 border border-primary-100 text-xs font-medium text-primary-700">
                 <DocumentTextIcon className="h-3.5 w-3.5" />
-                Scoped to: {selectedContractName}
+                {t('query.scopedTo', { name: selectedContractName })}
                 <button onClick={() => setSelectedContract(undefined)} className="ml-1 hover:text-primary-900">
                   <XMarkIcon className="h-3.5 w-3.5" />
                 </button>
@@ -598,13 +602,13 @@ export default function QueryPage() {
               {SUGGESTED_QUESTIONS.map((q, idx) => (
                 <button
                   key={idx}
-                  onClick={() => submitQuestion(q.text)}
+                  onClick={() => submitQuestion(t(q.key))}
                   disabled={isSubmitting}
                   className="group flex items-center gap-3 text-left px-4 py-3 rounded-xl border border-gray-150 bg-white hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-150 shadow-sm hover:shadow disabled:opacity-50"
                 >
                   <span className="text-base">{q.icon}</span>
                   <span className="text-sm text-gray-700 group-hover:text-primary-700 transition-colors leading-snug">
-                    {q.text}
+                    {t(q.key)}
                   </span>
                 </button>
               ))}
@@ -710,7 +714,7 @@ export default function QueryPage() {
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask about your contracts..."
+                  placeholder={t('query.inputPlaceholder')}
                   className="w-full pl-4 pr-14 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400 focus:bg-white transition-all placeholder:text-gray-400"
                   disabled={isSubmitting}
                 />
@@ -730,10 +734,10 @@ export default function QueryPage() {
                     onChange={(e) => setSelectedContract(e.target.value || undefined)}
                     className="text-xs text-gray-400 bg-transparent border-none focus:ring-0 cursor-pointer hover:text-gray-600 transition-colors py-1 text-center appearance-none"
                   >
-                    <option value="">Searching all contracts</option>
+                    <option value="">{t('query.searchingAllContracts')}</option>
                     {contractsData.items.map((c) => (
                       <option key={c.id} value={c.id}>
-                        Scoped to: {c.filename}
+                        {t('query.scopedTo', { name: c.filename })}
                       </option>
                     ))}
                   </select>

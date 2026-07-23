@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import {
@@ -69,6 +70,7 @@ const emptyFormData: FieldFormData = {
 }
 
 export default function CustomFieldsPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const tenantId = searchParams.get('tenant') || ''
@@ -191,13 +193,13 @@ export default function CustomFieldsPage() {
   }
 
   const handleDelete = (field: CustomField) => {
-    if (window.confirm(`Are you sure you want to delete the field "${field.label}"?`)) {
+    if (window.confirm(t('superadmin.customFields.deleteConfirm', { label: field.label }))) {
       deleteMutation.mutate(field.name)
     }
   }
 
   const handleArchive = (field: CustomField) => {
-    if (window.confirm(`Are you sure you want to archive the field "${field.label}"?`)) {
+    if (window.confirm(t('superadmin.customFields.archiveConfirm', { label: field.label }))) {
       updateMutation.mutate({
         fieldName: field.name,
         data: { is_archived: true },
@@ -221,28 +223,28 @@ export default function CustomFieldsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Custom Fields</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.customFields')}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Configure custom data fields for each entity type
+            {t('superadmin.customFields.subtitle')}
           </p>
         </div>
         {tenantId && (
           <button onClick={openCreateModal} className="btn-primary">
             <PlusIcon className="h-4 w-4 mr-2" />
-            Add Field
+            {t('superadmin.customFields.addField')}
           </button>
         )}
       </div>
 
       {/* Tenant Selector */}
       <div className="flex items-center gap-4">
-        <label className="text-sm font-medium text-gray-700">Tenant:</label>
+        <label className="text-sm font-medium text-gray-700">{t('superadmin.tenant')}:</label>
         <select
           value={tenantId}
           onChange={(e) => handleTenantChange(e.target.value)}
           className="input max-w-xs"
         >
-          <option value="">Select a tenant</option>
+          <option value="">{t('superadmin.users.selectTenant')}</option>
           {tenants?.map((tenant) => (
             <option key={tenant.id} value={tenant.id}>
               {tenant.name}
@@ -258,7 +260,7 @@ export default function CustomFieldsPage() {
 
       {!tenantId ? (
         <div className="text-center py-12 text-gray-500">
-          Please select a tenant to manage custom fields.
+          {t('superadmin.customFields.selectTenantPrompt')}
         </div>
       ) : (
         <>
@@ -276,7 +278,7 @@ export default function CustomFieldsPage() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   )}
                 >
-                  {entityType.label}
+                  {t(`superadmin.customFields.entityTypes.${entityType.id}`, { defaultValue: entityType.label })}
                 </button>
               ))}
             </nav>
@@ -285,7 +287,7 @@ export default function CustomFieldsPage() {
           {/* Error state */}
           {error && (
             <div className="rounded-lg bg-red-50 p-4 text-red-700">
-              Error loading custom fields. Please try again.
+              {t('superadmin.customFields.loadError')}
             </div>
           )}
 
@@ -301,19 +303,19 @@ export default function CustomFieldsPage() {
                   <tr>
                     <th className="w-8 px-2 py-3"></th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Field
+                      {t('superadmin.customFields.field')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
+                      {t('superadmin.customFields.type')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Required
+                      {t('superadmin.customFields.required')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Visible
+                      {t('superadmin.customFields.visible')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
+                      {t('common.actions')}
                     </th>
                   </tr>
                 </thead>
@@ -321,7 +323,7 @@ export default function CustomFieldsPage() {
                   {fields?.filter((f) => !f.is_archived).map((field) => (
                     <tr key={field.name} className="hover:bg-gray-50">
                       <td className="px-2 py-3 text-center">
-                        <Bars3Icon className="h-4 w-4 text-gray-300 cursor-grab" title="Drag to reorder" />
+                        <Bars3Icon className="h-4 w-4 text-gray-300 cursor-grab" title={t('superadmin.customFields.dragToReorder')} />
                       </td>
                       <td className="px-4 py-3">
                         <div>
@@ -334,7 +336,7 @@ export default function CustomFieldsPage() {
                           'inline-flex px-2 py-0.5 rounded text-xs font-medium capitalize',
                           FIELD_TYPE_COLORS[field.field_type]
                         )}>
-                          {field.field_type.replace('_', ' ')}
+                          {t(`superadmin.customFields.fieldTypes.${field.field_type}`, { defaultValue: field.field_type.replace('_', ' ') })}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -344,7 +346,7 @@ export default function CustomFieldsPage() {
                             ? 'bg-amber-100 text-amber-700'
                             : 'bg-gray-100 text-gray-500'
                         )}>
-                          {field.required ? 'Yes' : 'No'}
+                          {field.required ? t('common.yes') : t('common.no')}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -356,7 +358,7 @@ export default function CustomFieldsPage() {
                               ? 'text-green-600 hover:bg-green-50'
                               : 'text-gray-400 hover:bg-gray-100'
                           )}
-                          title={field.is_visible ? 'Visible' : 'Hidden'}
+                          title={field.is_visible ? t('superadmin.customFields.visible') : t('superadmin.customFields.hidden')}
                         >
                           {field.is_visible ? (
                             <EyeIcon className="h-5 w-5" />
@@ -370,21 +372,21 @@ export default function CustomFieldsPage() {
                           <button
                             onClick={() => openEditModal(field)}
                             className="p-1 text-gray-400 hover:text-gray-600"
-                            title="Edit field"
+                            title={t('superadmin.customFields.editField')}
                           >
                             <PencilSquareIcon className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleArchive(field)}
                             className="p-1 text-gray-400 hover:text-amber-600"
-                            title="Archive field"
+                            title={t('superadmin.customFields.archiveField')}
                           >
                             <ArchiveBoxIcon className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDelete(field)}
                             className="p-1 text-gray-400 hover:text-red-600"
-                            title="Delete field"
+                            title={t('superadmin.customFields.deleteField')}
                             disabled={deleteMutation.isPending}
                           >
                             <TrashIcon className="h-5 w-5" />
@@ -397,13 +399,13 @@ export default function CustomFieldsPage() {
               </table>
               {fields?.filter((f) => !f.is_archived).length === 0 && (
                 <div className="text-center py-12 text-gray-500">
-                  No custom fields defined for {selectedEntityType}s.
+                  {t('superadmin.customFields.noFields', { entityType: t(`superadmin.customFields.entityTypes.${selectedEntityType}`, { defaultValue: selectedEntityType }) })}
                   <br />
                   <button
                     onClick={openCreateModal}
                     className="mt-2 text-primary-600 hover:text-primary-700 font-medium"
                   >
-                    Add your first field
+                    {t('superadmin.customFields.addFirstField')}
                   </button>
                 </div>
               )}
@@ -413,9 +415,9 @@ export default function CustomFieldsPage() {
           {/* Preview Section */}
           {fields && fields.filter((f) => !f.is_archived && f.is_visible).length > 0 && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-900 mb-4">Form Preview</h3>
+              <h3 className="font-semibold text-gray-900 mb-4">{t('superadmin.customFields.formPreview')}</h3>
               <p className="text-sm text-gray-500 mb-4">
-                This is how the custom fields will appear in forms.
+                {t('superadmin.customFields.previewDesc')}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
                 {fields
@@ -438,7 +440,7 @@ export default function CustomFieldsPage() {
                       )}
                       {field.field_type === 'dropdown' && (
                         <select className="input" disabled>
-                          <option>Select {field.label}...</option>
+                          <option>{t('superadmin.customFields.selectOptionPlaceholder', { label: field.label })}</option>
                           {field.options?.map((opt) => (
                             <option key={opt}>{opt}</option>
                           ))}
@@ -454,7 +456,7 @@ export default function CustomFieldsPage() {
                       {field.field_type === 'checkbox' && (
                         <div className="flex items-center gap-2">
                           <input type="checkbox" className="rounded border-gray-300" disabled />
-                          <span className="text-sm text-gray-500">{field.help_text || 'Enable'}</span>
+                          <span className="text-sm text-gray-500">{field.help_text || t('superadmin.customFields.enable')}</span>
                         </div>
                       )}
                       {field.field_type === 'url' && (
@@ -489,14 +491,14 @@ export default function CustomFieldsPage() {
             <div className="fixed inset-0 bg-black/50" onClick={closeModal} />
             <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingField ? 'Edit Field' : 'Create Field'}
+                {editingField ? t('superadmin.customFields.editFieldTitle') : t('superadmin.customFields.createFieldTitle')}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 {!editingField && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Field Name *
+                        {t('superadmin.customFields.fieldName')} *
                       </label>
                       <input
                         type="text"
@@ -506,15 +508,15 @@ export default function CustomFieldsPage() {
                         required
                         placeholder="department"
                         pattern="[a-z0-9_]+"
-                        title="Only lowercase letters, numbers, and underscores"
+                        title={t('superadmin.customFields.fieldNamePattern')}
                       />
                       <p className="mt-1 text-xs text-gray-500">
-                        Lowercase, no spaces (e.g., custom_field)
+                        {t('superadmin.customFields.fieldNameHint')}
                       </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Field Type *
+                        {t('superadmin.customFields.fieldType')} *
                       </label>
                       <select
                         value={formData.field_type}
@@ -523,7 +525,7 @@ export default function CustomFieldsPage() {
                       >
                         {FIELD_TYPES.map((ft) => (
                           <option key={ft.id} value={ft.id}>
-                            {ft.label}
+                            {t(`superadmin.customFields.fieldTypes.${ft.id}`, { defaultValue: ft.label })}
                           </option>
                         ))}
                       </select>
@@ -533,7 +535,7 @@ export default function CustomFieldsPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Display Label *
+                    {t('superadmin.customFields.displayLabel')} *
                   </label>
                   <input
                     type="text"
@@ -541,7 +543,7 @@ export default function CustomFieldsPage() {
                     onChange={(e) => setFormData({ ...formData, label: e.target.value })}
                     className="input"
                     required
-                    placeholder="Department"
+                    placeholder={t('superadmin.customFields.displayLabelPlaceholder')}
                   />
                 </div>
 
@@ -554,75 +556,75 @@ export default function CustomFieldsPage() {
                     className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
                   <label htmlFor="required" className="text-sm text-gray-700">
-                    Required field
+                    {t('superadmin.customFields.requiredField')}
                   </label>
                 </div>
 
                 {showOptionsField && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Options *
+                      {t('superadmin.customFields.options')} *
                     </label>
                     <textarea
                       value={formData.options}
                       onChange={(e) => setFormData({ ...formData, options: e.target.value })}
                       className="input"
                       rows={4}
-                      placeholder="Enter one option per line"
+                      placeholder={t('superadmin.customFields.optionsPlaceholder')}
                       required={showOptionsField}
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      One option per line
+                      {t('superadmin.customFields.optionsHint')}
                     </p>
                   </div>
                 )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Help Text
+                    {t('superadmin.customFields.helpText')}
                   </label>
                   <input
                     type="text"
                     value={formData.help_text}
                     onChange={(e) => setFormData({ ...formData, help_text: e.target.value })}
                     className="input"
-                    placeholder="Optional helper text shown below the field"
+                    placeholder={t('superadmin.customFields.helpTextPlaceholder')}
                   />
                 </div>
 
                 <div className="border-t pt-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">AI Extraction Settings</h4>
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">{t('superadmin.customFields.aiExtractionSettings')}</h4>
 
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Extraction Hints
+                        {t('superadmin.customFields.extractionHints')}
                       </label>
                       <textarea
                         value={formData.extraction_hints}
                         onChange={(e) => setFormData({ ...formData, extraction_hints: e.target.value })}
                         className="input"
                         rows={2}
-                        placeholder="Instructions for AI to find this value in contracts"
+                        placeholder={t('superadmin.customFields.extractionHintsPlaceholder')}
                       />
                       <p className="mt-1 text-xs text-gray-500">
-                        Guide the AI on where to look for this value
+                        {t('superadmin.customFields.extractionHintsHelp')}
                       </p>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Extraction Examples
+                        {t('superadmin.customFields.extractionExamples')}
                       </label>
                       <textarea
                         value={formData.extraction_examples}
                         onChange={(e) => setFormData({ ...formData, extraction_examples: e.target.value })}
                         className="input"
                         rows={3}
-                        placeholder="Example values (one per line)"
+                        placeholder={t('superadmin.customFields.extractionExamplesPlaceholder')}
                       />
                       <p className="mt-1 text-xs text-gray-500">
-                        Sample values to help AI understand the expected format
+                        {t('superadmin.customFields.extractionExamplesHelp')}
                       </p>
                     </div>
                   </div>
@@ -630,7 +632,7 @@ export default function CustomFieldsPage() {
 
                 <div className="flex justify-end gap-3 pt-4 border-t">
                   <button type="button" onClick={closeModal} className="btn-secondary">
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
@@ -640,9 +642,9 @@ export default function CustomFieldsPage() {
                     {createMutation.isPending || updateMutation.isPending ? (
                       <LoadingSpinner size="sm" className="border-white border-t-transparent" />
                     ) : editingField ? (
-                      'Update'
+                      t('superadmin.update')
                     ) : (
-                      'Create'
+                      t('superadmin.create')
                     )}
                   </button>
                 </div>

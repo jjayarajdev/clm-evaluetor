@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   PlayIcon,
@@ -35,6 +36,7 @@ const STATUS_ICONS = {
 }
 
 export default function SchedulerPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [expandedJob, setExpandedJob] = useState<string | null>(null)
   const [editingJob, setEditingJob] = useState<SchedulerJob | null>(null)
@@ -134,9 +136,9 @@ export default function SchedulerPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Scheduler</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.scheduler')}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage background jobs and scheduled tasks
+            {t('scheduler.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -151,7 +153,7 @@ export default function SchedulerPage() {
               ) : (
                 <PauseIcon className="h-4 w-4 mr-2" />
               )}
-              Stop Scheduler
+              {t('scheduler.stopScheduler')}
             </button>
           ) : (
             <button
@@ -164,7 +166,7 @@ export default function SchedulerPage() {
               ) : (
                 <PlayIcon className="h-4 w-4 mr-2" />
               )}
-              Start Scheduler
+              {t('scheduler.startScheduler')}
             </button>
           )}
         </div>
@@ -193,9 +195,9 @@ export default function SchedulerPage() {
                 )}
               </div>
               <div>
-                <p className="text-sm text-gray-500">Status</p>
+                <p className="text-sm text-gray-500">{t('common.status')}</p>
                 <p className={cn('font-semibold', status?.is_running ? 'text-green-600' : 'text-gray-500')}>
-                  {status?.is_running ? 'Running' : 'Stopped'}
+                  {status?.is_running ? t('scheduler.running') : t('scheduler.stopped')}
                 </p>
               </div>
             </div>
@@ -208,7 +210,7 @@ export default function SchedulerPage() {
                 <ClockIcon className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Jobs</p>
+                <p className="text-sm text-gray-500">{t('scheduler.totalJobs')}</p>
                 <p className="font-semibold text-gray-900">{status?.total_jobs || 0}</p>
               </div>
             </div>
@@ -221,7 +223,7 @@ export default function SchedulerPage() {
                 <CheckCircleIcon className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Enabled</p>
+                <p className="text-sm text-gray-500">{t('scheduler.enabled')}</p>
                 <p className="font-semibold text-gray-900">{status?.enabled_jobs || 0}</p>
               </div>
             </div>
@@ -234,7 +236,7 @@ export default function SchedulerPage() {
                 <ArrowPathIcon className="h-5 w-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Next Run</p>
+                <p className="text-sm text-gray-500">{t('scheduler.nextRun')}</p>
                 <p className="font-semibold text-gray-900 text-sm">
                   {status?.next_job_name || '-'}
                 </p>
@@ -252,14 +254,14 @@ export default function SchedulerPage() {
       {/* System Health Section */}
       <div className="card overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-          <h3 className="text-sm font-medium text-gray-900">System Health</h3>
+          <h3 className="text-sm font-medium text-gray-900">{t('scheduler.systemHealth')}</h3>
           {systemHealth && (
             <span className={cn(
               'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium',
               systemHealth.status === 'healthy' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
             )}>
               <SignalIcon className="h-3 w-3" />
-              {systemHealth.status === 'healthy' ? 'All Systems Operational' : 'Degraded'}
+              {systemHealth.status === 'healthy' ? t('scheduler.allSystemsOperational') : t('scheduler.degraded')}
             </span>
           )}
         </div>
@@ -272,7 +274,7 @@ export default function SchedulerPage() {
           <div className="p-4 space-y-6">
             {/* Services Status */}
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Services</h4>
+              <h4 className="text-sm font-medium text-gray-700 mb-3">{t('scheduler.services')}</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {(Object.entries(systemHealth.services) as [string, SystemHealthService][]).map(([name, service]) => (
                   <div key={name} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
@@ -292,13 +294,13 @@ export default function SchedulerPage() {
 
             {/* Infrastructure Metrics */}
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Infrastructure</h4>
+              <h4 className="text-sm font-medium text-gray-700 mb-3">{t('scheduler.infrastructure')}</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* CPU */}
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3 mb-3">
                     <CpuChipIcon className="h-5 w-5 text-blue-600" />
-                    <span className="text-sm font-medium text-gray-900">CPU Usage</span>
+                    <span className="text-sm font-medium text-gray-900">{t('scheduler.cpuUsage')}</span>
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="text-2xl font-bold text-gray-900">
@@ -321,7 +323,7 @@ export default function SchedulerPage() {
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3 mb-3">
                     <ServerIcon className="h-5 w-5 text-purple-600" />
-                    <span className="text-sm font-medium text-gray-900">Memory</span>
+                    <span className="text-sm font-medium text-gray-900">{t('scheduler.memory')}</span>
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="text-2xl font-bold text-gray-900">
@@ -347,7 +349,7 @@ export default function SchedulerPage() {
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3 mb-3">
                     <CircleStackIcon className="h-5 w-5 text-green-600" />
-                    <span className="text-sm font-medium text-gray-900">Disk</span>
+                    <span className="text-sm font-medium text-gray-900">{t('scheduler.disk')}</span>
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="text-2xl font-bold text-gray-900">
@@ -374,48 +376,48 @@ export default function SchedulerPage() {
             {/* Additional Info */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
               <div>
-                <p className="text-xs text-gray-500">Version</p>
+                <p className="text-xs text-gray-500">{t('scheduler.version')}</p>
                 <p className="text-sm font-medium text-gray-900">{systemHealth.version}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Environment</p>
+                <p className="text-xs text-gray-500">{t('scheduler.environment')}</p>
                 <p className="text-sm font-medium text-gray-900 capitalize">{systemHealth.environment}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">System Uptime</p>
-                <p className="text-sm font-medium text-gray-900">{systemHealth.system.uptime_hours.toFixed(1)} hours</p>
+                <p className="text-xs text-gray-500">{t('scheduler.systemUptime')}</p>
+                <p className="text-sm font-medium text-gray-900">{t('scheduler.hours', { value: systemHealth.system.uptime_hours.toFixed(1) })}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Process Memory</p>
+                <p className="text-xs text-gray-500">{t('scheduler.processMemory')}</p>
                 <p className="text-sm font-medium text-gray-900">{systemHealth.process.memory_mb.toFixed(1)} MB</p>
               </div>
               {systemHealth.services.database.contracts !== undefined && (
                 <div>
-                  <p className="text-xs text-gray-500">Contracts in DB</p>
+                  <p className="text-xs text-gray-500">{t('scheduler.contractsInDb')}</p>
                   <p className="text-sm font-medium text-gray-900">{systemHealth.services.database.contracts}</p>
                 </div>
               )}
               {systemHealth.services.database.database_size_mb !== undefined && (
                 <div>
-                  <p className="text-xs text-gray-500">Database Size</p>
+                  <p className="text-xs text-gray-500">{t('scheduler.databaseSize')}</p>
                   <p className="text-sm font-medium text-gray-900">{systemHealth.services.database.database_size_mb} MB</p>
                 </div>
               )}
               {systemHealth.services.chromadb.document_count !== undefined && (
                 <div>
-                  <p className="text-xs text-gray-500">Vector Documents</p>
+                  <p className="text-xs text-gray-500">{t('scheduler.vectorDocuments')}</p>
                   <p className="text-sm font-medium text-gray-900">{systemHealth.services.chromadb.document_count}</p>
                 </div>
               )}
               <div>
-                <p className="text-xs text-gray-500">AI Agents</p>
-                <p className="text-sm font-medium text-gray-900">{systemHealth.agents.registered} registered</p>
+                <p className="text-xs text-gray-500">{t('scheduler.aiAgents')}</p>
+                <p className="text-sm font-medium text-gray-900">{t('scheduler.registered', { count: systemHealth.agents.registered })}</p>
               </div>
             </div>
           </div>
         ) : (
           <div className="p-4 text-center text-gray-500">
-            Unable to load system health data
+            {t('scheduler.healthLoadFailed')}
           </div>
         )}
       </div>
@@ -423,7 +425,7 @@ export default function SchedulerPage() {
       {/* Jobs List */}
       <div className="card overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-sm font-medium text-gray-900">Scheduled Jobs</h3>
+          <h3 className="text-sm font-medium text-gray-900">{t('scheduler.scheduledJobs')}</h3>
         </div>
         <div className="divide-y divide-gray-200">
           {jobs?.items.map((job) => (
@@ -461,7 +463,7 @@ export default function SchedulerPage() {
                             )}
                           >
                             <Icon className={cn('h-3 w-3', job.last_run_status === 'running' && 'animate-spin')} />
-                            {job.last_run_status}
+                            {t(`scheduler.jobStatus.${job.last_run_status}`, { defaultValue: job.last_run_status })}
                           </span>
                         )
                       })()}
@@ -473,7 +475,7 @@ export default function SchedulerPage() {
 
                   {/* Interval */}
                   <div className="text-sm text-gray-500">
-                    Every {formatInterval(job.interval_seconds)}
+                    {t('scheduler.every', { interval: formatInterval(job.interval_seconds) })}
                   </div>
 
                   {/* Stats */}
@@ -513,7 +515,7 @@ export default function SchedulerPage() {
                     ) : (
                       <>
                         <PlayIcon className="h-4 w-4 mr-1" />
-                        Run Now
+                        {t('scheduler.runNow')}
                       </>
                     )}
                   </button>
@@ -526,26 +528,26 @@ export default function SchedulerPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                     {/* Job Details */}
                     <div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-3">Job Details</h4>
+                      <h4 className="text-sm font-medium text-gray-900 mb-3">{t('scheduler.jobDetails')}</h4>
                       <dl className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <dt className="text-gray-500">Last Run:</dt>
+                          <dt className="text-gray-500">{t('scheduler.lastRun')}:</dt>
                           <dd className="text-gray-900">
-                            {job.last_run_at ? formatDateTime(job.last_run_at) : 'Never'}
+                            {job.last_run_at ? formatDateTime(job.last_run_at) : t('scheduler.never')}
                           </dd>
                         </div>
                         <div className="flex justify-between">
-                          <dt className="text-gray-500">Next Run:</dt>
+                          <dt className="text-gray-500">{t('scheduler.nextRun')}:</dt>
                           <dd className="text-gray-900">
                             {job.next_run_at ? formatDateTime(job.next_run_at) : '-'}
                           </dd>
                         </div>
                         <div className="flex justify-between">
-                          <dt className="text-gray-500">Total Runs:</dt>
+                          <dt className="text-gray-500">{t('scheduler.totalRuns')}:</dt>
                           <dd className="text-gray-900">{job.total_runs}</dd>
                         </div>
                         <div className="flex justify-between">
-                          <dt className="text-gray-500">Success Rate:</dt>
+                          <dt className="text-gray-500">{t('scheduler.successRate')}:</dt>
                           <dd className="text-gray-900">
                             {job.total_runs > 0
                               ? `${((job.successful_runs / job.total_runs) * 100).toFixed(1)}%`
@@ -557,7 +559,7 @@ export default function SchedulerPage() {
                       {/* Update Interval */}
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Update Interval
+                          {t('scheduler.updateInterval')}
                         </label>
                         <div className="flex gap-2">
                           <input
@@ -568,7 +570,7 @@ export default function SchedulerPage() {
                               setEditingJob(job)
                               setIntervalInput(e.target.value)
                             }}
-                            placeholder={`Current: ${job.interval_seconds}s`}
+                            placeholder={t('scheduler.currentInterval', { seconds: job.interval_seconds })}
                             className="input flex-1"
                           />
                           <button
@@ -576,16 +578,16 @@ export default function SchedulerPage() {
                             disabled={updateMutation.isPending || !intervalInput}
                             className="btn-primary text-sm"
                           >
-                            Update
+                            {t('scheduler.update')}
                           </button>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">Minimum 60 seconds</p>
+                        <p className="text-xs text-gray-500 mt-1">{t('scheduler.minimumSeconds')}</p>
                       </div>
 
                       {/* Last Error */}
                       {job.last_run_error && (
                         <div className="mt-4 p-3 bg-red-50 rounded-lg">
-                          <p className="text-sm font-medium text-red-700">Last Error</p>
+                          <p className="text-sm font-medium text-red-700">{t('scheduler.lastError')}</p>
                           <p className="text-xs text-red-600 mt-1 font-mono">{job.last_run_error}</p>
                         </div>
                       )}
@@ -593,10 +595,10 @@ export default function SchedulerPage() {
 
                     {/* Run History */}
                     <div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-3">Recent Runs</h4>
+                      <h4 className="text-sm font-medium text-gray-900 mb-3">{t('scheduler.recentRuns')}</h4>
                       <div className="space-y-2 max-h-64 overflow-y-auto">
                         {jobHistory?.items.length === 0 ? (
-                          <p className="text-sm text-gray-500">No execution history</p>
+                          <p className="text-sm text-gray-500">{t('scheduler.noHistory')}</p>
                         ) : (
                           jobHistory?.items.slice(0, 10).map((history: SchedulerJobHistory) => {
                             const Icon = STATUS_ICONS[history.status]
@@ -622,7 +624,7 @@ export default function SchedulerPage() {
                                 <div className="flex items-center gap-2">
                                   {history.items_processed !== null && (
                                     <span className="text-xs text-gray-500">
-                                      {history.items_processed} items
+                                      {t('scheduler.itemsProcessed', { count: history.items_processed })}
                                     </span>
                                   )}
                                   <span className="text-xs text-gray-500">
@@ -643,7 +645,7 @@ export default function SchedulerPage() {
         </div>
         {jobs?.items.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            No scheduled jobs found.
+            {t('scheduler.noJobs')}
           </div>
         )}
       </div>

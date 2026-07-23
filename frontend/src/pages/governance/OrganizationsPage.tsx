@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   BuildingLibraryIcon,
@@ -27,6 +28,7 @@ const ORG_TYPE_COLORS: Record<OrgType, string> = {
 }
 
 export default function OrganizationsPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('')
@@ -74,9 +76,9 @@ export default function OrganizationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Organizations</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('nav.organizations')}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage counterparties, vendors, and partner organizations
+            {t('governance.organizationsSubtitle')}
           </p>
         </div>
         <button
@@ -84,7 +86,7 @@ export default function OrganizationsPage() {
           className="btn-primary flex items-center gap-2"
         >
           <PlusIcon className="h-4 w-4" />
-          Add Organization
+          {t('governance.addOrganization')}
         </button>
       </div>
 
@@ -94,7 +96,7 @@ export default function OrganizationsPage() {
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search organizations..."
+            placeholder={t('governance.searchOrganizations')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 pr-3 py-2 w-full border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -105,9 +107,9 @@ export default function OrganizationsPage() {
           onChange={(e) => setTypeFilter(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
         >
-          <option value="">All Types</option>
+          <option value="">{t('governance.allTypes')}</option>
           {Object.entries(ORG_TYPE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
+            <option key={value} value={value}>{t(`governance.orgTypes.${value}`, { defaultValue: label })}</option>
           ))}
         </select>
       </div>
@@ -118,12 +120,12 @@ export default function OrganizationsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Industry</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Region</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Primary Contact</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.name')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.code')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.type')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.industry')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.region')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.primaryContact')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -141,7 +143,7 @@ export default function OrganizationsPage() {
                       'px-2 py-0.5 rounded text-xs font-medium',
                       ORG_TYPE_COLORS[org.org_type] || 'bg-gray-100 text-gray-800'
                     )}>
-                      {ORG_TYPE_LABELS[org.org_type] || org.org_type}
+                      {t(`governance.orgTypes.${org.org_type}`, { defaultValue: ORG_TYPE_LABELS[org.org_type] || org.org_type })}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">{org.industry || '—'}</td>
@@ -157,7 +159,7 @@ export default function OrganizationsPage() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
-                    No organizations found
+                    {t('governance.noOrganizationsFound')}
                   </td>
                 </tr>
               )}
@@ -171,7 +173,7 @@ export default function OrganizationsPage() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">New Organization</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('governance.newOrganization')}</h2>
               <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
@@ -179,7 +181,7 @@ export default function OrganizationsPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.name')} *</label>
                   <input
                     type="text"
                     value={formData.name || ''}
@@ -188,31 +190,31 @@ export default function OrganizationsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.code')} *</label>
                   <input
                     type="text"
                     value={formData.code || ''}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                    placeholder="e.g., ACME"
+                    placeholder={t('governance.codePlaceholder')}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.type')} *</label>
                   <select
                     value={formData.org_type || 'vendor'}
                     onChange={(e) => setFormData({ ...formData, org_type: e.target.value as OrgType })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
                     {Object.entries(ORG_TYPE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
+                      <option key={value} value={value}>{t(`governance.orgTypes.${value}`, { defaultValue: label })}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.industry')}</label>
                   <input
                     type="text"
                     value={formData.industry || ''}
@@ -223,7 +225,7 @@ export default function OrganizationsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Region</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.region')}</label>
                   <input
                     type="text"
                     value={formData.region || ''}
@@ -232,7 +234,7 @@ export default function OrganizationsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.country')}</label>
                   <input
                     type="text"
                     value={formData.country || ''}
@@ -242,7 +244,7 @@ export default function OrganizationsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Primary Contact Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.primaryContactName')}</label>
                 <input
                   type="text"
                   value={formData.primary_contact_name || ''}
@@ -251,7 +253,7 @@ export default function OrganizationsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Primary Contact Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.primaryContactEmail')}</label>
                 <input
                   type="email"
                   value={formData.primary_contact_email || ''}
@@ -265,14 +267,14 @@ export default function OrganizationsPage() {
                 onClick={() => setShowCreate(false)}
                 className="btn-secondary"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleCreate}
                 disabled={!formData.name || !formData.code || createMutation.isPending}
                 className="btn-primary"
               >
-                {createMutation.isPending ? 'Creating...' : 'Create'}
+                {createMutation.isPending ? t('governance.creating') : t('governance.create')}
               </button>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/TextLayer.css'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
@@ -180,6 +181,7 @@ export default function ContractPdfViewer({
   onPageChange,
   onPageFound,
 }: ContractPdfViewerProps) {
+  const { t } = useTranslation()
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -401,8 +403,8 @@ export default function ContractPdfViewer({
     return (
       <div className="flex flex-col items-center justify-center h-full bg-gray-50 text-gray-400 gap-2">
         <DocumentTextIcon className="h-10 w-10" />
-        <p className="text-sm">Document preview not available</p>
-        <p className="text-xs">The original file may not be accessible from this view</p>
+        <p className="text-sm">{t('pdfViewer.previewUnavailable')}</p>
+        <p className="text-xs">{t('pdfViewer.previewUnavailableHint')}</p>
       </div>
     )
   }
@@ -441,7 +443,7 @@ export default function ContractPdfViewer({
             <MagnifyingGlassPlusIcon className="h-4 w-4" />
           </button>
           <button onClick={() => setScale(1.0)} className="p-1.5 rounded hover:bg-gray-100 text-xs text-gray-500 ml-1">
-            Reset
+            {t('pdfViewer.reset')}
           </button>
         </div>
       </div>
@@ -453,7 +455,7 @@ export default function ContractPdfViewer({
             file={pdfUrl}
             onLoadSuccess={onDocumentLoadSuccess}
             loading={<LoadingSpinner size="lg" />}
-            error={<p className="text-sm text-red-500">Failed to render PDF</p>}
+            error={<p className="text-sm text-red-500">{t('pdfViewer.renderFailed')}</p>}
           >
             <Page
               pageNumber={currentPage}

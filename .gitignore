@@ -22,8 +22,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -136,6 +136,7 @@ playwright-report/
 # claude related
 # =============================================================================
 claude-sdlc/
+.claude/settings.local.json
 research/
 tasks/
 deploy/environments.env

@@ -88,6 +88,7 @@ async def ask_question(
     user_role: str | None = None,
     tenant_id: str | None = None,
     n_results: int = 10,
+    language: str = "en",
 ) -> QAResponse:
     """Ask a question about contracts using intent routing + RAG.
 
@@ -126,6 +127,7 @@ async def ask_question(
                     db=db,
                     tenant_id=tenant_id,
                     contract_id=contract_id,
+                    language=language,
                 )
 
                 if result and result.get("answer"):
@@ -163,6 +165,12 @@ async def ask_question(
     # Inject context into the query (includes KG context if available)
     augmented_query = inject_context(question, search_tool, kg_context=kg_context)
 
+    if language == "fr":
+        augmented_query += (
+            "\n\nIMPORTANT: Réponds entièrement en français — la réponse, "
+            "les commentaires sur les sources et les questions de suivi."
+        )
+
     try:
         from app.services.orchestrator import AgentRequest
 
@@ -184,6 +192,13 @@ async def ask_question(
 
     except Exception as e:
         logger.exception(f"Error in Q&A: {e}")
+        if language == "fr":
+            return QAResponse(
+                answer="Je suis désolé, une erreur s'est produite lors du traitement de votre question. Veuillez réessayer.",
+                confidence=0.0,
+                clarification_needed=True,
+                clarification_prompt="Pourriez-vous reformuler votre question ?",
+            )
         return QAResponse(
             answer="I apologize, but I encountered an error while processing your question. Please try again.",
             confidence=0.0,
@@ -330,6 +345,7 @@ async def suggest_questions(
     user_id: str,
     user_role: str | None = None,
     tenant_id: str | None = None,
+    language: str = "en",
 ) -> list[str]:
     """Suggest relevant questions for a contract.
 
@@ -343,16 +359,28 @@ async def suggest_questions(
         List of suggested questions.
     """
     # Default suggested questions for any contract
-    suggestions = [
-        "What are the key terms of this contract?",
-        "When does this contract expire?",
-        "What are the termination conditions?",
-        "Are there any auto-renewal provisions?",
-        "What are the payment terms?",
-        "What are the indemnification obligations?",
-        "What is the liability cap?",
-        "What is the governing law?",
-    ]
+    if language == "fr":
+        suggestions = [
+            "Quelles sont les conditions clés de ce contrat ?",
+            "Quand ce contrat expire-t-il ?",
+            "Quelles sont les conditions de résiliation ?",
+            "Y a-t-il des clauses de renouvellement automatique ?",
+            "Quelles sont les conditions de paiement ?",
+            "Quelles sont les obligations d'indemnisation ?",
+            "Quel est le plafond de responsabilité ?",
+            "Quel est le droit applicable ?",
+        ]
+    else:
+        suggestions = [
+            "What are the key terms of this contract?",
+            "When does this contract expire?",
+            "What are the termination conditions?",
+            "Are there any auto-renewal provisions?",
+            "What are the payment terms?",
+            "What are the indemnification obligations?",
+            "What is the liability cap?",
+            "What is the governing law?",
+        ]
 
     # TODO: Customize based on contract type
     return suggestions

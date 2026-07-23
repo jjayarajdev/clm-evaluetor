@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import {
   BuildingOfficeIcon,
@@ -58,11 +59,12 @@ function ScoreGauge({ score, size = 'md' }: { score: number; size?: 'sm' | 'md' 
 }
 
 function PartyTypeBadge({ type }: { type: CounterpartyType }) {
+  const { t } = useTranslation()
   if (type === 'vendor') {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
         <TruckIcon className="h-3 w-3" />
-        Vendor
+        {t('vendors.vendor')}
       </span>
     )
   }
@@ -70,18 +72,19 @@ function PartyTypeBadge({ type }: { type: CounterpartyType }) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
         <UserGroupIcon className="h-3 w-3" />
-        Client
+        {t('vendors.client')}
       </span>
     )
   }
   return (
     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-      Unknown
+      {t('vendors.unknown')}
     </span>
   )
 }
 
 function VendorRow({ vendor, onClick, showType }: { vendor: VendorListItem; onClick: () => void; showType: boolean }) {
+  const { t } = useTranslation()
   return (
     <tr
       className="hover:bg-gray-50 cursor-pointer"
@@ -95,7 +98,7 @@ function VendorRow({ vendor, onClick, showType }: { vendor: VendorListItem; onCl
               <p className="font-medium text-gray-900">{vendor.vendor_name}</p>
               {showType && <PartyTypeBadge type={vendor.party_type} />}
             </div>
-            <p className="text-xs text-gray-500">{vendor.contract_count} contracts</p>
+            <p className="text-xs text-gray-500">{t('vendors.contractsCount', { count: vendor.contract_count })}</p>
           </div>
         </div>
       </td>
@@ -117,7 +120,7 @@ function VendorRow({ vendor, onClick, showType }: { vendor: VendorListItem; onCl
           vendor.risk_level === 'high' ? 'bg-orange-100 text-orange-800' :
           'bg-red-100 text-red-800'
         )}>
-          {vendor.risk_level}
+          {t(`risk.${vendor.risk_level}`, { defaultValue: vendor.risk_level })}
         </span>
       </td>
       <td className="px-4 py-4 text-sm text-gray-600">
@@ -159,6 +162,7 @@ function VendorDetailModal({
   vendorName: string
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const { data: vendor, isLoading } = useQuery({
     queryKey: ['vendor-detail', vendorName],
     queryFn: () => api.getVendorPerformance(vendorName),
@@ -190,7 +194,7 @@ function VendorDetailModal({
                   'text-sm font-medium',
                   vendor.is_at_risk ? 'text-red-600' : 'text-green-600'
                 )}>
-                  {vendor.is_at_risk ? 'At Risk' : 'Good Standing'}
+                  {vendor.is_at_risk ? t('vendors.atRisk') : t('vendors.goodStanding')}
                 </p>
               </div>
             </div>
@@ -206,26 +210,26 @@ function VendorDetailModal({
         <div className="p-6 space-y-6">
           {/* Score Breakdown */}
           <div>
-            <h3 className="text-sm font-medium text-gray-500 uppercase mb-3">Score Breakdown</h3>
+            <h3 className="text-sm font-medium text-gray-500 uppercase mb-3">{t('vendors.scoreBreakdown')}</h3>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Obligation Compliance (40%)</span>
+                <span className="text-sm text-gray-600">{t('vendors.obligationComplianceWeight')}</span>
                 <span className="font-medium">{vendor.score_breakdown.obligation_compliance_score.toFixed(1)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">SLA Compliance (30%)</span>
+                <span className="text-sm text-gray-600">{t('vendors.slaComplianceWeight')}</span>
                 <span className="font-medium">{vendor.score_breakdown.sla_compliance_score.toFixed(1)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Responsiveness (20%)</span>
+                <span className="text-sm text-gray-600">{t('vendors.responsivenessWeight')}</span>
                 <span className="font-medium">{vendor.score_breakdown.responsiveness_score.toFixed(1)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Issue Rate (10%)</span>
+                <span className="text-sm text-gray-600">{t('vendors.issueRateWeight')}</span>
                 <span className="font-medium">{vendor.score_breakdown.issue_rate_score.toFixed(1)}</span>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                <span className="text-sm font-medium text-gray-900">Weighted Total</span>
+                <span className="text-sm font-medium text-gray-900">{t('vendors.weightedTotal')}</span>
                 <span className="font-bold text-lg">{vendor.score_breakdown.weighted_total.toFixed(1)}</span>
               </div>
             </div>
@@ -234,15 +238,15 @@ function VendorDetailModal({
           {/* Quick Stats */}
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-500">Contracts</p>
+              <p className="text-xs text-gray-500">{t('vendors.contracts')}</p>
               <p className="text-lg font-semibold">{vendor.contracts.total_contracts}</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-500">Total Value</p>
+              <p className="text-xs text-gray-500">{t('vendors.totalValue')}</p>
               <p className="text-lg font-semibold">${(vendor.contracts.total_value / 1000000).toFixed(1)}M</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-500">Active</p>
+              <p className="text-xs text-gray-500">{t('status.active')}</p>
               <p className="text-lg font-semibold">{vendor.contracts.active_contracts}</p>
             </div>
           </div>
@@ -250,7 +254,7 @@ function VendorDetailModal({
           {/* Risk Factors */}
           {vendor.risk_factors.length > 0 && (
             <div>
-              <h3 className="text-sm font-medium text-gray-500 uppercase mb-3">Risk Factors</h3>
+              <h3 className="text-sm font-medium text-gray-500 uppercase mb-3">{t('vendors.riskFactors')}</h3>
               <ul className="space-y-2">
                 {vendor.risk_factors.map((factor, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-sm">
@@ -265,7 +269,7 @@ function VendorDetailModal({
           {/* Recommended Actions */}
           {vendor.recommended_actions.length > 0 && (
             <div>
-              <h3 className="text-sm font-medium text-gray-500 uppercase mb-3">Recommended Actions</h3>
+              <h3 className="text-sm font-medium text-gray-500 uppercase mb-3">{t('vendors.recommendedActions')}</h3>
               <ul className="space-y-2">
                 {vendor.recommended_actions.map((action, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-sm">
@@ -283,6 +287,7 @@ function VendorDetailModal({
 }
 
 export default function VendorsPage() {
+  const { t } = useTranslation()
   const { isProcurement, isLegal, isAdmin, isSuperAdmin } = useAuth()
 
   // Role-based default filter
@@ -303,13 +308,13 @@ export default function VendorsPage() {
   })
 
   // Dynamic page title based on filter
-  const pageTitle = partyFilter === 'vendor' ? 'Vendor Performance' :
-                    partyFilter === 'client' ? 'Client Relationships' :
-                    'Counterparty Performance'
+  const pageTitle = partyFilter === 'vendor' ? t('vendors.vendorPerformance') :
+                    partyFilter === 'client' ? t('vendors.clientRelationships') :
+                    t('vendors.counterpartyPerformance')
 
-  const pageDescription = partyFilter === 'vendor' ? 'Track and compare vendor performance across your contracts' :
-                          partyFilter === 'client' ? 'Monitor client relationships and contract health' :
-                          'View all counterparties - vendors and clients'
+  const pageDescription = partyFilter === 'vendor' ? t('vendors.vendorDescription') :
+                          partyFilter === 'client' ? t('vendors.clientDescription') :
+                          t('vendors.counterpartyDescription')
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -331,7 +336,7 @@ export default function VendorsPage() {
   if (error || !data) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Failed to load vendor data</p>
+        <p className="text-red-600">{t('vendors.loadError')}</p>
       </div>
     )
   }
@@ -359,7 +364,7 @@ export default function VendorsPage() {
         {/* Party Type Filter */}
         <div className="flex items-center gap-2">
           <label htmlFor="party-filter" className="text-sm font-medium text-gray-700">
-            Show:
+            {t('vendors.show')}
           </label>
           <select
             id="party-filter"
@@ -367,9 +372,9 @@ export default function VendorsPage() {
             onChange={(e) => setPartyFilter(e.target.value as PartyFilter)}
             className="rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500"
           >
-            <option value="all">All Counterparties</option>
-            <option value="vendor">Vendors Only</option>
-            <option value="client">Clients Only</option>
+            <option value="all">{t('vendors.allCounterparties')}</option>
+            <option value="vendor">{t('vendors.vendorsOnly')}</option>
+            <option value="client">{t('vendors.clientsOnly')}</option>
           </select>
         </div>
       </div>
@@ -377,27 +382,27 @@ export default function VendorsPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title={partyFilter === 'vendor' ? 'Total Vendors' :
-                 partyFilter === 'client' ? 'Total Clients' :
-                 'Total Counterparties'}
+          title={partyFilter === 'vendor' ? t('vendors.totalVendors') :
+                 partyFilter === 'client' ? t('vendors.totalClients') :
+                 t('vendors.totalCounterparties')}
           value={data.total_vendors}
           icon={BuildingOfficeIcon}
           color="primary"
         />
         <StatCard
-          title="At Risk"
+          title={t('vendors.atRisk')}
           value={data.at_risk_count}
           icon={ExclamationTriangleIcon}
           color="danger"
         />
         <StatCard
-          title="Total Exposure"
+          title={t('vendors.totalExposure')}
           value={`$${(data.total_exposure / 1000000).toFixed(1)}M`}
           icon={ChartBarIcon}
           color="warning"
         />
         <StatCard
-          title="Avg Score"
+          title={t('vendors.avgScore')}
           value={data.vendors.length > 0
             ? (data.vendors.reduce((sum, v) => sum + v.performance_score, 0) / data.vendors.length).toFixed(1)
             : '-'}
@@ -415,31 +420,31 @@ export default function VendorsPage() {
                 className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort('name')}
               >
-                Vendor <SortIcon column="name" />
+                {t('vendors.vendor')} <SortIcon column="name" />
               </th>
               <th
                 className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort('score')}
               >
-                Score <SortIcon column="score" />
+                {t('vendors.score')} <SortIcon column="score" />
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Risk
+                {t('vendors.risk')}
               </th>
               <th
                 className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort('exposure')}
               >
-                Exposure <SortIcon column="exposure" />
+                {t('vendors.exposure')} <SortIcon column="exposure" />
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Obl. Compliance
+                {t('vendors.oblCompliance')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                SLA Compliance
+                {t('vendors.slaCompliance')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Breaches
+                {t('vendors.breaches')}
               </th>
             </tr>
           </thead>
@@ -447,7 +452,7 @@ export default function VendorsPage() {
             {data.vendors.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
-                  No counterparties found
+                  {t('vendors.noCounterparties')}
                 </td>
               </tr>
             ) : (

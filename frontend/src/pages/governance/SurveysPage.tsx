@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ClipboardDocumentListIcon,
@@ -27,6 +28,7 @@ const STATUS_COLORS: Record<SurveyInstanceStatus, string> = {
 }
 
 export default function SurveysPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<'templates' | 'instances'>('instances')
   const [showCreateTemplate, setShowCreateTemplate] = useState(false)
@@ -90,9 +92,9 @@ export default function SurveysPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Surveys</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('nav.surveys')}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage satisfaction surveys for stakeholder feedback
+            {t('governance.surveysSubtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -102,7 +104,7 @@ export default function SurveysPage() {
               className="btn-primary flex items-center gap-2"
             >
               <PlusIcon className="h-4 w-4" />
-              New Template
+              {t('governance.newTemplate')}
             </button>
           )}
           {tab === 'instances' && (
@@ -111,7 +113,7 @@ export default function SurveysPage() {
               className="btn-primary flex items-center gap-2"
             >
               <PlusIcon className="h-4 w-4" />
-              New Survey
+              {t('governance.newSurvey')}
             </button>
           )}
         </div>
@@ -129,7 +131,7 @@ export default function SurveysPage() {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >
-            Survey Instances ({instances.length})
+            {t('governance.surveyInstancesCount', { count: instances.length })}
           </button>
           <button
             onClick={() => setTab('templates')}
@@ -140,7 +142,7 @@ export default function SurveysPage() {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             )}
           >
-            Templates ({templates.length})
+            {t('governance.templatesCount', { count: templates.length })}
           </button>
         </nav>
       </div>
@@ -154,17 +156,17 @@ export default function SurveysPage() {
                 <div className="flex items-center gap-3">
                   <ClipboardDocumentListIcon className="h-5 w-5 text-primary-500" />
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{instance.template_name || instance.title || instance.period || 'Untitled Survey'}</p>
+                    <p className="text-sm font-semibold text-gray-900">{instance.template_name || instance.title || instance.period || t('governance.untitledSurvey')}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={cn(
                         'px-2 py-0.5 rounded text-xs font-medium',
                         STATUS_COLORS[instance.status]
                       )}>
-                        {instance.status}
+                        {t(`governance.surveyStatus.${instance.status}`, { defaultValue: instance.status })}
                       </span>
                       {instance.due_date && (
                         <span className="text-xs text-gray-400">
-                          Due: {new Date(instance.due_date).toLocaleDateString()}
+                          {t('governance.dueOn', { date: new Date(instance.due_date).toLocaleDateString() })}
                         </span>
                       )}
                     </div>
@@ -178,7 +180,7 @@ export default function SurveysPage() {
                       className="btn-secondary flex items-center gap-1 text-xs"
                     >
                       <PaperAirplaneIcon className="h-3.5 w-3.5" />
-                      Send
+                      {t('governance.send')}
                     </button>
                   )}
                 </div>
@@ -189,7 +191,7 @@ export default function SurveysPage() {
           {instances.length === 0 && (
             <div className="text-center py-12 text-gray-500">
               <ClipboardDocumentListIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">No survey instances yet.</p>
+              <p className="text-sm">{t('governance.noSurveyInstances')}</p>
             </div>
           )}
         </div>
@@ -210,10 +212,10 @@ export default function SurveysPage() {
                     )}
                     <div className="flex items-center gap-2 mt-1">
                       <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-700 capitalize">
-                        {tmpl.survey_type}
+                        {t(`governance.surveyTypes.${tmpl.survey_type}`, { defaultValue: tmpl.survey_type })}
                       </span>
                       <span className="text-xs text-gray-400">
-                        {tmpl.question_count ?? tmpl.questions?.length ?? 0} questions
+                        {t('governance.questionsCount', { count: tmpl.question_count ?? tmpl.questions?.length ?? 0 })}
                       </span>
                     </div>
                   </div>
@@ -225,7 +227,7 @@ export default function SurveysPage() {
           {templates.length === 0 && (
             <div className="text-center py-12 text-gray-500">
               <ClipboardDocumentListIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">No survey templates yet.</p>
+              <p className="text-sm">{t('governance.noSurveyTemplates')}</p>
             </div>
           )}
         </div>
@@ -236,14 +238,14 @@ export default function SurveysPage() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">New Survey Template</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('governance.newSurveyTemplate')}</h2>
               <button onClick={() => setShowCreateTemplate(false)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.name')} *</label>
                 <input
                   type="text"
                   value={templateForm.name || ''}
@@ -252,20 +254,20 @@ export default function SurveysPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.type')}</label>
                 <select
                   value={templateForm.survey_type || 'satisfaction'}
                   onChange={(e) => setTemplateForm({ ...templateForm, survey_type: e.target.value as SurveyType })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 >
-                  <option value="satisfaction">Satisfaction</option>
-                  <option value="performance">Performance</option>
-                  <option value="relationship">Relationship</option>
-                  <option value="custom">Custom</option>
+                  <option value="satisfaction">{t('governance.surveyTypes.satisfaction')}</option>
+                  <option value="performance">{t('governance.surveyTypes.performance')}</option>
+                  <option value="relationship">{t('governance.surveyTypes.relationship')}</option>
+                  <option value="custom">{t('governance.surveyTypes.custom')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.description')}</label>
                 <textarea
                   value={templateForm.description || ''}
                   onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })}
@@ -275,7 +277,7 @@ export default function SurveysPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowCreateTemplate(false)} className="btn-secondary">Cancel</button>
+              <button onClick={() => setShowCreateTemplate(false)} className="btn-secondary">{t('common.cancel')}</button>
               <button
                 onClick={() => {
                   if (!templateForm.name) return
@@ -284,7 +286,7 @@ export default function SurveysPage() {
                 disabled={!templateForm.name || createTemplateMutation.isPending}
                 className="btn-primary"
               >
-                {createTemplateMutation.isPending ? 'Creating...' : 'Create'}
+                {createTemplateMutation.isPending ? t('governance.creating') : t('governance.create')}
               </button>
             </div>
           </div>
@@ -296,33 +298,33 @@ export default function SurveysPage() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">New Survey Instance</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('governance.newSurveyInstance')}</h2>
               <button onClick={() => setShowCreateInstance(false)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Template *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.template')} *</label>
                 <select
                   value={instanceForm.template_id || ''}
                   onChange={(e) => setInstanceForm({ ...instanceForm, template_id: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 >
-                  <option value="">Select template...</option>
+                  <option value="">{t('governance.selectTemplate')}</option>
                   {templates.map((tmpl) => (
                     <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Relationship *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.relationship')} *</label>
                 <select
                   value={instanceForm.relationship_id || ''}
                   onChange={(e) => setInstanceForm({ ...instanceForm, relationship_id: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 >
-                  <option value="">Select relationship...</option>
+                  <option value="">{t('governance.selectRelationship')}</option>
                   {relationships.map((rel) => (
                     <option key={rel.id} value={rel.id}>
                       {rel.org_a?.name || rel.org_a_id} ↔ {rel.org_b?.name || rel.org_b_id}
@@ -331,17 +333,17 @@ export default function SurveysPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Period *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.period')} *</label>
                 <input
                   type="text"
                   value={instanceForm.period || ''}
                   onChange={(e) => setInstanceForm({ ...instanceForm, period: e.target.value })}
-                  placeholder="e.g., 2026-Q2"
+                  placeholder={t('governance.periodPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.dueDate')}</label>
                 <input
                   type="date"
                   value={instanceForm.due_date || ''}
@@ -351,7 +353,7 @@ export default function SurveysPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowCreateInstance(false)} className="btn-secondary">Cancel</button>
+              <button onClick={() => setShowCreateInstance(false)} className="btn-secondary">{t('common.cancel')}</button>
               <button
                 onClick={() => {
                   if (!instanceForm.template_id || !instanceForm.relationship_id || !instanceForm.period) return
@@ -360,7 +362,7 @@ export default function SurveysPage() {
                 disabled={!instanceForm.template_id || !instanceForm.relationship_id || !instanceForm.period || createInstanceMutation.isPending}
                 className="btn-primary"
               >
-                {createInstanceMutation.isPending ? 'Creating...' : 'Create'}
+                {createInstanceMutation.isPending ? t('governance.creating') : t('governance.create')}
               </button>
             </div>
           </div>

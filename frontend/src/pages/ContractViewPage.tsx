@@ -37,6 +37,7 @@ import ContractReviewPane from '@/components/contracts/ContractReviewPane'
 import ContractPdfViewer from '@/components/contracts/ContractPdfViewer'
 import KnowledgeGraphTab from '@/components/contracts/KnowledgeGraphTab'
 import type { HighlightRect } from '@/lib/api/contracts'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
 import { cn, formatDate, formatCurrency, formatFileSize, getRiskColor, getStatusColor } from '@/lib/utils'
@@ -64,7 +65,8 @@ const DEFAULT_TABS = [
   { id: 'sharing', label: 'Sharing', icon: 'share' },
 ]
 
-// Friendly labels + display order for extraction pipeline stages
+// Display order for extraction pipeline stages; labels resolved via i18n
+// under contract.stages.<key> with the English default as fallback
 const STAGE_DISPLAY: { key: string; label: string }[] = [
   { key: 'metadata', label: 'Metadata' },
   { key: 'risk', label: 'Risk Assessment' },
@@ -90,6 +92,7 @@ function ExtractionHealthPanel({
 }: {
   health: Record<string, ExtractionStageOutcome>
 }) {
+  const { t } = useTranslation()
   const stages = STAGE_DISPLAY.filter((s) => health[s.key])
   const counts = stages.reduce(
     (acc, s) => {
@@ -108,9 +111,9 @@ function ExtractionHealthPanel({
   return (
     <div className="card">
       <div className="card-header flex items-center justify-between">
-        <h2 className="text-sm font-medium text-gray-900">Extraction Health</h2>
+        <h2 className="text-sm font-medium text-gray-900">{t('contract.extractionHealth')}</h2>
         <span className={cn('text-xs font-medium', headlineColor)}>
-          {counts.success} ok · {counts.failed} failed · {counts.skipped} skipped
+          {t('contract.healthCounts', { success: counts.success, failed: counts.failed, skipped: counts.skipped })}
         </span>
       </div>
       <div className="card-body space-y-1.5">
@@ -140,8 +143,8 @@ function ExtractionHealthPanel({
               <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', iconColor)} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-gray-900">{s.label}</span>
-                  <span className="text-gray-400 capitalize">{status.replace('_', ' ')}</span>
+                  <span className="text-gray-900">{t(`contract.stages.${s.key}`, { defaultValue: s.label })}</span>
+                  <span className="text-gray-400 capitalize">{t(`contract.stageStatus.${status}`, { defaultValue: status.replace('_', ' ') })}</span>
                 </div>
                 {note && (
                   <p className="text-gray-500 truncate" title={note}>
@@ -150,7 +153,7 @@ function ExtractionHealthPanel({
                 )}
                 {dropped && dropped.length > 0 && (
                   <p className="text-amber-600" title={dropped.map(d => `${d.field}: ${d.confidence} < ${d.threshold}`).join('\n')}>
-                    {dropped.length} field{dropped.length === 1 ? '' : 's'} below threshold:
+                    {t('contract.fieldsBelowThreshold', { count: dropped.length })}
                     {' '}
                     {dropped.map(d => d.field).join(', ')}
                   </p>
@@ -165,6 +168,7 @@ function ExtractionHealthPanel({
 }
 
 export default function ContractViewPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -319,9 +323,9 @@ export default function ContractViewPage() {
   if (error || !contract) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Contract not found</p>
+        <p className="text-red-600">{t('contract.notFound')}</p>
         <Link to="/contracts" className="text-primary-600 hover:underline mt-2 inline-block">
-          Back to contracts
+          {t('contract.backToContracts')}
         </Link>
       </div>
     )
@@ -348,14 +352,14 @@ export default function ContractViewPage() {
                   'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize',
                   getStatusColor(contract.status)
                 )}>
-                  {contract.status}
+                  {t(`status.${contract.status}`, { defaultValue: contract.status })}
                 </span>
                 {contract.risk_level && (
                   <span className={cn(
                     'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize',
                     getRiskColor(contract.risk_level)
                   )}>
-                    {contract.risk_level} Risk
+                    {t('contract.riskLabel', { level: t(`risk.${contract.risk_level}`, { defaultValue: contract.risk_level }) })}
                   </span>
                 )}
                 {contract.contract_type && (
@@ -384,7 +388,7 @@ export default function ContractViewPage() {
                 ) : (
                   <ArrowPathIcon className="h-4 w-4 mr-2" />
                 )}
-                Process
+                {t('contract.process')}
               </button>
             )}
             {isCompleted && (
@@ -398,14 +402,14 @@ export default function ContractViewPage() {
                 ) : (
                   <ShieldExclamationIcon className="h-4 w-4 mr-2" />
                 )}
-                Re-analyze
+                {t('contract.reanalyze')}
               </button>
             )}
             <Link
               to={`/query?contract=${contract.id}`}
               className="btn-secondary"
             >
-              Ask AI
+              {t('dashboard.actions.askAi')}
             </Link>
             {!showDeleteConfirm ? (
               <button
@@ -420,14 +424,14 @@ export default function ContractViewPage() {
                   onClick={() => setShowDeleteConfirm(false)}
                   className="btn-secondary text-sm py-1"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={() => deleteMutation.mutate()}
                   disabled={deleteMutation.isPending}
                   className="btn-secondary text-sm py-1 bg-red-600 text-white hover:bg-red-700"
                 >
-                  {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+                  {deleteMutation.isPending ? t('contracts.deleting') : t('common.delete')}
                 </button>
               </div>
             )}
@@ -457,7 +461,7 @@ export default function ContractViewPage() {
                 )}
               >
                 <Icon className="h-4 w-4" />
-                {tab.label}
+                {t(`contract.tabs.${tab.id}`, { defaultValue: tab.label })}
               </button>
             )
           })}
@@ -477,9 +481,9 @@ export default function ContractViewPage() {
           <ClauseFilteredTab
             contractId={id}
             contract={contract}
-            title="Quality & Compliance Clauses"
+            title={t('contract.qualityClausesTitle')}
             clauseTypes={['warranty', 'limitation_of_liability', 'governance', 'definitions', 'data_protection']}
-            emptyMessage="No quality-related clauses found in this contract."
+            emptyMessage={t('contract.qualityClausesEmpty')}
           />
         </div>
       )}
@@ -490,9 +494,9 @@ export default function ContractViewPage() {
           <ClauseFilteredTab
             contractId={id}
             contract={contract}
-            title="Supply Chain & Logistics Clauses"
+            title={t('contract.supplyChainClausesTitle')}
             clauseTypes={['scope', 'payment_terms', 'termination', 'confidentiality', 'intellectual_property']}
-            emptyMessage="No supply chain clauses found in this contract."
+            emptyMessage={t('contract.supplyChainClausesEmpty')}
           />
         </div>
       )}
@@ -503,7 +507,7 @@ export default function ContractViewPage() {
         {/* Processing error banner */}
         {contract.processing_error && (
           <div className="mb-6 p-4 rounded-lg border border-red-200 bg-red-50">
-            <p className="text-sm font-medium text-red-800">Processing Error</p>
+            <p className="text-sm font-medium text-red-800">{t('contract.processingError')}</p>
             <p className="text-sm text-red-700 mt-1">{contract.processing_error}</p>
           </div>
         )}
@@ -516,11 +520,11 @@ export default function ContractViewPage() {
               {/* Contract Details */}
               <div className="card">
                 <div className="card-header">
-                  <h2 className="text-sm font-medium text-gray-900">Contract Details</h2>
+                  <h2 className="text-sm font-medium text-gray-900">{t('contract.contractDetails')}</h2>
                 </div>
                 <div className="card-body grid grid-cols-2 md:grid-cols-3 gap-4">
                   <EditableField
-                    label={uiLabel('counterparty', 'Counterparty')}
+                    label={uiLabel('counterparty', t('contracts.counterparty'))}
                     value={contract.counterparty}
                     fieldName="counterparty"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
@@ -531,7 +535,7 @@ export default function ContractViewPage() {
                     reExtractResult={reExtractResult.counterparty}
                   />
                   <EditableField
-                    label={uiLabel('contract_value', 'Contract Value')}
+                    label={uiLabel('contract_value', t('contract.contractValue'))}
                     value={contract.contract_value ? String(contract.contract_value) : null}
                     displayValue={contract.contract_value ? formatCurrency(contract.contract_value, contract.currency || 'USD') : null}
                     fieldName="contract_value"
@@ -544,7 +548,7 @@ export default function ContractViewPage() {
                     reExtractResult={reExtractResult.contract_value}
                   />
                   <EditableField
-                    label="Contract Type"
+                    label={t('contract.contractType')}
                     value={contract.contract_type || null}
                     displayValue={contract.contract_type ? contractTypeLabel(contract.contract_type) : null}
                     fieldName="contract_type"
@@ -556,7 +560,7 @@ export default function ContractViewPage() {
                     reExtractResult={reExtractResult.contract_type}
                   />
                   <EditableField
-                    label="Effective Date"
+                    label={t('contract.effectiveDate')}
                     value={contract.effective_date || null}
                     displayValue={formatDate(contract.effective_date)}
                     fieldName="effective_date"
@@ -569,7 +573,7 @@ export default function ContractViewPage() {
                     reExtractResult={reExtractResult.effective_date}
                   />
                   <EditableField
-                    label="Expiration Date"
+                    label={t('contract.expirationDate')}
                     value={contract.expiration_date || null}
                     displayValue={formatDate(contract.expiration_date)}
                     fieldName="expiration_date"
@@ -582,7 +586,7 @@ export default function ContractViewPage() {
                     reExtractResult={reExtractResult.expiration_date}
                   />
                   <EditableField
-                    label="Jurisdiction"
+                    label={t('contract.jurisdiction')}
                     value={contract.jurisdiction}
                     fieldName="jurisdiction"
                     onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
@@ -593,35 +597,35 @@ export default function ContractViewPage() {
                     reExtractResult={reExtractResult.jurisdiction}
                   />
                   <div>
-                    <p className="text-xs text-gray-500">Auto-Renewal</p>
+                    <p className="text-xs text-gray-500">{t('contract.autoRenewal')}</p>
                     <p className="text-sm font-medium text-gray-900">
-                      {contract.auto_renewal ? 'Yes' : 'No'}
-                      {contract.notice_period_days && ` (${contract.notice_period_days}d notice)`}
+                      {contract.auto_renewal ? t('common.yes') : t('common.no')}
+                      {contract.notice_period_days && ` ${t('contract.noticeDays', { days: contract.notice_period_days })}`}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Renewal Term</p>
+                    <p className="text-xs text-gray-500">{t('contract.renewalTerm')}</p>
                     <p className="text-sm font-medium text-gray-900">
-                      {contract.renewal_term_months ? `${contract.renewal_term_months} months` : '-'}
+                      {contract.renewal_term_months ? t('contract.months', { count: contract.renewal_term_months }) : '-'}
                     </p>
                   </div>
                   {/* Industry Profile selector */}
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Industry Profile</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('contract.industryProfile')}</p>
                     {canEditCustomFields ? (
                       <select
                         value={contract.industry_profile_id || ''}
                         onChange={(e) => updateMetadataMutation.mutate({ industry_profile_id: e.target.value || null })}
                         className="w-full text-sm border border-gray-200 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
                       >
-                        <option value="">Inherit from tenant</option>
+                        <option value="">{t('contract.inheritFromTenant')}</option>
                         {industryProfiles.map((p: any) => (
                           <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
                       </select>
                     ) : (
                       <p className="text-sm font-medium text-gray-900">
-                        {industryProfiles.find((p: any) => p.id === contract.industry_profile_id)?.name || 'Tenant default'}
+                        {industryProfiles.find((p: any) => p.id === contract.industry_profile_id)?.name || t('contract.tenantDefault')}
                       </p>
                     )}
                   </div>
@@ -635,7 +639,7 @@ export default function ContractViewPage() {
               {contract.risk_score !== null && (
                 <div className="card">
                   <div className="card-header">
-                    <h2 className="text-sm font-medium text-gray-900">Risk Assessment</h2>
+                    <h2 className="text-sm font-medium text-gray-900">{t('contract.riskAssessment')}</h2>
                   </div>
                   <div className="card-body">
                     <div className="flex items-center gap-6">
@@ -647,17 +651,17 @@ export default function ContractViewPage() {
                       </div>
                       <div className="flex-1">
                         <p className="text-lg font-medium text-gray-900 capitalize mb-1">
-                          {contract.risk_level} Risk
+                          {t('contract.riskLabel', { level: t(`risk.${contract.risk_level}`, { defaultValue: contract.risk_level }) })}
                         </p>
                         <p className="text-sm text-gray-500">
-                          Based on analysis of {contract.clause_count} clauses and {contract.obligation_count} obligations
+                          {t('contract.riskBasis', { clauses: contract.clause_count, obligations: contract.obligation_count })}
                         </p>
                         {isCompleted && (
                           <button
                             onClick={() => setActiveTab('review')}
                             className="text-sm text-primary-600 hover:text-primary-700 mt-2"
                           >
-                            View detailed analysis →
+                            {t('contract.viewDetailedAnalysis')}
                           </button>
                         )}
                       </div>
@@ -672,7 +676,7 @@ export default function ContractViewPage() {
               {/* File Information */}
               <div className="card">
                 <div className="card-header">
-                  <h2 className="text-sm font-medium text-gray-900">File Information</h2>
+                  <h2 className="text-sm font-medium text-gray-900">{t('contract.fileInformation')}</h2>
                 </div>
                 <div className="card-body space-y-4">
                   <div className="flex items-center gap-3">
@@ -688,11 +692,11 @@ export default function ContractViewPage() {
                   </div>
                   <div className="pt-4 border-t border-gray-200 space-y-3">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Uploaded</span>
+                      <span className="text-gray-500">{t('contract.uploaded')}</span>
                       <span className="text-gray-900">{formatDate(contract.created_at)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Last Updated</span>
+                      <span className="text-gray-500">{t('contract.lastUpdated')}</span>
                       <span className="text-gray-900">{formatDate(contract.updated_at)}</span>
                     </div>
                   </div>
@@ -708,7 +712,7 @@ export default function ContractViewPage() {
               {isCompleted && (
                 <div className="card">
                   <div className="card-header">
-                    <h2 className="text-sm font-medium text-gray-900">Extraction Summary</h2>
+                    <h2 className="text-sm font-medium text-gray-900">{t('contract.extractionSummary')}</h2>
                   </div>
                   <div className="card-body">
                     <div className="grid grid-cols-2 gap-4">
@@ -717,28 +721,28 @@ export default function ContractViewPage() {
                         className="text-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                       >
                         <p className="text-2xl font-bold text-gray-900">{contract.clause_count}</p>
-                        <p className="text-xs text-gray-500">Clauses</p>
+                        <p className="text-xs text-gray-500">{t('contract.clauses')}</p>
                       </button>
                       <button
                         onClick={() => setActiveTab('review')}
                         className="text-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                       >
                         <p className="text-2xl font-bold text-gray-900">{contract.obligation_count}</p>
-                        <p className="text-xs text-gray-500">Obligations</p>
+                        <p className="text-xs text-gray-500">{t('contract.obligations')}</p>
                       </button>
                       <button
                         onClick={() => setActiveTab('slas')}
                         className="text-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                       >
                         <p className="text-2xl font-bold text-gray-900">{contract.sla_count || 0}</p>
-                        <p className="text-xs text-gray-500">SLAs</p>
+                        <p className="text-xs text-gray-500">{t('contract.slas')}</p>
                       </button>
                       <button
                         onClick={() => setActiveTab('related')}
                         className="text-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                       >
                         <p className="text-2xl font-bold text-primary-600">→</p>
-                        <p className="text-xs text-gray-500">Related</p>
+                        <p className="text-xs text-gray-500">{t('contract.related')}</p>
                       </button>
                     </div>
                   </div>
@@ -829,6 +833,7 @@ function EditableField({
   reExtracting?: boolean
   reExtractResult?: { applied: boolean; reason?: string | null } | null
 }) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value || '')
   const [showProvenance, setShowProvenance] = useState(false)
@@ -885,8 +890,8 @@ function EditableField({
               'p-0.5 text-gray-400 hover:text-primary-600 transition-colors',
               showProvenance && 'text-primary-600'
             )}
-            title="Show extraction source"
-            aria-label={`Show extraction source for ${label}`}
+            title={t('contract.showExtractionSource')}
+            aria-label={`${t('contract.showExtractionSource')} — ${label}`}
           >
             <InformationCircleIcon className="h-3.5 w-3.5" />
           </button>
@@ -895,7 +900,7 @@ function EditableField({
           <button
             onClick={() => { setDraft(value || ''); setEditing(true) }}
             className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-primary-600 transition-opacity"
-            title={`Edit ${label.toLowerCase()}`}
+            title={`${t('common.edit')} — ${label}`}
           >
             <PencilIcon className="h-3 w-3" />
           </button>
@@ -904,7 +909,7 @@ function EditableField({
       {showProvenance && provenance && (
         <div className="absolute z-20 left-0 top-full mt-1 w-80 rounded-md border border-gray-200 bg-white shadow-lg p-3 text-xs">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="font-medium text-gray-700">AI extracted from</span>
+            <span className="font-medium text-gray-700">{t('contract.aiExtractedFrom')}</span>
             <span
               className={cn(
                 'px-1.5 py-0.5 rounded text-xs font-medium',
@@ -912,15 +917,14 @@ function EditableField({
                 provenance.confidence >= 0.6 ? 'bg-amber-50 text-amber-700' :
                 'bg-red-50 text-red-700'
               )}
-              title="Extraction confidence"
+              title={t('contract.extractionConfidence')}
             >
               {Math.round(provenance.confidence * 100)}%
             </span>
           </div>
           <p className="text-gray-700 italic leading-snug">"{provenance.raw_text}"</p>
           <p className="text-[10px] text-gray-400 mt-2">
-            Source quote from the contract. If you've edited this field manually, the quote
-            reflects the original AI extraction, not your current value.
+            {t('contract.sourceQuoteNote')}
           </p>
 
           {/* Re-extract action — only available for the 7 metadata fields */}
@@ -941,12 +945,12 @@ function EditableField({
                     {reExtracting ? (
                       <>
                         <ArrowPathIcon className="h-3 w-3 animate-spin" />
-                        Re-extracting…
+                        {t('contract.reExtracting')}
                       </>
                     ) : (
                       <>
                         <ArrowPathIcon className="h-3 w-3" />
-                        Re-extract this field
+                        {t('contract.reExtractField')}
                       </>
                     )}
                   </button>
@@ -955,18 +959,18 @@ function EditableField({
                     disabled={reExtracting}
                     className="text-xs text-gray-500 hover:text-gray-700 underline"
                   >
-                    add hint
+                    {t('contract.addHint')}
                   </button>
                 </div>
               ) : (
                 <div className="space-y-1.5">
                   <label className="text-[11px] text-gray-600">
-                    Hint for the AI (optional):
+                    {t('contract.hintLabel')}
                   </label>
                   <textarea
                     value={hint}
                     onChange={(e) => setHint(e.target.value)}
-                    placeholder="e.g. the right answer is in section 3, not the preamble"
+                    placeholder={t('contract.hintPlaceholder')}
                     rows={2}
                     className="w-full text-xs border border-gray-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
                   />
@@ -976,13 +980,13 @@ function EditableField({
                       disabled={reExtracting}
                       className="px-2 py-1 rounded text-xs font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
                     >
-                      Re-extract
+                      {t('contract.reExtract')}
                     </button>
                     <button
                       onClick={() => { setShowHint(false); setHint('') }}
                       className="text-xs text-gray-500 hover:text-gray-700"
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                   </div>
                 </div>
@@ -993,8 +997,8 @@ function EditableField({
                   reExtractResult.applied ? 'text-green-700' : 'text-amber-700'
                 )}>
                   {reExtractResult.applied
-                    ? '✓ Updated. Refresh to see latest value.'
-                    : reExtractResult.reason || 'AI did not apply a new value.'}
+                    ? t('contract.reExtractApplied')
+                    : reExtractResult.reason || t('contract.reExtractNotApplied')}
                 </p>
               )}
             </div>
@@ -1007,9 +1011,12 @@ function EditableField({
 
 /** Compact collapsible clause row — matches the Review tab style */
 function ClauseCompactRow({ clause, onViewSource, isActive }: { clause: any; onViewSource: () => void; isActive?: boolean }) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const [showFull, setShowFull] = useState(false)
-  const label = CLAUSE_LABELS[clause.clause_type] || clause.clause_type.replace(/_/g, ' ')
+  const label = t(`clauses.${clause.clause_type}`, {
+    defaultValue: CLAUSE_LABELS[clause.clause_type] || clause.clause_type.replace(/_/g, ' '),
+  })
   const preview = clause.summary || clause.text.substring(0, 80)
   const isLongText = clause.text.length > 300
   const displayText = showFull || !isLongText ? clause.text : clause.text.substring(0, 300) + '...'
@@ -1030,7 +1037,7 @@ function ClauseCompactRow({ clause, onViewSource, isActive }: { clause: any; onV
         </button>
         {clause.risk_level && (
           <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0', RISK_COLORS[clause.risk_level] || 'bg-gray-100 text-gray-600')}>
-            {clause.risk_level}
+            {t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level })}
           </span>
         )}
         {clause.page_number && (
@@ -1038,7 +1045,7 @@ function ClauseCompactRow({ clause, onViewSource, isActive }: { clause: any; onV
         )}
         <button
           onClick={(e) => { e.stopPropagation(); onViewSource() }}
-          title={clause.page_number ? `View on page ${clause.page_number}` : 'Highlight in PDF'}
+          title={clause.page_number ? t('contract.viewOnPage', { page: clause.page_number }) : t('contract.highlightInPdf')}
           className="p-1 rounded hover:bg-primary-100 text-primary-600 flex-shrink-0"
         >
           <DocumentMagnifyingGlassIcon className="h-4 w-4" />
@@ -1052,7 +1059,7 @@ function ClauseCompactRow({ clause, onViewSource, isActive }: { clause: any; onV
               onClick={(e) => { e.stopPropagation(); setShowFull(!showFull) }}
               className="text-[10px] font-medium text-primary-600 hover:text-primary-700"
             >
-              {showFull ? 'Show less' : 'Show full text'}
+              {showFull ? t('contract.showLess') : t('contract.showFullText')}
             </button>
           )}
           {clause.risk_reason && (
@@ -1078,6 +1085,7 @@ function ClauseFilteredTab({
   clauseTypes: string[]
   emptyMessage: string
 }) {
+  const { t } = useTranslation()
   const [highlightPage, setHighlightPage] = useState<number | null>(null)
   const [highlightText, setHighlightText] = useState<string | null>(null)
   const [activeRects, setActiveRects] = useState<HighlightRect[] | null>(null)
@@ -1123,7 +1131,7 @@ function ClauseFilteredTab({
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
             <span className="text-xs text-gray-500">
-              {filtered.length} relevant · {allClauses?.length || 0} total
+              {t('contract.relevantTotal', { relevant: filtered.length, total: allClauses?.length || 0 })}
             </span>
           </div>
         </div>
@@ -1150,14 +1158,14 @@ function ClauseFilteredTab({
               </div>
             ) : (
               <div className="p-6 text-center text-gray-400 text-sm">
-                No matching clauses for this category.
+                {t('contract.noMatchingClauses')}
               </div>
             )}
 
             {others.length > 0 && (
               <details className="border-t border-gray-200">
                 <summary className="text-xs font-medium text-gray-500 cursor-pointer hover:text-gray-700 px-4 py-2 bg-gray-100">
-                  Other clauses ({others.length})
+                  {t('contract.otherClauses', { count: others.length })}
                 </summary>
                 <div className="divide-y divide-gray-100 opacity-75">
                   {others.map((clause) => (

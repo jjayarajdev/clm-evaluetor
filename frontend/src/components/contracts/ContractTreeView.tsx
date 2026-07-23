@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -46,6 +47,7 @@ interface TreeNodeProps {
 }
 
 function TreeNode({ node, depth, onDragStart, onDragOver, onDrop, onUnlink, dragOverId, draggingId }: TreeNodeProps) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(depth < 2)
   const hasChildren = node.children.length > 0
   const isDragTarget = dragOverId === node.id && draggingId !== node.id
@@ -117,7 +119,7 @@ function TreeNode({ node, depth, onDragStart, onDragOver, onDrop, onUnlink, drag
         {/* Link type badge (how this relates to its parent) */}
         {node.link_type && (
           <span className="text-[10px] bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
-            {LINK_TYPE_LABELS[node.link_type] || node.link_type}
+            {t(`treeView.linkTypes.${node.link_type}`, { defaultValue: LINK_TYPE_LABELS[node.link_type] || node.link_type })}
           </span>
         )}
 
@@ -141,7 +143,7 @@ function TreeNode({ node, depth, onDragStart, onDragOver, onDrop, onUnlink, drag
             'text-xs px-1.5 py-0.5 rounded font-medium capitalize flex-shrink-0',
             getStatusColor(node.status),
           )}>
-            {node.status}
+            {t(`status.${node.status}`, { defaultValue: node.status })}
           </span>
         )}
 
@@ -151,7 +153,7 @@ function TreeNode({ node, depth, onDragStart, onDragOver, onDrop, onUnlink, drag
             'text-xs px-1.5 py-0.5 rounded font-medium capitalize flex-shrink-0',
             getRiskColor(node.risk_level),
           )}>
-            {node.risk_level}
+            {t(`risk.${node.risk_level}`, { defaultValue: node.risk_level })}
           </span>
         )}
 
@@ -172,7 +174,7 @@ function TreeNode({ node, depth, onDragStart, onDragOver, onDrop, onUnlink, drag
               onUnlink(node.link_id!)
             }}
             className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-            title="Remove from parent (move to root)"
+            title={t('treeView.removeFromParent')}
           >
             <ArrowUturnLeftIcon className="w-3.5 h-3.5" />
           </button>
@@ -213,6 +215,7 @@ interface ContractTreeViewProps {
 }
 
 export default function ContractTreeView({ roots, totalContracts, totalLinks }: ContractTreeViewProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
@@ -294,17 +297,17 @@ export default function ContractTreeView({ roots, totalContracts, totalLinks }: 
       <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-gray-700">
-            {totalContracts} contracts
+            {t('treeView.contracts', { count: totalContracts })}
           </span>
           {totalLinks > 0 && (
             <span className="text-xs text-gray-400">
-              {totalLinks} relationships
+              {t('treeView.relationships', { count: totalLinks })}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-400">
           <ArrowsPointingOutIcon className="w-4 h-4" />
-          Drag to rearrange &middot; hover to unlink
+          {t('treeView.dragHint')}
         </div>
       </div>
 
@@ -338,7 +341,7 @@ export default function ContractTreeView({ roots, totalContracts, totalLinks }: 
             'text-xs font-medium',
             dragOverId === '__root__' ? 'text-primary-600' : 'text-gray-400',
           )}>
-            Drop here to move to root level
+            {t('treeView.dropToRoot')}
           </p>
         )}
       </div>
@@ -355,7 +358,7 @@ export default function ContractTreeView({ roots, totalContracts, totalLinks }: 
         {roots.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <DocumentTextIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">No contracts found</p>
+            <p className="text-lg font-medium">{t('treeView.noContracts')}</p>
           </div>
         ) : (
           roots.map((root) => (
@@ -377,15 +380,15 @@ export default function ContractTreeView({ roots, totalContracts, totalLinks }: 
       {/* Feedback */}
       {(moveMutation.isPending || unlinkMutation.isPending) && (
         <div className="px-4 py-2 border-t bg-primary-50 text-sm text-primary-700 text-center">
-          {moveMutation.isPending ? 'Moving contract...' : 'Removing link...'}
+          {moveMutation.isPending ? t('treeView.movingContract') : t('treeView.removingLink')}
         </div>
       )}
       {(moveMutation.isError || unlinkMutation.isError) && (
         <div className="px-4 py-2 border-t bg-red-50 text-sm text-red-700 flex items-center justify-between">
           <span>
             {moveMutation.isError
-              ? `Failed: ${(moveMutation.error as any)?.response?.data?.detail || 'Unknown error'}`
-              : `Failed: ${(unlinkMutation.error as any)?.response?.data?.detail || 'Unknown error'}`
+              ? t('treeView.failed', { error: (moveMutation.error as any)?.response?.data?.detail || t('treeView.unknownError') })
+              : t('treeView.failed', { error: (unlinkMutation.error as any)?.response?.data?.detail || t('treeView.unknownError') })
             }
           </span>
           <button onClick={() => { moveMutation.reset(); unlinkMutation.reset() }} className="p-1 hover:bg-red-100 rounded">
