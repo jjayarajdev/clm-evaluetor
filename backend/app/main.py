@@ -16,6 +16,8 @@ from app.routers import (
     organizations, relationships, kpis, improvements, surveys, service_portfolio,
     # Business Unit & External Access
     business_units, external_users, external_portal,
+    # Contract Groups
+    groups,
     # Contract Documents
     contract_documents,
     # Chat Sessions
@@ -324,6 +326,7 @@ app.include_router(contract_documents.router)
 
 # Business Unit & External Access
 app.include_router(business_units.router)
+app.include_router(groups.router)
 app.include_router(external_users.router)
 app.include_router(external_portal.router)
 

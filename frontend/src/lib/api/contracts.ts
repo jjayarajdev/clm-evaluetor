@@ -99,17 +99,146 @@ export async function uploadFile(file: File): Promise<UploadResponse> {
   return response.data
 }
 
-export async function uploadFiles(files: File[], clientId?: string): Promise<BatchUploadResponse> {
+export async function uploadFiles(
+  files: File[],
+  clientId?: string,
+  groupName?: string,
+  groupId?: string,
+): Promise<BatchUploadResponse> {
   const formData = new FormData()
   files.forEach((file) => formData.append('files', file))
   if (clientId) {
     formData.append('client_id', clientId)
+  }
+  if (groupId) {
+    formData.append('group_id', groupId)
+  } else if (groupName) {
+    formData.append('group_name', groupName)
   }
 
   const response = await client.post<BatchUploadResponse>('/contracts/upload/batch', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return response.data
+}
+
+// ============================================================================
+// Contract groups
+// ============================================================================
+
+export interface ContractGroupSummary {
+  id: string
+  name: string
+  group_type: 'manual' | 'upload_batch' | 'auto_family'
+  parent_group_id?: string | null
+  owner_user_id?: string | null
+  member_count: number
+}
+
+export interface ContractGroupMemberEntry {
+  contract_id: string
+  filename: string
+  contract_type?: string | null
+  counterparty?: string | null
+  status?: string | null
+  risk_level?: string | null
+  expiration_date?: string | null
+  source: string
+  member_id: string
+}
+
+export interface ContractGroupResponse {
+  id: string
+  tenant_id: string
+  name: string
+  description?: string | null
+  group_type: 'manual' | 'upload_batch' | 'auto_family'
+  parent_group_id?: string | null
+  owner_user_id?: string | null
+  owner_name?: string | null
+  root_contract_id?: string | null
+  member_count: number
+  open_finding_count: number
+  child_groups: ContractGroupSummary[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ContractGroupDetail extends ContractGroupResponse {
+  members: ContractGroupMemberEntry[]
+  findings: Array<{
+    id: string
+    contract_id: string
+    finding_type: string
+    reference_label: string
+    reference_type?: string | null
+    status: 'open' | 'resolved' | 'dismissed'
+    created_at: string
+  }>
+}
+
+export interface ContractGroupListResponse {
+  items: ContractGroupResponse[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
+}
+
+export async function getGroups(params?: {
+  page?: number
+  page_size?: number
+  group_type?: string
+  search?: string
+}): Promise<ContractGroupListResponse> {
+  const response = await client.get<ContractGroupListResponse>('/groups', { params })
+  return response.data
+}
+
+export async function getGroup(groupId: string): Promise<ContractGroupDetail> {
+  const response = await client.get<ContractGroupDetail>(`/groups/${groupId}`)
+  return response.data
+}
+
+export async function createGroup(data: {
+  name: string
+  description?: string
+  parent_group_id?: string
+  owner_user_id?: string
+}): Promise<ContractGroupResponse> {
+  const response = await client.post<ContractGroupResponse>('/groups', data)
+  return response.data
+}
+
+export async function updateGroup(
+  groupId: string,
+  data: {
+    name?: string
+    description?: string
+    parent_group_id?: string | null
+    owner_user_id?: string | null
+  },
+): Promise<ContractGroupResponse> {
+  const response = await client.patch<ContractGroupResponse>(`/groups/${groupId}`, data)
+  return response.data
+}
+
+export async function deleteGroup(groupId: string): Promise<void> {
+  await client.delete(`/groups/${groupId}`)
+}
+
+export async function addGroupMembers(
+  groupId: string,
+  contractIds: string[],
+): Promise<ContractGroupDetail> {
+  const response = await client.post<ContractGroupDetail>(`/groups/${groupId}/members`, {
+    contract_ids: contractIds,
+  })
+  return response.data
+}
+
+export async function removeGroupMember(groupId: string, contractId: string): Promise<void> {
+  await client.delete(`/groups/${groupId}/members/${contractId}`)
 }
 
 export async function processContract(id: string): Promise<void> {
