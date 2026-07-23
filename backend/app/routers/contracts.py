@@ -2114,6 +2114,93 @@ class CreateLinkResponse(BaseModel):
     message: str
 
 
+class AssignProfilesRequest(BaseModel):
+    """Request for batch profile assignment."""
+    reanalyze: bool = False
+    only_unassigned: bool = True
+
+
+class AssignProfilesResponse(BaseModel):
+    """Result of batch profile assignment."""
+    scanned: int
+    assigned: int
+    unmatched: list[str]
+    reanalyze_queued: int
+
+
+@router.post("/batch/assign-profiles", response_model=AssignProfilesResponse,
+             dependencies=[Depends(require_admin)])
+async def batch_assign_profiles(
+    body: AssignProfilesRequest,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AssignProfilesResponse:
+    """Assign per-contract industry profiles by contract-type matching.
+
+    Backfill for contracts created before auto-assignment existed. With
+    reanalyze=true, reassigned contracts re-enter the processing queue so
+    their extractions are regenerated under the correct profile.
+    """
+    from app.services.indexer import _match_profile_for_contract_type
+    from app.services.processing_queue import ProcessingQueueService
+
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant context required. Super-admin must specify tenant.",
+        )
+
+    query = select(Contract).where(Contract.tenant_id == tenant_id)
+    if body.only_unassigned:
+        query = query.where(Contract.industry_profile_id.is_(None))
+    contracts = (await db.execute(query)).scalars().all()
+
+    assigned = 0
+    unmatched: set[str] = set()
+    reassigned: list[Contract] = []
+    match_cache: dict[str, object] = {}
+
+    for contract in contracts:
+        ct = (contract.contract_type or "").strip()
+        if not ct:
+            unmatched.add("(no contract_type)")
+            continue
+        if ct not in match_cache:
+            match_cache[ct] = await _match_profile_for_contract_type(db, ct)
+        profile = match_cache[ct]
+        if profile is None:
+            unmatched.add(ct)
+            continue
+        contract.industry_profile_id = profile.id
+        assigned += 1
+        reassigned.append(contract)
+
+    await db.commit()
+
+    queued = 0
+    if body.reanalyze and reassigned:
+        queue = ProcessingQueueService(db)
+        for contract in reassigned:
+            if not contract.file_path:
+                continue
+            await queue.enqueue_contract(
+                contract_id=str(contract.id),
+                user_id=str(current_user.id),
+                file_path=contract.file_path,
+                tenant_id=str(tenant_id),
+            )
+            queued += 1
+        await db.commit()
+
+    return AssignProfilesResponse(
+        scanned=len(contracts),
+        assigned=assigned,
+        unmatched=sorted(unmatched),
+        reanalyze_queued=queued,
+    )
+
+
 async def _sync_family_groups(db: AsyncSession, tenant_id, contract_ids: list) -> None:
     """Best-effort auto_family group sync after a link mutation."""
     try:
