@@ -669,7 +669,10 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                         logger.info(f"[DEEP ANALYSIS] Renewal terms stored for {contract_id}")
                         recorder.success(
                             ProcessingStage.RENEWAL_ANALYSIS,
-                            details={"terms": len(renewal_result.terms)},
+                            details={
+                                "has_auto_renewal": renewal_result.terms.has_auto_renewal,
+                                "confidence": renewal_result.terms.confidence,
+                            },
                         )
                     else:
                         recorder.skipped(
