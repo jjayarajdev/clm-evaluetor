@@ -266,6 +266,22 @@ export interface QueueStatus {
   }>
 }
 
+export interface ProcessingStageStatus {
+  contract_id: string
+  stage: string
+  stage_description: string
+  progress_percent: number
+  message?: string | null
+  error?: string | null
+}
+
+export async function getProcessingStatusCurrent(id: string): Promise<ProcessingStageStatus> {
+  const response = await client.get<ProcessingStageStatus>(
+    `/contracts/${id}/processing-status/current`,
+  )
+  return response.data
+}
+
 export async function getProcessingQueueStatus(): Promise<QueueStatus> {
   const response = await client.get<QueueStatus>('/contracts/processing-queue/status')
   return response.data
