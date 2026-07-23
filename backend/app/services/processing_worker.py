@@ -23,6 +23,39 @@ _worker_task: asyncio.Task | None = None
 _worker_running = False
 
 
+async def _sync_tracker_to_job(job_id, contract_id: str) -> None:
+    """Periodically flush in-memory tracker progress into the DB job row.
+
+    The tracker lives in this worker process only; API requests may land on
+    other uvicorn workers. Persisting stage/percent lets any process serve
+    live step-by-step progress from the job row.
+    """
+    from app.services.processing_queue import ProcessingQueueService
+    from app.services.progress_tracker import get_progress_tracker
+
+    tracker = get_progress_tracker()
+    try:
+        while True:
+            await asyncio.sleep(3)
+            progress = tracker.get_progress(contract_id)
+            if not progress:
+                continue
+            try:
+                async with async_session_maker() as s:
+                    queue = ProcessingQueueService(s)
+                    await queue.update_progress(
+                        job_id,
+                        progress.stage.value if hasattr(progress.stage, "value") else str(progress.stage),
+                        progress.progress_percent,
+                        progress.message or "",
+                    )
+                    await s.commit()
+            except Exception:
+                pass
+    except asyncio.CancelledError:
+        pass
+
+
 async def _process_one_job(job, session: AsyncSession) -> None:
     """Process a single contract job through the full pipeline."""
     from app.services.indexer import IndexingService
@@ -31,6 +64,8 @@ async def _process_one_job(job, session: AsyncSession) -> None:
     user_id = str(job.user_id)
     file_path = job.file_path
     queue = ProcessingQueueService(session)
+
+    progress_sync = asyncio.create_task(_sync_tracker_to_job(job.id, contract_id))
 
     try:
         # Get the contract
@@ -106,6 +141,9 @@ async def _process_one_job(job, session: AsyncSession) -> None:
 
         await queue.fail_job(job.id, str(e))
         await session.commit()
+
+    finally:
+        progress_sync.cancel()
 
 
 async def _check_batch_completion(batch_id: str, session: AsyncSession) -> None:

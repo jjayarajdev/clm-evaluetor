@@ -1036,7 +1036,7 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
             recorder.failed(ProcessingStage.GOVERNANCE_BRIDGE, error=str(e))
 
         # --- Graph-Augmented Verification ---
-        tracker.update_progress(contract_id, "graph_verification", "Verifying metadata consistency...")
+        tracker.update_progress(contract_id, ProcessingStage.GRAPH_VERIFICATION, "Verifying metadata consistency...")
         try:
             from app.services.graph_consistency_engine import get_consistency_engine
 
@@ -3440,26 +3440,41 @@ async def get_processing_status_sse(
 async def get_current_processing_status(
     contract_id: str,
     current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     """Get the current processing status (non-streaming).
 
-    Returns the current state of processing without streaming.
-    Useful for initial state check before connecting to SSE.
+    The in-memory tracker only exists in the worker's process; under
+    multi-worker uvicorn, other processes fall back to the job row the
+    worker keeps synced.
     """
     tracker = get_progress_tracker()
     progress = tracker.get_progress(contract_id)
+    if progress:
+        return progress.to_dict()
 
-    if not progress:
+    # Fallback: persisted job progress (synced by the processing worker)
+    from app.services.processing_queue import ProcessingQueueService
+
+    job = await ProcessingQueueService(db).get_job_by_contract(contract_id)
+    if job and job.status == "processing" and job.stage:
         return {
             "contract_id": contract_id,
-            "stage": "idle",
-            "stage_description": "Not currently processing",
-            "progress_percent": 0,
-            "message": "Contract is not being processed",
-            "error": None,
+            "stage": job.stage,
+            "stage_description": job.message or job.stage,
+            "progress_percent": job.progress_percent or 0,
+            "message": job.message,
+            "error": job.error,
         }
 
-    return progress.to_dict()
+    return {
+        "contract_id": contract_id,
+        "stage": "idle",
+        "stage_description": "Not currently processing",
+        "progress_percent": 0,
+        "message": "Contract is not being processed",
+        "error": None,
+    }
 
 
 @router.patch("/{contract_id}", response_model=ContractResponse, dependencies=[Depends(require_write)])
