@@ -30,6 +30,8 @@ interface FileUpload {
   progress: number
   error?: string
   warning?: string
+  stage?: string
+  progressPercent?: number
   contractId?: string
   clauseCount?: number
   obligationCount?: number
@@ -61,6 +63,56 @@ const ACCEPTED_TYPES = {
 }
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+
+// Ordered pipeline stages shown as the step-by-step agent progress
+const PIPELINE_STAGES: Array<{ id: string; labelKey: string }> = [
+  { id: 'parsing', labelKey: 'upload.stageParsing' },
+  { id: 'chunking', labelKey: 'upload.stageChunking' },
+  { id: 'classifying', labelKey: 'upload.stageClassifying' },
+  { id: 'metadata', labelKey: 'upload.stageMetadata' },
+  { id: 'custom_fields', labelKey: 'upload.stageCustomFields' },
+  { id: 'risk', labelKey: 'upload.stageRisk' },
+  { id: 'knowledge_graph', labelKey: 'upload.stageKnowledgeGraph' },
+  { id: 'clause_extraction', labelKey: 'upload.stageClauses' },
+  { id: 'obligation_detection', labelKey: 'upload.stageObligations' },
+  { id: 'sla_extraction', labelKey: 'upload.stageSlas' },
+  { id: 'renewal_analysis', labelKey: 'upload.stageRenewals' },
+  { id: 'schema_extraction', labelKey: 'upload.stageSchema' },
+  { id: 'link_detection', labelKey: 'upload.stageLinks' },
+  { id: 'compliance_check', labelKey: 'upload.stageCompliance' },
+  { id: 'governance_bridge', labelKey: 'upload.stageGovernance' },
+]
+
+function StageProgress({ stage, percent }: { stage?: string; percent?: number }) {
+  const { t } = useTranslation()
+  if (!stage) return null
+  const idx = PIPELINE_STAGES.findIndex((s) => s.id === stage)
+  if (idx === -1) return null
+  const current = PIPELINE_STAGES[idx]
+  return (
+    <div className="mt-1.5">
+      <div className="flex items-center gap-2 text-xs text-blue-700">
+        <span className="font-medium">
+          {t('upload.stageOf', { current: idx + 1, total: PIPELINE_STAGES.length })}
+        </span>
+        <span>{t(current.labelKey)}</span>
+        {typeof percent === 'number' && <span className="text-blue-400">{percent}%</span>}
+      </div>
+      <div className="mt-1 flex gap-0.5">
+        {PIPELINE_STAGES.map((s, i) => (
+          <div
+            key={s.id}
+            title={t(s.labelKey)}
+            className={cn(
+              'h-1 flex-1 rounded-full',
+              i < idx ? 'bg-blue-500' : i === idx ? 'bg-blue-400 animate-pulse' : 'bg-gray-200',
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function UploadPage() {
   const { t } = useTranslation()
@@ -139,6 +191,29 @@ export default function UploadPage() {
     enabled: processingContractIds.length > 0,
     refetchInterval: 2000, // Poll every 2 seconds
   })
+
+  // Per-stage pipeline progress for files currently processing
+  const { data: stageData } = useQuery({
+    queryKey: ['contracts-stages', processingContractIds],
+    queryFn: async () => {
+      const results = await Promise.all(
+        processingContractIds.map(id => api.getProcessingStatusCurrent(id).catch(() => null))
+      )
+      return results.filter(Boolean)
+    },
+    enabled: processingContractIds.length > 0,
+    refetchInterval: 2000,
+  })
+
+  useEffect(() => {
+    if (!stageData) return
+    setFiles(prev => prev.map(f => {
+      if (!f.contractId) return f
+      const s = stageData.find(x => x?.contract_id === f.contractId)
+      if (!s || s.stage === 'idle') return f
+      return { ...f, stage: s.stage, progressPercent: s.progress_percent }
+    }))
+  }, [stageData])
 
   // Queue position + ETA while files wait for the processing worker
   const { data: queueStatus } = useQuery({
@@ -695,6 +770,9 @@ export default function UploadPage() {
                   )}
                   {fileUpload.warning && (
                     <p className="text-xs text-amber-600 mt-1">⚠ {fileUpload.warning}</p>
+                  )}
+                  {(fileUpload.status === 'uploaded' || fileUpload.status === 'processing') && (
+                    <StageProgress stage={fileUpload.stage} percent={fileUpload.progressPercent} />
                   )}
                   {fileUpload.status === 'completed' && (
                     <p className="text-xs text-green-600 mt-1">
