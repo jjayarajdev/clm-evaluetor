@@ -821,7 +821,11 @@ async def update_contract_metadata(
             "CLINICAL RESEARCH AGREEMENT": "cro_agreement",
             "PHARMACOVIGILANCE AGREEMENT": "pharmacovigilance",
         }
-        mapped_type = type_map.get(type_value)
+        # Tiered normalizer handles variants the exact map misses
+        # ("Statement of Work (SOW)", plurals, embedded phrases).
+        from app.services.contract_types import normalize_contract_type
+
+        mapped_type = normalize_contract_type(type_value) or type_map.get(type_value)
         if mapped_type:
             contract.contract_type = mapped_type
         elif type_value:

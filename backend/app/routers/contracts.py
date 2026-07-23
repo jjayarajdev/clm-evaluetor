@@ -2204,6 +2204,70 @@ class CreateLinkResponse(BaseModel):
     message: str
 
 
+class NormalizeTypesRequest(BaseModel):
+    """Request for batch contract-type normalization."""
+    dry_run: bool = True
+
+
+class NormalizeTypesResponse(BaseModel):
+    """Result of batch contract-type normalization."""
+    scanned: int
+    changed: int
+    dry_run: bool
+    mapping: dict[str, str]
+    changed_contract_ids: list[str]
+
+
+@router.post("/batch/normalize-types", response_model=NormalizeTypesResponse,
+             dependencies=[Depends(require_admin)])
+async def batch_normalize_types(
+    body: NormalizeTypesRequest,
+    current_user: CurrentUser,
+    tenant_id: RequiredTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> NormalizeTypesResponse:
+    """Collapse contract-type variants to canonical codes tenant-wide.
+
+    dry_run=true (default) reports the mapping without writing. Super admins
+    target a tenant via the X-Tenant-ID header.
+    """
+    from app.services.contract_types import normalize_contract_type
+
+    contracts = (
+        (
+            await db.execute(
+                select(Contract).where(
+                    Contract.tenant_id == tenant_id,
+                    Contract.contract_type.isnot(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    mapping: dict[str, str] = {}
+    changed_ids: list[str] = []
+    for contract in contracts:
+        canonical = normalize_contract_type(contract.contract_type)
+        if canonical and canonical != contract.contract_type:
+            mapping[contract.contract_type] = canonical
+            changed_ids.append(str(contract.id))
+            if not body.dry_run:
+                contract.contract_type = canonical
+
+    if not body.dry_run and changed_ids:
+        await db.commit()
+
+    return NormalizeTypesResponse(
+        scanned=len(contracts),
+        changed=len(changed_ids),
+        dry_run=body.dry_run,
+        mapping=mapping,
+        changed_contract_ids=changed_ids,
+    )
+
+
 class AssignProfilesRequest(BaseModel):
     """Request for batch profile assignment."""
     reanalyze: bool = False
