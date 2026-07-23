@@ -210,7 +210,11 @@
     "groupLabel": "Groupe de contrats (facultatif)",
     "groupPlaceholder": "Saisissez un nom de groupe — choisissez-en un existant ou créez-en un nouveau",
     "defaultBuHint": "Les documents seront affectés à votre unité opérationnelle : {{bu}}",
-    "duplicateWarning": "Un contenu identique existe déjà sous « {{filename}} »"
+    "duplicateWarning": "Un contenu identique existe déjà sous « {{filename}} »",
+    "retry": "Réessayer",
+    "queueDepth": "{{count}} tâche(s) dans la file de traitement",
+    "queueProcessing": "{{count}} en cours de traitement",
+    "queuePosition": "Votre prochain fichier est en position {{position}} (~{{minutes}} min)"
   },
   "clauses": {
     "quality_assurance": "Assurance qualité",

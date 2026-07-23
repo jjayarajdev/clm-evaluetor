@@ -253,6 +253,24 @@ export async function processContract(id: string): Promise<void> {
   await client.post(`/contracts/${id}/process`)
 }
 
+export interface QueueStatus {
+  queue_depth: number
+  processing: number
+  avg_job_seconds: number
+  jobs: Array<{
+    contract_id: string
+    status: string
+    stage?: string | null
+    position: number
+    eta_seconds: number
+  }>
+}
+
+export async function getProcessingQueueStatus(): Promise<QueueStatus> {
+  const response = await client.get<QueueStatus>('/contracts/processing-queue/status')
+  return response.data
+}
+
 // ============================================================================
 // Contract update endpoints (for review pane)
 // ============================================================================

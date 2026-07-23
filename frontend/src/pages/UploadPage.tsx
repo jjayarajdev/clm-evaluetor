@@ -140,6 +140,35 @@ export default function UploadPage() {
     refetchInterval: 2000, // Poll every 2 seconds
   })
 
+  // Queue position + ETA while files wait for the processing worker
+  const { data: queueStatus } = useQuery({
+    queryKey: ['processing-queue-status'],
+    queryFn: () => api.getProcessingQueueStatus(),
+    enabled: processingContractIds.length > 0,
+    refetchInterval: 10000,
+  })
+  const myQueuedJobs = (queueStatus?.jobs ?? []).filter(
+    (j) => processingContractIds.includes(j.contract_id) && j.status === 'queued',
+  )
+  const maxEtaMinutes = myQueuedJobs.length
+    ? Math.max(1, Math.round(Math.max(...myQueuedJobs.map((j) => j.eta_seconds)) / 60))
+    : 0
+
+  const retryProcessing = async (index: number) => {
+    const f = files[index]
+    if (!f.contractId) return
+    try {
+      await api.processContract(f.contractId)
+      setFiles((prev) =>
+        prev.map((x, i) =>
+          i === index ? { ...x, status: 'uploaded' as const, error: undefined } : x,
+        ),
+      )
+    } catch {
+      // keep the row in error state; the message is already shown
+    }
+  }
+
   // Update file statuses based on contract data
   useEffect(() => {
     if (!contractsData) return
@@ -636,6 +665,20 @@ export default function UploadPage() {
               </button>
             )}
           </div>
+          {queueStatus && processingContractIds.length > 0 && queueStatus.queue_depth > 0 && (
+            <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 text-xs text-blue-700 flex flex-wrap gap-4">
+              <span>{t('upload.queueDepth', { count: queueStatus.queue_depth })}</span>
+              <span>{t('upload.queueProcessing', { count: queueStatus.processing })}</span>
+              {myQueuedJobs.length > 0 && (
+                <span>
+                  {t('upload.queuePosition', {
+                    position: Math.min(...myQueuedJobs.map((j) => j.position)),
+                    minutes: maxEtaMinutes,
+                  })}
+                </span>
+              )}
+            </div>
+          )}
           <div className="divide-y divide-gray-200">
             {files.map((fileUpload, index) => (
               <div key={index} className="px-4 py-3 flex items-center gap-4">
@@ -708,6 +751,14 @@ export default function UploadPage() {
                   {fileUpload.status === 'error' && (
                     <div className="flex items-center gap-2">
                       <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
+                      {fileUpload.contractId && (
+                        <button
+                          onClick={() => retryProcessing(index)}
+                          className="btn-secondary text-sm py-1 px-3"
+                        >
+                          {t('upload.retry')}
+                        </button>
+                      )}
                       <button
                         onClick={() => removeFile(index)}
                         className="p-1 text-gray-400 hover:text-gray-600"
