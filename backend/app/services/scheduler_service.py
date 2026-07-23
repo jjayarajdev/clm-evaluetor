@@ -310,19 +310,29 @@ class SchedulerService:
     async def _execute_auto_family_sync_job(self, db: AsyncSession) -> dict:
         """Nightly reconcile of auto_family contract groups for all tenants."""
         from app.models.tenant import Tenant
-        from app.services.group_sync import sync_auto_family_groups
+        from app.services.group_sync import (
+            detect_missing_references,
+            sync_auto_family_groups,
+        )
 
         tenant_ids = (await db.execute(select(Tenant.id))).scalars().all()
         touched = 0
+        findings_changed = 0
         errors = []
         for tid in tenant_ids:
             try:
                 touched += await sync_auto_family_groups(db, tid)
+                findings_changed += await detect_missing_references(db, tid)
                 await db.commit()
             except Exception as e:
                 errors.append(f"{tid}: {e}")
                 await db.rollback()
-        return {"tenants": len(tenant_ids), "groups_touched": touched, "errors": errors}
+        return {
+            "tenants": len(tenant_ids),
+            "groups_touched": touched,
+            "findings_changed": findings_changed,
+            "errors": errors,
+        }
 
     async def _execute_sla_comparison_job(self, db: AsyncSession) -> dict:
         """Execute SLA comparison for all active contracts.

@@ -209,7 +209,8 @@
     "batchUploadFailed": "Échec de l'import groupé",
     "groupLabel": "Groupe de contrats (facultatif)",
     "groupPlaceholder": "Saisissez un nom de groupe — choisissez-en un existant ou créez-en un nouveau",
-    "defaultBuHint": "Les documents seront affectés à votre unité opérationnelle : {{bu}}"
+    "defaultBuHint": "Les documents seront affectés à votre unité opérationnelle : {{bu}}",
+    "duplicateWarning": "Un contenu identique existe déjà sous « {{filename}} »"
   },
   "clauses": {
     "quality_assurance": "Assurance qualité",
@@ -2857,6 +2858,13 @@
     "removeFromGroup": "Retirer du groupe",
     "searchContracts": "Rechercher des contrats...",
     "addSelected_one": "Ajouter {{count}} contrat",
-    "addSelected_other": "Ajouter {{count}} contrats"
+    "addSelected_other": "Ajouter {{count}} contrats",
+    "findingsTitle": "Constats de complétude",
+    "findingMissing": "Le contrat mentionne « {{label}} » — aucun document correspondant trouvé dans le système",
+    "findingResolved": "« {{label}} » — document correspondant trouvé",
+    "findingDismissed": "« {{label}} » — ignoré",
+    "dismiss": "Ignorer",
+    "reopen": "Rouvrir",
+    "findingUpdateFailed": "Échec de la mise à jour du constat"
   }
 }

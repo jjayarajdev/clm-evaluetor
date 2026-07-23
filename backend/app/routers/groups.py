@@ -16,6 +16,7 @@ from app.models.contract_group import (
     ContractGroupMember,
 )
 from app.schemas.contract_group import (
+    FindingStatusUpdate,
     GroupCreate,
     GroupDetailResponse,
     GroupFindingResponse,
@@ -421,6 +422,43 @@ async def add_members(
             )
     await db.commit()
     return await get_group(group_id, tenant_id, current_user, db)
+
+
+@router.patch("/{group_id}/findings/{finding_id}", response_model=GroupFindingResponse,
+              dependencies=[Depends(require_write)])
+async def update_finding_status(
+    group_id: uuid.UUID,
+    finding_id: uuid.UUID,
+    body: FindingStatusUpdate,
+    tenant_id: RequiredTenantId,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> GroupFindingResponse:
+    """Dismiss or re-open a missing-reference finding."""
+    await _get_group_or_404(db, group_id, tenant_id)
+    finding = (
+        await db.execute(
+            select(ContractGroupFinding).where(
+                ContractGroupFinding.id == finding_id,
+                ContractGroupFinding.tenant_id == tenant_id,
+                ContractGroupFinding.group_id == group_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not finding:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Finding not found"
+        )
+
+    finding.status = body.status
+    finding.dismissed_by_user_id = (
+        current_user.id if body.status == "dismissed" else None
+    )
+    if body.status == "open":
+        finding.resolved_by_contract_id = None
+    await db.commit()
+    await db.refresh(finding)
+    return GroupFindingResponse.model_validate(finding)
 
 
 @router.delete("/{group_id}/members/{contract_id}",
