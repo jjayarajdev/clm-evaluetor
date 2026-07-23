@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.audit import log_audit
-from app.core.deps import AdminUser, CurrentUser, CurrentTenantId, require_admin, require_write
+from app.core.deps import AdminUser, CurrentUser, CurrentTenantId, RequiredTenantId, require_admin, require_write
 from app.models.contract import Contract
 from app.database import get_db
 from app.models.audit import AuditAction
@@ -2133,7 +2133,7 @@ class AssignProfilesResponse(BaseModel):
 async def batch_assign_profiles(
     body: AssignProfilesRequest,
     current_user: CurrentUser,
-    tenant_id: CurrentTenantId,
+    tenant_id: RequiredTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AssignProfilesResponse:
     """Assign per-contract industry profiles by contract-type matching.
@@ -2141,15 +2141,10 @@ async def batch_assign_profiles(
     Backfill for contracts created before auto-assignment existed. With
     reanalyze=true, reassigned contracts re-enter the processing queue so
     their extractions are regenerated under the correct profile.
+    Super admins target a tenant via the X-Tenant-ID header.
     """
     from app.services.indexer import _match_profile_for_contract_type
     from app.services.processing_queue import ProcessingQueueService
-
-    if tenant_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tenant context required. Super-admin must specify tenant.",
-        )
 
     query = select(Contract).where(Contract.tenant_id == tenant_id)
     if body.only_unassigned:
