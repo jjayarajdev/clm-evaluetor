@@ -10,6 +10,8 @@ import LoginPage from './pages/LoginPage'
 import ModernDashboardPage from './pages/ModernDashboardPage'
 import ContractsPage from './pages/ContractsPage'
 import ContractViewPage from './pages/ContractViewPage'
+import GroupsPage from './pages/GroupsPage'
+import GroupDetailPage from './pages/GroupDetailPage'
 import ObligationDetailPage from './pages/ObligationDetailPage'
 import ClauseDetailPage from './pages/ClauseDetailPage'
 import UploadPage from './pages/UploadPage'
@@ -89,6 +91,8 @@ function App() {
         <Route path="dashboard" element={<ModernDashboardPage />} />
         <Route path="contracts" element={<ContractsPage />} />
         <Route path="contracts/:id" element={<ContractViewPage />} />
+        <Route path="groups" element={<GroupsPage />} />
+        <Route path="groups/:groupId" element={<GroupDetailPage />} />
         <Route path="obligations/:id" element={<ObligationDetailPage />} />
         <Route path="clauses/:id" element={<ClauseDetailPage />} />
         <Route path="compliance" element={<PostSigningPage />} />

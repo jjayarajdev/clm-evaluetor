@@ -69,6 +69,7 @@ export default function UploadPage() {
   const { config } = useTenantConfig()
   const [files, setFiles] = useState<FileUpload[]>([])
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [groupName, setGroupName] = useState('')
   const [showClientDropdown, setShowClientDropdown] = useState(false)
   const [showNewClientForm, setShowNewClientForm] = useState(false)
   const [newClientName, setNewClientName] = useState('')
@@ -91,6 +92,13 @@ export default function UploadPage() {
     queryKey: ['clients-summary'],
     queryFn: () => api.getClientsSummary(),
   })
+
+  // Existing groups for the upload group picker
+  const { data: groupsData } = useQuery({
+    queryKey: ['contract-groups', 'upload-picker'],
+    queryFn: () => api.getGroups({ page_size: 100 }),
+  })
+  const groups = groupsData?.items ?? []
 
   const selectedClient = clients.find(c => c.id === selectedClientId)
 
@@ -290,7 +298,16 @@ export default function UploadPage() {
     try {
       // Use batch upload to group files in same folder
       const pendingFiles = pendingIndices.map((i) => files[i].file)
-      const result = await api.uploadFiles(pendingFiles, selectedClientId || undefined)
+      const trimmedGroup = groupName.trim()
+      const existingGroup = groups.find(
+        (g) => g.name.toLowerCase() === trimmedGroup.toLowerCase(),
+      )
+      const result = await api.uploadFiles(
+        pendingFiles,
+        selectedClientId || undefined,
+        existingGroup ? undefined : trimmedGroup || undefined,
+        existingGroup?.id,
+      )
 
       // Update status based on batch response
       setFiles((prev) =>
@@ -414,6 +431,30 @@ export default function UploadPage() {
             </a>
           </div>
         )}
+
+        {/* Contract group (optional) — existing group name reuses it, new name creates one */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">
+            {t('upload.groupLabel')}
+          </label>
+          <input
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+            placeholder={t('upload.groupPlaceholder')}
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+            list="upload-group-options"
+          />
+          <datalist id="upload-group-options">
+            {groups.map((g) => (
+              <option key={g.id} value={g.name} />
+            ))}
+          </datalist>
+          {user?.business_unit_name && (
+            <p className="mt-1 text-[11px] text-gray-400">
+              {t('upload.defaultBuHint', { bu: user.business_unit_name })}
+            </p>
+          )}
+        </div>
 
         {/* Client grouping - show as optional sub-grouping */}
         {clients.length > 0 && (

@@ -12,7 +12,9 @@
     "english": "Anglais",
     "french": "Français",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "create": "Créer",
+    "saving": "Enregistrement..."
   },
   "roles": {
     "admin": "Administrateur",
@@ -204,7 +206,10 @@
     "uploadFailed": "Échec de l'import",
     "uploadRejected": "Import rejeté",
     "uploadFailedNoResponse": "Échec de l'import — aucune réponse",
-    "batchUploadFailed": "Échec de l'import groupé"
+    "batchUploadFailed": "Échec de l'import groupé",
+    "groupLabel": "Groupe de contrats (facultatif)",
+    "groupPlaceholder": "Saisissez un nom de groupe — choisissez-en un existant ou créez-en un nouveau",
+    "defaultBuHint": "Les documents seront affectés à votre unité opérationnelle : {{bu}}"
   },
   "clauses": {
     "quality_assurance": "Assurance qualité",
@@ -285,7 +290,8 @@
     "collapseSidebar": "Réduire le menu latéral",
     "viewNotifications": "Voir les notifications",
     "profile": "Profil",
-    "signOut": "Se déconnecter"
+    "signOut": "Se déconnecter",
+    "groups": "Groupes"
   },
   "dashboard": {
     "goodMorning": "Bonjour",
@@ -2812,5 +2818,45 @@
       "serviceTower": "Tour de service",
       "serviceTowerPlaceholder": "p. ex. Services postes de travail"
     }
+  },
+  "groups": {
+    "title": "Groupes de contrats",
+    "subtitle": "Familles de contrats liés — manuelles, issues des dépôts ou détectées automatiquement",
+    "newGroup": "Nouveau groupe",
+    "searchPlaceholder": "Rechercher des groupes...",
+    "allTypes": "Tous les types",
+    "typeManual": "Manuel",
+    "typeUploadBatch": "Lot de dépôt",
+    "typeAutoFamily": "Famille auto",
+    "empty": "Aucun groupe pour le moment. Créez-en un, ou indiquez un nom de groupe lors du dépôt de contrats.",
+    "memberCount_one": "{{count}} contrat",
+    "memberCount_other": "{{count}} contrats",
+    "openFindings_one": "{{count}} constat ouvert",
+    "openFindings_other": "{{count}} constats ouverts",
+    "updated": "Mis à jour",
+    "name": "Nom",
+    "description": "Description",
+    "createFailed": "Échec de la création du groupe",
+    "backToGroups": "Retour aux groupes",
+    "owner": "Responsable",
+    "addContracts": "Ajouter des contrats",
+    "deleteConfirm": "Supprimer ce groupe ? Les contrats ne sont pas supprimés.",
+    "deleteFailed": "Échec de la suppression du groupe",
+    "addFailed": "Échec de l'ajout des contrats",
+    "removeFailed": "Échec du retrait du contrat",
+    "subGroups": "Sous-groupes",
+    "colContract": "Contrat",
+    "colCounterparty": "Contrepartie",
+    "colType": "Type",
+    "colExpires": "Expire",
+    "colSource": "Source",
+    "noMembers": "Aucun contrat dans ce groupe pour le moment",
+    "sourceManual": "Manuel",
+    "sourceUploadBatch": "Dépôt",
+    "sourceAutoFamily": "Détecté automatiquement",
+    "removeFromGroup": "Retirer du groupe",
+    "searchContracts": "Rechercher des contrats...",
+    "addSelected_one": "Ajouter {{count}} contrat",
+    "addSelected_other": "Ajouter {{count}} contrats"
   }
 }

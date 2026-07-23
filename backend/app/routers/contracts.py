@@ -163,6 +163,87 @@ async def _process_batch_concurrently(
     )
 
 
+async def _attach_upload_group(
+    db: AsyncSession,
+    tenant_id,
+    user,
+    contracts: list,
+    group_name: str | None = None,
+    group_id: str | None = None,
+    batch_id: str | None = None,
+) -> str | None:
+    """Attach uploaded contracts to a group (existing by id/name, or new).
+
+    Returns the group id used, or None when no grouping was requested.
+    """
+    from app.models.contract_group import ContractGroup, ContractGroupMember
+
+    if not contracts or not (group_name or group_id):
+        return None
+
+    group = None
+    if group_id:
+        group = (
+            await db.execute(
+                select(ContractGroup).where(
+                    ContractGroup.id == uuid.UUID(group_id),
+                    ContractGroup.tenant_id == tenant_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if not group:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Group not found",
+            )
+    else:
+        group = (
+            await db.execute(
+                select(ContractGroup)
+                .where(
+                    ContractGroup.tenant_id == tenant_id,
+                    ContractGroup.name == group_name,
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if not group:
+            group = ContractGroup(
+                tenant_id=tenant_id,
+                name=group_name,
+                group_type="upload_batch" if batch_id else "manual",
+                upload_batch_id=batch_id,
+                created_by_user_id=user.id,
+            )
+            db.add(group)
+            await db.flush()
+
+    existing = set(
+        (
+            await db.execute(
+                select(ContractGroupMember.contract_id).where(
+                    ContractGroupMember.group_id == group.id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for contract in contracts:
+        if contract.id not in existing:
+            db.add(
+                ContractGroupMember(
+                    tenant_id=tenant_id,
+                    group_id=group.id,
+                    contract_id=contract.id,
+                    source="upload_batch",
+                    added_by_user_id=user.id,
+                )
+            )
+    await db.commit()
+    return str(group.id)
+
+
 @router.post("/upload", response_model=ContractUploadResponse, dependencies=[Depends(require_write)])
 async def upload_single_file(
     current_user: CurrentUser,
@@ -171,6 +252,8 @@ async def upload_single_file(
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="PDF or DOCX contract file"),
+    group_name: str | None = Form(None, description="Group name to add the contract to (created if new)"),
+    group_id: str | None = Form(None, description="Existing group ID to add the contract to"),
 ) -> ContractUploadResponse:
     """Upload a single contract file.
 
@@ -220,11 +303,17 @@ async def upload_single_file(
         )
         await db.commit()
 
+        attached_group_id = await _attach_upload_group(
+            db, tenant_id, current_user, [contract],
+            group_name=group_name, group_id=group_id,
+        )
+
         return ContractUploadResponse(
             id=str(contract.id),
             filename=contract.filename,
             status=contract.status.value,
             message="File uploaded successfully. Processing queued.",
+            group_id=attached_group_id,
         )
 
     except UploadError as e:
@@ -993,6 +1082,8 @@ async def upload_batch_files(
     files: list[UploadFile] = File(..., description="Multiple PDF or DOCX files"),
     folder_name: str | None = None,
     client_id: str | None = Form(None, description="Optional client ID to associate files with"),
+    group_name: str | None = Form(None, description="Group name for this batch (created if new)"),
+    group_id: str | None = Form(None, description="Existing group ID to add this batch to"),
 ) -> BatchUploadResponse:
     """Upload multiple related contract files.
 
@@ -1061,6 +1152,11 @@ async def upload_batch_files(
     ]
     await queue_svc.enqueue_batch(batch_items, batch_id, str(tenant_id))
 
+    attached_group_id = await _attach_upload_group(
+        db, tenant_id, current_user, successful,
+        group_name=group_name, group_id=group_id, batch_id=batch_id,
+    )
+
     # Build response
     file_responses = []
 
@@ -1107,6 +1203,7 @@ async def upload_batch_files(
         accepted=len(successful),
         rejected=len(failed),
         files=file_responses,
+        group_id=attached_group_id,
     )
 
 
@@ -1118,6 +1215,8 @@ async def upload_zip_archive(
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="ZIP archive containing PDF/DOCX files"),
+    group_name: str | None = Form(None, description="Group name for this archive (created if new)"),
+    group_id: str | None = Form(None, description="Existing group ID to add this archive to"),
 ) -> BatchUploadResponse:
     """Upload a ZIP archive containing contract files.
 
@@ -1154,6 +1253,11 @@ async def upload_zip_archive(
         for contract in successful
     ]
     await zip_queue.enqueue_batch(batch_items, batch_id, str(tenant_id))
+
+    attached_group_id = await _attach_upload_group(
+        db, tenant_id, current_user, successful,
+        group_name=group_name, group_id=group_id, batch_id=batch_id,
+    )
 
     # Build response
     file_responses = []
@@ -1203,6 +1307,7 @@ async def upload_zip_archive(
         accepted=len(successful),
         rejected=len(failed),
         files=file_responses,
+        group_id=attached_group_id,
     )
 
 
@@ -1934,6 +2039,22 @@ class CreateLinkResponse(BaseModel):
     message: str
 
 
+async def _sync_family_groups(db: AsyncSession, tenant_id, contract_ids: list) -> None:
+    """Best-effort auto_family group sync after a link mutation."""
+    try:
+        from app.services.group_sync import sync_auto_family_groups
+
+        if tenant_id is None and contract_ids:
+            c = await db.get(Contract, contract_ids[0])
+            tenant_id = c.tenant_id if c else None
+        if tenant_id:
+            await sync_auto_family_groups(db, tenant_id, contract_ids)
+            await db.commit()
+    except Exception as e:
+        logger.warning(f"Auto-family group sync failed: {e}")
+        await db.rollback()
+
+
 @router.post("/links", response_model=CreateLinkResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_write)])
 async def create_contract_link(
     body: CreateLinkRequest,
@@ -1986,6 +2107,8 @@ async def create_contract_link(
     await db.commit()
     await db.refresh(link)
 
+    await _sync_family_groups(db, tenant_id, [parent_uuid, child_uuid])
+
     return CreateLinkResponse(
         id=str(link.id),
         parent_contract_id=body.parent_contract_id,
@@ -2009,8 +2132,12 @@ async def delete_contract_link(
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
 
+    affected = [link.parent_contract_id, link.child_contract_id]
     await db.delete(link)
     await db.commit()
+
+    await _sync_family_groups(db, tenant_id, affected)
+
     return {"message": "Link deleted", "id": link_id}
 
 
@@ -2048,7 +2175,9 @@ async def move_contract(
 
     # If new_parent_id is None, we just removed the parent link (move to root)
     if body.new_parent_id is None:
+        affected = [contract_uuid] + [l.parent_contract_id for l in existing_links]
         await db.commit()
+        await _sync_family_groups(db, tenant_id, affected)
         return {"message": "Contract moved to root level", "contract_id": body.contract_id}
 
     new_parent_uuid = uuid.UUID(body.new_parent_id)
@@ -2089,6 +2218,8 @@ async def move_contract(
     db.add(link)
     await db.commit()
     await db.refresh(link)
+
+    await _sync_family_groups(db, tenant_id, [new_parent_uuid, contract_uuid])
 
     return CreateLinkResponse(
         id=str(link.id),
