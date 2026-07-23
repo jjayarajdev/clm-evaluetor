@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   PlusIcon,
@@ -40,6 +41,7 @@ const emptyFormData: FormData = {
 }
 
 export default function SLAConfigPanel() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<SLAMasterData | null>(null)
@@ -79,7 +81,7 @@ export default function SLAConfigPanel() {
     mutationFn: () => api.seedSLAMasterData(),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['sla-master-data'] })
-      alert(`Seeded ${result.seeded} SLA configurations (${result.skipped} already existed)`)
+      alert(t('masterdata.sla.seedResult', { seeded: result.seeded, skipped: result.skipped }))
     },
   })
 
@@ -135,7 +137,7 @@ export default function SLAConfigPanel() {
   }
 
   const handleDelete = (item: SLAMasterData) => {
-    if (window.confirm(`Are you sure you want to delete "${item.name}"?`)) {
+    if (window.confirm(t('masterdata.confirmDelete', { name: item.name }))) {
       deleteMutation.mutate(item.id)
     }
   }
@@ -150,7 +152,7 @@ export default function SLAConfigPanel() {
       {/* Actions & Filters */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">Filter:</span>
+          <span className="text-sm text-gray-500">{t('masterdata.filter')}</span>
           <div className="flex gap-2">
             <button
               onClick={() => setActiveFilter(undefined)}
@@ -161,7 +163,7 @@ export default function SLAConfigPanel() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               )}
             >
-              All
+              {t('masterdata.all')}
             </button>
             <button
               onClick={() => setActiveFilter(true)}
@@ -172,7 +174,7 @@ export default function SLAConfigPanel() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               )}
             >
-              Active
+              {t('status.active')}
             </button>
             <button
               onClick={() => setActiveFilter(false)}
@@ -183,7 +185,7 @@ export default function SLAConfigPanel() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               )}
             >
-              Inactive
+              {t('status.inactive')}
             </button>
           </div>
         </div>
@@ -198,11 +200,11 @@ export default function SLAConfigPanel() {
             ) : (
               <ArrowPathIcon className="h-4 w-4 mr-2" />
             )}
-            Seed from Stubs
+            {t('masterdata.seedFromStubs')}
           </button>
           <button onClick={openCreateModal} className="btn-primary">
             <PlusIcon className="h-4 w-4 mr-2" />
-            Add SLA Config
+            {t('masterdata.sla.addSlaConfig')}
           </button>
         </div>
       </div>
@@ -210,7 +212,7 @@ export default function SLAConfigPanel() {
       {/* Error state */}
       {error && (
         <div className="rounded-lg bg-red-50 p-4 text-red-700">
-          Error loading SLA configurations. Please try again.
+          {t('masterdata.sla.loadError')}
         </div>
       )}
 
@@ -226,25 +228,25 @@ export default function SLAConfigPanel() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Reference
+                    {t('masterdata.sla.reference')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
+                    {t('masterdata.name')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Target
+                    {t('masterdata.sla.target')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Minimum
+                    {t('masterdata.sla.minimum')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
+                    {t('masterdata.sla.category')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('common.status')}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                    {t('common.actions')}
                   </th>
                 </tr>
               </thead>
@@ -275,12 +277,12 @@ export default function SLAConfigPanel() {
                       {item.is_active ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
                           <CheckCircleIcon className="h-3 w-3" />
-                          Active
+                          {t('status.active')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
                           <XCircleIcon className="h-3 w-3" />
-                          Inactive
+                          {t('status.inactive')}
                         </span>
                       )}
                     </td>
@@ -308,7 +310,7 @@ export default function SLAConfigPanel() {
           </div>
           {data?.items.length === 0 && (
             <div className="text-center py-12 text-gray-500">
-              No SLA configurations found. Click "Seed from Stubs" to import default configurations.
+              {t('masterdata.sla.empty')}
             </div>
           )}
         </div>
@@ -321,33 +323,33 @@ export default function SLAConfigPanel() {
             <div className="fixed inset-0 bg-black/50" onClick={closeModal} />
             <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingItem ? 'Edit SLA Configuration' : 'Create SLA Configuration'}
+                {editingItem ? t('masterdata.sla.editTitle') : t('masterdata.sla.createTitle')}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Reference Code *
+                      {t('masterdata.sla.referenceCode')} *
                     </label>
                     <input
                       type="text"
                       value={formData.reference_code}
                       onChange={(e) => setFormData({ ...formData, reference_code: e.target.value })}
-                      placeholder="e.g., 12.1"
+                      placeholder={t('masterdata.sla.referencePlaceholder')}
                       className="input"
                       required
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Target Value *
+                      {t('masterdata.sla.targetValue')} *
                     </label>
                     <input
                       type="number"
                       step="0.0001"
                       value={formData.target_value}
                       onChange={(e) => setFormData({ ...formData, target_value: e.target.value })}
-                      placeholder="e.g., 0.99"
+                      placeholder={t('masterdata.sla.targetPlaceholder')}
                       className="input"
                       required
                     />
@@ -356,13 +358,13 @@ export default function SLAConfigPanel() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name *
+                    {t('masterdata.name')} *
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="SLA name"
+                    placeholder={t('masterdata.sla.namePlaceholder')}
                     className="input"
                     required
                   />
@@ -370,12 +372,12 @@ export default function SLAConfigPanel() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
+                    {t('masterdata.description')}
                   </label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Optional description"
+                    placeholder={t('masterdata.descriptionPlaceholder')}
                     className="input"
                     rows={2}
                   />
@@ -384,27 +386,27 @@ export default function SLAConfigPanel() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Minimum Value
+                      {t('masterdata.sla.minimumValue')}
                     </label>
                     <input
                       type="number"
                       step="0.0001"
                       value={formData.minimum_value}
                       onChange={(e) => setFormData({ ...formData, minimum_value: e.target.value })}
-                      placeholder="e.g., 0.95"
+                      placeholder={t('masterdata.sla.minimumPlaceholder')}
                       className="input"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Typical Performance
+                      {t('masterdata.sla.typicalPerformance')}
                     </label>
                     <input
                       type="number"
                       step="0.0001"
                       value={formData.typical_performance}
                       onChange={(e) => setFormData({ ...formData, typical_performance: e.target.value })}
-                      placeholder="e.g., 0.97"
+                      placeholder={t('masterdata.sla.typicalPlaceholder')}
                       className="input"
                     />
                   </div>
@@ -413,25 +415,25 @@ export default function SLAConfigPanel() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category
+                      {t('masterdata.sla.category')}
                     </label>
                     <input
                       type="text"
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      placeholder="e.g., Critical Service Levels"
+                      placeholder={t('masterdata.sla.categoryPlaceholder')}
                       className="input"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Service Tower
+                      {t('masterdata.sla.serviceTower')}
                     </label>
                     <input
                       type="text"
                       value={formData.service_tower}
                       onChange={(e) => setFormData({ ...formData, service_tower: e.target.value })}
-                      placeholder="e.g., Desktop Services"
+                      placeholder={t('masterdata.sla.serviceTowerPlaceholder')}
                       className="input"
                     />
                   </div>
@@ -446,13 +448,13 @@ export default function SLAConfigPanel() {
                     className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
                   <label htmlFor="sla_is_active" className="text-sm text-gray-700">
-                    Active
+                    {t('status.active')}
                   </label>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4 border-t">
                   <button type="button" onClick={closeModal} className="btn-secondary">
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
@@ -462,9 +464,9 @@ export default function SLAConfigPanel() {
                     {createMutation.isPending || updateMutation.isPending ? (
                       <LoadingSpinner size="sm" className="border-white border-t-transparent" />
                     ) : editingItem ? (
-                      'Update'
+                      t('masterdata.update')
                     ) : (
-                      'Create'
+                      t('masterdata.create')
                     )}
                   </button>
                 </div>

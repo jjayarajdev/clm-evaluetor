@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   PlusIcon,
@@ -34,6 +35,7 @@ const emptyFormData: FormData = {
 }
 
 export default function MilestoneConfigPanel() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<MilestoneMasterData | null>(null)
@@ -73,7 +75,7 @@ export default function MilestoneConfigPanel() {
     mutationFn: () => api.seedMilestoneMasterData(),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['milestone-master-data'] })
-      alert(`Seeded ${result.seeded} milestone configurations (${result.skipped} already existed)`)
+      alert(t('masterdata.milestones.seedResult', { seeded: result.seeded, skipped: result.skipped }))
     },
   })
 
@@ -125,7 +127,7 @@ export default function MilestoneConfigPanel() {
   }
 
   const handleDelete = (item: MilestoneMasterData) => {
-    if (window.confirm(`Are you sure you want to delete "${item.name}"?`)) {
+    if (window.confirm(t('masterdata.confirmDelete', { name: item.name }))) {
       deleteMutation.mutate(item.id)
     }
   }
@@ -135,7 +137,7 @@ export default function MilestoneConfigPanel() {
       {/* Actions & Filters */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">Filter:</span>
+          <span className="text-sm text-gray-500">{t('masterdata.filter')}</span>
           <div className="flex gap-2">
             <button
               onClick={() => setActiveFilter(undefined)}
@@ -146,7 +148,7 @@ export default function MilestoneConfigPanel() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               )}
             >
-              All
+              {t('masterdata.all')}
             </button>
             <button
               onClick={() => setActiveFilter(true)}
@@ -157,7 +159,7 @@ export default function MilestoneConfigPanel() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               )}
             >
-              Active
+              {t('status.active')}
             </button>
             <button
               onClick={() => setActiveFilter(false)}
@@ -168,7 +170,7 @@ export default function MilestoneConfigPanel() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               )}
             >
-              Inactive
+              {t('status.inactive')}
             </button>
           </div>
         </div>
@@ -183,11 +185,11 @@ export default function MilestoneConfigPanel() {
             ) : (
               <ArrowPathIcon className="h-4 w-4 mr-2" />
             )}
-            Seed from Stubs
+            {t('masterdata.seedFromStubs')}
           </button>
           <button onClick={openCreateModal} className="btn-primary">
             <PlusIcon className="h-4 w-4 mr-2" />
-            Add Milestone
+            {t('masterdata.milestones.addMilestone')}
           </button>
         </div>
       </div>
@@ -195,7 +197,7 @@ export default function MilestoneConfigPanel() {
       {/* Error state */}
       {error && (
         <div className="rounded-lg bg-red-50 p-4 text-red-700">
-          Error loading milestone configurations. Please try again.
+          {t('masterdata.milestones.loadError')}
         </div>
       )}
 
@@ -211,25 +213,25 @@ export default function MilestoneConfigPanel() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Code
+                    {t('masterdata.milestones.code')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
+                    {t('masterdata.name')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Days from Start
+                    {t('masterdata.milestones.daysFromStart')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dependencies
+                    {t('masterdata.milestones.dependencies')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Credit at Risk
+                    {t('masterdata.milestones.creditAtRisk')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('common.status')}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                    {t('common.actions')}
                   </th>
                 </tr>
               </thead>
@@ -250,7 +252,7 @@ export default function MilestoneConfigPanel() {
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                      {item.baseline_days_from_start} days
+                      {t('masterdata.milestones.daysCount', { count: item.baseline_days_from_start })}
                     </td>
                     <td className="px-4 py-3">
                       {item.dependencies.length > 0 ? (
@@ -265,7 +267,7 @@ export default function MilestoneConfigPanel() {
                           ))}
                         </div>
                       ) : (
-                        <span className="text-sm text-gray-400">None</span>
+                        <span className="text-sm text-gray-400">{t('masterdata.milestones.none')}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
@@ -275,12 +277,12 @@ export default function MilestoneConfigPanel() {
                       {item.is_active ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
                           <CheckCircleIcon className="h-3 w-3" />
-                          Active
+                          {t('status.active')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
                           <XCircleIcon className="h-3 w-3" />
-                          Inactive
+                          {t('status.inactive')}
                         </span>
                       )}
                     </td>
@@ -308,7 +310,7 @@ export default function MilestoneConfigPanel() {
           </div>
           {data?.items.length === 0 && (
             <div className="text-center py-12 text-gray-500">
-              No milestone configurations found. Click "Seed from Stubs" to import default configurations.
+              {t('masterdata.milestones.empty')}
             </div>
           )}
         </div>
@@ -321,33 +323,33 @@ export default function MilestoneConfigPanel() {
             <div className="fixed inset-0 bg-black/50" onClick={closeModal} />
             <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingItem ? 'Edit Milestone Configuration' : 'Create Milestone Configuration'}
+                {editingItem ? t('masterdata.milestones.editTitle') : t('masterdata.milestones.createTitle')}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Milestone Code *
+                      {t('masterdata.milestones.milestoneCode')} *
                     </label>
                     <input
                       type="text"
                       value={formData.milestone_code}
                       onChange={(e) => setFormData({ ...formData, milestone_code: e.target.value })}
-                      placeholder="e.g., MS-2.1"
+                      placeholder={t('masterdata.milestones.codePlaceholder')}
                       className="input"
                       required
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Days from Start *
+                      {t('masterdata.milestones.daysFromStart')} *
                     </label>
                     <input
                       type="number"
                       min="0"
                       value={formData.baseline_days_from_start}
                       onChange={(e) => setFormData({ ...formData, baseline_days_from_start: e.target.value })}
-                      placeholder="e.g., 60"
+                      placeholder={t('masterdata.milestones.daysPlaceholder')}
                       className="input"
                       required
                     />
@@ -356,13 +358,13 @@ export default function MilestoneConfigPanel() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name *
+                    {t('masterdata.name')} *
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Milestone name"
+                    placeholder={t('masterdata.milestones.namePlaceholder')}
                     className="input"
                     required
                   />
@@ -370,12 +372,12 @@ export default function MilestoneConfigPanel() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
+                    {t('masterdata.description')}
                   </label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Optional description"
+                    placeholder={t('masterdata.descriptionPlaceholder')}
                     className="input"
                     rows={2}
                   />
@@ -384,20 +386,20 @@ export default function MilestoneConfigPanel() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Dependencies
+                      {t('masterdata.milestones.dependencies')}
                     </label>
                     <input
                       type="text"
                       value={formData.dependencies}
                       onChange={(e) => setFormData({ ...formData, dependencies: e.target.value })}
-                      placeholder="e.g., MS-2.1, MS-3.1"
+                      placeholder={t('masterdata.milestones.dependenciesPlaceholder')}
                       className="input"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Comma-separated milestone codes</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('masterdata.milestones.dependenciesHint')}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Credit at Risk
+                      {t('masterdata.milestones.creditAtRisk')}
                     </label>
                     <input
                       type="number"
@@ -405,7 +407,7 @@ export default function MilestoneConfigPanel() {
                       min="0"
                       value={formData.credit_at_risk}
                       onChange={(e) => setFormData({ ...formData, credit_at_risk: e.target.value })}
-                      placeholder="e.g., 50000"
+                      placeholder={t('masterdata.milestones.creditPlaceholder')}
                       className="input"
                     />
                   </div>
@@ -420,13 +422,13 @@ export default function MilestoneConfigPanel() {
                     className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
                   <label htmlFor="milestone_is_active" className="text-sm text-gray-700">
-                    Active
+                    {t('status.active')}
                   </label>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4 border-t">
                   <button type="button" onClick={closeModal} className="btn-secondary">
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
@@ -436,9 +438,9 @@ export default function MilestoneConfigPanel() {
                     {createMutation.isPending || updateMutation.isPending ? (
                       <LoadingSpinner size="sm" className="border-white border-t-transparent" />
                     ) : editingItem ? (
-                      'Update'
+                      t('masterdata.update')
                     ) : (
-                      'Create'
+                      t('masterdata.create')
                     )}
                   </button>
                 </div>

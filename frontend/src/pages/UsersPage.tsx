@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   PlusIcon,
@@ -41,6 +42,7 @@ interface UserFormData {
 }
 
 export default function UsersPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -85,7 +87,7 @@ export default function UsersPage() {
       closeModal()
     },
     onError: (err: any) => {
-      setFormError(err?.response?.data?.detail || err?.message || 'Failed to create user')
+      setFormError(err?.response?.data?.detail || err?.message || t('users.createFailed'))
     },
   })
 
@@ -98,7 +100,7 @@ export default function UsersPage() {
       closeModal()
     },
     onError: (err: any) => {
-      setFormError(err?.response?.data?.detail || err?.message || 'Failed to update user')
+      setFormError(err?.response?.data?.detail || err?.message || t('users.updateFailed'))
     },
   })
 
@@ -159,7 +161,7 @@ export default function UsersPage() {
   }
 
   const handleDelete = (user: User) => {
-    if (window.confirm(`Are you sure you want to delete ${user.username}?`)) {
+    if (window.confirm(t('users.deleteConfirm', { username: user.username }))) {
       deleteMutation.mutate(user.id)
     }
   }
@@ -169,14 +171,14 @@ export default function UsersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.users')}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage user accounts and permissions
+            {t('users.subtitle')}
           </p>
         </div>
         <button onClick={openCreateModal} className="btn-primary">
           <PlusIcon className="h-4 w-4 mr-2" />
-          Add User
+          {t('users.addUser')}
         </button>
       </div>
 
@@ -191,22 +193,22 @@ export default function UsersPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
+                  {t('users.user')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
+                  {t('users.role')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Business Unit
+                  {t('users.businessUnit')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('common.status')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
+                  {t('users.created')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -232,7 +234,7 @@ export default function UsersPage() {
                       ROLE_COLORS[user.role]
                     )}>
                       {user.role === 'admin' && <ShieldCheckIcon className="h-3 w-3 mr-1" />}
-                      {ROLE_LABELS[user.role]}
+                      {t(`roles.${user.role}`, { defaultValue: ROLE_LABELS[user.role] })}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
@@ -245,7 +247,7 @@ export default function UsersPage() {
                         ? 'bg-green-100 text-green-700'
                         : 'bg-red-100 text-red-700'
                     )}>
-                      {user.is_active ? 'Active' : 'Inactive'}
+                      {user.is_active ? t('status.active') : t('status.inactive')}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
@@ -285,7 +287,7 @@ export default function UsersPage() {
             />
             <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingUser ? 'Edit User' : 'Create User'}
+                {editingUser ? t('users.editUser') : t('users.createUser')}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 {formError && (
@@ -295,7 +297,7 @@ export default function UsersPage() {
                 )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Username
+                    {t('users.username')}
                   </label>
                   <input
                     type="text"
@@ -309,7 +311,7 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
+                    {t('users.fullName')}
                   </label>
                   <input
                     type="text"
@@ -318,12 +320,12 @@ export default function UsersPage() {
                       setFormData({ ...formData, full_name: e.target.value })
                     }
                     className="input"
-                    placeholder="e.g. Alex Morgan"
+                    placeholder={t('users.fullNamePlaceholder')}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
+                    {t('users.email')}
                   </label>
                   <input
                     type="email"
@@ -337,7 +339,7 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role
+                    {t('users.role')}
                   </label>
                   <select
                     value={formData.role}
@@ -350,14 +352,14 @@ export default function UsersPage() {
                       .filter(([value]) => value !== 'super_admin')
                       .map(([value, label]) => (
                         <option key={value} value={value}>
-                          {label}
+                          {t(`roles.${value}`, { defaultValue: label })}
                         </option>
                       ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Business Unit
+                    {t('users.businessUnit')}
                   </label>
                   <select
                     value={formData.business_unit_id || ''}
@@ -366,7 +368,7 @@ export default function UsersPage() {
                     }
                     className="input"
                   >
-                    <option value="">-- None --</option>
+                    <option value="">{t('users.noneOption')}</option>
                     {businessUnits
                       .filter((bu) => bu.is_active)
                       .map((bu) => (
@@ -378,7 +380,7 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {editingUser ? 'New Password (leave blank to keep)' : 'Password'}
+                    {editingUser ? t('users.newPasswordKeep') : t('users.password')}
                   </label>
                   <input
                     type="password"
@@ -397,7 +399,7 @@ export default function UsersPage() {
                     onClick={closeModal}
                     className="btn-secondary"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
@@ -407,9 +409,9 @@ export default function UsersPage() {
                     {createMutation.isPending || updateMutation.isPending ? (
                       <LoadingSpinner size="sm" className="border-white border-t-transparent" />
                     ) : editingUser ? (
-                      'Update'
+                      t('users.update')
                     ) : (
-                      'Create'
+                      t('users.create')
                     )}
                   </button>
                 </div>

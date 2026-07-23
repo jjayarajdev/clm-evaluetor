@@ -209,15 +209,34 @@ async def _enhance_with_llm(
     question: str,
     answer: str,
     data_summary: dict,
-) -> tuple[list[str], list[dict]]:
-    """Use LLM to generate contextual follow-ups and adaptive visualizations."""
+    language: str = "en",
+) -> tuple[list[str], list[dict], str | None]:
+    """Use LLM to generate contextual follow-ups and adaptive visualizations.
+
+    Returns (follow_ups, visualizations, translated_answer). translated_answer
+    is None unless a non-English language was requested.
+    """
     try:
         client = AsyncOpenAI(api_key=settings.openai_api_key)
+
+        system_prompt = _ENHANCE_PROMPT
+        answer_budget = 500
+        if language == "fr":
+            # Structured answers are template-built in English; the same LLM
+            # call translates them instead of duplicating every template.
+            answer_budget = 3000
+            system_prompt += (
+                "\n\nLANGUAGE: The user speaks French. Write ALL follow-up "
+                "questions, visualization titles, stat card labels, and table "
+                "column headers in French. Additionally include a top-level "
+                '"answer_fr" field containing a faithful French translation '
+                "of the short answer (keep numbers, names, and markdown intact)."
+            )
 
         user_message = (
             f"Intent: {intent}\n"
             f"User question: {question}\n\n"
-            f"Short answer: {answer[:500]}\n\n"
+            f"Short answer: {answer[:answer_budget]}\n\n"
             f"Full data summary (use this to build visualizations):\n"
             f"{json.dumps(data_summary, indent=2, default=str)[:3000]}"
         )
@@ -225,7 +244,7 @@ async def _enhance_with_llm(
         response = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": _ENHANCE_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
             ],
             temperature=0.3,
@@ -236,6 +255,7 @@ async def _enhance_with_llm(
         result = json.loads(response.choices[0].message.content)
         follow_ups = result.get("follow_up_questions", [])[:3]
         visualizations = result.get("visualizations", [])[:4]
+        translated_answer = result.get("answer_fr") if language == "fr" else None
 
         # Validate visualization structure
         valid_viz = []
@@ -251,19 +271,49 @@ async def _enhance_with_llm(
 
         if not valid_viz or not follow_ups:
             logger.warning("LLM enhancement incomplete, using fallback")
-            return _fallback_enhancement(intent, data_summary)
+            return _fallback_enhancement(intent, data_summary, language)
 
-        return follow_ups, valid_viz
+        return follow_ups, valid_viz, translated_answer
 
     except Exception as e:
         logger.warning(f"LLM enhancement failed, using fallback: {e}")
-        return _fallback_enhancement(intent, data_summary)
+        return _fallback_enhancement(intent, data_summary, language)
+
+
+_FALLBACK_FOLLOWUPS_FR = {
+    "renewals": [
+        "Quels contrats comportent des clauses de renouvellement automatique ?",
+        "Quelles sont nos obligations ?",
+        "Montre-moi mes contrats à haut risque",
+    ],
+    "obligations": [
+        "Quelles obligations sont critiques ?",
+        "Combien de contrats ai-je ?",
+        "Quels sont mes SLA ?",
+    ],
+    "risk": [
+        "Quels sont mes contrats à renouveler ?",
+        "Quelles sont nos obligations ?",
+        "Combien de contrats ai-je ?",
+    ],
+    "portfolio": [
+        "Quels sont mes contrats à renouveler ?",
+        "Montre-moi mes contrats à haut risque",
+        "Quels sont mes SLA ?",
+    ],
+    "sla": [
+        "Quelles pénalités s'appliquent en cas de non-respect des SLA ?",
+        "Quelles sont nos obligations ?",
+        "Montre-moi mes contrats à haut risque",
+    ],
+}
 
 
 def _fallback_enhancement(
     intent: str,
     data_summary: dict,
-) -> tuple[list[str], list[dict]]:
+    language: str = "en",
+) -> tuple[list[str], list[dict], str | None]:
     """Heuristic fallback when LLM is unavailable."""
     fallback_followups = {
         "renewals": [
@@ -314,7 +364,10 @@ def _fallback_enhancement(
     if detail and detail.get("columns") and detail.get("rows"):
         viz.append({"chart_type": "table", "title": "Details", "data": detail})
 
-    return fallback_followups.get(intent, []), viz
+    if language == "fr":
+        return _FALLBACK_FOLLOWUPS_FR.get(intent, []), viz, None
+
+    return fallback_followups.get(intent, []), viz, None
 
 
 # ---------------------------------------------------------------------------
@@ -327,6 +380,7 @@ async def handle_structured_query(
     db: AsyncSession,
     tenant_id: str | None = None,
     contract_id: str | None = None,
+    language: str = "en",
 ) -> dict[str, Any] | None:
     """Execute a structured database query and enhance with LLM."""
     handlers = {
@@ -348,13 +402,16 @@ async def handle_structured_query(
         return None
 
     # Enhance with LLM-generated follow-ups and visualizations
-    follow_ups, visualizations = await _enhance_with_llm(
+    follow_ups, visualizations, translated_answer = await _enhance_with_llm(
         intent=intent,
         question=question,
         answer=result["answer"],
         data_summary=result.get("data_summary", result.get("data", {})),
+        language=language,
     )
 
+    if translated_answer:
+        result["answer"] = translated_answer
     result["visualizations"] = visualizations
     result["follow_up_questions"] = follow_ups
     return result

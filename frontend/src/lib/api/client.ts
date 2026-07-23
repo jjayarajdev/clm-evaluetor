@@ -79,6 +79,11 @@ export async function getCurrentUser(): Promise<User> {
   return response.data
 }
 
+export async function updateMyPreferences(preferred_language: 'en' | 'fr'): Promise<User> {
+  const response = await client.patch<User>('/users/me', { preferred_language })
+  return response.data
+}
+
 export async function logout(): Promise<void> {
   try {
     await client.post('/auth/logout')

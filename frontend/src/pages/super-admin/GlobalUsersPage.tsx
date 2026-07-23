@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import {
@@ -51,6 +52,7 @@ interface EditFormData {
 }
 
 export default function GlobalUsersPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const tenantFilter = searchParams.get('tenant') || ''
@@ -195,14 +197,14 @@ export default function GlobalUsersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">All Users</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.allUsers')}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage users across all tenants
+            {t('superadmin.users.subtitle')}
           </p>
         </div>
         <button onClick={openCreateModal} className="btn-primary">
           <PlusIcon className="h-4 w-4 mr-2" />
-          Add User
+          {t('superadmin.users.addUser')}
         </button>
       </div>
 
@@ -210,14 +212,14 @@ export default function GlobalUsersPage() {
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <FunnelIcon className="h-4 w-4 text-gray-400" />
-          <span className="text-sm text-gray-500">Filter by tenant:</span>
+          <span className="text-sm text-gray-500">{t('superadmin.users.filterByTenant')}</span>
         </div>
         <select
           value={tenantFilter}
           onChange={(e) => handleTenantFilterChange(e.target.value)}
           className="input max-w-xs"
         >
-          <option value="">All Tenants</option>
+          <option value="">{t('superadmin.users.allTenants')}</option>
           {tenants?.map((tenant) => (
             <option key={tenant.id} value={tenant.id}>
               {tenant.name}
@@ -229,7 +231,7 @@ export default function GlobalUsersPage() {
             onClick={() => handleTenantFilterChange('')}
             className="text-sm text-primary-600 hover:text-primary-700"
           >
-            Clear filter
+            {t('superadmin.users.clearFilter')}
           </button>
         )}
       </div>
@@ -237,7 +239,7 @@ export default function GlobalUsersPage() {
       {/* Error state */}
       {error && (
         <div className="rounded-lg bg-red-50 p-4 text-red-700">
-          Error loading users. Please try again.
+          {t('superadmin.users.loadError')}
         </div>
       )}
 
@@ -252,25 +254,25 @@ export default function GlobalUsersPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
+                  {t('superadmin.user')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tenant
+                  {t('superadmin.tenant')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
+                  {t('superadmin.role')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Business Unit
+                  {t('superadmin.users.businessUnit')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('common.status')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
+                  {t('superadmin.created')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -301,7 +303,7 @@ export default function GlobalUsersPage() {
                       ROLE_COLORS[user.role]
                     )}>
                       {user.role === 'admin' && <ShieldCheckIcon className="h-3 w-3 mr-1" />}
-                      {ROLE_LABELS[user.role]}
+                      {t(`roles.${user.role}`, { defaultValue: ROLE_LABELS[user.role] })}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
@@ -314,7 +316,7 @@ export default function GlobalUsersPage() {
                         ? 'bg-green-100 text-green-700'
                         : 'bg-red-100 text-red-700'
                     )}>
-                      {user.is_active ? 'Active' : 'Inactive'}
+                      {user.is_active ? t('status.active') : t('status.inactive')}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
@@ -325,14 +327,14 @@ export default function GlobalUsersPage() {
                       <button
                         onClick={() => openEditModal(user)}
                         className="p-1 text-gray-400 hover:text-gray-600"
-                        title="Edit user"
+                        title={t('superadmin.users.editUser')}
                       >
                         <PencilSquareIcon className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => setDeleteConfirmUser(user)}
                         className="p-1 text-gray-400 hover:text-red-600"
-                        title="Deactivate user"
+                        title={t('superadmin.users.deactivateUser')}
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -344,7 +346,7 @@ export default function GlobalUsersPage() {
           </table>
           {users?.length === 0 && (
             <div className="text-center py-12 text-gray-500">
-              No users found.
+              {t('superadmin.users.noUsers')}
             </div>
           )}
         </div>
@@ -357,17 +359,17 @@ export default function GlobalUsersPage() {
             <div className="fixed inset-0 bg-black/50" onClick={closeCreateModal} />
             <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Create User
+                {t('superadmin.users.createUserTitle')}
               </h2>
               {createMutation.isError && (
                 <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                  {createMutation.error instanceof Error ? createMutation.error.message : 'Failed to create user. Please try again.'}
+                  {createMutation.error instanceof Error ? createMutation.error.message : t('superadmin.users.createFailed')}
                 </div>
               )}
               <form onSubmit={handleCreateSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tenant *
+                    {t('superadmin.tenant')} *
                   </label>
                   <select
                     value={formData.tenant_id}
@@ -375,7 +377,7 @@ export default function GlobalUsersPage() {
                     className="input"
                     required
                   >
-                    <option value="">Select a tenant</option>
+                    <option value="">{t('superadmin.users.selectTenant')}</option>
                     {tenants?.map((tenant) => (
                       <option key={tenant.id} value={tenant.id}>
                         {tenant.name}
@@ -385,7 +387,7 @@ export default function GlobalUsersPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Username *
+                    {t('superadmin.users.username')} *
                   </label>
                   <input
                     type="text"
@@ -394,14 +396,14 @@ export default function GlobalUsersPage() {
                     className="input"
                     required
                     pattern="^\S+$"
-                    title="Username cannot contain spaces"
-                    placeholder="e.g. jjayaraj"
+                    title={t('superadmin.users.usernameNoSpaces')}
+                    placeholder={t('superadmin.users.usernamePlaceholder')}
                   />
-                  <p className="mt-1 text-xs text-gray-500">No spaces allowed — this is used for login</p>
+                  <p className="mt-1 text-xs text-gray-500">{t('superadmin.users.usernameHint')}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email *
+                    {t('superadmin.users.email')} *
                   </label>
                   <input
                     type="email"
@@ -413,7 +415,7 @@ export default function GlobalUsersPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role *
+                    {t('superadmin.role')} *
                   </label>
                   <select
                     value={formData.role}
@@ -424,14 +426,14 @@ export default function GlobalUsersPage() {
                       .filter(([value]) => value !== 'super_admin')
                       .map(([value, label]) => (
                         <option key={value} value={value}>
-                          {label}
+                          {t(`roles.${value}`, { defaultValue: label })}
                         </option>
                       ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Business Unit
+                    {t('superadmin.users.businessUnit')}
                   </label>
                   <select
                     value={formData.business_unit_id}
@@ -439,7 +441,7 @@ export default function GlobalUsersPage() {
                     className="input"
                     disabled={!formData.tenant_id}
                   >
-                    <option value="">-- None --</option>
+                    <option value="">{t('superadmin.users.noneOption')}</option>
                     {businessUnits
                       .filter((bu) => bu.is_active)
                       .map((bu) => (
@@ -449,12 +451,12 @@ export default function GlobalUsersPage() {
                       ))}
                   </select>
                   {!formData.tenant_id && (
-                    <p className="mt-1 text-xs text-gray-400">Select a tenant first</p>
+                    <p className="mt-1 text-xs text-gray-400">{t('superadmin.users.selectTenantFirst')}</p>
                   )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password *
+                    {t('superadmin.users.password')} *
                   </label>
                   <input
                     type="password"
@@ -467,7 +469,7 @@ export default function GlobalUsersPage() {
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <button type="button" onClick={closeCreateModal} className="btn-secondary">
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
@@ -477,7 +479,7 @@ export default function GlobalUsersPage() {
                     {createMutation.isPending ? (
                       <LoadingSpinner size="sm" className="border-white border-t-transparent" />
                     ) : (
-                      'Create'
+                      t('superadmin.create')
                     )}
                   </button>
                 </div>
@@ -494,26 +496,26 @@ export default function GlobalUsersPage() {
             <div className="fixed inset-0 bg-black/50" onClick={() => setEditingUser(null)} />
             <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-1">
-                Edit User
+                {t('superadmin.users.editUserTitle')}
               </h2>
               <p className="text-sm text-gray-500 mb-4">
                 {editingUser.tenant_name || getTenantName(editingUser.tenant_id)}
               </p>
               {updateMutation.isError && (
                 <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                  {updateMutation.error instanceof Error ? updateMutation.error.message : 'Failed to update user. Please try again.'}
+                  {updateMutation.error instanceof Error ? updateMutation.error.message : t('superadmin.users.updateFailed')}
                 </div>
               )}
               <form onSubmit={handleEditSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
+                    {t('superadmin.users.email')}
                   </label>
                   <p className="text-sm text-gray-500">{editingUser.email}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Username
+                    {t('superadmin.users.username')}
                   </label>
                   <input
                     type="text"
@@ -522,25 +524,25 @@ export default function GlobalUsersPage() {
                     className="input"
                     required
                     pattern="^\S+$"
-                    title="Username cannot contain spaces"
+                    title={t('superadmin.users.usernameNoSpaces')}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    New Password
+                    {t('superadmin.users.newPassword')}
                   </label>
                   <input
                     type="password"
                     value={editFormData.new_password}
                     onChange={(e) => setEditFormData({ ...editFormData, new_password: e.target.value })}
                     className="input"
-                    placeholder="Leave blank to keep current"
+                    placeholder={t('superadmin.users.keepCurrentPlaceholder')}
                     minLength={8}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role
+                    {t('superadmin.role')}
                   </label>
                   <select
                     value={editFormData.role}
@@ -551,21 +553,21 @@ export default function GlobalUsersPage() {
                       .filter(([value]) => value !== 'super_admin')
                       .map(([value, label]) => (
                         <option key={value} value={value}>
-                          {label}
+                          {t(`roles.${value}`, { defaultValue: label })}
                         </option>
                       ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Business Unit
+                    {t('superadmin.users.businessUnit')}
                   </label>
                   <select
                     value={editFormData.business_unit_id}
                     onChange={(e) => setEditFormData({ ...editFormData, business_unit_id: e.target.value })}
                     className="input"
                   >
-                    <option value="">-- None --</option>
+                    <option value="">{t('superadmin.users.noneOption')}</option>
                     {businessUnits
                       .filter((bu) => bu.is_active)
                       .map((bu) => (
@@ -583,12 +585,12 @@ export default function GlobalUsersPage() {
                       onChange={(e) => setEditFormData({ ...editFormData, is_active: e.target.checked })}
                       className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                     />
-                    <span className="text-sm font-medium text-gray-700">Active</span>
+                    <span className="text-sm font-medium text-gray-700">{t('status.active')}</span>
                   </label>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <button type="button" onClick={() => setEditingUser(null)} className="btn-secondary">
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
@@ -598,7 +600,7 @@ export default function GlobalUsersPage() {
                     {updateMutation.isPending ? (
                       <LoadingSpinner size="sm" className="border-white border-t-transparent" />
                     ) : (
-                      'Save Changes'
+                      t('superadmin.saveChanges')
                     )}
                   </button>
                 </div>
@@ -615,20 +617,19 @@ export default function GlobalUsersPage() {
             <div className="fixed inset-0 bg-black/50" onClick={() => setDeleteConfirmUser(null)} />
             <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                Deactivate User
+                {t('superadmin.users.deactivateUserTitle')}
               </h2>
               <p className="text-sm text-gray-600 mb-4">
-                Are you sure you want to deactivate <strong>{deleteConfirmUser.username}</strong>?
-                They will no longer be able to log in.
+                {t('superadmin.users.deactivateConfirmPrefix')} <strong>{deleteConfirmUser.username}</strong>{t('superadmin.users.deactivateConfirmSuffix')}
               </p>
               {deleteMutation.isError && (
                 <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                  Failed to deactivate user. Please try again.
+                  {t('superadmin.users.deactivateFailed')}
                 </div>
               )}
               <div className="flex justify-end gap-3">
                 <button onClick={() => setDeleteConfirmUser(null)} className="btn-secondary">
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={() => deleteMutation.mutate(deleteConfirmUser.id)}
@@ -638,7 +639,7 @@ export default function GlobalUsersPage() {
                   {deleteMutation.isPending ? (
                     <LoadingSpinner size="sm" className="border-white border-t-transparent" />
                   ) : (
-                    'Deactivate'
+                    t('superadmin.users.deactivate')
                   )}
                 </button>
               </div>

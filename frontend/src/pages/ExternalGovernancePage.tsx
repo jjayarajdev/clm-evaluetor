@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -90,6 +91,7 @@ type TabId = 'kpis' | 'improvements'
 // ── Main Component ─────────────────────────────────────────────────
 
 export default function ExternalGovernancePage() {
+  const { t } = useTranslation()
   const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const accessToken = searchParams.get('token') || ''
@@ -132,8 +134,8 @@ export default function ExternalGovernancePage() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['external-governance', accessToken] })
-      const kpiName = data?.kpis.find((k) => k.id === variables.kpi_id)?.name || 'KPI'
-      setSubmitSuccess(`Score submitted for "${kpiName}". Thank you!`)
+      const kpiName = data?.kpis.find((k) => k.id === variables.kpi_id)?.name || t('external.kpi')
+      setSubmitSuccess(t('external.scoreSubmitted', { name: kpiName }))
       setScoringKpiId(null)
       setScoreValue(5)
       setScorePeriod(getCurrentQuarter())
@@ -149,7 +151,7 @@ export default function ExternalGovernancePage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <LoadingSpinner size="lg" />
-          <p className="mt-4 text-gray-600">Loading governance data...</p>
+          <p className="mt-4 text-gray-600">{t('external.loadingGovernance')}</p>
         </div>
       </div>
     )
@@ -162,11 +164,9 @@ export default function ExternalGovernancePage() {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">{t('external.accessDenied')}</h1>
           <p className="text-gray-600">
-            {!accessToken
-              ? 'No access token provided. Please use the link from your invitation email.'
-              : 'This link is invalid or has expired. Please contact the sender for a new link.'}
+            {!accessToken ? t('external.noToken') : t('external.invalidLink')}
           </p>
         </div>
       </div>
@@ -225,14 +225,14 @@ export default function ExternalGovernancePage() {
               </div>
               <div>
                 <h1 className="font-semibold text-gray-900">Evaluetor</h1>
-                <p className="text-xs text-gray-500">Governance Portal</p>
+                <p className="text-xs text-gray-500">{t('external.governancePortal')}</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               {data.token_expires_at && (
                 <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400">
                   <ClockIcon className="w-3.5 h-3.5" />
-                  <span>Expires {formatDate(data.token_expires_at)}</span>
+                  <span>{t('external.expires', { date: formatDate(data.token_expires_at) })}</span>
                 </div>
               )}
               <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -285,12 +285,12 @@ export default function ExternalGovernancePage() {
                           : 'bg-gray-100 text-gray-600'
                     )}
                   >
-                    {relationship.status.replace(/_/g, ' ')}
+                    {t(`status.${relationship.status}`, { defaultValue: relationship.status.replace(/_/g, ' ') })}
                   </span>
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-xs text-gray-500">Health Score</p>
+                <p className="text-xs text-gray-500">{t('external.healthScore')}</p>
                 <p className={cn('text-3xl font-bold', healthColor)}>
                   {relationship.health_score}
                 </p>
@@ -300,7 +300,7 @@ export default function ExternalGovernancePage() {
           {external_user.company_name && (
             <div className="px-6 pb-4">
               <p className="text-sm text-gray-500">
-                You are viewing this as a representative of{' '}
+                {t('external.viewingAsRepresentative')}{' '}
                 <span className="font-medium text-gray-700">{external_user.company_name}</span>.
               </p>
             </div>
@@ -311,19 +311,19 @@ export default function ExternalGovernancePage() {
         {kpis.some((k) => k.latest_gap_severity) && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
             {[
-              { label: 'Critical', count: gapCounts.critical, color: 'text-red-600 bg-red-50' },
+              { label: t('external.severity.critical'), count: gapCounts.critical, color: 'text-red-600 bg-red-50' },
               {
-                label: 'Significant',
+                label: t('external.severity.significant'),
                 count: gapCounts.significant,
                 color: 'text-orange-600 bg-orange-50',
               },
               {
-                label: 'Moderate',
+                label: t('external.severity.moderate'),
                 count: gapCounts.moderate,
                 color: 'text-yellow-600 bg-yellow-50',
               },
-              { label: 'Minor', count: gapCounts.minor, color: 'text-blue-600 bg-blue-50' },
-              { label: 'Aligned', count: gapCounts.aligned, color: 'text-green-600 bg-green-50' },
+              { label: t('external.severity.minor'), count: gapCounts.minor, color: 'text-blue-600 bg-blue-50' },
+              { label: t('external.severity.aligned'), count: gapCounts.aligned, color: 'text-green-600 bg-green-50' },
             ].map((item) => (
               <div key={item.label} className={cn('rounded-lg p-3 text-center', item.color)}>
                 <p className="text-2xl font-bold">{item.count}</p>
@@ -346,7 +346,7 @@ export default function ExternalGovernancePage() {
               )}
             >
               <ChartBarSquareIcon className="w-4 h-4" />
-              KPI Scorecard
+              {t('external.kpiScorecard')}
               {kpis.length > 0 && (
                 <span
                   className={cn(
@@ -370,7 +370,7 @@ export default function ExternalGovernancePage() {
               )}
             >
               <LightBulbIcon className="w-4 h-4" />
-              Improvements
+              {t('external.improvements')}
               {improvements.length > 0 && (
                 <span
                   className={cn(
@@ -402,7 +402,7 @@ export default function ExternalGovernancePage() {
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       )}
                     >
-                      All ({kpis.length})
+                      {t('external.allCount', { count: kpis.length })}
                     </button>
                     {categories.map((cat) => (
                       <button
@@ -415,7 +415,7 @@ export default function ExternalGovernancePage() {
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         )}
                       >
-                        {CATEGORY_LABELS[cat] || cat} ({categoryCounts[cat]})
+                        {t(`external.category.${cat}`, { defaultValue: CATEGORY_LABELS[cat] || cat })} ({categoryCounts[cat]})
                       </button>
                     ))}
                   </div>
@@ -427,28 +427,28 @@ export default function ExternalGovernancePage() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          KPI
+                          {t('external.kpi')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Category
+                          {t('external.categoryHeader')}
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                          Target
+                          {t('external.targetHeader')}
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">
-                          Internal
+                          {t('external.internal')}
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-purple-600 uppercase bg-purple-50">
-                          External
+                          {t('external.external')}
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                          Gap
+                          {t('external.gap')}
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                          Severity
+                          {t('external.severityHeader')}
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                          Actions
+                          {t('common.actions')}
                         </th>
                       </tr>
                     </thead>
@@ -477,7 +477,9 @@ export default function ExternalGovernancePage() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-xs text-gray-500 capitalize">
-                              {(kpi.category || 'other').replace(/_/g, ' ')}
+                              {t(`external.category.${kpi.category || 'other'}`, {
+                                defaultValue: (kpi.category || 'other').replace(/_/g, ' '),
+                              })}
                             </td>
                             <td className="px-4 py-3 text-center text-sm text-gray-700">
                               {kpi.target_value != null ? kpi.target_value : '--'}
@@ -519,7 +521,7 @@ export default function ExternalGovernancePage() {
                                     GAP_COLORS[gapSeverity]
                                   )}
                                 >
-                                  {gapSeverity}
+                                  {t(`external.severity.${gapSeverity}`, { defaultValue: gapSeverity })}
                                 </span>
                               ) : (
                                 '--'
@@ -536,7 +538,7 @@ export default function ExternalGovernancePage() {
                                 className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 font-medium px-2.5 py-1 rounded-md hover:bg-primary-50 transition-colors"
                               >
                                 <StarIcon className="w-3.5 h-3.5" />
-                                Rate
+                                {t('external.rate')}
                               </button>
                             </td>
                           </tr>
@@ -549,8 +551,8 @@ export default function ExternalGovernancePage() {
                             className="px-4 py-8 text-center text-sm text-gray-500"
                           >
                             {kpis.length === 0
-                              ? 'No KPIs have been defined for this relationship yet.'
-                              : 'No KPIs match the selected category.'}
+                              ? t('external.noKpisDefined')
+                              : t('external.noKpisMatchCategory')}
                           </td>
                         </tr>
                       )}
@@ -567,7 +569,7 @@ export default function ExternalGovernancePage() {
                     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                       <div className="px-4 py-3 border-b border-gray-200">
                         <h3 className="text-sm font-medium text-gray-900">
-                          Perception Gap Comparison
+                          {t('external.perceptionGapComparison')}
                         </h3>
                       </div>
                       <div className="p-4 space-y-3">
@@ -593,7 +595,7 @@ export default function ExternalGovernancePage() {
                                       style={{ width: `${(intScore / 10) * 100}%` }}
                                     />
                                     <span className="absolute right-2 top-0 text-[10px] font-bold text-blue-800 leading-4">
-                                      INT {intScore ? intScore.toFixed(1) : '--'}
+                                      {t('external.intShort')} {intScore ? intScore.toFixed(1) : '--'}
                                     </span>
                                   </div>
                                   <div className="flex-1 bg-gray-100 rounded-full h-4 relative">
@@ -602,7 +604,7 @@ export default function ExternalGovernancePage() {
                                       style={{ width: `${(extScore / 10) * 100}%` }}
                                     />
                                     <span className="absolute right-2 top-0 text-[10px] font-bold text-purple-800 leading-4">
-                                      EXT {extScore ? extScore.toFixed(1) : '--'}
+                                      {t('external.extShort')} {extScore ? extScore.toFixed(1) : '--'}
                                     </span>
                                   </div>
                                 </div>
@@ -613,7 +615,7 @@ export default function ExternalGovernancePage() {
                                       GAP_COLORS[severity]
                                     )}
                                   >
-                                    {severity}
+                                    {t(`external.severity.${severity}`, { defaultValue: severity })}
                                   </span>
                                 )}
                               </div>
@@ -631,7 +633,7 @@ export default function ExternalGovernancePage() {
                 <div className="flex items-center gap-2">
                   <LightBulbIcon className="h-5 w-5 text-gray-400" />
                   <h2 className="text-sm font-semibold text-gray-700">
-                    Improvement Points ({improvements.length})
+                    {t('external.improvementPoints', { count: improvements.length })}
                   </h2>
                 </div>
 
@@ -649,7 +651,7 @@ export default function ExternalGovernancePage() {
                               )}
                               {imp.target_outcome && (
                                 <p className="text-xs text-gray-400 mt-1 italic">
-                                  Target: {imp.target_outcome}
+                                  {t('external.target', { value: imp.target_outcome })}
                                 </p>
                               )}
                             </div>
@@ -666,7 +668,7 @@ export default function ExternalGovernancePage() {
                                         : 'bg-gray-100 text-gray-800'
                                 )}
                               >
-                                {imp.priority}
+                                {t(`risk.${imp.priority}`, { defaultValue: imp.priority })}
                               </span>
                               <span
                                 className={cn(
@@ -680,7 +682,7 @@ export default function ExternalGovernancePage() {
                                         : 'bg-gray-100 text-gray-800'
                                 )}
                               >
-                                {imp.status.replace(/_/g, ' ')}
+                                {t(`external.status.${imp.status}`, { defaultValue: imp.status.replace(/_/g, ' ') })}
                               </span>
                             </div>
                           </div>
@@ -695,16 +697,16 @@ export default function ExternalGovernancePage() {
                             <span className="text-[10px] text-gray-500 shrink-0">
                               {pct}%
                               {imp.action_count
-                                ? ` (${imp.completed_action_count ?? 0}/${imp.action_count} actions)`
+                                ? ` ${t('external.actionsProgress', { completed: imp.completed_action_count ?? 0, total: imp.action_count })}`
                                 : ''}
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-400">
-                            {imp.owner_name && <span>Owner: {imp.owner_name}</span>}
-                            {imp.kpi_name && <span>KPI: {imp.kpi_name}</span>}
+                            {imp.owner_name && <span>{t('external.owner', { name: imp.owner_name })}</span>}
+                            {imp.kpi_name && <span>{t('external.kpiLabel', { name: imp.kpi_name })}</span>}
                             {(imp.target_date || imp.due_date) && (
                               <span>
-                                Due: {formatDate(imp.target_date || imp.due_date || null)}
+                                {t('external.due', { date: formatDate(imp.target_date || imp.due_date || null) })}
                               </span>
                             )}
                           </div>
@@ -714,7 +716,7 @@ export default function ExternalGovernancePage() {
                   </div>
                 ) : (
                   <div className="text-center py-12 text-gray-500 text-sm">
-                    No improvement points have been created for this relationship yet.
+                    {t('external.noImprovementPoints')}
                   </div>
                 )}
               </div>
@@ -726,7 +728,7 @@ export default function ExternalGovernancePage() {
       {/* Footer */}
       <footer className="border-t border-gray-200 bg-white mt-12">
         <div className="max-w-5xl mx-auto px-4 py-6 text-center text-sm text-gray-500">
-          Powered by Evaluetor Contract Intelligence Platform
+          {t('external.poweredBy')}
         </div>
       </footer>
 
@@ -736,7 +738,7 @@ export default function ExternalGovernancePage() {
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Rate KPI</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t('external.rateKpi')}</h2>
                 <p className="text-sm text-gray-500 mt-0.5">{scoringKpi.name}</p>
               </div>
               <button
@@ -750,12 +752,12 @@ export default function ExternalGovernancePage() {
             <div className="space-y-5">
               {/* Period */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Period</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('external.period')}</label>
                 <input
                   type="text"
                   value={scorePeriod}
                   onChange={(e) => setScorePeriod(e.target.value)}
-                  placeholder="e.g., 2026-Q2"
+                  placeholder={t('external.periodPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
@@ -763,7 +765,7 @@ export default function ExternalGovernancePage() {
               {/* Score Slider */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Your Score:{' '}
+                  {t('external.yourScore')}{' '}
                   <span className="text-primary-600 font-bold text-lg">{scoreValue}/10</span>
                 </label>
                 <input
@@ -776,9 +778,9 @@ export default function ExternalGovernancePage() {
                   className="w-full accent-primary-600 h-2"
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  <span>1 - Poor</span>
-                  <span>5 - Average</span>
-                  <span>10 - Excellent</span>
+                  <span>{t('external.scorePoor')}</span>
+                  <span>{t('external.scoreAverage')}</span>
+                  <span>{t('external.scoreExcellent')}</span>
                 </div>
                 {/* Visual dots */}
                 <div className="flex justify-between mt-2 px-0.5">
@@ -804,13 +806,13 @@ export default function ExternalGovernancePage() {
               {/* Comments */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Comments <span className="text-gray-400 font-normal">(optional)</span>
+                  {t('external.comments')} <span className="text-gray-400 font-normal">{t('external.optional')}</span>
                 </label>
                 <textarea
                   value={scoreComments}
                   onChange={(e) => setScoreComments(e.target.value)}
                   rows={3}
-                  placeholder="Share your perspective on this KPI's performance..."
+                  placeholder={t('external.scoreCommentsPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
@@ -819,7 +821,7 @@ export default function ExternalGovernancePage() {
             {/* Error */}
             {submitScoreMutation.isError && (
               <div className="mt-3 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
-                Failed to submit score. Please try again.
+                {t('external.submitScoreFailed')}
               </div>
             )}
 
@@ -828,7 +830,7 @@ export default function ExternalGovernancePage() {
                 onClick={() => setScoringKpiId(null)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => {
@@ -845,12 +847,12 @@ export default function ExternalGovernancePage() {
                 {submitScoreMutation.isPending ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    Submitting...
+                    {t('external.submitting')}
                   </>
                 ) : (
                   <>
                     <StarIcon className="w-4 h-4" />
-                    Submit Score
+                    {t('external.submitScore')}
                   </>
                 )}
               </button>

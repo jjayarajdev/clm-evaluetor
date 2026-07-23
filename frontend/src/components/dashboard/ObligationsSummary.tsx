@@ -7,6 +7,7 @@ import {
   CalendarIcon,
   BuildingOfficeIcon,
 } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDate } from '@/lib/utils'
@@ -44,7 +45,14 @@ interface Props {
 }
 
 export default function ObligationsSummary({ contractId, clientId }: Props) {
+  const { t } = useTranslation()
   const [selectedType, setSelectedType] = useState<string | null>(null)
+
+  const obligationTypeLabel = (type: string) =>
+    t(`summaries.obligationTypes.${type}`, { defaultValue: OBLIGATION_TYPE_LABELS[type] || type })
+
+  const statusLabel = (status: string) =>
+    t(`status.${status}`, { defaultValue: t(`summaries.statuses.${status}`, { defaultValue: status }) })
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['obligations-summary', contractId, clientId],
@@ -84,23 +92,23 @@ export default function ObligationsSummary({ contractId, clientId }: Props) {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <ClipboardDocumentListIcon className="h-6 w-6 text-primary-600" />
-              Contract Obligations
-              <span className="text-sm font-normal text-gray-500">({data.total} total)</span>
+              {t('summaries.contractObligations')}
+              <span className="text-sm font-normal text-gray-500">{t('summaries.totalParen', { count: data.total })}</span>
             </h3>
             {/* Show only top 3 parties as summary */}
             <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
-              <span>Top parties:</span>
+              <span>{t('summaries.topParties')}:</span>
               {topParties.map(([party, count]) => (
                 <span key={party} className="bg-gray-100 px-2 py-0.5 rounded text-xs">
                   {party.length > 15 ? party.substring(0, 15) + '...' : party}: {count}
                 </span>
               ))}
               {Object.keys(data.by_party).length > 3 && (
-                <span className="text-gray-400">+{Object.keys(data.by_party).length - 3} more</span>
+                <span className="text-gray-400">{t('summaries.moreCount', { count: Object.keys(data.by_party).length - 3 })}</span>
               )}
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-1">Click on any category to see details</p>
+          <p className="text-sm text-gray-500 mt-1">{t('summaries.clickCategoryDetails')}</p>
         </div>
 
         <div className="card-body">
@@ -124,7 +132,7 @@ export default function ObligationsSummary({ contractId, clientId }: Props) {
                 >
                   {/* Type label */}
                   <p className={cn("text-sm font-medium mb-1", colors.text)}>
-                    {OBLIGATION_TYPE_LABELS[item.obligation_type] || item.obligation_type}
+                    {obligationTypeLabel(item.obligation_type)}
                   </p>
 
                   {/* Count */}
@@ -142,7 +150,7 @@ export default function ObligationsSummary({ contractId, clientId }: Props) {
 
                   {/* Subtle party count */}
                   <p className="text-xs text-gray-500 mt-2">
-                    {partyCount} {partyCount === 1 ? 'party' : 'parties'}
+                    {t('summaries.parties', { count: partyCount })}
                   </p>
                 </button>
               )
@@ -157,10 +165,10 @@ export default function ObligationsSummary({ contractId, clientId }: Props) {
           <div className="card-header bg-primary-50 flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                {OBLIGATION_TYPE_LABELS[selectedType] || selectedType} Obligations
+                {t('summaries.typeObligations', { type: obligationTypeLabel(selectedType) })}
                 {drillDownData && (
                   <span className="text-sm font-normal text-gray-500">
-                    ({drillDownData.total} items)
+                    {t('summaries.itemCount', { count: drillDownData.total })}
                   </span>
                 )}
               </h3>
@@ -209,7 +217,7 @@ export default function ObligationsSummary({ contractId, clientId }: Props) {
                           "text-xs px-2 py-0.5 rounded-full",
                           STATUS_COLORS[obl.status] || STATUS_COLORS.pending
                         )}>
-                          {obl.status}
+                          {statusLabel(obl.status)}
                         </span>
                         <span className="text-xs text-gray-500 truncate max-w-[100px]">
                           {obl.obligated_party}
@@ -220,9 +228,9 @@ export default function ObligationsSummary({ contractId, clientId }: Props) {
                 ))}
                 {drillDownData.obligations.length > 20 && (
                   <div className="p-4 text-center text-sm text-gray-500 bg-gray-50">
-                    Showing 20 of {drillDownData.total} obligations.{' '}
+                    {t('summaries.showingObligations', { shown: 20, total: drillDownData.total })}{' '}
                     <Link to="/compliance" className="text-primary-600 hover:underline">
-                      View all →
+                      {t('dashboard.viewAll')} →
                     </Link>
                   </div>
                 )}

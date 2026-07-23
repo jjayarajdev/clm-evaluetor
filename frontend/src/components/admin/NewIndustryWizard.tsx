@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   generateIndustryProfile,
@@ -37,20 +38,21 @@ function SectionEditor({
   onChange: (parsed: unknown) => void
   onErrorChange: (hasError: boolean) => void
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [text, setText] = useState(() => JSON.stringify(value, null, 2))
   const [parseError, setParseError] = useState<string | null>(null)
 
   const count = Array.isArray(value) ? value.length : Object.keys(value || {}).length
 
-  const handleChange = (t: string) => {
-    setText(t)
+  const handleChange = (raw: string) => {
+    setText(raw)
     try {
-      onChange(JSON.parse(t))
+      onChange(JSON.parse(raw))
       setParseError(null)
       onErrorChange(false)
     } catch {
-      setParseError('Invalid JSON — fix before saving')
+      setParseError(t('industry.invalidJson'))
       onErrorChange(true)
     }
   }
@@ -67,7 +69,7 @@ function SectionEditor({
           {parseError ? (
             <span className="text-xs text-red-600">{parseError}</span>
           ) : (
-            <span className="text-xs text-gray-500">{count} items</span>
+            <span className="text-xs text-gray-500">{t('industry.itemsCount', { count })}</span>
           )}
           <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition-transform', open && 'rotate-180')} />
         </span>
@@ -88,6 +90,7 @@ function SectionEditor({
 }
 
 export default function NewIndustryWizard({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [step, setStep] = useState<'input' | 'review'>('input')
   const [name, setName] = useState('')
@@ -141,7 +144,7 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
           <div className="flex items-center gap-2">
             <SparklesIcon className="h-5 w-5 text-violet-500" />
             <h2 className="text-base font-bold text-gray-900">
-              {step === 'input' ? 'New Industry Profile' : `Review Draft — ${name}`}
+              {step === 'input' ? t('industry.newIndustryProfile') : t('industry.reviewDraft', { name })}
             </h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -154,31 +157,31 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
           {step === 'input' && (
             <>
               <div>
-                <label className="label">Industry Name</label>
+                <label className="label">{t('industry.industryName')}</label>
                 <input
                   className="input"
-                  placeholder="e.g. Construction & Engineering"
+                  placeholder={t('industry.industryNamePlaceholder')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
               <div>
-                <label className="label">Description</label>
+                <label className="label">{t('industry.description')}</label>
                 <textarea
                   className="input h-24"
-                  placeholder="Describe the vertical: typical contract parties, what is bought/sold, key regulations, common risks…"
+                  placeholder={t('industry.descriptionPlaceholder')}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  The AI uses this to draft contract types, clauses, risks, SLA metrics and extraction hints.
+                  {t('industry.descriptionHint')}
                 </p>
               </div>
               <div>
-                <label className="label">Sample Contract Text (optional)</label>
+                <label className="label">{t('industry.sampleContractText')}</label>
                 <textarea
                   className="input h-32 font-mono text-xs"
-                  placeholder="Paste a representative contract excerpt to ground the draft…"
+                  placeholder={t('industry.sampleContractPlaceholder')}
                   value={sampleText}
                   onChange={(e) => setSampleText(e.target.value)}
                 />
@@ -203,7 +206,7 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">Name</label>
+                  <label className="label">{t('industry.name')}</label>
                   <input
                     className="input"
                     value={draft.name || ''}
@@ -211,7 +214,7 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
                   />
                 </div>
                 <div>
-                  <label className="label">Slug</label>
+                  <label className="label">{t('industry.slug')}</label>
                   <input
                     className="input font-mono"
                     value={draft.slug || ''}
@@ -220,7 +223,7 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
                 </div>
               </div>
               <div>
-                <label className="label">Description</label>
+                <label className="label">{t('industry.description')}</label>
                 <textarea
                   className="input h-20"
                   value={draft.description || ''}
@@ -231,7 +234,7 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
                 {SECTION_KEYS.map(({ key, label }) => (
                   <SectionEditor
                     key={key}
-                    label={label}
+                    label={t(`industry.sections.${key}`, { defaultValue: label })}
                     value={draft[key] ?? (key === 'extraction_hints' || key === 'ui_config' || key === 'field_definitions' ? {} : [])}
                     onChange={(parsed) => updateDraftField(key, parsed)}
                     onErrorChange={(hasError) =>
@@ -251,7 +254,7 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
           {step === 'review' ? (
             <button className="btn-secondary text-sm" onClick={() => setStep('input')}>
-              Back
+              {t('industry.back')}
             </button>
           ) : (
             <span />
@@ -263,7 +266,7 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
               onClick={() => generateMutation.mutate()}
             >
               <SparklesIcon className="h-4 w-4" />
-              {generateMutation.isPending ? 'Generating… (up to a minute)' : 'Generate with AI'}
+              {generateMutation.isPending ? t('industry.generating') : t('industry.generateWithAi')}
             </button>
           ) : (
             <button
@@ -272,7 +275,7 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
               onClick={() => createMutation.mutate()}
             >
               <CheckCircleIcon className="h-4 w-4" />
-              {createMutation.isPending ? 'Creating…' : 'Create Profile'}
+              {createMutation.isPending ? t('industry.creating') : t('industry.createProfile')}
             </button>
           )}
         </div>

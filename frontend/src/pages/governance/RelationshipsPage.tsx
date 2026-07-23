@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   LinkIcon,
@@ -102,6 +103,7 @@ function ScoreBar({ label, score, weight, detail, color }: {
 function HealthModal({ relationship, onClose }: {
   relationship: BusinessRelationship; onClose: () => void
 }) {
+  const { t } = useTranslation()
   const { data: health, isLoading } = useQuery({
     queryKey: ['relationship-health', relationship.id],
     queryFn: () => api.getRelationshipHealth(relationship.id),
@@ -120,7 +122,7 @@ function HealthModal({ relationship, onClose }: {
         <div className="px-6 pt-6 pb-4 border-b border-gray-100">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Health Score Breakdown</h2>
+              <h2 className="text-lg font-bold text-gray-900">{t('governance.healthScoreBreakdown')}</h2>
               <p className="text-sm text-gray-500 mt-0.5">{counterparty}</p>
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
@@ -176,7 +178,7 @@ function HealthModal({ relationship, onClose }: {
                     detail={(factors.perception as HealthScoreFactor).detail}
                     color={getColor((factors.perception as HealthScoreFactor).score)}
                   />
-                  <p className="text-xs text-gray-400 mt-1 italic">Informational — not included in health score</p>
+                  <p className="text-xs text-gray-400 mt-1 italic">{t('governance.perceptionInformational')}</p>
                 </div>
               )}
 
@@ -185,10 +187,10 @@ function HealthModal({ relationship, onClose }: {
                 <div className="text-center py-4">
                   <InformationCircleIcon className="h-8 w-8 mx-auto text-gray-300 mb-2" />
                   <p className="text-sm text-gray-500">
-                    No contract data available yet.
+                    {t('governance.noContractData')}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    Health score is estimated from perception gap analysis.
+                    {t('governance.healthEstimatedFromPerception')}
                   </p>
                 </div>
               )}
@@ -197,15 +199,15 @@ function HealthModal({ relationship, onClose }: {
               <div className="flex gap-4 pt-3 border-t border-gray-100">
                 <div className="flex-1 text-center">
                   <p className="text-xl font-bold text-gray-900">{typeof factors.contract_count === 'number' ? factors.contract_count : relationship.contract_count || 0}</p>
-                  <p className="text-xs text-gray-500">Contracts</p>
+                  <p className="text-xs text-gray-500">{t('governance.contracts')}</p>
                 </div>
                 <div className="flex-1 text-center">
                   <p className="text-xl font-bold text-gray-900">{typeof factors.kpi_count === 'number' ? factors.kpi_count : relationship.kpi_count || 0}</p>
-                  <p className="text-xs text-gray-500">KPIs</p>
+                  <p className="text-xs text-gray-500">{t('governance.kpis')}</p>
                 </div>
                 <div className="flex-1 text-center">
-                  <p className="text-xl font-bold text-gray-900">{relationship.governance_tier ? relationship.governance_tier.charAt(0).toUpperCase() + relationship.governance_tier.slice(1) : '—'}</p>
-                  <p className="text-xs text-gray-500">Tier</p>
+                  <p className="text-xl font-bold text-gray-900">{relationship.governance_tier ? t(`governance.tiers.${relationship.governance_tier}`, { defaultValue: relationship.governance_tier.charAt(0).toUpperCase() + relationship.governance_tier.slice(1) }) : '—'}</p>
+                  <p className="text-xs text-gray-500">{t('governance.tier')}</p>
                 </div>
               </div>
             </>
@@ -218,7 +220,7 @@ function HealthModal({ relationship, onClose }: {
             to={`/relationships/${relationship.id}`}
             className="btn-primary w-full text-center block"
           >
-            View Full Details
+            {t('governance.viewFullDetails')}
           </Link>
         </div>
       </div>
@@ -227,6 +229,7 @@ function HealthModal({ relationship, onClose }: {
 }
 
 export default function RelationshipsPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [selectedRelationship, setSelectedRelationship] = useState<BusinessRelationship | null>(null)
@@ -295,9 +298,9 @@ export default function RelationshipsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Business Relationships</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('governance.businessRelationships')}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Governance health across your partner ecosystem
+            {t('governance.relationshipsSubtitle')}
           </p>
         </div>
         <button
@@ -305,7 +308,7 @@ export default function RelationshipsPage() {
           className="btn-primary flex items-center gap-2"
         >
           <PlusIcon className="h-4 w-4" />
-          New Relationship
+          {t('governance.newRelationship')}
         </button>
       </div>
 
@@ -314,28 +317,28 @@ export default function RelationshipsPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <LinkIcon className="h-4 w-4 text-primary-500" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total</span>
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('governance.total')}</span>
           </div>
           <p className="text-2xl font-bold text-gray-900">{totalRelationships}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <HeartIcon className="h-4 w-4 text-emerald-500" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Avg Health</span>
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('governance.avgHealth')}</span>
           </div>
           <p className="text-2xl font-bold" style={{ color: avgHealth >= 80 ? '#10b981' : avgHealth >= 60 ? '#f59e0b' : '#ef4444' }}>{avgHealth}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <ShieldCheckIcon className="h-4 w-4 text-emerald-500" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Healthy</span>
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('governance.healthy')}</span>
           </div>
           <p className="text-2xl font-bold text-emerald-600">{healthyCount}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <ExclamationTriangleIcon className="h-4 w-4 text-red-500" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Needs Attention</span>
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('governance.needsAttention')}</span>
           </div>
           <p className="text-2xl font-bold text-red-600">{atRiskCount}</p>
         </div>
@@ -350,7 +353,7 @@ export default function RelationshipsPage() {
             !filterType ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           )}
         >
-          All ({totalRelationships})
+          {t('governance.allCount', { count: totalRelationships })}
         </button>
         {Object.entries(typeCounts).map(([type, count]) => (
           <button
@@ -361,7 +364,7 @@ export default function RelationshipsPage() {
               filterType === type ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
-            {type.replace('_', ' ')} ({count})
+            {t(`governance.relationshipTypes.${type}`, { defaultValue: type.replace('_', ' ') })} ({count})
           </button>
         ))}
       </div>
@@ -387,14 +390,14 @@ export default function RelationshipsPage() {
                       'px-2 py-0.5 rounded-full text-xs font-medium',
                       STATUS_COLORS[rel.status] || 'bg-gray-100 text-gray-700'
                     )}>
-                      {rel.status}
+                      {t(`governance.relationshipStatus.${rel.status}`, { defaultValue: rel.status })}
                     </span>
                     <span className={cn('text-xs font-medium capitalize', TYPE_ICONS[rel.relationship_type] || 'text-gray-500')}>
-                      {rel.relationship_type.replace('_', ' ')}
+                      {t(`governance.relationshipTypes.${rel.relationship_type}`, { defaultValue: rel.relationship_type.replace('_', ' ') })}
                     </span>
                   </div>
                   <span className={cn('text-xs', TIER_COLORS[rel.governance_tier] || 'text-gray-400')}>
-                    {rel.governance_tier ? rel.governance_tier.charAt(0).toUpperCase() + rel.governance_tier.slice(1) : ''}
+                    {rel.governance_tier ? t(`governance.tiers.${rel.governance_tier}`, { defaultValue: rel.governance_tier.charAt(0).toUpperCase() + rel.governance_tier.slice(1) }) : ''}
                   </span>
                 </div>
 
@@ -408,18 +411,18 @@ export default function RelationshipsPage() {
                   {(rel.contract_count ?? 0) > 0 && (
                     <span className="flex items-center gap-1">
                       <DocumentTextIcon className="h-3.5 w-3.5" />
-                      {rel.contract_count} contracts
+                      {t('governance.contractsCount', { count: rel.contract_count })}
                     </span>
                   )}
                   {(rel.kpi_count ?? 0) > 0 && (
                     <span className="flex items-center gap-1">
                       <ChartBarIcon className="h-3.5 w-3.5" />
-                      {rel.kpi_count} KPIs
+                      {t('governance.kpisCount', { count: rel.kpi_count })}
                     </span>
                   )}
                   {rel.annual_value && (
                     <span className="font-medium text-gray-600">
-                      {rel.currency || '$'}{Number(rel.annual_value).toLocaleString()}/yr
+                      {t('governance.perYear', { value: `${rel.currency || '$'}${Number(rel.annual_value).toLocaleString()}` })}
                     </span>
                   )}
                 </div>
@@ -437,14 +440,14 @@ export default function RelationshipsPage() {
                     ? 'border-red-100 bg-red-50/50 hover:bg-red-50'
                     : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100'
                 )}
-                title="Click for score breakdown"
+                title={t('governance.clickForBreakdown')}
               >
                 <div className="flex items-center gap-2">
                   <HealthRing score={rel.health_score} size={32} />
-                  <span className="text-xs text-gray-500">Health Score</span>
+                  <span className="text-xs text-gray-500">{t('governance.healthScore')}</span>
                 </div>
                 <span className="text-xs text-primary-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                  View Breakdown →
+                  {t('governance.viewBreakdown')}
                 </span>
               </button>
             </div>
@@ -455,7 +458,7 @@ export default function RelationshipsPage() {
           <div className="col-span-full text-center py-12 text-gray-500">
             <LinkIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
             <p className="text-sm">
-              {filterType ? 'No relationships match this filter.' : 'No relationships yet. Create your first one.'}
+              {filterType ? t('governance.noRelationshipsMatchFilter') : t('governance.noRelationshipsYet')}
             </p>
           </div>
         )}
@@ -474,70 +477,70 @@ export default function RelationshipsPage() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">New Relationship</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('governance.newRelationship')}</h2>
               <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization A *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.organizationA')} *</label>
                 <select
                   value={formData.org_a_id || ''}
                   onChange={(e) => setFormData({ ...formData, org_a_id: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 >
-                  <option value="">Select organization...</option>
+                  <option value="">{t('governance.selectOrganization')}</option>
                   {organizations.map((org) => (
-                    <option key={org.id} value={org.id}>{org.name} ({org.org_type})</option>
+                    <option key={org.id} value={org.id}>{org.name} ({t(`governance.orgTypes.${org.org_type}`, { defaultValue: org.org_type })})</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization B *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.organizationB')} *</label>
                 <select
                   value={formData.org_b_id || ''}
                   onChange={(e) => setFormData({ ...formData, org_b_id: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                 >
-                  <option value="">Select organization...</option>
+                  <option value="">{t('governance.selectOrganization')}</option>
                   {organizations.filter(o => o.id !== formData.org_a_id).map((org) => (
-                    <option key={org.id} value={org.id}>{org.name} ({org.org_type})</option>
+                    <option key={org.id} value={org.id}>{org.name} ({t(`governance.orgTypes.${org.org_type}`, { defaultValue: org.org_type })})</option>
                   ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.type')} *</label>
                   <select
                     value={formData.relationship_type || 'customer'}
                     onChange={(e) => setFormData({ ...formData, relationship_type: e.target.value as any })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
-                    <option value="customer">Customer</option>
-                    <option value="supplier">Supplier</option>
-                    <option value="partner">Partner</option>
-                    <option value="joint_venture">Joint Venture</option>
-                    <option value="reseller">Reseller</option>
-                    <option value="distributor">Distributor</option>
+                    <option value="customer">{t('governance.relationshipTypes.customer')}</option>
+                    <option value="supplier">{t('governance.relationshipTypes.supplier')}</option>
+                    <option value="partner">{t('governance.relationshipTypes.partner')}</option>
+                    <option value="joint_venture">{t('governance.relationshipTypes.joint_venture')}</option>
+                    <option value="reseller">{t('governance.relationshipTypes.reseller')}</option>
+                    <option value="distributor">{t('governance.relationshipTypes.distributor')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Governance Tier</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.governanceTier')}</label>
                   <select
                     value={formData.governance_tier || 'tactical'}
                     onChange={(e) => setFormData({ ...formData, governance_tier: e.target.value as any })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                   >
-                    <option value="operational">Operational</option>
-                    <option value="tactical">Tactical</option>
-                    <option value="strategic">Strategic</option>
-                    <option value="executive">Executive</option>
+                    <option value="operational">{t('governance.tiers.operational')}</option>
+                    <option value="tactical">{t('governance.tiers.tactical')}</option>
+                    <option value="strategic">{t('governance.tiers.strategic')}</option>
+                    <option value="executive">{t('governance.tiers.executive')}</option>
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.description')}</label>
                 <textarea
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -547,7 +550,7 @@ export default function RelationshipsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Annual Value</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.annualValue')}</label>
                   <input
                     type="number"
                     value={formData.annual_value || ''}
@@ -556,7 +559,7 @@ export default function RelationshipsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.currency')}</label>
                   <input
                     type="text"
                     value={formData.currency || ''}
@@ -569,13 +572,13 @@ export default function RelationshipsPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowCreate(false)} className="btn-secondary">Cancel</button>
+              <button onClick={() => setShowCreate(false)} className="btn-secondary">{t('common.cancel')}</button>
               <button
                 onClick={handleCreate}
                 disabled={!formData.org_a_id || !formData.org_b_id || createMutation.isPending}
                 className="btn-primary"
               >
-                {createMutation.isPending ? 'Creating...' : 'Create'}
+                {createMutation.isPending ? t('governance.creating') : t('governance.create')}
               </button>
             </div>
           </div>

@@ -11,6 +11,7 @@ import {
   BuildingOfficeIcon,
   DocumentMagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn } from '@/lib/utils'
@@ -94,7 +95,15 @@ interface Props {
 }
 
 export default function ClausesSummary({ contractId, clientId }: Props) {
+  const { t } = useTranslation()
   const [selectedType, setSelectedType] = useState<string | null>(null)
+
+  const clauseLabel = (type: string) =>
+    t(`clauses.${type}`, {
+      defaultValue: t(`summaries.clauseTypes.${type}`, {
+        defaultValue: CLAUSE_TYPE_LABELS[type] || type,
+      }),
+    })
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['clauses-summary', contractId, clientId],
@@ -132,23 +141,23 @@ export default function ClausesSummary({ contractId, clientId }: Props) {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <DocumentTextIcon className="h-6 w-6 text-primary-600" />
-              Contract Clauses ({data.total} total)
+              {t('summaries.contractClauses')} {t('summaries.totalParen', { count: data.total })}
             </h3>
             <p className="text-sm text-gray-500 mt-1">
-              Click on any clause type to see details
+              {t('summaries.clickClauseTypeDetails')}
             </p>
           </div>
           {/* Summary badges */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-700">
               <CheckCircleIcon className="h-4 w-4" />
-              <span>Classified</span>
+              <span>{t('summaries.classified')}</span>
               <span className="font-bold">{data.classified}</span>
             </div>
             {data.high_risk_total > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-red-100 text-red-700">
                 <ShieldExclamationIcon className="h-4 w-4" />
-                <span>High Risk</span>
+                <span>{t('summaries.highRisk')}</span>
                 <span className="font-bold">{data.high_risk_total}</span>
               </div>
             )}
@@ -175,7 +184,7 @@ export default function ClausesSummary({ contractId, clientId }: Props) {
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className={cn("text-sm font-medium truncate", colors.text)}>
-                        {CLAUSE_TYPE_LABELS[item.clause_type] || item.clause_type}
+                        {clauseLabel(item.clause_type)}
                       </span>
                       <div className="flex items-center gap-1">
                         <span className={cn("text-xl font-bold ml-2", colors.text)}>
@@ -201,7 +210,7 @@ export default function ClausesSummary({ contractId, clientId }: Props) {
                       <div className="flex items-center gap-1 mt-1">
                         <ExclamationTriangleIcon className="h-3.5 w-3.5 text-red-500" />
                         <span className="text-xs text-red-600 font-medium">
-                          {item.high_risk_count} high risk
+                          {t('summaries.highRiskCount', { count: item.high_risk_count })}
                         </span>
                       </div>
                     )}
@@ -222,7 +231,7 @@ export default function ClausesSummary({ contractId, clientId }: Props) {
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-gray-600">
-                      Unclassified
+                      {t('summaries.unclassified')}
                     </span>
                     <div className="flex items-center gap-1">
                       <span className="text-xl font-bold ml-2 text-gray-600">
@@ -247,7 +256,7 @@ export default function ClausesSummary({ contractId, clientId }: Props) {
             </div>
           ) : (
             <p className="text-sm text-gray-500 text-center py-4">
-              No classified clauses found. Click "Analyze" on a contract to extract clauses.
+              {t('summaries.noClassifiedClauses')}
             </p>
           )}
         </div>
@@ -260,10 +269,10 @@ export default function ClausesSummary({ contractId, clientId }: Props) {
             <div>
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <DocumentMagnifyingGlassIcon className="h-5 w-5 text-primary-600" />
-                {CLAUSE_TYPE_LABELS[selectedType] || selectedType} Clauses
+                {t('summaries.typeClauses', { type: clauseLabel(selectedType) })}
                 {drillDownData && (
                   <span className="text-sm font-normal text-gray-500">
-                    ({drillDownData.total} items)
+                    {t('summaries.itemCount', { count: drillDownData.total })}
                   </span>
                 )}
               </h3>
@@ -303,10 +312,10 @@ export default function ClausesSummary({ contractId, clientId }: Props) {
                             <span className="text-gray-600">{clause.counterparty}</span>
                           )}
                           {clause.page_number && (
-                            <span className="bg-gray-100 px-1.5 py-0.5 rounded">Page {clause.page_number}</span>
+                            <span className="bg-gray-100 px-1.5 py-0.5 rounded">{t('summaries.page', { number: clause.page_number })}</span>
                           )}
                           {clause.section_number && (
-                            <span className="bg-gray-100 px-1.5 py-0.5 rounded">Section {clause.section_number}</span>
+                            <span className="bg-gray-100 px-1.5 py-0.5 rounded">{t('summaries.section', { number: clause.section_number })}</span>
                           )}
                         </div>
                       </div>
@@ -316,7 +325,7 @@ export default function ClausesSummary({ contractId, clientId }: Props) {
                             "text-xs px-2 py-0.5 rounded-full capitalize",
                             RISK_COLORS[clause.risk_level] || 'bg-gray-100 text-gray-800'
                           )}>
-                            {clause.risk_level} risk
+                            {t('contract.riskLabel', { level: t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level }) })}
                           </span>
                         )}
                         <ChevronRightIcon className="h-4 w-4 text-gray-400" />

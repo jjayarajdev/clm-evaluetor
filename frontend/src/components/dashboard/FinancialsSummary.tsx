@@ -6,7 +6,9 @@ import {
   ExclamationTriangleIcon,
   CalendarIcon,
 } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import i18n from '@/i18n'
 import { cn } from '@/lib/utils'
 
 const FEE_TYPE_LABELS: Record<string, string> = {
@@ -83,7 +85,8 @@ interface Props {
 
 function formatCurrency(amount: number | null, currency: string = 'USD'): string {
   if (amount === null) return '—'
-  return new Intl.NumberFormat('en-US', {
+  const locale = i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US'
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currency,
     minimumFractionDigits: 0,
@@ -92,6 +95,7 @@ function formatCurrency(amount: number | null, currency: string = 'USD'): string
 }
 
 export default function FinancialsSummary({ contractId }: Props) {
+  const { t } = useTranslation()
   const { data, isLoading, error } = useQuery<FinancialsResponse>({
     queryKey: ['financials', contractId],
     queryFn: async () => {
@@ -120,7 +124,7 @@ export default function FinancialsSummary({ contractId }: Props) {
         <div className="card-body text-center py-8">
           <BanknotesIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500">
-            No financial terms extracted yet. Run analysis to extract fees and payment terms.
+            {t('summaries.noFinancials')}
           </p>
         </div>
       </div>
@@ -142,7 +146,7 @@ export default function FinancialsSummary({ contractId }: Props) {
                 <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Value</p>
+                <p className="text-sm text-gray-500">{t('summaries.totalValue')}</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(data.total_value, data.currency)}
                 </p>
@@ -159,7 +163,7 @@ export default function FinancialsSummary({ contractId }: Props) {
                 <ReceiptPercentIcon className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Fee Items</p>
+                <p className="text-sm text-gray-500">{t('summaries.feeItems')}</p>
                 <p className="text-2xl font-bold text-gray-900">{fees.length}</p>
               </div>
             </div>
@@ -180,9 +184,9 @@ export default function FinancialsSummary({ contractId }: Props) {
                 )} />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Penalties</p>
+                <p className="text-sm text-gray-500">{t('summaries.penalties')}</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {penalties.length > 0 ? formatCurrency(data.total_penalties, data.currency) : 'None'}
+                  {penalties.length > 0 ? formatCurrency(data.total_penalties, data.currency) : t('summaries.none')}
                 </p>
               </div>
             </div>
@@ -195,7 +199,7 @@ export default function FinancialsSummary({ contractId }: Props) {
         <div className="card-header">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <BanknotesIcon className="h-5 w-5 text-primary-600" />
-            Fee Structure
+            {t('summaries.feeStructure')}
           </h3>
         </div>
         <div className="card-body p-0">
@@ -209,11 +213,11 @@ export default function FinancialsSummary({ contractId }: Props) {
                         "text-xs px-2 py-0.5 rounded-full",
                         FEE_TYPE_COLORS[fee.fee_type] || FEE_TYPE_COLORS.other
                       )}>
-                        {FEE_TYPE_LABELS[fee.fee_type] || fee.fee_type}
+                        {t(`summaries.feeTypes.${fee.fee_type}`, { defaultValue: FEE_TYPE_LABELS[fee.fee_type] || fee.fee_type })}
                       </span>
                       {fee.section_reference && (
                         <span className="text-xs text-gray-400">
-                          Section {fee.section_reference}
+                          {t('summaries.section', { number: fee.section_reference })}
                         </span>
                       )}
                     </div>
@@ -232,11 +236,11 @@ export default function FinancialsSummary({ contractId }: Props) {
                         <span className="flex items-center gap-1">
                           <CalendarIcon className="h-3.5 w-3.5" />
                           {fee.payment_terms.replace('_', ' ')}
-                          {fee.payment_terms_days && ` (${fee.payment_terms_days} days)`}
+                          {fee.payment_terms_days && ` (${t('summaries.days', { count: fee.payment_terms_days })})`}
                         </span>
                       )}
                       {fee.invoicing_frequency && (
-                        <span>Invoiced: {fee.invoicing_frequency}</span>
+                        <span>{t('summaries.invoiced')}: {fee.invoicing_frequency}</span>
                       )}
                     </div>
                   </div>
@@ -259,7 +263,7 @@ export default function FinancialsSummary({ contractId }: Props) {
           <div className="card-header bg-red-50">
             <h3 className="text-lg font-semibold text-red-900 flex items-center gap-2">
               <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
-              Penalties & Late Fees
+              {t('summaries.penaltiesLateFees')}
             </h3>
           </div>
           <div className="card-body p-0">
@@ -270,12 +274,12 @@ export default function FinancialsSummary({ contractId }: Props) {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">
-                          {PENALTY_TYPE_LABELS[penalty.penalty_type || 'other'] || penalty.penalty_type}
+                          {t(`summaries.penaltyTypes.${penalty.penalty_type || 'other'}`, { defaultValue: PENALTY_TYPE_LABELS[penalty.penalty_type || 'other'] || penalty.penalty_type })}
                         </span>
                       </div>
                       {penalty.penalty_trigger && (
                         <p className="text-sm text-gray-700">
-                          <span className="font-medium">Trigger:</span> {penalty.penalty_trigger}
+                          <span className="font-medium">{t('summaries.trigger')}:</span> {penalty.penalty_trigger}
                         </p>
                       )}
                     </div>

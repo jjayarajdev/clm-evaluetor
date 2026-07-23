@@ -2,6 +2,7 @@
  * Modern Table Component
  * Reusable table with modern styling
  */
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 interface Column<T> {
@@ -29,11 +30,12 @@ export default function ModernTable<T>({
   data,
   keyExtractor,
   onRowClick,
-  emptyMessage = 'No data available',
+  emptyMessage,
   sortBy,
   sortOrder,
   onSort,
 }: ModernTableProps<T>) {
+  const { t } = useTranslation()
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -90,7 +92,7 @@ export default function ModernTable<T>({
 
       {data.length === 0 && (
         <div className="text-center py-12 text-gray-500">
-          {emptyMessage}
+          {emptyMessage ?? t('table.noData')}
         </div>
       )}
     </div>
@@ -125,6 +127,7 @@ export function StatusBadge({
 
 // Risk badge with automatic color based on level
 export function RiskBadge({ level }: { level: string }) {
+  const { t } = useTranslation()
   const variants: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
     low: 'success',
     medium: 'warning',
@@ -134,7 +137,7 @@ export function RiskBadge({ level }: { level: string }) {
 
   return (
     <StatusBadge
-      status={level.charAt(0).toUpperCase() + level.slice(1)}
+      status={t(`risk.${level.toLowerCase()}`, { defaultValue: level.charAt(0).toUpperCase() + level.slice(1) })}
       variant={variants[level.toLowerCase()] || 'default'}
     />
   )

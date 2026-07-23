@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   CheckCircleIcon,
@@ -19,6 +20,7 @@ const CAT_LABEL: Record<string, string> = {
 }
 
 export default function KPIApprovalsPage() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [relId, setRelId] = useState('')
   const [period, setPeriod] = useState('')
@@ -116,14 +118,14 @@ export default function KPIApprovalsPage() {
       {/* Header row */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex-shrink-0">
-          <h1 className="text-lg font-bold text-gray-900">KPI Scores</h1>
+          <h1 className="text-lg font-bold text-gray-900">{t('governance.kpiScores')}</h1>
         </div>
 
         {/* Relationship selector */}
         <select value={relId} onChange={e => setRelId(e.target.value)}
           className="input text-sm min-w-[240px]">
-          <option value="">Select relationship...</option>
-          {rels.map(r => <option key={r.id} value={r.id}>{r.org_a?.name && r.org_b?.name ? `${r.org_a.name} ↔ ${r.org_b.name}` : r.name || 'Unnamed'}</option>)}
+          <option value="">{t('governance.selectRelationship')}</option>
+          {rels.map(r => <option key={r.id} value={r.id}>{r.org_a?.name && r.org_b?.name ? `${r.org_a.name} ↔ ${r.org_b.name}` : r.name || t('governance.unnamed')}</option>)}
         </select>
 
         {/* Period tabs */}
@@ -143,7 +145,7 @@ export default function KPIApprovalsPage() {
         {pendingN > 0 && (
           <button onClick={() => bulkMut.mutate()} disabled={bulkMut.isPending}
             className="btn-primary text-xs ml-auto">
-            {bulkMut.isPending ? 'Approving...' : `Approve All (${pendingN})`}
+            {bulkMut.isPending ? t('governance.approving') : t('governance.approveAllCount', { count: pendingN })}
           </button>
         )}
       </div>
@@ -152,7 +154,7 @@ export default function KPIApprovalsPage() {
       {!relId && (
         <div className="card card-body py-16 text-center">
           <BuildingOffice2Icon className="h-10 w-10 text-gray-200 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">Select a relationship above to view its KPI scorecard</p>
+          <p className="text-sm text-gray-500">{t('governance.selectRelationshipPrompt')}</p>
         </div>
       )}
 
@@ -168,13 +170,13 @@ export default function KPIApprovalsPage() {
           <div className="flex items-center gap-6 text-sm">
             <span className="font-medium text-gray-900">{selectedRel?.name}</span>
             <span className="text-gray-400">|</span>
-            <span><span className="font-bold text-primary-600">{rows.length}</span> <span className="text-gray-500">KPIs</span></span>
-            <span><span className="font-bold text-amber-600">{pendingN}</span> <span className="text-gray-500">pending</span></span>
+            <span><span className="font-bold text-primary-600">{rows.length}</span> <span className="text-gray-500">{t('governance.kpis')}</span></span>
+            <span><span className="font-bold text-amber-600">{pendingN}</span> <span className="text-gray-500">{t('status.pending').toLowerCase()}</span></span>
             <span>
               <span className={cn('font-bold', avgGap > 1.5 ? 'text-red-600' : avgGap > 0.8 ? 'text-amber-600' : 'text-green-600')}>
                 {avgGap.toFixed(1)}
               </span>
-              <span className="text-gray-500"> avg gap</span>
+              <span className="text-gray-500"> {t('governance.avgGap')}</span>
             </span>
           </div>
 
@@ -184,12 +186,12 @@ export default function KPIApprovalsPage() {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-1/4">KPI</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-16">Cat</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Internal</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">External</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase w-16">Gap</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase w-20">Actions</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-1/4">{t('governance.kpi')}</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-16">{t('governance.categoryShort')}</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{t('governance.internal')}</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{t('governance.external')}</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase w-16">{t('governance.gap')}</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase w-20">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -199,7 +201,7 @@ export default function KPIApprovalsPage() {
                         <span className="font-medium text-gray-900">{r.name}</span>
                       </td>
                       <td className="px-3 py-2">
-                        <span className="text-[10px] text-gray-400 uppercase">{CAT_LABEL[r.cat] || r.cat}</span>
+                        <span className="text-[10px] text-gray-400 uppercase">{t(`governance.kpiCategoriesShort.${r.cat}`, { defaultValue: CAT_LABEL[r.cat] || r.cat })}</span>
                       </td>
                       <td className="px-3 py-2 text-center">
                         {r.int ? (
@@ -250,17 +252,17 @@ export default function KPIApprovalsPage() {
                           {r.pending && (
                             <>
                               <button onClick={() => { const s = r.int?.approval_status === 'pending_approval' ? r.int : r.ext!; setModal({ type: 'approve', kpiId: r.kpi_id, scoreId: sid(s), name: r.name }) }}
-                                className="p-0.5 text-green-500 hover:bg-green-50 rounded" title="Approve">
+                                className="p-0.5 text-green-500 hover:bg-green-50 rounded" title={t('governance.approve')}>
                                 <CheckCircleIcon className="h-4 w-4" />
                               </button>
                               <button onClick={() => { const s = r.int?.approval_status === 'pending_approval' ? r.int : r.ext!; setModal({ type: 'reject', kpiId: r.kpi_id, scoreId: sid(s), name: r.name }) }}
-                                className="p-0.5 text-red-400 hover:bg-red-50 rounded" title="Reject">
+                                className="p-0.5 text-red-400 hover:bg-red-50 rounded" title={t('governance.reject')}>
                                 <XCircleIcon className="h-4 w-4" />
                               </button>
                             </>
                           )}
-                          <button onClick={() => { const s = r.int || r.ext!; if (confirm('Delete?')) delMut.mutate({ kpiId: r.kpi_id, scoreId: sid(s) }) }}
-                            className="p-0.5 text-gray-300 hover:text-red-500 rounded" title="Delete">
+                          <button onClick={() => { const s = r.int || r.ext!; if (confirm(t('governance.confirmDelete'))) delMut.mutate({ kpiId: r.kpi_id, scoreId: sid(s) }) }}
+                            className="p-0.5 text-gray-300 hover:text-red-500 rounded" title={t('common.delete')}>
                             <TrashIcon className="h-4 w-4" />
                           </button>
                         </div>
@@ -268,7 +270,7 @@ export default function KPIApprovalsPage() {
                     </tr>
                   ))}
                   {rows.length === 0 && (
-                    <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-gray-400">No scores for this period</td></tr>
+                    <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-gray-400">{t('governance.noScoresForPeriod')}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -282,19 +284,19 @@ export default function KPIApprovalsPage() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">{modal.type === 'approve' ? 'Approve' : 'Reject'} Score</h2>
+              <h2 className="text-lg font-semibold">{modal.type === 'approve' ? t('governance.approveScore') : t('governance.rejectScore')}</h2>
               <button onClick={() => { setModal(null); setComment('') }} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <p className="text-sm text-gray-600 mb-4">
-              {modal.type === 'approve' ? 'Approve' : 'Reject'} <span className="font-medium">{modal.name}</span>?
+              {modal.type === 'approve' ? t('governance.approveConfirm', { name: modal.name }) : t('governance.rejectConfirm', { name: modal.name })}
             </p>
             <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
-              placeholder={modal.type === 'reject' ? 'Reason...' : 'Comments (optional)'}
+              placeholder={modal.type === 'reject' ? t('governance.reasonPlaceholder') : t('governance.commentsOptional')}
               className="w-full border rounded-lg px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-primary-500" />
             <div className="flex justify-end gap-3">
-              <button onClick={() => { setModal(null); setComment('') }} className="btn-secondary">Cancel</button>
+              <button onClick={() => { setModal(null); setComment('') }} className="btn-secondary">{t('common.cancel')}</button>
               <button onClick={() => {
                   const p = { kpiId: modal.kpiId, scoreId: modal.scoreId, comments: comment || undefined }
                   modal.type === 'approve' ? approveMut.mutate(p) : rejectMut.mutate(p)
@@ -302,7 +304,7 @@ export default function KPIApprovalsPage() {
                 disabled={approveMut.isPending || rejectMut.isPending}
                 className={cn('px-4 py-2 rounded-lg text-sm font-medium text-white',
                   modal.type === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700')}>
-                {approveMut.isPending || rejectMut.isPending ? '...' : modal.type === 'approve' ? 'Approve' : 'Reject'}
+                {approveMut.isPending || rejectMut.isPending ? '...' : modal.type === 'approve' ? t('governance.approve') : t('governance.reject')}
               </button>
             </div>
           </div>

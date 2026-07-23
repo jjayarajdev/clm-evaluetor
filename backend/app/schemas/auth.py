@@ -27,6 +27,7 @@ class UserInfo(BaseModel):
     email: str
     full_name: str | None = None
     role: str
+    preferred_language: str = "en"
     tenant_id: str | None = None
     tenant_name: str | None = None
     business_unit_id: str | None = None

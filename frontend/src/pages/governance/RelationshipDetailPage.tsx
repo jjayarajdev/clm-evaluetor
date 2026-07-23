@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftIcon,
@@ -54,6 +55,7 @@ const PERF_STATUS_LABELS: Record<PerformanceStatus, string> = {
 type Tab = typeof TABS[number]
 
 export default function RelationshipDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<Tab>('KPIs')
@@ -175,14 +177,14 @@ export default function RelationshipDetailPage() {
         </Link>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">
-            {relationship.org_a?.name || 'Org A'} ↔ {relationship.org_b?.name || 'Org B'}
+            {relationship.org_a?.name || t('governance.orgA')} ↔ {relationship.org_b?.name || t('governance.orgB')}
           </h1>
           <div className="flex items-center gap-4 mt-2">
-            <span className="text-sm text-gray-500 capitalize">{relationship.relationship_type}</span>
-            <span className="text-sm text-gray-500 capitalize">{relationship.governance_tier}</span>
+            <span className="text-sm text-gray-500 capitalize">{t(`governance.relationshipTypes.${relationship.relationship_type}`, { defaultValue: relationship.relationship_type })}</span>
+            <span className="text-sm text-gray-500 capitalize">{t(`governance.tiers.${relationship.governance_tier}`, { defaultValue: relationship.governance_tier })}</span>
             <div className={cn('flex items-center gap-1', healthColor)}>
               <HeartIcon className="h-4 w-4" />
-              <span className="text-sm font-semibold">Health: {relationship.health_score}</span>
+              <span className="text-sm font-semibold">{t('governance.healthLabel', { score: relationship.health_score })}</span>
             </div>
           </div>
         </div>
@@ -202,7 +204,7 @@ export default function RelationshipDetailPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               )}
             >
-              {tab}
+              {t(`governance.tabs.${tab.toLowerCase()}`, { defaultValue: tab })}
               {tab === 'KPIs' && kpis.length > 0 && (
                 <span className="ml-1.5 bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs">{kpis.length}</span>
               )}
@@ -221,11 +223,11 @@ export default function RelationshipDetailPage() {
           {gapSummary && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {[
-                { label: 'Critical', count: gapSummary.critical_gaps, color: 'text-red-600 bg-red-50' },
-                { label: 'Significant', count: gapSummary.significant_gaps, color: 'text-orange-600 bg-orange-50' },
-                { label: 'Moderate', count: gapSummary.moderate_gaps, color: 'text-yellow-600 bg-yellow-50' },
-                { label: 'Minor', count: gapSummary.minor_gaps, color: 'text-blue-600 bg-blue-50' },
-                { label: 'Aligned', count: gapSummary.aligned, color: 'text-green-600 bg-green-50' },
+                { label: t('governance.gapSeverity.critical'), count: gapSummary.critical_gaps, color: 'text-red-600 bg-red-50' },
+                { label: t('governance.gapSeverity.significant'), count: gapSummary.significant_gaps, color: 'text-orange-600 bg-orange-50' },
+                { label: t('governance.gapSeverity.moderate'), count: gapSummary.moderate_gaps, color: 'text-yellow-600 bg-yellow-50' },
+                { label: t('governance.gapSeverity.minor'), count: gapSummary.minor_gaps, color: 'text-blue-600 bg-blue-50' },
+                { label: t('governance.gapSeverity.aligned'), count: gapSummary.aligned, color: 'text-green-600 bg-green-50' },
               ].map((item) => (
                 <div key={item.label} className={cn('rounded-lg p-3 text-center', item.color)}>
                   <p className="text-2xl font-bold">{item.count}</p>
@@ -238,7 +240,7 @@ export default function RelationshipDetailPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
               <ChartBarSquareIcon className="h-5 w-5 text-gray-400" />
-              KPI Perception Scorecard
+              {t('governance.kpiPerceptionScorecard')}
             </h2>
             <div className="flex items-center gap-2">
               {gapSummary && gapSummary.critical_gaps + gapSummary.significant_gaps > 0 && (
@@ -247,11 +249,11 @@ export default function RelationshipDetailPage() {
                   disabled={generateImprovementsMutation.isPending}
                   className="btn-secondary text-xs"
                 >
-                  {generateImprovementsMutation.isPending ? 'Generating...' : 'Generate Improvements from Gaps'}
+                  {generateImprovementsMutation.isPending ? t('governance.generating') : t('governance.generateImprovementsFromGaps')}
                 </button>
               )}
               <button onClick={() => setShowAddKPI(true)} className="btn-primary text-xs flex items-center gap-1">
-                <PlusIcon className="h-3.5 w-3.5" /> Add KPI
+                <PlusIcon className="h-3.5 w-3.5" /> {t('governance.addKpi')}
               </button>
             </div>
           </div>
@@ -288,7 +290,7 @@ export default function RelationshipDetailPage() {
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   )}
                 >
-                  All ({kpis.length})
+                  {t('governance.allCount', { count: kpis.length })}
                 </button>
                 {categories.map((cat) => (
                   <button
@@ -301,7 +303,7 @@ export default function RelationshipDetailPage() {
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     )}
                   >
-                    {CATEGORY_LABELS[cat] || cat} ({categoryCounts[cat]})
+                    {t(`governance.kpiCategories.${cat}`, { defaultValue: CATEGORY_LABELS[cat] || cat })} ({categoryCounts[cat]})
                   </button>
                 ))}
               </div>
@@ -314,13 +316,13 @@ export default function RelationshipDetailPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">KPI</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Internal</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-purple-600 uppercase bg-purple-50">External</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Gap</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Severity</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.kpi')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.category')}</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">{t('governance.internal')}</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-purple-600 uppercase bg-purple-50">{t('governance.external')}</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('governance.gap')}</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('governance.severity')}</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -337,7 +339,7 @@ export default function RelationshipDetailPage() {
                             <p className="text-xs text-gray-500 truncate max-w-[200px]">{kpi.description}</p>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-xs text-gray-500 capitalize">{kpi.category.replace(/_/g, ' ')}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500 capitalize">{t(`governance.kpiCategories.${kpi.category}`, { defaultValue: kpi.category.replace(/_/g, ' ') })}</td>
                         <td className="px-4 py-3 text-center bg-blue-50/30">
                           <span className="text-sm font-semibold text-blue-700">
                             {internalScore != null ? internalScore.toFixed(1) : '—'}
@@ -364,7 +366,7 @@ export default function RelationshipDetailPage() {
                               'px-2 py-0.5 rounded text-xs font-medium border',
                               GAP_COLORS[gapSeverity]
                             )}>
-                              {gapSeverity}
+                              {t(`governance.gapSeverity.${gapSeverity}`, { defaultValue: gapSeverity })}
                             </span>
                           ) : '—'}
                         </td>
@@ -373,7 +375,7 @@ export default function RelationshipDetailPage() {
                             onClick={() => setShowScore(kpi.id)}
                             className="text-xs text-primary-600 hover:text-primary-800 font-medium"
                           >
-                            Score
+                            {t('governance.score')}
                           </button>
                         </td>
                       </tr>
@@ -382,7 +384,7 @@ export default function RelationshipDetailPage() {
                   {kpis.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
-                        No KPIs defined yet. Add your first KPI to start tracking perception.
+                        {t('governance.noKpisYet')}
                       </td>
                     </tr>
                   )}
@@ -395,7 +397,7 @@ export default function RelationshipDetailPage() {
           {kpis.length > 0 && kpis.some(k => k.latest_internal_score != null || k.latest_external_score != null) && (
             <div className="card">
               <div className="card-header">
-                <h3 className="text-sm font-medium text-gray-900">Perception Gap Comparison</h3>
+                <h3 className="text-sm font-medium text-gray-900">{t('governance.perceptionGapComparison')}</h3>
               </div>
               <div className="card-body space-y-3">
                 {kpis.filter(k => k.latest_internal_score != null || k.latest_external_score != null).map((kpi) => {
@@ -413,7 +415,7 @@ export default function RelationshipDetailPage() {
                           style={{ width: `${(intScore / 10) * 100}%` }}
                         />
                         <span className="absolute right-2 top-0 text-[10px] font-bold text-blue-800 leading-4">
-                          INT {intScore ? intScore.toFixed(1) : '—'}
+                          {t('governance.intScore', { score: intScore ? intScore.toFixed(1) : '—' })}
                         </span>
                       </div>
                       {/* External bar */}
@@ -423,7 +425,7 @@ export default function RelationshipDetailPage() {
                           style={{ width: `${(extScore / 10) * 100}%` }}
                         />
                         <span className="absolute right-2 top-0 text-[10px] font-bold text-purple-800 leading-4">
-                          EXT {extScore ? extScore.toFixed(1) : '—'}
+                          {t('governance.extScore', { score: extScore ? extScore.toFixed(1) : '—' })}
                         </span>
                       </div>
                     </div>
@@ -432,7 +434,7 @@ export default function RelationshipDetailPage() {
                         'px-1.5 py-0.5 rounded text-[10px] font-medium border w-20 text-center',
                         GAP_COLORS[severity]
                       )}>
-                        {severity}
+                        {t(`governance.gapSeverity.${severity}`, { defaultValue: severity })}
                       </span>
                     )}
                   </div>
@@ -450,7 +452,7 @@ export default function RelationshipDetailPage() {
           <div className="card-header flex items-center justify-between">
             <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
               <UserGroupIcon className="h-5 w-5 text-gray-400" />
-              Team Members ({team.length})
+              {t('governance.teamMembersCount', { count: team.length })}
             </h2>
           </div>
           <div className="card-body p-0">
@@ -460,7 +462,7 @@ export default function RelationshipDetailPage() {
                   <div key={member.id} className="px-4 py-3 flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {member.user_name || member.user?.full_name || member.user?.username || 'Unknown'}
+                        {member.user_name || member.user?.full_name || member.user?.username || t('governance.unknown')}
                       </p>
                       <p className="text-xs text-gray-500 capitalize">{member.role.replace(/_/g, ' ')}</p>
                       {member.responsibilities && Array.isArray(member.responsibilities) && (
@@ -469,17 +471,17 @@ export default function RelationshipDetailPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {(member.is_primary || member.is_primary_contact) && (
-                        <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded">Primary</span>
+                        <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded">{t('governance.primary')}</span>
                       )}
                       {member.receives_alerts && (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Alerts</span>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{t('governance.alerts')}</span>
                       )}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="px-4 py-8 text-center text-sm text-gray-500">No team members assigned yet.</p>
+              <p className="px-4 py-8 text-center text-sm text-gray-500">{t('governance.noTeamMembers')}</p>
             )}
           </div>
         </div>
@@ -491,7 +493,7 @@ export default function RelationshipDetailPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
               <LightBulbIcon className="h-5 w-5 text-gray-400" />
-              Improvement Points ({improvements.length})
+              {t('governance.improvementPointsCount', { count: improvements.length })}
             </h2>
           </div>
           <div className="card">
@@ -511,7 +513,7 @@ export default function RelationshipDetailPage() {
                         imp.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
                         'bg-gray-100 text-gray-800'
                       )}>
-                        {imp.priority}
+                        {t(`risk.${imp.priority}`, { defaultValue: imp.priority })}
                       </span>
                       <span className={cn(
                         'px-2 py-0.5 rounded text-xs font-medium',
@@ -520,7 +522,7 @@ export default function RelationshipDetailPage() {
                         imp.status === 'blocked' ? 'bg-red-100 text-red-800' :
                         'bg-gray-100 text-gray-800'
                       )}>
-                        {imp.status.replace(/_/g, ' ')}
+                        {t(`governance.improvementStatus.${imp.status}`, { defaultValue: imp.status.replace(/_/g, ' ') })}
                       </span>
                     </div>
                   </div>
@@ -533,7 +535,7 @@ export default function RelationshipDetailPage() {
                           <div className="bg-primary-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                         <span className="text-[10px] text-gray-500">
-                          {pct}%{imp.action_count ? ` (${imp.completed_action_count ?? 0}/${imp.action_count} actions)` : ''}
+                          {pct}%{imp.action_count ? ` ${t('governance.actionsProgress', { completed: imp.completed_action_count ?? 0, total: imp.action_count })}` : ''}
                         </span>
                       </div>
                     )
@@ -542,7 +544,7 @@ export default function RelationshipDetailPage() {
               ))}
               {improvements.length === 0 && (
                 <p className="px-4 py-8 text-center text-sm text-gray-500">
-                  No improvements yet. Generate them from perception gaps on the KPIs tab.
+                  {t('governance.noImprovementsYet')}
                 </p>
               )}
             </div>
@@ -554,9 +556,9 @@ export default function RelationshipDetailPage() {
       {activeTab === 'History' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700">Performance History</h2>
+            <h2 className="text-sm font-semibold text-gray-700">{t('governance.performanceHistory')}</h2>
             <button onClick={() => setShowRecordStatus(true)} className="btn-primary text-xs flex items-center gap-1">
-              <PlusIcon className="h-3.5 w-3.5" /> Record Status
+              <PlusIcon className="h-3.5 w-3.5" /> {t('governance.recordStatus')}
             </button>
           </div>
 
@@ -564,13 +566,13 @@ export default function RelationshipDetailPage() {
           {perfTrend && perfTrend.trend.length > 0 && (
             <div className="card">
               <div className="card-header flex items-center justify-between">
-                <h3 className="text-sm font-medium text-gray-900">Performance Trend</h3>
+                <h3 className="text-sm font-medium text-gray-900">{t('governance.performanceTrend')}</h3>
                 {perfTrend.current_status && (
                   <span className={cn(
                     'px-2 py-0.5 rounded text-xs font-medium capitalize',
                     PERF_STATUS_COLORS[perfTrend.current_status]
                   )}>
-                    Current: {PERF_STATUS_LABELS[perfTrend.current_status]}
+                    {t('governance.currentStatus', { status: t(`governance.perfStatus.${perfTrend.current_status}`, { defaultValue: PERF_STATUS_LABELS[perfTrend.current_status] }) })}
                   </span>
                 )}
               </div>
@@ -587,7 +589,7 @@ export default function RelationshipDetailPage() {
                         <div
                           className={cn('w-full rounded-t', barColor)}
                           style={{ height: `${heightPct}%` }}
-                          title={`${point.period}: ${PERF_STATUS_LABELS[point.status]} (${point.overall_score ?? '—'})`}
+                          title={`${point.period}: ${t(`governance.perfStatus.${point.status}`, { defaultValue: PERF_STATUS_LABELS[point.status] })} (${point.overall_score ?? '—'})`}
                         />
                         <span className="text-[9px] text-gray-400 truncate w-full text-center">{point.period}</span>
                       </div>
@@ -604,12 +606,12 @@ export default function RelationshipDetailPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Previous</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Score</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trigger</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.period')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('common.status')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.previous')}</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('governance.score')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.trigger')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.notes')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -621,7 +623,7 @@ export default function RelationshipDetailPage() {
                           'px-2 py-0.5 rounded text-xs font-medium capitalize',
                           PERF_STATUS_COLORS[entry.status]
                         )}>
-                          {PERF_STATUS_LABELS[entry.status]}
+                          {t(`governance.perfStatus.${entry.status}`, { defaultValue: PERF_STATUS_LABELS[entry.status] })}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -630,7 +632,7 @@ export default function RelationshipDetailPage() {
                             'px-2 py-0.5 rounded text-xs font-medium capitalize',
                             PERF_STATUS_COLORS[entry.previous_status]
                           )}>
-                            {PERF_STATUS_LABELS[entry.previous_status]}
+                            {t(`governance.perfStatus.${entry.previous_status}`, { defaultValue: PERF_STATUS_LABELS[entry.previous_status] })}
                           </span>
                         ) : '—'}
                       </td>
@@ -644,7 +646,7 @@ export default function RelationshipDetailPage() {
                   {historyEntries.length === 0 && (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
-                        No performance history recorded yet
+                        {t('governance.noPerformanceHistory')}
                       </td>
                     </tr>
                   )}
@@ -660,37 +662,37 @@ export default function RelationshipDetailPage() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Record Performance Status</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('governance.recordPerformanceStatus')}</h2>
               <button onClick={() => setShowRecordStatus(false)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.status')} *</label>
                 <select
                   value={statusForm.status || 'good'}
                   onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value as PerformanceStatus })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 >
                   {Object.entries(PERF_STATUS_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
+                    <option key={value} value={value}>{t(`governance.perfStatus.${value}`, { defaultValue: label })}</option>
                   ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Period *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.period')} *</label>
                   <input
                     type="text"
                     value={statusForm.period || ''}
                     onChange={(e) => setStatusForm({ ...statusForm, period: e.target.value })}
-                    placeholder="e.g., 2026-Q1"
+                    placeholder={t('governance.periodPlaceholder')}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Score</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.score')}</label>
                   <input
                     type="number"
                     min={0}
@@ -702,17 +704,17 @@ export default function RelationshipDetailPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Trigger</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.trigger')}</label>
                 <input
                   type="text"
                   value={statusForm.trigger || ''}
                   onChange={(e) => setStatusForm({ ...statusForm, trigger: e.target.value })}
-                  placeholder="e.g., Quarterly review"
+                  placeholder={t('governance.triggerPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.notes')}</label>
                 <textarea
                   value={statusForm.notes || ''}
                   onChange={(e) => setStatusForm({ ...statusForm, notes: e.target.value })}
@@ -722,7 +724,7 @@ export default function RelationshipDetailPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowRecordStatus(false)} className="btn-secondary">Cancel</button>
+              <button onClick={() => setShowRecordStatus(false)} className="btn-secondary">{t('common.cancel')}</button>
               <button
                 onClick={() => {
                   if (statusForm.status && statusForm.period) {
@@ -732,7 +734,7 @@ export default function RelationshipDetailPage() {
                 disabled={!statusForm.status || !statusForm.period || recordStatusMutation.isPending}
                 className="btn-primary"
               >
-                {recordStatusMutation.isPending ? 'Recording...' : 'Record'}
+                {recordStatusMutation.isPending ? t('governance.recording') : t('governance.record')}
               </button>
             </div>
           </div>
@@ -743,23 +745,23 @@ export default function RelationshipDetailPage() {
       {activeTab === 'Overview' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="card">
-            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">Details</h3></div>
+            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">{t('governance.details')}</h3></div>
             <div className="card-body space-y-3">
               <div>
-                <p className="text-xs text-gray-500">Type</p>
-                <p className="text-sm font-medium text-gray-900 capitalize">{relationship.relationship_type}</p>
+                <p className="text-xs text-gray-500">{t('governance.type')}</p>
+                <p className="text-sm font-medium text-gray-900 capitalize">{t(`governance.relationshipTypes.${relationship.relationship_type}`, { defaultValue: relationship.relationship_type })}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Status</p>
-                <p className="text-sm font-medium text-gray-900 capitalize">{relationship.status}</p>
+                <p className="text-xs text-gray-500">{t('common.status')}</p>
+                <p className="text-sm font-medium text-gray-900 capitalize">{t(`governance.relationshipStatus.${relationship.status}`, { defaultValue: relationship.status })}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Governance Tier</p>
-                <p className="text-sm font-medium text-gray-900 capitalize">{relationship.governance_tier}</p>
+                <p className="text-xs text-gray-500">{t('governance.governanceTier')}</p>
+                <p className="text-sm font-medium text-gray-900 capitalize">{t(`governance.tiers.${relationship.governance_tier}`, { defaultValue: relationship.governance_tier })}</p>
               </div>
               {relationship.annual_value && (
                 <div>
-                  <p className="text-xs text-gray-500">Annual Value</p>
+                  <p className="text-xs text-gray-500">{t('governance.annualValue')}</p>
                   <p className="text-sm font-medium text-gray-900">
                     {relationship.currency || '$'}{Number(relationship.annual_value).toLocaleString()}
                   </p>
@@ -767,29 +769,29 @@ export default function RelationshipDetailPage() {
               )}
               {relationship.description && (
                 <div>
-                  <p className="text-xs text-gray-500">Description</p>
+                  <p className="text-xs text-gray-500">{t('governance.description')}</p>
                   <p className="text-sm text-gray-700">{relationship.description}</p>
                 </div>
               )}
             </div>
           </div>
           <div className="card">
-            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">Summary</h3></div>
+            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">{t('governance.summary')}</h3></div>
             <div className="card-body space-y-3">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Active KPIs</span>
+                <span className="text-sm text-gray-500">{t('governance.activeKpis')}</span>
                 <span className="text-sm font-medium">{kpis.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Team Members</span>
+                <span className="text-sm text-gray-500">{t('governance.teamMembers')}</span>
                 <span className="text-sm font-medium">{team.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Open Improvements</span>
+                <span className="text-sm text-gray-500">{t('governance.openImprovements')}</span>
                 <span className="text-sm font-medium">{improvements.filter(i => i.status !== 'completed' && i.status !== 'cancelled').length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Perception Gaps</span>
+                <span className="text-sm text-gray-500">{t('governance.perceptionGaps')}</span>
                 <span className="text-sm font-medium">{gapSummary?.kpis_with_gaps || 0}</span>
               </div>
             </div>
@@ -802,26 +804,26 @@ export default function RelationshipDetailPage() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Submit Score</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('governance.submitScore')}</h2>
               <button onClick={() => setShowScore(null)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Perspective</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.perspective')}</label>
                 <select
                   value={scoreForm.perspective || 'internal'}
                   onChange={(e) => setScoreForm({ ...scoreForm, perspective: e.target.value as any })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 >
-                  <option value="internal">Internal</option>
-                  <option value="external">External</option>
+                  <option value="internal">{t('governance.sides.internal')}</option>
+                  <option value="external">{t('governance.sides.external')}</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Score: <span className="text-primary-600 font-bold">{scoreForm.score}/10</span>
+                  {t('governance.score')}: <span className="text-primary-600 font-bold">{scoreForm.score}/10</span>
                 </label>
                 <input
                   type="range"
@@ -832,21 +834,21 @@ export default function RelationshipDetailPage() {
                   className="w-full accent-primary-600"
                 />
                 <div className="flex justify-between text-xs text-gray-400">
-                  <span>Poor</span><span>Excellent</span>
+                  <span>{t('governance.perfStatus.poor')}</span><span>{t('governance.perfStatus.excellent')}</span>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Period</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.period')}</label>
                 <input
                   type="text"
                   value={scoreForm.period || ''}
                   onChange={(e) => setScoreForm({ ...scoreForm, period: e.target.value })}
-                  placeholder="e.g., 2026-Q1"
+                  placeholder={t('governance.periodPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Comments</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.comments')}</label>
                 <textarea
                   value={scoreForm.comments || ''}
                   onChange={(e) => setScoreForm({ ...scoreForm, comments: e.target.value })}
@@ -856,7 +858,7 @@ export default function RelationshipDetailPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowScore(null)} className="btn-secondary">Cancel</button>
+              <button onClick={() => setShowScore(null)} className="btn-secondary">{t('common.cancel')}</button>
               <button
                 onClick={() => {
                   if (showScore && scoreForm.perspective && scoreForm.score) {
@@ -869,7 +871,7 @@ export default function RelationshipDetailPage() {
                 disabled={submitScoreMutation.isPending}
                 className="btn-primary"
               >
-                {submitScoreMutation.isPending ? 'Submitting...' : 'Submit'}
+                {submitScoreMutation.isPending ? t('governance.submitting') : t('governance.submit')}
               </button>
             </div>
           </div>
@@ -881,41 +883,41 @@ export default function RelationshipDetailPage() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Add KPI</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('governance.addKpi')}</h2>
               <button onClick={() => setShowAddKPI(false)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.name')} *</label>
                 <input
                   type="text"
                   value={kpiForm.name || ''}
                   onChange={(e) => setKpiForm({ ...kpiForm, name: e.target.value })}
-                  placeholder="e.g., Service Delivery Quality"
+                  placeholder={t('governance.kpiNamePlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.category')}</label>
                 <select
                   value={kpiForm.category || 'service_delivery'}
                   onChange={(e) => setKpiForm({ ...kpiForm, category: e.target.value as any })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 >
-                  <option value="service_delivery">Service Delivery</option>
-                  <option value="quality">Quality</option>
-                  <option value="timeliness">Timeliness</option>
-                  <option value="communication">Communication</option>
-                  <option value="innovation">Innovation</option>
-                  <option value="cost_efficiency">Cost Efficiency</option>
-                  <option value="compliance">Compliance</option>
-                  <option value="satisfaction">Satisfaction</option>
+                  <option value="service_delivery">{t('governance.kpiCategories.service_delivery')}</option>
+                  <option value="quality">{t('governance.kpiCategories.quality')}</option>
+                  <option value="timeliness">{t('governance.kpiCategories.timeliness')}</option>
+                  <option value="communication">{t('governance.kpiCategories.communication')}</option>
+                  <option value="innovation">{t('governance.kpiCategories.innovation')}</option>
+                  <option value="cost_efficiency">{t('governance.kpiCategories.cost_efficiency')}</option>
+                  <option value="compliance">{t('governance.kpiCategories.compliance')}</option>
+                  <option value="satisfaction">{t('governance.kpiCategories.satisfaction')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.description')}</label>
                 <textarea
                   value={kpiForm.description || ''}
                   onChange={(e) => setKpiForm({ ...kpiForm, description: e.target.value })}
@@ -925,7 +927,7 @@ export default function RelationshipDetailPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Target Value</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.targetValue')}</label>
                   <input
                     type="number"
                     value={kpiForm.target_value || ''}
@@ -934,22 +936,22 @@ export default function RelationshipDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.frequency')}</label>
                   <select
                     value={kpiForm.frequency || 'quarterly'}
                     onChange={(e) => setKpiForm({ ...kpiForm, frequency: e.target.value as any })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                   >
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="annual">Annual</option>
+                    <option value="weekly">{t('governance.frequencies.weekly')}</option>
+                    <option value="monthly">{t('governance.frequencies.monthly')}</option>
+                    <option value="quarterly">{t('governance.frequencies.quarterly')}</option>
+                    <option value="annual">{t('governance.frequencies.annual')}</option>
                   </select>
                 </div>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowAddKPI(false)} className="btn-secondary">Cancel</button>
+              <button onClick={() => setShowAddKPI(false)} className="btn-secondary">{t('common.cancel')}</button>
               <button
                 onClick={() => {
                   if (kpiForm.name && id) {
@@ -959,7 +961,7 @@ export default function RelationshipDetailPage() {
                 disabled={!kpiForm.name || createKPIMutation.isPending}
                 className="btn-primary"
               >
-                {createKPIMutation.isPending ? 'Creating...' : 'Create KPI'}
+                {createKPIMutation.isPending ? t('governance.creating') : t('governance.createKpi')}
               </button>
             </div>
           </div>

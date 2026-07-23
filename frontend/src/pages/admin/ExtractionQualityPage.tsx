@@ -29,6 +29,8 @@ import {
   type DspyAgentType,
 } from '@/lib/api/admin'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTranslation } from 'react-i18next'
+import i18n from '@/i18n'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ContractPdfViewer from '@/components/contracts/ContractPdfViewer'
 import { cn } from '@/lib/utils'
@@ -68,6 +70,7 @@ function ScoreCard({ label, score }: { label: string; score: number | null }) {
 }
 
 function VerificationBadge({ status }: { status: string | null }) {
+  const { t } = useTranslation()
   if (!status) return null
   return (
     <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', STATUS_BADGE[status as keyof typeof STATUS_BADGE] || STATUS_BADGE.pending)}>
@@ -75,7 +78,7 @@ function VerificationBadge({ status }: { status: string | null }) {
       {status === 'incorrect' && <XCircleIcon className="h-3 w-3" />}
       {status === 'partial' && <ExclamationTriangleIcon className="h-3 w-3" />}
       {status === 'pending' && <ClockIcon className="h-3 w-3" />}
-      {status}
+      {status === 'pending' ? t('status.pending') : t(`extraction.verifStatus.${status}`, { defaultValue: status })}
     </span>
   )
 }
@@ -90,6 +93,7 @@ function MetadataEditRow({
   goldenSetId: string
   onVerify: (entityType: string, entityId: string, status: 'correct' | 'incorrect' | 'partial', correctedValue?: Record<string, unknown>, notes?: string) => void
 }) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [editValue, setEditValue] = useState('')
   const [editNotes, setEditNotes] = useState('')
@@ -119,13 +123,13 @@ function MetadataEditRow({
         </div>
         <div className="space-y-2">
           <div>
-            <label className="text-xs text-gray-500">Original: {item.value !== null ? String(item.value) : '(empty)'}</label>
+            <label className="text-xs text-gray-500">{t('extraction.original', { value: item.value !== null ? String(item.value) : t('extraction.empty') })}</label>
             <input
               type="text"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               className="input w-full mt-1"
-              placeholder="Corrected value..."
+              placeholder={t('extraction.correctedValuePlaceholder')}
               autoFocus
             />
           </div>
@@ -134,7 +138,7 @@ function MetadataEditRow({
             value={editNotes}
             onChange={(e) => setEditNotes(e.target.value)}
             className="input w-full text-sm"
-            placeholder="Notes (optional)..."
+            placeholder={t('extraction.notesOptionalPlaceholder')}
           />
           <div className="flex gap-2">
             <button
@@ -150,7 +154,7 @@ function MetadataEditRow({
               Save as Partial
             </button>
             <button onClick={() => setEditing(false)} className="btn-secondary text-xs px-3 py-1.5">
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -163,10 +167,10 @@ function MetadataEditRow({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-700 capitalize">{item.field.replace(/_/g, ' ')}</p>
         <p className="text-sm text-gray-500 mt-0.5">
-          {displayValue !== null ? displayValue : <span className="italic text-gray-400">Not extracted</span>}
+          {displayValue !== null ? displayValue : <span className="italic text-gray-400">{t('extraction.notExtracted')}</span>}
         </p>
         {corrected && (
-          <p className="text-xs text-primary-600 mt-0.5">Corrected from: {item.value !== null ? String(item.value) : '(empty)'}</p>
+          <p className="text-xs text-primary-600 mt-0.5">{t('extraction.correctedFrom', { value: item.value !== null ? String(item.value) : t('extraction.empty') })}</p>
         )}
         {item.verification?.notes && (
           <p className="text-xs text-gray-400 mt-0.5 italic">{item.verification.notes}</p>
@@ -175,10 +179,10 @@ function MetadataEditRow({
       <div className="flex items-center gap-2 shrink-0">
         {item.verification && <VerificationBadge status={item.verification.status} />}
         <div className="flex gap-1 ml-1">
-          <button onClick={() => onVerify('metadata_field', item.field, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" title="Correct">
+          <button onClick={() => onVerify('metadata_field', item.field, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" title={t('extraction.markCorrect')}>
             <CheckCircleIcon className="h-5 w-5" />
           </button>
-          <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title="Edit & correct">
+          <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title={t('extraction.editAndCorrect')}>
             <PencilSquareIcon className="h-5 w-5" />
           </button>
         </div>
@@ -199,6 +203,7 @@ function ClauseEditRow({
   onVerify: (entityType: string, entityId: string, status: 'correct' | 'incorrect' | 'partial', correctedValue?: Record<string, unknown>, notes?: string) => void
   onLocate?: (text: string, page?: number | null) => void
 }) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [editType, setEditType] = useState('')
   const [editText, setEditText] = useState('')
@@ -231,7 +236,7 @@ function ClauseEditRow({
     return (
       <div className="px-4 py-3 bg-primary-50/50">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-primary-600">Edit Clause</span>
+          <span className="text-xs font-medium text-primary-600">{t('extraction.editClause')}</span>
           <button onClick={() => setEditing(false)} className="p-1 text-gray-400 hover:text-gray-600">
             <XMarkIcon className="h-4 w-4" />
           </button>
@@ -239,28 +244,28 @@ function ClauseEditRow({
         <div className="space-y-2">
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-xs text-gray-500">Clause Type</label>
-              <input type="text" value={editType} onChange={(e) => setEditType(e.target.value)} className="input w-full mt-1" placeholder="e.g. termination, indemnification..." />
+              <label className="text-xs text-gray-500">{t('extraction.clauseType')}</label>
+              <input type="text" value={editType} onChange={(e) => setEditType(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.clauseTypePlaceholder')} />
             </div>
             <div className="w-32">
-              <label className="text-xs text-gray-500">Risk Level</label>
+              <label className="text-xs text-gray-500">{t('extraction.riskLevel')}</label>
               <select value={editRisk} onChange={(e) => setEditRisk(e.target.value)} className="input w-full mt-1">
                 <option value="">--</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                <option value="low">{t('risk.low')}</option>
+                <option value="medium">{t('risk.medium')}</option>
+                <option value="high">{t('risk.high')}</option>
               </select>
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-500">Text</label>
+            <label className="text-xs text-gray-500">{t('extraction.text')}</label>
             <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="input w-full mt-1 text-sm" />
           </div>
-          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full text-sm" placeholder="Notes..." />
+          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full text-sm" placeholder={t('extraction.notesPlaceholder')} />
           <div className="flex gap-2">
-            <button onClick={() => saveEdit('incorrect')} className="btn-secondary text-xs px-3 py-1.5 bg-red-50 text-red-700 border-red-200 hover:bg-red-100">Save as Incorrect</button>
-            <button onClick={() => saveEdit('partial')} className="btn-secondary text-xs px-3 py-1.5 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100">Save as Partial</button>
-            <button onClick={() => setEditing(false)} className="btn-secondary text-xs px-3 py-1.5">Cancel</button>
+            <button onClick={() => saveEdit('incorrect')} className="btn-secondary text-xs px-3 py-1.5 bg-red-50 text-red-700 border-red-200 hover:bg-red-100">{t('extraction.saveAsIncorrect')}</button>
+            <button onClick={() => saveEdit('partial')} className="btn-secondary text-xs px-3 py-1.5 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100">{t('extraction.saveAsPartial')}</button>
+            <button onClick={() => setEditing(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -271,29 +276,29 @@ function ClauseEditRow({
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{displayType || 'unknown'}</span>
+          <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{displayType || t('extraction.unknown')}</span>
           {clause.risk_level && (
             <span className={cn('text-xs rounded px-1.5 py-0.5', clause.risk_level === 'high' ? 'bg-red-50 text-red-600' : clause.risk_level === 'medium' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600')}>
-              {clause.risk_level} risk
-            </span>
+              {t('extraction.riskSuffix', { level: t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level }) })}
+</span>
           )}
-          {clause.confidence !== null && <span className="text-xs text-gray-400">{Math.round(clause.confidence * 100)}% conf.</span>}
+          {clause.confidence !== null && <span className="text-xs text-gray-400">{t('extraction.confidence', { percent: Math.round(clause.confidence * 100) })}</span>}
         </div>
         <div className="flex items-center gap-2">
           {clause.verification && <VerificationBadge status={clause.verification.status} />}
           <div className="flex gap-1">
-            <button onClick={() => onVerify('clause', clause.id, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" title="Correct"><CheckCircleIcon className="h-4 w-4" /></button>
-            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title="Edit"><PencilSquareIcon className="h-4 w-4" /></button>
+            <button onClick={() => onVerify('clause', clause.id, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" title={t('extraction.markCorrect')}><CheckCircleIcon className="h-4 w-4" /></button>
+            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title={t('common.edit')}><PencilSquareIcon className="h-4 w-4" /></button>
               {onLocate && clause.text && (
-                <button onClick={() => onLocate(clause.text!, clause.page_number)} className="p-1 rounded hover:bg-yellow-50 text-gray-400 hover:text-yellow-600" title="Locate in document"><EyeIcon className="h-4 w-4" /></button>
+                <button onClick={() => onLocate(clause.text!, clause.page_number)} className="p-1 rounded hover:bg-yellow-50 text-gray-400 hover:text-yellow-600" title={t('extraction.locateInDocument')}><EyeIcon className="h-4 w-4" /></button>
               )}
           </div>
         </div>
       </div>
       <p className="text-sm text-gray-600 line-clamp-3">{displayText}</p>
-      {corrected && <p className="text-xs text-primary-600 mt-1">Corrected</p>}
+      {corrected && <p className="text-xs text-primary-600 mt-1">{t('extraction.corrected')}</p>}
       {clause.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{clause.verification.notes}</p>}
-      {clause.section_number && <p className="text-xs text-gray-400 mt-1">Section {clause.section_number}{clause.page_number ? `, Page ${clause.page_number}` : ''}</p>}
+      {clause.section_number && <p className="text-xs text-gray-400 mt-1">{clause.page_number ? t('extraction.sectionPage', { section: clause.section_number, page: clause.page_number }) : t('extraction.sectionOnly', { section: clause.section_number })}</p>}
     </div>
   )
 }
@@ -306,6 +311,7 @@ function ObligationEditRow({
   obl: { id: string; description: string | null; obligation_type: string | null; obligated_party: string | null; deadline_type: string | null; deadline: string | null; status: string | null; is_critical: boolean; verification: { status: string; corrected_value: unknown; notes: string | null } | null }
   onVerify: (entityType: string, entityId: string, status: 'correct' | 'incorrect' | 'partial', correctedValue?: Record<string, unknown>, notes?: string) => void
 }) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [editDesc, setEditDesc] = useState('')
   const [editType, setEditType] = useState('')
@@ -335,29 +341,29 @@ function ObligationEditRow({
     return (
       <div className="px-4 py-3 bg-primary-50/50">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-blue-600">Edit Obligation</span>
+          <span className="text-xs font-medium text-blue-600">{t('extraction.editObligation')}</span>
           <button onClick={() => setEditing(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
         </div>
         <div className="space-y-2">
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-xs text-gray-500">Type</label>
+              <label className="text-xs text-gray-500">{t('extraction.type')}</label>
               <input type="text" value={editType} onChange={(e) => setEditType(e.target.value)} className="input w-full mt-1" />
             </div>
             <div className="flex-1">
-              <label className="text-xs text-gray-500">Obligated Party</label>
+              <label className="text-xs text-gray-500">{t('extraction.obligatedParty')}</label>
               <input type="text" value={editParty} onChange={(e) => setEditParty(e.target.value)} className="input w-full mt-1" />
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-500">Description</label>
+            <label className="text-xs text-gray-500">{t('extraction.description')}</label>
             <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} className="input w-full mt-1 text-sm" />
           </div>
-          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full text-sm" placeholder="Notes..." />
+          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full text-sm" placeholder={t('extraction.notesPlaceholder')} />
           <div className="flex gap-2">
-            <button onClick={() => saveEdit('incorrect')} className="btn-secondary text-xs px-3 py-1.5 bg-red-50 text-red-700 border-red-200 hover:bg-red-100">Save as Incorrect</button>
-            <button onClick={() => saveEdit('partial')} className="btn-secondary text-xs px-3 py-1.5 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100">Save as Partial</button>
-            <button onClick={() => setEditing(false)} className="btn-secondary text-xs px-3 py-1.5">Cancel</button>
+            <button onClick={() => saveEdit('incorrect')} className="btn-secondary text-xs px-3 py-1.5 bg-red-50 text-red-700 border-red-200 hover:bg-red-100">{t('extraction.saveAsIncorrect')}</button>
+            <button onClick={() => saveEdit('partial')} className="btn-secondary text-xs px-3 py-1.5 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100">{t('extraction.saveAsPartial')}</button>
+            <button onClick={() => setEditing(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -370,22 +376,22 @@ function ObligationEditRow({
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || 'unknown'}</span>
-          {obl.is_critical && <span className="text-xs bg-red-50 text-red-600 rounded px-1.5 py-0.5">critical</span>}
+          <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || t('extraction.unknown')}</span>
+          {obl.is_critical && <span className="text-xs bg-red-50 text-red-600 rounded px-1.5 py-0.5">{t('risk.critical')}</span>}
           {obl.obligated_party && <span className="text-xs text-gray-400">{obl.obligated_party}</span>}
         </div>
         <div className="flex items-center gap-2">
           {obl.verification && <VerificationBadge status={obl.verification.status} />}
           <div className="flex gap-1">
             <button onClick={() => onVerify('obligation', obl.id, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600"><CheckCircleIcon className="h-4 w-4" /></button>
-            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title="Edit"><PencilSquareIcon className="h-4 w-4" /></button>
+            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title={t('common.edit')}><PencilSquareIcon className="h-4 w-4" /></button>
           </div>
         </div>
       </div>
       <p className="text-sm text-gray-600 line-clamp-2">{displayDesc}</p>
-      {corrected && <p className="text-xs text-primary-600 mt-1">Corrected</p>}
+      {corrected && <p className="text-xs text-primary-600 mt-1">{t('extraction.corrected')}</p>}
       {obl.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{obl.verification.notes}</p>}
-      {obl.deadline && <p className="text-xs text-gray-400 mt-1">Deadline: {obl.deadline} ({obl.deadline_type})</p>}
+      {obl.deadline && <p className="text-xs text-gray-400 mt-1">{t('extraction.deadline', { deadline: obl.deadline, type: obl.deadline_type })}</p>}
     </div>
   )
 }
@@ -398,6 +404,7 @@ function SLAEditRow({
   sla: { id: string; sla_name: string | null; metric_type: string | null; target_value: number | null; metric_unit: string | null; severity: string | null; has_penalty: boolean; penalty_value: number | null; verification: { status: string; corrected_value: unknown; notes: string | null } | null }
   onVerify: (entityType: string, entityId: string, status: 'correct' | 'incorrect' | 'partial', correctedValue?: Record<string, unknown>, notes?: string) => void
 }) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editTarget, setEditTarget] = useState('')
@@ -428,29 +435,29 @@ function SLAEditRow({
     return (
       <div className="px-4 py-3 bg-primary-50/50">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-teal-600">Edit SLA</span>
+          <span className="text-xs font-medium text-teal-600">{t('extraction.editSla')}</span>
           <button onClick={() => setEditing(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
         </div>
         <div className="space-y-2">
           <div>
-            <label className="text-xs text-gray-500">SLA Name</label>
+            <label className="text-xs text-gray-500">{t('extraction.slaName')}</label>
             <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input w-full mt-1" />
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-xs text-gray-500">Target Value</label>
+              <label className="text-xs text-gray-500">{t('extraction.targetValue')}</label>
               <input type="number" step="any" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} className="input w-full mt-1" />
             </div>
             <div className="flex-1">
-              <label className="text-xs text-gray-500">Unit</label>
-              <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} className="input w-full mt-1" placeholder="e.g. percent, hours..." />
+              <label className="text-xs text-gray-500">{t('extraction.unit')}</label>
+              <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.unitExamplePlaceholder')} />
             </div>
           </div>
-          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full text-sm" placeholder="Notes..." />
+          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full text-sm" placeholder={t('extraction.notesPlaceholder')} />
           <div className="flex gap-2">
-            <button onClick={() => saveEdit('incorrect')} className="btn-secondary text-xs px-3 py-1.5 bg-red-50 text-red-700 border-red-200 hover:bg-red-100">Save as Incorrect</button>
-            <button onClick={() => saveEdit('partial')} className="btn-secondary text-xs px-3 py-1.5 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100">Save as Partial</button>
-            <button onClick={() => setEditing(false)} className="btn-secondary text-xs px-3 py-1.5">Cancel</button>
+            <button onClick={() => saveEdit('incorrect')} className="btn-secondary text-xs px-3 py-1.5 bg-red-50 text-red-700 border-red-200 hover:bg-red-100">{t('extraction.saveAsIncorrect')}</button>
+            <button onClick={() => saveEdit('partial')} className="btn-secondary text-xs px-3 py-1.5 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100">{t('extraction.saveAsPartial')}</button>
+            <button onClick={() => setEditing(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
           </div>
         </div>
       </div>
@@ -467,7 +474,7 @@ function SLAEditRow({
           <span className="text-xs font-medium text-teal-600 bg-teal-50 rounded px-1.5 py-0.5">{sla.metric_type || 'SLA'}</span>
           {sla.severity && (
             <span className={cn('text-xs rounded px-1.5 py-0.5', sla.severity === 'critical' ? 'bg-red-50 text-red-600' : sla.severity === 'major' ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 text-gray-600')}>
-              {sla.severity}
+              {t(`extraction.severity.${sla.severity}`, { defaultValue: sla.severity })}
             </span>
           )}
         </div>
@@ -475,16 +482,16 @@ function SLAEditRow({
           {sla.verification && <VerificationBadge status={sla.verification.status} />}
           <div className="flex gap-1">
             <button onClick={() => onVerify('sla', sla.id, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600"><CheckCircleIcon className="h-4 w-4" /></button>
-            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title="Edit"><PencilSquareIcon className="h-4 w-4" /></button>
+            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title={t('common.edit')}><PencilSquareIcon className="h-4 w-4" /></button>
           </div>
         </div>
       </div>
       <p className="text-sm text-gray-700 font-medium">{displayName}</p>
       <p className="text-sm text-gray-500">
-        Target: {displayTarget !== null ? displayTarget : '--'} {sla.metric_unit || ''}
-        {sla.has_penalty && sla.penalty_value && <span className="ml-2 text-red-500">Penalty: {sla.penalty_value}</span>}
+        {t('extraction.target', { value: displayTarget !== null ? displayTarget : '--', unit: sla.metric_unit || '' })}
+        {sla.has_penalty && sla.penalty_value && <span className="ml-2 text-red-500">{t('extraction.penalty', { value: sla.penalty_value })}</span>}
       </p>
-      {corrected && <p className="text-xs text-primary-600 mt-1">Corrected</p>}
+      {corrected && <p className="text-xs text-primary-600 mt-1">{t('extraction.corrected')}</p>}
       {sla.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{sla.verification.notes}</p>}
     </div>
   )
@@ -493,6 +500,7 @@ function SLAEditRow({
 // ======================== ADD MISSING ITEM FORMS ========================
 
 function AddMissingClause({ onAdd }: { onAdd: (correctedValue: Record<string, unknown>) => void }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [clauseType, setClauseType] = useState('')
   const [text, setText] = useState('')
@@ -507,7 +515,7 @@ function AddMissingClause({ onAdd }: { onAdd: (correctedValue: Record<string, un
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="w-full px-4 py-3 text-sm text-primary-600 hover:bg-primary-50 flex items-center gap-1.5 transition-colors">
-        <PlusIcon className="h-4 w-4" /> Add missing clause
+        <PlusIcon className="h-4 w-4" /> {t('extraction.addMissingClause')}
       </button>
     )
   }
@@ -515,32 +523,32 @@ function AddMissingClause({ onAdd }: { onAdd: (correctedValue: Record<string, un
   return (
     <div className="px-4 py-3 bg-primary-50/50">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-primary-600">Add Missing Clause</span>
+        <span className="text-xs font-medium text-primary-600">{t('extraction.addMissingClauseTitle')}</span>
         <button onClick={() => setOpen(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
       </div>
       <div className="space-y-2">
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="text-xs text-gray-500">Clause Type *</label>
-            <input type="text" value={clauseType} onChange={(e) => setClauseType(e.target.value)} className="input w-full mt-1" placeholder="e.g. termination, indemnification..." autoFocus />
+            <label className="text-xs text-gray-500">{t('extraction.clauseType')} *</label>
+            <input type="text" value={clauseType} onChange={(e) => setClauseType(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.clauseTypePlaceholder')} autoFocus />
           </div>
           <div className="w-32">
-            <label className="text-xs text-gray-500">Risk Level</label>
+            <label className="text-xs text-gray-500">{t('extraction.riskLevel')}</label>
             <select value={riskLevel} onChange={(e) => setRiskLevel(e.target.value)} className="input w-full mt-1">
               <option value="">--</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
+              <option value="low">{t('risk.low')}</option>
+              <option value="medium">{t('risk.medium')}</option>
+              <option value="high">{t('risk.high')}</option>
             </select>
           </div>
         </div>
         <div>
-          <label className="text-xs text-gray-500">Clause Text *</label>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} className="input w-full mt-1 text-sm" placeholder="Paste the clause text..." />
+          <label className="text-xs text-gray-500">{t('extraction.clauseText')} *</label>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} className="input w-full mt-1 text-sm" placeholder={t('extraction.pasteClauseTextPlaceholder')} />
         </div>
         <div className="flex gap-2">
-          <button onClick={handleSubmit} disabled={!clauseType || !text} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">Add to Golden Set</button>
-          <button onClick={() => setOpen(false)} className="btn-secondary text-xs px-3 py-1.5">Cancel</button>
+          <button onClick={handleSubmit} disabled={!clauseType || !text} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">{t('extraction.addToGoldenSet')}</button>
+          <button onClick={() => setOpen(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
         </div>
       </div>
     </div>
@@ -548,6 +556,7 @@ function AddMissingClause({ onAdd }: { onAdd: (correctedValue: Record<string, un
 }
 
 function AddMissingObligation({ onAdd }: { onAdd: (correctedValue: Record<string, unknown>) => void }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [oblType, setOblType] = useState('')
   const [party, setParty] = useState('')
@@ -562,7 +571,7 @@ function AddMissingObligation({ onAdd }: { onAdd: (correctedValue: Record<string
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="w-full px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-1.5 transition-colors">
-        <PlusIcon className="h-4 w-4" /> Add missing obligation
+        <PlusIcon className="h-4 w-4" /> {t('extraction.addMissingObligation')}
       </button>
     )
   }
@@ -570,27 +579,27 @@ function AddMissingObligation({ onAdd }: { onAdd: (correctedValue: Record<string
   return (
     <div className="px-4 py-3 bg-blue-50/50">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-blue-600">Add Missing Obligation</span>
+        <span className="text-xs font-medium text-blue-600">{t('extraction.addMissingObligationTitle')}</span>
         <button onClick={() => setOpen(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
       </div>
       <div className="space-y-2">
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="text-xs text-gray-500">Obligation Type *</label>
-            <input type="text" value={oblType} onChange={(e) => setOblType(e.target.value)} className="input w-full mt-1" placeholder="e.g. payment, delivery, reporting..." autoFocus />
+            <label className="text-xs text-gray-500">{t('extraction.obligationType')} *</label>
+            <input type="text" value={oblType} onChange={(e) => setOblType(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.obligationTypePlaceholder')} autoFocus />
           </div>
           <div className="flex-1">
-            <label className="text-xs text-gray-500">Obligated Party</label>
-            <input type="text" value={party} onChange={(e) => setParty(e.target.value)} className="input w-full mt-1" placeholder="e.g. Vendor, Client..." />
+            <label className="text-xs text-gray-500">{t('extraction.obligatedParty')}</label>
+            <input type="text" value={party} onChange={(e) => setParty(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.obligatedPartyPlaceholder')} />
           </div>
         </div>
         <div>
-          <label className="text-xs text-gray-500">Description *</label>
-          <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} className="input w-full mt-1 text-sm" placeholder="Describe the obligation..." />
+          <label className="text-xs text-gray-500">{t('extraction.description')} *</label>
+          <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} className="input w-full mt-1 text-sm" placeholder={t('extraction.describeObligationPlaceholder')} />
         </div>
         <div className="flex gap-2">
-          <button onClick={handleSubmit} disabled={!oblType || !desc} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">Add to Golden Set</button>
-          <button onClick={() => setOpen(false)} className="btn-secondary text-xs px-3 py-1.5">Cancel</button>
+          <button onClick={handleSubmit} disabled={!oblType || !desc} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">{t('extraction.addToGoldenSet')}</button>
+          <button onClick={() => setOpen(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
         </div>
       </div>
     </div>
@@ -598,6 +607,7 @@ function AddMissingObligation({ onAdd }: { onAdd: (correctedValue: Record<string
 }
 
 function AddMissingSLA({ onAdd }: { onAdd: (correctedValue: Record<string, unknown>) => void }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [metricType, setMetricType] = useState('')
@@ -619,7 +629,7 @@ function AddMissingSLA({ onAdd }: { onAdd: (correctedValue: Record<string, unkno
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="w-full px-4 py-3 text-sm text-teal-600 hover:bg-teal-50 flex items-center gap-1.5 transition-colors">
-        <PlusIcon className="h-4 w-4" /> Add missing SLA
+        <PlusIcon className="h-4 w-4" /> {t('extraction.addMissingSla')}
       </button>
     )
   }
@@ -627,31 +637,31 @@ function AddMissingSLA({ onAdd }: { onAdd: (correctedValue: Record<string, unkno
   return (
     <div className="px-4 py-3 bg-teal-50/50">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-teal-600">Add Missing SLA</span>
+        <span className="text-xs font-medium text-teal-600">{t('extraction.addMissingSlaTitle')}</span>
         <button onClick={() => setOpen(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
       </div>
       <div className="space-y-2">
         <div>
-          <label className="text-xs text-gray-500">SLA Name *</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input w-full mt-1" placeholder="e.g. System Uptime, Response Time P1..." autoFocus />
+          <label className="text-xs text-gray-500">{t('extraction.slaName')} *</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.slaNamePlaceholder')} autoFocus />
         </div>
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="text-xs text-gray-500">Metric Type</label>
-            <input type="text" value={metricType} onChange={(e) => setMetricType(e.target.value)} className="input w-full mt-1" placeholder="e.g. uptime_percentage..." />
+            <label className="text-xs text-gray-500">{t('extraction.metricType')}</label>
+            <input type="text" value={metricType} onChange={(e) => setMetricType(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.metricTypePlaceholder')} />
           </div>
           <div className="w-28">
-            <label className="text-xs text-gray-500">Target</label>
+            <label className="text-xs text-gray-500">{t('extraction.targetLabel')}</label>
             <input type="number" step="any" value={target} onChange={(e) => setTarget(e.target.value)} className="input w-full mt-1" placeholder="99.9" />
           </div>
           <div className="w-28">
-            <label className="text-xs text-gray-500">Unit</label>
-            <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} className="input w-full mt-1" placeholder="percent" />
+            <label className="text-xs text-gray-500">{t('extraction.unit')}</label>
+            <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.unitPlaceholder')} />
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={handleSubmit} disabled={!name} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">Add to Golden Set</button>
-          <button onClick={() => setOpen(false)} className="btn-secondary text-xs px-3 py-1.5">Cancel</button>
+          <button onClick={handleSubmit} disabled={!name} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">{t('extraction.addToGoldenSet')}</button>
+          <button onClick={() => setOpen(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
         </div>
       </div>
     </div>
@@ -660,6 +670,7 @@ function AddMissingSLA({ onAdd }: { onAdd: (correctedValue: Record<string, unkno
 
 // ─── Text Viewer for CUAD .txt contracts ────────────────────────────
 function ContractTextViewer({ text, highlightText }: { text: string; highlightText: string | null }) {
+  const { t } = useTranslation()
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
@@ -779,7 +790,7 @@ function ContractTextViewer({ text, highlightText }: { text: string; highlightTe
     <div className="flex flex-col h-full">
       <div className="flex-shrink-0 flex items-center px-3 py-2 bg-white border-b border-gray-200">
         <DocumentTextIcon className="h-4 w-4 text-gray-400 mr-2" />
-        <span className="text-xs text-gray-600 font-medium">Extracted Text</span>
+        <span className="text-xs text-gray-600 font-medium">{t('extraction.extractedText')}</span>
       </div>
       <div ref={containerRef} className="flex-1 overflow-y-auto p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-mono bg-white">
         {text}
@@ -801,14 +812,15 @@ const DSPY_AGENT_ORDER: DspyAgentType[] = ['metadata', 'clause', 'obligation', '
 function formatRelativeTime(epochSeconds: number | undefined): string {
   if (!epochSeconds) return '—'
   const diffSec = Math.floor(Date.now() / 1000 - epochSeconds)
-  if (diffSec < 60) return 'just now'
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`
-  if (diffSec < 86400 * 30) return `${Math.floor(diffSec / 86400)}d ago`
-  return `${Math.floor(diffSec / (86400 * 30))}mo ago`
+  if (diffSec < 60) return i18n.t('extraction.justNow')
+  if (diffSec < 3600) return i18n.t('extraction.minutesAgo', { value: Math.floor(diffSec / 60) })
+  if (diffSec < 86400) return i18n.t('extraction.hoursAgo', { value: Math.floor(diffSec / 3600) })
+  if (diffSec < 86400 * 30) return i18n.t('extraction.daysAgo', { value: Math.floor(diffSec / 86400) })
+  return i18n.t('extraction.monthsAgo', { value: Math.floor(diffSec / (86400 * 30)) })
 }
 
 function DspyCompilationPanel() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [pendingAgent, setPendingAgent] = useState<DspyAgentType | 'all' | null>(null)
   const [resultMessage, setResultMessage] = useState<string | null>(null)
@@ -839,14 +851,15 @@ function DspyCompilationPanel() {
       const lines: string[] = []
       let anyError = false
       for (const [agent, r] of Object.entries(resp.results || {})) {
+        const agentLabel = t(`extraction.agents.${agent}`, { defaultValue: DSPY_AGENT_LABELS[agent as DspyAgentType] || agent })
         if (r.status === 'compiled') {
-          lines.push(`${DSPY_AGENT_LABELS[agent as DspyAgentType] || agent}: compiled with ${r.examples} examples`)
+          lines.push(t('extraction.compiledWithExamples', { agent: agentLabel, count: r.examples ?? 0 }))
         } else if (r.status === 'skipped') {
-          lines.push(`${DSPY_AGENT_LABELS[agent as DspyAgentType] || agent}: ${r.message}`)
+          lines.push(`${agentLabel}: ${r.message}`)
         } else if (r.status === 'in_progress') {
-          lines.push(`${DSPY_AGENT_LABELS[agent as DspyAgentType] || agent}: already compiling — try again in a moment`)
+          lines.push(t('extraction.alreadyCompiling', { agent: agentLabel }))
         } else {
-          lines.push(`${DSPY_AGENT_LABELS[agent as DspyAgentType] || agent}: ${r.message || 'failed'}`)
+          lines.push(`${agentLabel}: ${r.message || t('status.failed')}`)
           anyError = true
         }
       }
@@ -856,7 +869,7 @@ function DspyCompilationPanel() {
       queryClient.invalidateQueries({ queryKey: ['dspy-compilation-status'] })
     },
     onError: (err: any) => {
-      setResultMessage(err?.response?.data?.detail || err?.message || 'Compilation failed')
+      setResultMessage(err?.response?.data?.detail || err?.message || t('extraction.compilationFailed'))
       setResultIsError(true)
       setPendingAgent(null)
     },
@@ -869,7 +882,7 @@ function DspyCompilationPanel() {
   }
 
   const handleCompileAll = () => {
-    if (!confirm('Compile all four DSPy programs? This makes many LLM calls and can take several minutes.')) return
+    if (!confirm(t('extraction.confirmCompileAll'))) return
     setResultMessage(null)
     setPendingAgent('all')
     compileMutation.mutate(undefined)
@@ -882,9 +895,9 @@ function DspyCompilationPanel() {
       <div className="px-4 py-3 border-b flex items-center justify-between">
         <div className="flex items-center gap-2">
           <SparklesIcon className="h-4 w-4 text-violet-500" />
-          <h2 className="text-sm font-semibold text-gray-700">Prompt Optimization (DSPy)</h2>
-          <span className="text-xs text-gray-400" title="DSPy compiles tenant-specific extraction prompts from your verified golden set.">
-            (compiles from golden set)
+          <h2 className="text-sm font-semibold text-gray-700">{t('extraction.promptOptimization')}</h2>
+          <span className="text-xs text-gray-400" title={t('extraction.dspyTooltip')}>
+            {t('extraction.compilesFromGoldenSet')}
           </span>
         </div>
         <button
@@ -900,12 +913,12 @@ function DspyCompilationPanel() {
           {pendingAgent === 'all' ? (
             <>
               <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-              Compiling…
+              {t('extraction.compiling')}
             </>
           ) : (
             <>
               <SparklesIcon className="h-3.5 w-3.5" />
-              Compile All
+              {t('extraction.compileAll')}
             </>
           )}
         </button>
@@ -935,24 +948,24 @@ function DspyCompilationPanel() {
                     {compiled ? (
                       <>
                         <CheckCircleIcon className="h-3.5 w-3.5" />
-                        Compiled
+                        {t('extraction.compiled')}
                       </>
                     ) : (
                       <>
                         <ExclamationTriangleIcon className="h-3.5 w-3.5" />
-                        Defaults
+                        {t('extraction.defaults')}
                       </>
                     )}
                   </span>
                   <span className="text-sm font-medium text-gray-900 min-w-[80px]">
-                    {DSPY_AGENT_LABELS[agent]}
+                    {t(`extraction.agents.${agent}`, { defaultValue: DSPY_AGENT_LABELS[agent] })}
                   </span>
                   {compiled ? (
                     <span
                       className="text-xs text-gray-500"
                       title={compiledAt ? new Date(compiledAt * 1000).toLocaleString() : undefined}
                     >
-                      Last compiled {formatRelativeTime(compiledAt)}
+                      {t('extraction.lastCompiled', { time: formatRelativeTime(compiledAt) })}
                       {sizeKb != null && ` · ${sizeKb} KB`}
                       {typeof s?.verifications_since_last_compile === 'number' &&
                         s.verifications_since_last_compile > 0 && (
@@ -966,21 +979,20 @@ function DspyCompilationPanel() {
                           )}
                           title={
                             autoConfig?.enabled
-                              ? `Auto-recompile triggers at ${autoConfig.threshold} new verifications`
-                              : 'Enable auto-recompile below to trigger automatically'
+                              ? t('extraction.autoRecompileTriggersAt', { count: autoConfig.threshold })
+                              : t('extraction.enableAutoRecompileHint')
                           }
                         >
-                          +{s.verifications_since_last_compile} new
+                          {t('extraction.newCount', { value: s.verifications_since_last_compile })}
                         </span>
                       )}
                     </span>
                   ) : (
                     <span className="text-xs text-gray-400 italic">
-                      Using generic GPT-4o prompts.
+                      {t('extraction.usingGenericPrompts')}
                       {typeof s?.verifications_since_last_compile === 'number' && s.verifications_since_last_compile > 0 && (
                         <span className="ml-1 text-gray-600">
-                          {s.verifications_since_last_compile} verified example
-                          {s.verifications_since_last_compile === 1 ? '' : 's'} available.
+                          {t('extraction.verifiedExamplesAvailable', { count: s.verifications_since_last_compile })}
                         </span>
                       )}
                     </span>
@@ -999,10 +1011,10 @@ function DspyCompilationPanel() {
                   {isPending ? (
                     <>
                       <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-                      {pendingAgent === 'all' ? 'Waiting' : 'Compiling'}
+                      {pendingAgent === 'all' ? t('extraction.waiting') : t('extraction.compiling')}
                     </>
                   ) : (
-                    'Compile'
+                    t('extraction.compile')
                   )}
                 </button>
               </div>
@@ -1025,14 +1037,14 @@ function DspyCompilationPanel() {
                 disabled={autoConfigMutation.isPending}
                 className="rounded border-gray-300"
               />
-              Auto-recompile when new verifications cross threshold
+              {t('extraction.autoRecompileLabel')}
             </label>
-            <span className="text-xs text-gray-400" title="Background task — does not block your verify clicks.">
-              (runs in background)
+            <span className="text-xs text-gray-400" title={t('extraction.backgroundTaskTooltip')}>
+              {t('extraction.runsInBackground')}
             </span>
           </div>
           <div className="flex items-center gap-2 text-xs text-gray-600">
-            <span>Threshold:</span>
+            <span>{t('extraction.threshold')}</span>
             {editingThreshold !== null ? (
               <>
                 <input
@@ -1050,25 +1062,25 @@ function DspyCompilationPanel() {
                   disabled={autoConfigMutation.isPending}
                   className="text-violet-600 hover:text-violet-800 font-medium"
                 >
-                  Save
+                  {t('common.save')}
                 </button>
                 <button
                   onClick={() => setEditingThreshold(null)}
                   className="text-gray-500 hover:text-gray-700"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               </>
             ) : (
               <>
                 <span className="font-medium text-gray-900">
-                  {autoConfig.threshold} new verification{autoConfig.threshold === 1 ? '' : 's'}
+                  {t('extraction.newVerifications', { count: autoConfig.threshold })}
                 </span>
                 <button
                   onClick={() => setEditingThreshold(autoConfig.threshold)}
                   className="text-violet-600 hover:text-violet-800 font-medium"
                 >
-                  Edit
+                  {t('common.edit')}
                 </button>
               </>
             )}
@@ -1100,6 +1112,7 @@ function DspyCompilationPanel() {
 // ======================== MAIN PAGE ========================
 
 export default function ExtractionQualityPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { isSuperAdmin } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -1331,7 +1344,7 @@ export default function ExtractionQualityPage() {
       entity_id: manualId,
       status: 'incorrect',
       corrected_value: correctedValue,
-      notes: 'Manually added — AI missed this extraction',
+      notes: t('extraction.manualAddNote'),
     })
   }
 
@@ -1438,18 +1451,18 @@ export default function ExtractionQualityPage() {
       return (
         <div className="p-6">
           <button onClick={backToOverview} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
-            <ArrowLeftIcon className="h-4 w-4" /> Back to Golden Set
+            <ArrowLeftIcon className="h-4 w-4" /> {t('extraction.backToGoldenSet')}
           </button>
-          <p className="text-gray-500">Contract not found.</p>
+          <p className="text-gray-500">{t('extraction.contractNotFound')}</p>
         </div>
       )
     }
 
     const tabs = [
-      { key: 'metadata' as const,    label: 'Metadata',    total: detail.summary.metadata_total,  pending: tabPendingCounts.metadata },
-      { key: 'clauses' as const,     label: 'Clauses',     total: detail.summary.clause_count,    pending: tabPendingCounts.clauses },
-      { key: 'obligations' as const, label: 'Obligations', total: detail.summary.obligation_count, pending: tabPendingCounts.obligations },
-      { key: 'slas' as const,        label: 'SLAs',        total: detail.summary.sla_count,       pending: tabPendingCounts.slas },
+      { key: 'metadata' as const,    label: t('extraction.tabs.metadata'),    total: detail.summary.metadata_total,  pending: tabPendingCounts.metadata },
+      { key: 'clauses' as const,     label: t('extraction.tabs.clauses'),     total: detail.summary.clause_count,    pending: tabPendingCounts.clauses },
+      { key: 'obligations' as const, label: t('extraction.tabs.obligations'), total: detail.summary.obligation_count, pending: tabPendingCounts.obligations },
+      { key: 'slas' as const,        label: t('extraction.tabs.slas'),        total: detail.summary.sla_count,       pending: tabPendingCounts.slas },
     ]
 
     const detailMimeType = /\.docx?$/i.test(detail.filename || '')
@@ -1462,17 +1475,17 @@ export default function ExtractionQualityPage() {
         <div className="flex-shrink-0 px-4 py-3 border-b bg-white flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <button onClick={backToOverview} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 shrink-0">
-              <ArrowLeftIcon className="h-4 w-4" /> Back
+              <ArrowLeftIcon className="h-4 w-4" /> {t('extraction.back')}
             </button>
             <DocumentTextIcon className="h-5 w-5 text-primary-600 shrink-0" />
             <h1 className="text-base font-semibold text-gray-900 truncate">{detail.filename}</h1>
             {detail.is_golden && detail.is_global && (
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 shrink-0">
-                <GlobeAltIcon className="h-3 w-3" /> Platform
+                <GlobeAltIcon className="h-3 w-3" /> {t('extraction.platform')}
               </span>
             )}
             {detail.is_golden && !detail.is_global && (
-              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 shrink-0">Golden Set</span>
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 shrink-0">{t('extraction.goldenSet')}</span>
             )}
           </div>
           <button
@@ -1483,7 +1496,7 @@ export default function ExtractionQualityPage() {
             )}
           >
             <EyeIcon className="h-4 w-4" />
-            {showDocViewer ? 'Hide Document' : 'Show Document'}
+            {showDocViewer ? t('extraction.hideDocument') : t('extraction.showDocument')}
           </button>
         </div>
 
@@ -1514,19 +1527,19 @@ export default function ExtractionQualityPage() {
               {/* Summary Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-white rounded-lg border p-3 text-center">
-            <p className="text-xs text-gray-500">Metadata</p>
+            <p className="text-xs text-gray-500">{t('extraction.tabs.metadata')}</p>
             <p className="text-lg font-semibold">{detail.summary.metadata_filled}/{detail.summary.metadata_total}</p>
           </div>
           <div className="bg-white rounded-lg border p-3 text-center">
-            <p className="text-xs text-gray-500">Clauses</p>
+            <p className="text-xs text-gray-500">{t('extraction.tabs.clauses')}</p>
             <p className="text-lg font-semibold">{detail.summary.clause_count}</p>
           </div>
           <div className="bg-white rounded-lg border p-3 text-center">
-            <p className="text-xs text-gray-500">Obligations</p>
+            <p className="text-xs text-gray-500">{t('extraction.tabs.obligations')}</p>
             <p className="text-lg font-semibold">{detail.summary.obligation_count}</p>
           </div>
           <div className="bg-white rounded-lg border p-3 text-center">
-            <p className="text-xs text-gray-500">SLAs</p>
+            <p className="text-xs text-gray-500">{t('extraction.tabs.slas')}</p>
             <p className="text-lg font-semibold">{detail.summary.sla_count}</p>
           </div>
         </div>
@@ -1555,8 +1568,8 @@ export default function ExtractionQualityPage() {
                         : 'bg-amber-100 text-amber-700'
                     )}
                     title={tab.pending === 0
-                      ? `All ${tab.total} reviewed`
-                      : `${tab.pending} pending of ${tab.total}`}
+                      ? t('extraction.allReviewed', { count: tab.total })
+                      : t('extraction.pendingOfTotal', { pending: tab.pending, total: tab.total })}
                   >
                     {tab.pending === 0 ? `✓ ${tab.total}` : `${tab.pending} / ${tab.total}`}
                   </span>
@@ -1583,38 +1596,38 @@ export default function ExtractionQualityPage() {
                       : 'text-gray-600 hover:bg-gray-50'
                   )}
                 >
-                  {f}
+                  {f === 'pending' ? t('status.pending') : t(`extraction.filter.${f}`)}
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-3 text-xs text-gray-500">
               <span>
-                Showing <strong className="text-gray-900">{filteredItems.length}</strong>
+                {t('extraction.showing')} <strong className="text-gray-900">{filteredItems.length}</strong>
                 {' · '}
-                <strong className="text-amber-700">{tabPendingCounts[activeTab]}</strong> pending
+                <strong className="text-amber-700">{tabPendingCounts[activeTab]}</strong> {t('extraction.pendingLabel')}
                 {' / '}
                 <strong className="text-gray-900">
                   {activeTab === 'metadata' ? detail.summary.metadata_total :
                    activeTab === 'clauses' ? detail.summary.clause_count :
                    activeTab === 'obligations' ? detail.summary.obligation_count :
-                   detail.summary.sla_count} total
+                   detail.summary.sla_count} {t('extraction.totalLabel')}
                 </strong>
               </span>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer" title="After verifying, focus jumps to the next item">
+              <label className="inline-flex items-center gap-1.5 cursor-pointer" title={t('extraction.autoAdvanceTooltip')}>
                 <input
                   type="checkbox"
                   checked={autoAdvance}
                   onChange={(e) => setAutoAdvance(e.target.checked)}
                   className="rounded border-gray-300"
                 />
-                Auto-advance
+                {t('extraction.autoAdvance')}
               </label>
               <button
                 onClick={() => setShowShortcutsHelp(true)}
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 hover:bg-gray-50 font-medium"
-                title="Show keyboard shortcuts"
+                title={t('extraction.showKeyboardShortcuts')}
               >
-                <span className="font-mono">?</span> Shortcuts
+                <span className="font-mono">?</span> {t('extraction.shortcuts')}
               </button>
             </div>
           </div>
@@ -1641,7 +1654,7 @@ export default function ExtractionQualityPage() {
             <div key={item.field} className="flex items-center justify-between px-4 py-3">
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-700 capitalize">{item.field.replace(/_/g, ' ')}</p>
-                <p className="text-sm text-gray-500 mt-0.5">{item.value !== null && item.value !== undefined ? String(item.value) : <span className="italic text-gray-400">Not extracted</span>}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{item.value !== null && item.value !== undefined ? String(item.value) : <span className="italic text-gray-400">{t('extraction.notExtracted')}</span>}</p>
               </div>
             </div>
           ))}
@@ -1660,13 +1673,13 @@ export default function ExtractionQualityPage() {
                   <div className="px-4 py-3 bg-amber-50/30">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{clause.clause_type || 'unknown'}</span>
+                        <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{clause.clause_type || t('extraction.unknown')}</span>
                         {clause.risk_level && (
                           <span className={cn('text-xs rounded px-1.5 py-0.5', clause.risk_level === 'high' ? 'bg-red-50 text-red-600' : clause.risk_level === 'medium' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600')}>
-                            {clause.risk_level} risk
-                          </span>
+                            {t('extraction.riskSuffix', { level: t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level }) })}
+              </span>
                         )}
-                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">manually added</span>
+                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">{t('extraction.manuallyAdded')}</span>
                       </div>
                       {clause.verification && <VerificationBadge status={clause.verification.status} />}
                     </div>
@@ -1681,7 +1694,7 @@ export default function ExtractionQualityPage() {
           })}
           {activeTab === 'clauses' && !detail.is_golden && detail.clauses.map((clause: any) => (
             <div key={clause.id} className="px-4 py-3">
-              <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{clause.clause_type || 'unknown'}</span>
+              <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{clause.clause_type || t('extraction.unknown')}</span>
               <p className="text-sm text-gray-600 mt-1 line-clamp-3">{clause.text}</p>
             </div>
           ))}
@@ -1703,9 +1716,9 @@ export default function ExtractionQualityPage() {
                   <div className="px-4 py-3 bg-amber-50/30">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || 'unknown'}</span>
+                        <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || t('extraction.unknown')}</span>
                         {obl.obligated_party && <span className="text-xs text-gray-400">{obl.obligated_party}</span>}
-                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">manually added</span>
+                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">{t('extraction.manuallyAdded')}</span>
                       </div>
                       {obl.verification && <VerificationBadge status={obl.verification.status} />}
                     </div>
@@ -1720,7 +1733,7 @@ export default function ExtractionQualityPage() {
           })}
           {activeTab === 'obligations' && !detail.is_golden && detail.obligations.map((obl: any) => (
             <div key={obl.id} className="px-4 py-3">
-              <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || 'unknown'}</span>
+              <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || t('extraction.unknown')}</span>
               <p className="text-sm text-gray-600 mt-1 line-clamp-2">{obl.description}</p>
             </div>
           ))}
@@ -1743,12 +1756,12 @@ export default function ExtractionQualityPage() {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium text-teal-600 bg-teal-50 rounded px-1.5 py-0.5">{sla.metric_type || 'SLA'}</span>
-                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">manually added</span>
+                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">{t('extraction.manuallyAdded')}</span>
                       </div>
                       {sla.verification && <VerificationBadge status={sla.verification.status} />}
                     </div>
                     <p className="text-sm text-gray-700 font-medium">{sla.sla_name}</p>
-                    <p className="text-sm text-gray-500">Target: {sla.target_value ?? '--'} {sla.metric_unit || ''}</p>
+                    <p className="text-sm text-gray-500">{t('extraction.target', { value: sla.target_value ?? '--', unit: sla.metric_unit || '' })}</p>
                     {sla.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{sla.verification.notes}</p>}
                   </div>
                 ) : (
@@ -1761,16 +1774,16 @@ export default function ExtractionQualityPage() {
             <div key={sla.id} className="px-4 py-3">
               <span className="text-xs font-medium text-teal-600 bg-teal-50 rounded px-1.5 py-0.5">{sla.metric_type || 'SLA'}</span>
               <p className="text-sm text-gray-700 font-medium mt-1">{sla.sla_name}</p>
-              <p className="text-sm text-gray-500">Target: {sla.target_value ?? '--'} {sla.metric_unit || ''}</p>
+              <p className="text-sm text-gray-500">{t('extraction.target', { value: sla.target_value ?? '--', unit: sla.metric_unit || '' })}</p>
             </div>
           ))}
           {activeTab === 'slas' && detail.is_golden && (
             <AddMissingSLA onAdd={(val) => handleAddManual('sla', val)} />
           )}
 
-          {activeTab === 'clauses' && detail.clauses.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">No clauses extracted</div>}
-          {activeTab === 'obligations' && detail.obligations.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">No obligations extracted</div>}
-          {activeTab === 'slas' && detail.slas.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">No SLAs extracted</div>}
+          {activeTab === 'clauses' && detail.clauses.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">{t('extraction.noClausesExtracted')}</div>}
+          {activeTab === 'obligations' && detail.obligations.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">{t('extraction.noObligationsExtracted')}</div>}
+          {activeTab === 'slas' && detail.slas.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">{t('extraction.noSlasExtracted')}</div>}
 
           {/* Empty state when the active filter hides everything */}
           {detail.is_golden && filteredItems.length === 0 && (
@@ -1778,17 +1791,17 @@ export default function ExtractionQualityPage() {
               {reviewFilter === 'pending' ? (
                 <div className="text-green-600">
                   <CheckCircleIcon className="h-6 w-6 mx-auto mb-1" />
-                  Nothing pending in this tab — all caught up.
+                  {t('extraction.nothingPending')}
                   {(tabPendingCounts.metadata + tabPendingCounts.clauses + tabPendingCounts.obligations + tabPendingCounts.slas - tabPendingCounts[activeTab]) > 0 && (
                     <p className="text-xs text-gray-500 mt-1">
-                      Other tabs still have pending items.
+                      {t('extraction.otherTabsPending')}
                     </p>
                   )}
                 </div>
               ) : reviewFilter === 'verified' ? (
-                <div className="text-gray-400">No verified items in this tab yet.</div>
+                <div className="text-gray-400">{t('extraction.noVerifiedItems')}</div>
               ) : (
-                <div className="text-gray-400">No items in this tab.</div>
+                <div className="text-gray-400">{t('extraction.noItems')}</div>
               )}
             </div>
           )}
@@ -1808,7 +1821,7 @@ export default function ExtractionQualityPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900">Keyboard shortcuts</h3>
+                <h3 className="text-sm font-semibold text-gray-900">{t('extraction.keyboardShortcuts')}</h3>
                 <button
                   onClick={() => setShowShortcutsHelp(false)}
                   className="text-gray-400 hover:text-gray-600"
@@ -1818,15 +1831,15 @@ export default function ExtractionQualityPage() {
               </div>
               <div className="space-y-1.5 text-sm">
                 {[
-                  ['j / ↓', 'Next item'],
-                  ['k / ↑', 'Previous item'],
-                  ['c', 'Mark focused item Correct'],
-                  ['x', 'Mark focused item Incorrect'],
-                  ['p', 'Mark focused item Partial'],
-                  ['1 / 2 / 3 / 4', 'Switch to Metadata / Clauses / Obligations / SLAs'],
-                  ['/', 'Cycle filter: pending → verified → all'],
-                  ['Esc', 'Clear focus / close this dialog'],
-                  ['?', 'Show this help'],
+                  ['j / ↓', t('extraction.shortcutNext')],
+                  ['k / ↑', t('extraction.shortcutPrev')],
+                  ['c', t('extraction.shortcutMarkCorrect')],
+                  ['x', t('extraction.shortcutMarkIncorrect')],
+                  ['p', t('extraction.shortcutMarkPartial')],
+                  ['1 / 2 / 3 / 4', t('extraction.shortcutSwitchTabs')],
+                  ['/', t('extraction.shortcutCycleFilter')],
+                  ['Esc', t('extraction.shortcutEscape')],
+                  ['?', t('extraction.shortcutHelp')],
                 ].map(([key, desc]) => (
                   <div key={key} className="flex items-center gap-3">
                     <kbd className="inline-block min-w-[80px] px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-xs font-mono text-gray-700">
@@ -1837,8 +1850,7 @@ export default function ExtractionQualityPage() {
                 ))}
               </div>
               <p className="text-xs text-gray-400 mt-4 leading-relaxed">
-                Shortcuts only apply when you're not typing in a field. Click any
-                row first to focus it (or press <kbd className="px-1 rounded bg-gray-100 text-xs">j</kbd>).
+                {t('extraction.shortcutsNote')} <kbd className="px-1 rounded bg-gray-100 text-xs">j</kbd>).
               </p>
             </div>
           </div>
@@ -1862,15 +1874,15 @@ export default function ExtractionQualityPage() {
         <div className="flex items-center gap-3">
           <AdjustmentsHorizontalIcon className="h-7 w-7 text-primary-600" />
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Extraction Quality</h1>
-            <p className="text-sm text-gray-500">Manage your golden set and review AI extraction accuracy</p>
+            <h1 className="text-xl font-semibold text-gray-900">{t('nav.extractionQuality')}</h1>
+            <p className="text-sm text-gray-500">{t('extraction.subtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {overview && overview.pending_review > 0 && (
             <button
               onClick={() => {
-                if (confirm(`Auto-approve all ${overview.pending_review} pending extractions as correct?`)) {
+                if (confirm(t('extraction.confirmAutoApprove', { count: overview.pending_review }))) {
                   autoApproveMutation.mutate()
                 }
               }}
@@ -1878,14 +1890,14 @@ export default function ExtractionQualityPage() {
               className="btn-secondary flex items-center gap-1.5"
             >
               <CheckCircleIcon className="h-4 w-4" />
-              {autoApproveMutation.isPending ? 'Approving...' : 'Auto-Approve All'}
+              {autoApproveMutation.isPending ? t('extraction.approving') : t('extraction.autoApproveAll')}
             </button>
           )}
           <button
             onClick={() => setShowAddDialog(true)}
             className="btn-primary flex items-center gap-1.5"
           >
-            <PlusIcon className="h-4 w-4" /> Add to Golden Set
+            <PlusIcon className="h-4 w-4" /> {t('extraction.addToGoldenSet')}
           </button>
         </div>
       </div>
@@ -1896,18 +1908,18 @@ export default function ExtractionQualityPage() {
           <div className="flex items-center gap-2">
             <FunnelIcon className="h-4 w-4 text-violet-500" />
             <span className="text-sm text-violet-800">
-              Filtering: <strong>{filterEntityType}</strong> type <strong className="font-mono">{filterTaxonomyCode}</strong>
+              {t('extraction.filtering')} <strong>{filterEntityType}</strong> {t('extraction.typeLabel')} <strong className="font-mono">{filterTaxonomyCode}</strong>
             </span>
           </div>
           <div className="flex items-center gap-3">
             <Link to="/admin/industry-profiles" className="text-xs text-violet-600 hover:text-violet-800 font-medium">
-              &larr; Back to Industry Profiles
+              &larr; {t('extraction.backToIndustryProfiles')}
             </Link>
             <button
               onClick={() => setSearchParams({})}
               className="text-xs text-gray-500 hover:text-gray-700"
             >
-              Clear filter
+              {t('extraction.clearFilter')}
             </button>
           </div>
         </div>
@@ -1916,26 +1928,26 @@ export default function ExtractionQualityPage() {
       {/* Score Cards */}
       {overview && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <ScoreCard label="Overall" score={overview.avg_overall_score} />
-          <ScoreCard label="Metadata" score={overview.avg_metadata_score} />
-          <ScoreCard label="Clauses" score={overview.avg_clause_score} />
-          <ScoreCard label="Obligations" score={overview.avg_obligation_score} />
-          <ScoreCard label="SLAs" score={overview.avg_sla_score} />
+          <ScoreCard label={t('extraction.overall')} score={overview.avg_overall_score} />
+          <ScoreCard label={t('extraction.tabs.metadata')} score={overview.avg_metadata_score} />
+          <ScoreCard label={t('extraction.tabs.clauses')} score={overview.avg_clause_score} />
+          <ScoreCard label={t('extraction.tabs.obligations')} score={overview.avg_obligation_score} />
+          <ScoreCard label={t('extraction.tabs.slas')} score={overview.avg_sla_score} />
         </div>
       )}
 
       {/* Summary Stats */}
       {overview && (
         <div className="flex gap-6 text-sm text-gray-500">
-          <span><strong className="text-gray-900">{overview.total_golden}</strong> golden contracts</span>
+          <span><strong className="text-gray-900">{overview.total_golden}</strong> {t('extraction.summaryGolden')}</span>
           {overview.total_global > 0 && (
-            <span><strong className="text-blue-600">{overview.total_global}</strong> platform</span>
+            <span><strong className="text-blue-600">{overview.total_global}</strong> {t('extraction.summaryPlatform')}</span>
           )}
           {overview.total_tenant > 0 && (
-            <span><strong className="text-amber-600">{overview.total_tenant}</strong> tenant</span>
+            <span><strong className="text-amber-600">{overview.total_tenant}</strong> {t('extraction.summaryTenant')}</span>
           )}
-          <span><strong className="text-green-600">{overview.verified}</strong> verified</span>
-          <span><strong className="text-amber-600">{overview.pending_review}</strong> pending review</span>
+          <span><strong className="text-green-600">{overview.verified}</strong> {t('extraction.summaryVerified')}</span>
+          <span><strong className="text-amber-600">{overview.pending_review}</strong> {t('extraction.summaryPendingReview')}</span>
         </div>
       )}
 
@@ -1945,13 +1957,13 @@ export default function ExtractionQualityPage() {
       {/* Golden Set Contracts List */}
       <div className="bg-white rounded-lg border">
         <div className="px-4 py-3 border-b">
-          <h2 className="text-sm font-semibold text-gray-700">Golden Set Contracts</h2>
+          <h2 className="text-sm font-semibold text-gray-700">{t('extraction.goldenSetContracts')}</h2>
         </div>
         {(!goldenSet || goldenSet.length === 0) ? (
           <div className="p-8 text-center text-gray-400">
             <DocumentTextIcon className="h-10 w-10 mx-auto mb-2 text-gray-300" />
-            <p>No contracts in the golden set yet.</p>
-            <p className="text-xs mt-1">Add contracts to start tracking extraction quality.</p>
+            <p>{t('extraction.noGoldenContracts')}</p>
+            <p className="text-xs mt-1">{t('extraction.addContractsHint')}</p>
           </div>
         ) : (
           <div className="divide-y">
@@ -1967,16 +1979,16 @@ export default function ExtractionQualityPage() {
                         <p className="text-sm font-medium text-gray-900 truncate">{item.filename}</p>
                         {item.is_global && (
                           <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 shrink-0">
-                            <GlobeAltIcon className="h-3 w-3" /> Platform
+                            <GlobeAltIcon className="h-3 w-3" /> {t('extraction.platform')}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
                         {item.contract_type && <span className="capitalize">{item.contract_type}</span>}
                         {item.counterparty && <span>{item.counterparty}</span>}
-                        <span>{item.extraction.clause_count} clauses</span>
-                        <span>{item.extraction.obligation_count} obls</span>
-                        <span>{item.extraction.sla_count} SLAs</span>
+                        <span>{t('extraction.clausesCount', { count: item.extraction.clause_count })}</span>
+                        <span>{t('extraction.oblsCount', { count: item.extraction.obligation_count })}</span>
+                        <span>{t('extraction.slasCount', { count: item.extraction.sla_count })}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
@@ -1998,13 +2010,13 @@ export default function ExtractionQualityPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      const label = item.is_global ? 'Remove this platform-wide contract from the golden set?' : 'Remove this contract from the golden set?'
+                      const label = item.is_global ? t('extraction.confirmRemoveGlobal') : t('extraction.confirmRemove')
                       if (confirm(label)) {
                         removeMutation.mutate({ contractId: item.contract_id, isGlobal: item.is_global })
                       }
                     }}
                     className="ml-2 p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
-                    title={item.is_global ? 'Remove from platform golden set' : 'Remove from golden set'}
+                    title={item.is_global ? t('extraction.removeFromPlatformGoldenSet') : t('extraction.removeFromGoldenSet')}
                   >
                     <TrashIcon className="h-4 w-4" />
                   </button>
@@ -2017,7 +2029,7 @@ export default function ExtractionQualityPage() {
         {gsTotalPages > 1 && (
           <div className="px-4 py-3 border-t flex items-center justify-between">
             <span className="text-xs text-gray-500">
-              Showing {(gsPage - 1) * gsPageSize + 1}–{Math.min(gsPage * gsPageSize, gsTotal)} of {gsTotal}
+              {t('extraction.showingRange', { from: (gsPage - 1) * gsPageSize + 1, to: Math.min(gsPage * gsPageSize, gsTotal), total: gsTotal })}
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -2025,7 +2037,7 @@ export default function ExtractionQualityPage() {
                 disabled={gsPage <= 1}
                 className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-30"
               >
-                Prev
+                {t('extraction.prev')}
               </button>
               {Array.from({ length: Math.min(7, gsTotalPages) }, (_, i) => {
                 let p: number
@@ -2056,7 +2068,7 @@ export default function ExtractionQualityPage() {
                 disabled={gsPage >= gsTotalPages}
                 className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-30"
               >
-                Next
+                {t('extraction.next')}
               </button>
             </div>
           </div>
@@ -2068,17 +2080,17 @@ export default function ExtractionQualityPage() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => { setShowAddDialog(false); setAddAsGlobal(false) }}>
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">Add Contract to Golden Set</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('extraction.addContractToGoldenSet')}</h3>
               <p className="text-sm text-gray-500 mt-0.5">
                 {addAsGlobal
-                  ? 'Adding as platform-wide — all tenants will benefit from this'
-                  : 'Select a contract to include in your quality benchmark'}
+                  ? t('extraction.addingAsPlatform')
+                  : t('extraction.selectContractHint')}
               </p>
             </div>
             <div className="px-5 py-3 border-b space-y-2">
               <input
                 type="text"
-                placeholder="Search contracts..."
+                placeholder={t('extraction.searchContractsPlaceholder')}
                 value={contractSearch}
                 onChange={(e) => setContractSearch(e.target.value)}
                 className="input w-full"
@@ -2092,14 +2104,14 @@ export default function ExtractionQualityPage() {
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <GlobeAltIcon className="h-4 w-4 text-blue-600" />
-                  <span className="text-gray-700">Add as platform-wide (benefits all tenants)</span>
+                  <span className="text-gray-700">{t('extraction.addAsPlatformLabel')}</span>
                 </label>
               )}
             </div>
             <div className="flex-1 overflow-y-auto divide-y">
               {availableContracts.length === 0 ? (
                 <div className="p-6 text-center text-gray-400 text-sm">
-                  {contractsResponse ? 'No matching contracts found' : <LoadingSpinner size="sm" />}
+                  {contractsResponse ? t('extraction.noMatchingContracts') : <LoadingSpinner size="sm" />}
                 </div>
               ) : (
                 availableContracts.slice(0, 20).map((contract) => (
@@ -2120,7 +2132,7 @@ export default function ExtractionQualityPage() {
               )}
             </div>
             <div className="px-5 py-3 border-t bg-gray-50 rounded-b-xl">
-              <button onClick={() => { setShowAddDialog(false); setAddAsGlobal(false) }} className="btn-secondary w-full">Cancel</button>
+              <button onClick={() => { setShowAddDialog(false); setAddAsGlobal(false) }} className="btn-secondary w-full">{t('common.cancel')}</button>
             </div>
           </div>
         </div>

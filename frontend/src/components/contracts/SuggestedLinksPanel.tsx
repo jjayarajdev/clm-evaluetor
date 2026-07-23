@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
@@ -43,9 +44,9 @@ const LINK_TYPES: { value: LinkType; label: string }[] = [
   { value: 'related', label: 'Related' },
 ]
 
-function linkTypeLabel(type: string): string {
-  const found = LINK_TYPES.find(t => t.value === type)
-  return found ? found.label : type.replace(/_/g, ' ')
+function linkTypeLabel(type: string, t: (key: string, options?: Record<string, unknown>) => string): string {
+  const found = LINK_TYPES.find(lt => lt.value === type)
+  return t(`suggestedLinks.linkTypes.${type}`, { defaultValue: found ? found.label : type.replace(/_/g, ' ') })
 }
 
 function ConfidenceBar({ score }: { score: number }) {
@@ -79,6 +80,7 @@ function ConfidenceBar({ score }: { score: number }) {
 // ============ ESTABLISHED LINK CARD ============
 
 function EstablishedLinkCard({ link, contractId, onRemoved }: { link: ContractLinkOut; contractId: string; onRemoved: () => void }) {
+  const { t } = useTranslation()
   const c = link.linked_contract
   const isParent = link.direction === 'parent'
 
@@ -125,7 +127,7 @@ function EstablishedLinkCard({ link, contractId, onRemoved }: { link: ContractLi
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider">
-                {isParent ? 'Parent' : 'Child'}
+                {isParent ? t('suggestedLinks.parent') : t('suggestedLinks.child')}
               </span>
               <CheckCircleIcon className="h-3.5 w-3.5 text-green-500" />
             </div>
@@ -142,8 +144,8 @@ function EstablishedLinkCard({ link, contractId, onRemoved }: { link: ContractLi
                 </span>
               )}
               {c.counterparty && <span>{c.counterparty}</span>}
-              {c.effective_date && <span>Eff: {formatDate(c.effective_date)}</span>}
-              {c.expiration_date && <span>Exp: {formatDate(c.expiration_date)}</span>}
+              {c.effective_date && <span>{t('suggestedLinks.eff', { date: formatDate(c.effective_date) })}</span>}
+              {c.expiration_date && <span>{t('suggestedLinks.exp', { date: formatDate(c.expiration_date) })}</span>}
             </div>
           </div>
         </div>
@@ -151,7 +153,7 @@ function EstablishedLinkCard({ link, contractId, onRemoved }: { link: ContractLi
         <div className="shrink-0 flex flex-col items-end gap-1">
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
             <LinkIcon className="h-3 w-3" />
-            {linkTypeLabel(link.link_type)}
+            {linkTypeLabel(link.link_type, t)}
           </span>
           {c.risk_level && (
             <span className={cn(
@@ -162,7 +164,7 @@ function EstablishedLinkCard({ link, contractId, onRemoved }: { link: ContractLi
                   ? 'bg-yellow-100 text-yellow-700'
                   : 'bg-green-100 text-green-700'
             )}>
-              {c.risk_level} risk
+              {t('contract.riskLabel', { level: t(`risk.${c.risk_level}`, { defaultValue: c.risk_level }) })}
             </span>
           )}
         </div>
@@ -181,24 +183,24 @@ function EstablishedLinkCard({ link, contractId, onRemoved }: { link: ContractLi
           disabled={swapMutation.isPending || removeMutation.isPending}
           className="text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded transition-colors disabled:opacity-50"
         >
-          {swapMutation.isPending ? 'Swapping...' : `Make ${isParent ? 'Child' : 'Parent'}`}
+          {swapMutation.isPending ? t('suggestedLinks.swapping') : isParent ? t('suggestedLinks.makeChild') : t('suggestedLinks.makeParent')}
         </button>
         <button
           onClick={() => {
-            if (confirm(`Remove link to ${c.filename}?`)) {
+            if (confirm(t('suggestedLinks.confirmRemove', { name: c.filename }))) {
               removeMutation.mutate()
             }
           }}
           disabled={removeMutation.isPending || swapMutation.isPending}
           className="text-xs text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-1 rounded transition-colors disabled:opacity-50"
         >
-          {removeMutation.isPending ? 'Removing...' : 'Remove Link'}
+          {removeMutation.isPending ? t('suggestedLinks.removing') : t('suggestedLinks.removeLink')}
         </button>
         {(swapMutation.isError || removeMutation.isError) && (
           <span className="text-xs text-red-600">
             {(swapMutation.error as any)?.response?.data?.detail ||
              (removeMutation.error as any)?.response?.data?.detail ||
-             'Action failed'}
+             t('suggestedLinks.actionFailed')}
           </span>
         )}
       </div>
@@ -215,6 +217,7 @@ interface SuggestionCardProps {
 }
 
 function SuggestionCard({ suggestion, contractId, onReviewComplete }: SuggestionCardProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [showModifyDropdown, setShowModifyDropdown] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -274,12 +277,12 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
               to={`/contracts/${linkedContractId}`}
               className="text-sm font-medium text-gray-900 hover:text-primary-600 truncate block"
             >
-              {linkedContract?.filename || 'Unknown Contract'}
+              {linkedContract?.filename || t('suggestedLinks.unknownContract')}
             </Link>
             <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-500">
               {isViewingTarget && (
                 <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] font-medium uppercase">
-                  Child
+                  {t('suggestedLinks.child')}
                 </span>
               )}
               {linkedContract?.contract_type && (
@@ -291,7 +294,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
                 <span>{linkedContract.counterparty}</span>
               )}
               {linkedContract?.effective_date && (
-                <span>Effective: {formatDate(linkedContract.effective_date)}</span>
+                <span>{t('suggestedLinks.effective', { date: formatDate(linkedContract.effective_date) })}</span>
               )}
             </div>
           </div>
@@ -304,7 +307,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
             'bg-primary-100 text-primary-700'
           )}>
             <LinkIcon className="h-3 w-3" />
-            {suggestion.suggested_link_type.replace(/_/g, ' ')}
+            {linkTypeLabel(suggestion.suggested_link_type, t)}
           </span>
         </div>
       </div>
@@ -313,7 +316,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
       <div className="mt-3">
         <div className="flex items-center gap-2 mb-1">
           <SparklesIcon className="h-4 w-4 text-gray-400" />
-          <span className="text-xs text-gray-500">AI Confidence</span>
+          <span className="text-xs text-gray-500">{t('suggestedLinks.aiConfidence')}</span>
         </div>
         <ConfidenceBar score={suggestion.confidence_score} />
       </div>
@@ -329,7 +332,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
       {isLowConfidence && (
         <div className="mt-3 flex items-center gap-2 text-xs text-yellow-700 bg-yellow-50 rounded p-2">
           <ExclamationTriangleIcon className="h-4 w-4 shrink-0" />
-          <span>Low confidence - please verify before approving</span>
+          <span>{t('suggestedLinks.lowConfidenceWarning')}</span>
         </div>
       )}
 
@@ -348,7 +351,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
           ) : (
             <CheckIcon className="h-4 w-4" />
           )}
-          Approve
+          {t('suggestedLinks.approve')}
         </button>
 
         <button
@@ -360,7 +363,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
           )}
         >
           <XMarkIcon className="h-4 w-4" />
-          Reject
+          {t('suggestedLinks.reject')}
         </button>
 
         {/* Modify dropdown */}
@@ -373,7 +376,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
               isProcessing && 'opacity-50 cursor-not-allowed'
             )}
           >
-            Modify
+            {t('suggestedLinks.modify')}
             <ChevronDownIcon className={cn('h-4 w-4 transition-transform', showModifyDropdown && 'rotate-180')} />
           </button>
 
@@ -388,7 +391,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
                     type.value === suggestion.suggested_link_type && 'bg-primary-50 text-primary-700'
                   )}
                 >
-                  {type.label}
+                  {t(`suggestedLinks.linkTypes.${type.value}`, { defaultValue: type.label })}
                 </button>
               ))}
             </div>
@@ -402,6 +405,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
 // ============ MAIN PANEL ============
 
 export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
 
   // Fetch established links
@@ -457,7 +461,7 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
           <div className="card-header">
             <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
               <LinkIcon className="h-4 w-4 text-primary-500" />
-              Related Contracts
+              {t('suggestedLinks.relatedContracts')}
             </h3>
           </div>
           <div className="card-body flex items-center justify-center py-8">
@@ -474,14 +478,14 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
         <div className="card-header">
           <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
             <LinkIcon className="h-4 w-4 text-gray-400" />
-            Related Contracts
+            {t('suggestedLinks.relatedContracts')}
           </h3>
         </div>
         <div className="card-body text-center py-8">
           <DocumentTextIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">No related contracts found</p>
+          <p className="text-sm text-gray-500">{t('suggestedLinks.noRelated')}</p>
           <p className="text-xs text-gray-400 mt-1">
-            Related documents will be automatically detected when contracts with matching parties or types are uploaded.
+            {t('suggestedLinks.noRelatedHint')}
           </p>
         </div>
       </div>
@@ -500,7 +504,7 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
           <div className="card-header">
             <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
               <ShieldCheckIcon className="h-4 w-4 text-green-500" />
-              Established Links
+              {t('suggestedLinks.establishedLinks')}
               <span className="bg-green-100 text-green-700 text-xs px-1.5 py-0.5 rounded-full">
                 {establishedLinks.length}
               </span>
@@ -510,7 +514,7 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
             {parentLinks.length > 0 && (
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                  Parent Contracts ({parentLinks.length})
+                  {t('suggestedLinks.parentContracts', { count: parentLinks.length })}
                 </p>
                 <div className="space-y-2">
                   {parentLinks.map(link => (
@@ -522,7 +526,7 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
             {childLinks.length > 0 && (
               <div className={parentLinks.length > 0 ? 'mt-4' : ''}>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                  Child Contracts ({childLinks.length})
+                  {t('suggestedLinks.childContracts', { count: childLinks.length })}
                 </p>
                 <div className="space-y-2">
                   {childLinks.map(link => (
@@ -541,9 +545,9 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
           <div className="card-header flex items-center justify-between">
             <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
               <SparklesIcon className="h-4 w-4 text-primary-500" />
-              AI-Detected Suggestions
+              {t('suggestedLinks.aiSuggestions')}
               <span className="bg-primary-100 text-primary-700 text-xs px-1.5 py-0.5 rounded-full">
-                {pendingSuggestions.length} pending
+                {t('suggestedLinks.pendingCount', { count: pendingSuggestions.length })}
               </span>
             </h3>
 
@@ -554,7 +558,7 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
                   disabled={batchApproveMutation.isPending}
                   className="text-xs text-primary-600 hover:text-primary-800 font-medium"
                 >
-                  {batchApproveMutation.isPending ? 'Approving...' : 'Approve All'}
+                  {batchApproveMutation.isPending ? t('suggestedLinks.approving') : t('suggestedLinks.approveAll')}
                 </button>
               )}
             </div>
