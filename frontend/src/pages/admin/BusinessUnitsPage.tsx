@@ -182,6 +182,7 @@ export default function BusinessUnitsPage() {
   const [formData, setFormData] = useState<FormData>(emptyFormData)
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
   const [selectedTenantId, setSelectedTenantId] = useState<string>('')
+  const [formError, setFormError] = useState<string | null>(null)
 
   // Fetch tenants for super admin
   const { data: tenants } = useQuery({
@@ -227,6 +228,9 @@ export default function BusinessUnitsPage() {
       queryClient.invalidateQueries({ queryKey: ['business-units-list', effectiveTenantId] })
       closeModal()
     },
+    onError: (err: Error) => {
+      setFormError(err.message || t('businessUnits.saveFailed'))
+    },
   })
 
   const updateMutation = useMutation({
@@ -236,6 +240,9 @@ export default function BusinessUnitsPage() {
       queryClient.invalidateQueries({ queryKey: ['business-units-tree', effectiveTenantId] })
       queryClient.invalidateQueries({ queryKey: ['business-units-list', effectiveTenantId] })
       closeModal()
+    },
+    onError: (err: Error) => {
+      setFormError(err.message || t('businessUnits.saveFailed'))
     },
   })
 
@@ -315,6 +322,7 @@ export default function BusinessUnitsPage() {
     setIsModalOpen(false)
     setEditingId(null)
     setFormData(emptyFormData)
+    setFormError(null)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -566,6 +574,12 @@ export default function BusinessUnitsPage() {
                   <label htmlFor="is_active" className="text-sm text-gray-700">
                     {t('status.active')}
                   </label>
+                </div>
+              )}
+
+              {formError && (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                  {formError}
                 </div>
               )}
 
