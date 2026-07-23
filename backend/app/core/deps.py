@@ -9,6 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.security import decode_token
 from app.core.logging import user_id_var
 from app.database import get_db
@@ -18,6 +19,7 @@ from app.models.tenant import Tenant
 
 # HTTP Bearer token security scheme
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 # Context variable for current tenant
 tenant_id_var: ContextVar[Optional[uuid.UUID]] = ContextVar("tenant_id", default=None)
@@ -221,6 +223,36 @@ def require_super_admin():
         return current_user
 
     return super_admin_checker
+
+
+async def require_admin_if_enterprise(
+    credentials: Annotated[
+        Optional[HTTPAuthorizationCredentials], Depends(optional_security)
+    ],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Optional[User]:
+    """Enforce admin auth only when SECURITY_PROFILE=enterprise.
+
+    In the default "demo" profile these endpoints stay open (legacy behavior);
+    enterprise deployments require an active admin or super admin.
+    """
+    if settings.security_profile != "enterprise":
+        return None
+
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = await get_current_user(credentials, db)
+    if not user.is_super_admin and user.role != Role.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Admin role required.",
+        )
+    return user
 
 
 # Pre-configured role dependencies

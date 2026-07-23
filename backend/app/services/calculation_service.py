@@ -7,8 +7,8 @@ Handles:
 - Cap enforcement
 """
 
+import ast
 import logging
-import re
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Optional
 from uuid import UUID
@@ -232,32 +232,49 @@ class CalculationService:
 
         return contract_value * (base_rate / 100) * multiplier
 
+    _ALLOWED_FUNCS = {"abs": abs, "min": min, "max": max, "round": round}
+    _ALLOWED_BINOPS = {
+        ast.Add: lambda a, b: a + b,
+        ast.Sub: lambda a, b: a - b,
+        ast.Mult: lambda a, b: a * b,
+        ast.Div: lambda a, b: a / b,
+    }
+
     def _evaluate_formula(self, formula: str, variables: dict) -> float:
-        """Safely evaluate a calculation formula.
+        """Safely evaluate an arithmetic formula via AST whitelisting (no eval)."""
+        try:
+            tree = ast.parse(formula, mode="eval")
+        except SyntaxError as e:
+            raise ValueError(f"Invalid formula: {formula}") from e
 
-        Args:
-            formula: Formula string with variable references.
-            variables: Variable values.
+        def _eval(node: ast.AST) -> float:
+            if isinstance(node, ast.Expression):
+                return _eval(node.body)
+            if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+                return float(node.value)
+            if isinstance(node, ast.Name):
+                if node.id in variables:
+                    return float(variables[node.id])
+                raise ValueError(f"Unknown variable: {node.id}")
+            if isinstance(node, ast.BinOp) and type(node.op) in self._ALLOWED_BINOPS:
+                return self._ALLOWED_BINOPS[type(node.op)](
+                    _eval(node.left), _eval(node.right)
+                )
+            if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+                value = _eval(node.operand)
+                return -value if isinstance(node.op, ast.USub) else value
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id in self._ALLOWED_FUNCS
+                and not node.keywords
+            ):
+                return float(
+                    self._ALLOWED_FUNCS[node.func.id](*[_eval(a) for a in node.args])
+                )
+            raise ValueError(f"Disallowed expression in formula: {formula}")
 
-        Returns:
-            Calculated result.
-        """
-        # Only allow safe operations
-        allowed_names = {
-            **variables,
-            "abs": abs,
-            "min": min,
-            "max": max,
-            "round": round,
-        }
-
-        # Validate formula contains only allowed characters
-        if not re.match(r'^[\w\s\+\-\*\/\(\)\.\,]+$', formula):
-            raise ValueError(f"Invalid formula: {formula}")
-
-        # Evaluate
-        result = eval(formula, {"__builtins__": {}}, allowed_names)
-        return float(result)
+        return _eval(tree)
 
     async def calculate_penalty(
         self,

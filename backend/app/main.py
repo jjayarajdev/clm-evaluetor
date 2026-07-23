@@ -57,6 +57,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown."""
     logger.info("Application starting up", app_name=settings.app_name)
 
+    if (
+        settings.security_profile == "enterprise"
+        and settings.jwt_secret_key == "CHANGE-THIS-SECRET-IN-PRODUCTION"
+    ):
+        raise RuntimeError(
+            "SECURITY_PROFILE=enterprise requires a real JWT_SECRET_KEY "
+            "(generate with: openssl rand -hex 32)"
+        )
+
     # Startup: Initialize agents and load schemas
     initialize_default_agents()
     register_all_agents()

@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import UUID
 
 
 revision = "cp01"
-down_revision = None
+down_revision = "ct01_contract_type_to_varchar"  # after industry_profiles exists
 branch_labels = None
 depends_on = None
 

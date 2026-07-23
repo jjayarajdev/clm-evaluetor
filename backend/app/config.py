@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "Contract Intelligence MVP"
+    # "demo" keeps legacy open endpoints; "enterprise" enforces auth on them
+    security_profile: str = "demo"
     debug: bool = False
     log_level: str = "INFO"
     log_json: bool = True  # Use JSON format for logs (set False for plain text)
