@@ -116,6 +116,9 @@ class Event(Base, TimestampMixin):
 
     # Relationships
     contract: Mapped["Contract"] = relationship("Contract", foreign_keys=[contract_id])
+    workflow: Mapped[Optional["WorkflowDefinition"]] = relationship(
+        "WorkflowDefinition", foreign_keys=[workflow_id]
+    )
     action_executions: Mapped[list["ActionExecution"]] = relationship(
         "ActionExecution", back_populates="event", cascade="all, delete-orphan"
     )
