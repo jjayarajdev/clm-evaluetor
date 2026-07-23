@@ -4,7 +4,7 @@ from uuid import UUID
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -22,6 +22,28 @@ from app.schemas.business_unit import (
 )
 
 router = APIRouter(prefix="/api/business-units", tags=["Business Units"])
+
+
+async def _get_descendant_ids(db: AsyncSession, bu_id: UUID) -> set[UUID]:
+    """Get all descendant BU IDs via a recursive query.
+
+    Must not use BusinessUnit.get_all_child_ids() here: its recursive
+    relationship walk triggers lazy loads outside the async greenlet
+    (MissingGreenlet), which 500s the request.
+    """
+    result = await db.execute(
+        text("""
+            WITH RECURSIVE descendants AS (
+                SELECT id FROM business_units WHERE parent_id = :bu_id
+                UNION ALL
+                SELECT b.id FROM business_units b
+                JOIN descendants d ON b.parent_id = d.id
+            )
+            SELECT id FROM descendants
+        """),
+        {"bu_id": bu_id},
+    )
+    return {row[0] for row in result}
 
 
 @router.get("", response_model=BusinessUnitListResponse)
@@ -266,7 +288,7 @@ async def update_business_unit(
                 detail="Parent business unit not found",
             )
         # Check for circular reference
-        if data.parent_id in bu.get_all_child_ids():
+        if data.parent_id in await _get_descendant_ids(db, bu_id):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot set a child as parent (circular reference)",

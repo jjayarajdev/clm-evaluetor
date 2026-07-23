@@ -2662,7 +2662,8 @@
     "profileHint": "Remplace le profil par défaut du tenant pour cette unité. Les contrats de cette unité utiliseront ce profil pour la taxonomie et l'extraction.",
     "saving": "Enregistrement...",
     "update": "Mettre à jour",
-    "create": "Créer"
+    "create": "Créer",
+    "saveFailed": "Échec de l’enregistrement de l’unité opérationnelle"
   },
   "externalUsers": {
     "subtitle": "Gérez les contacts des contreparties pouvant accéder aux contrats partagés",

@@ -52,6 +52,7 @@ services:
       # App settings
       APP_NAME: "CLM Platform"
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY required}
+      SECURITY_PROFILE: ${SECURITY_PROFILE:-demo}
 
       # Optional: Langfuse observability
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
