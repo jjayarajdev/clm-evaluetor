@@ -176,6 +176,11 @@ async def _check_batch_completion(batch_id: str, session: AsyncSession) -> None:
         if first and first.tenant_id:
             n = await link_framework_sets(session, first.tenant_id)
             if n:
+                from app.services.family_enrichment import enrich_from_family
+                from app.services.group_sync import sync_auto_family_groups
+
+                await sync_auto_family_groups(session, first.tenant_id)
+                await enrich_from_family(session, first.tenant_id)
                 await session.commit()
                 logger.info(f"Batch {batch_id}: framework linking created {n} links")
     except Exception as e:

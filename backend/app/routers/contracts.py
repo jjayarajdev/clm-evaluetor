@@ -1098,6 +1098,7 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
         # missing-reference findings (a new link may satisfy a finding, and
         # this contract may resolve another contract's open finding).
         try:
+            from app.services.family_enrichment import enrich_from_family
             from app.services.group_sync import (
                 detect_missing_references,
                 sync_auto_family_groups,
@@ -1110,13 +1111,16 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                 )
                 doc_tenant_id = row.scalar_one_or_none()
                 if doc_tenant_id:
+                    # Tenant-wide on purpose: this contract may be the missing
+                    # parent for older unresolved declarations, so every
+                    # completion retries the whole tenant's open declarations
+                    # (cheap — no LLM, scoring against the loaded corpus).
                     n_links, _ = await resolve_declared_references(
-                        session, doc_tenant_id, [cid_uuid]
+                        session, doc_tenant_id
                     )
                     if n_links:
-                        await sync_auto_family_groups(
-                            session, doc_tenant_id, [cid_uuid]
-                        )
+                        await sync_auto_family_groups(session, doc_tenant_id)
+                    await enrich_from_family(session, doc_tenant_id)
                     await detect_missing_references(
                         session, doc_tenant_id, [cid_uuid]
                     )
@@ -2374,6 +2378,7 @@ async def batch_assign_profiles(
 async def _sync_family_groups(db: AsyncSession, tenant_id, contract_ids: list) -> None:
     """Best-effort auto_family group sync after a link mutation."""
     try:
+        from app.services.family_enrichment import enrich_from_family
         from app.services.group_sync import (
             detect_missing_references,
             sync_auto_family_groups,
@@ -2384,6 +2389,7 @@ async def _sync_family_groups(db: AsyncSession, tenant_id, contract_ids: list) -
             tenant_id = c.tenant_id if c else None
         if tenant_id:
             await sync_auto_family_groups(db, tenant_id, contract_ids)
+            await enrich_from_family(db, tenant_id, contract_ids)
             await detect_missing_references(db, tenant_id, contract_ids)
             await db.commit()
     except Exception as e:
