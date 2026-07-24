@@ -311,18 +311,17 @@ class GovernanceBridgeService:
         # A wrong org ('Exhibit 1 Definitions') pollutes the registry; better
         # to skip governance bridging than invent a bogus organization.
         from app.agents.metadata_extraction import (
-            _looks_like_document_title,
             clean_counterparty,
+            is_unreliable_counterparty,
         )
 
-        cleaned = clean_counterparty(counterparty)
-        if not cleaned or _looks_like_document_title(cleaned, contract.filename):
+        if is_unreliable_counterparty(counterparty, contract.filename):
             logger.info(
                 f"Skipped org creation for non-organization counterparty "
                 f"'{counterparty}'"
             )
             return None
-        counterparty = cleaned
+        counterparty = clean_counterparty(counterparty)
 
         # Match existing organization by canonical key so name variants
         # (ING / ING Bank N.V. / ING Group) resolve to one org, not three.

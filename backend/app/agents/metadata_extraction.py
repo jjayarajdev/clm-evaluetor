@@ -541,6 +541,26 @@ def clean_counterparty(value: str | None) -> str | None:
     return v
 
 
+def is_unreliable_counterparty(value: str | None, filename: str | None = None) -> bool:
+    """True when an extracted counterparty should not be trusted as an org name.
+
+    Composes the existing gates: empty, a document title/filename echo, a
+    generic role word, or prose that ``clean_counterparty`` rejects. Used by
+    family inheritance to decide whether a child's own counterparty should be
+    overridden by its master's, and by the governance bridge to skip creating
+    an organization from junk.
+    """
+    if not value or not value.strip():
+        return True
+    if _looks_like_document_title(value, filename):
+        return True
+    if _is_generic_counterparty(value):
+        return True
+    if clean_counterparty(value) is None:
+        return True
+    return False
+
+
 def _is_generic_counterparty(value: str | None) -> bool:
     """Quick check if a counterparty value is obviously generic or garbage."""
     if not value:
