@@ -1206,7 +1206,12 @@
     "generating": "Génération… (jusqu'à une minute)",
     "generateWithAi": "Générer avec l'IA",
     "creating": "Création…",
-    "createProfile": "Créer le profil"
+    "createProfile": "Créer le profil",
+    "usedByTenants_one": "Par défaut pour {{count}} locataire",
+    "usedByTenants_other": "Par défaut pour {{count}} locataires",
+    "usedByContracts_one": "{{count}} contrat",
+    "usedByContracts_other": "{{count}} contrats",
+    "unused": "Non utilisé"
   },
   "ssoConfig": {
     "setupGuide": "Guide de configuration",

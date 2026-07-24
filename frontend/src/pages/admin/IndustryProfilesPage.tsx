@@ -58,6 +58,8 @@ interface ProfileSummary {
   risk_category_count: number
   sla_metric_count: number
   is_active: boolean
+  tenant_default_count?: number
+  contract_count?: number
 }
 
 interface ProfileDetail {
@@ -189,6 +191,21 @@ function ProfileSelector({
                 <span className="text-[10px] text-gray-400">{t('industry.typesCount', { count: p.contract_type_count })}</span>
                 <span className="text-[10px] text-gray-400">{t('industry.clausesCount', { count: p.clause_type_count })}</span>
                 <span className="text-[10px] text-gray-400">{t('industry.slasCount', { count: p.sla_metric_count })}</span>
+              </div>
+              <div className="flex gap-3 mt-0.5">
+                {(p.tenant_default_count ?? 0) > 0 && (
+                  <span className="text-[10px] font-medium text-violet-500">
+                    {t('industry.usedByTenants', { count: p.tenant_default_count })}
+                  </span>
+                )}
+                {(p.contract_count ?? 0) > 0 && (
+                  <span className="text-[10px] font-medium text-violet-500">
+                    {t('industry.usedByContracts', { count: p.contract_count })}
+                  </span>
+                )}
+                {(p.tenant_default_count ?? 0) === 0 && (p.contract_count ?? 0) === 0 && (
+                  <span className="text-[10px] text-gray-300">{t('industry.unused')}</span>
+                )}
               </div>
             </button>
           ))}
