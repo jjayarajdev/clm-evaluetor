@@ -89,6 +89,10 @@ class ContractLink(Base, UUIDMixin, TimestampMixin):
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # Which rule created this link (None = a human did). Used by the link
+    # referee: higher-evidence rules may replace lower ones, never humans.
+    created_by_rule: Mapped[str | None] = mapped_column(String(50))
+
     # Notes
     notes: Mapped[str | None] = mapped_column(Text)
 

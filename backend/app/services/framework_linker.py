@@ -90,31 +90,24 @@ async def link_change_orders(
             continue
         base = min(bases, key=lambda t: t[0])[1]
 
-        base_parent = await _parent_link_of(db, base.id)
+        from app.services.link_authority import claim_parent
+
         for child, _num, is_change in docs:
             if child.id == base.id:
                 continue
-            child_link = await _parent_link_of(db, child.id)
-            # Only move children that are unparented or flat-parented at the
-            # base's own parent (the family master)
-            if child_link is not None:
-                if base_parent is None or child_link.parent_contract_id != base_parent.parent_contract_id:
-                    continue
-                await db.delete(child_link)
-            db.add(
-                ContractLink(
-                    parent_contract_id=base.id,
-                    child_contract_id=child.id,
-                    link_type="change_order" if is_change else "modification",
-                    link_description=(
-                        "Work package structure: document number marks this as "
-                        + ("a change order of " if is_change else "a later revision of ")
-                        + f"'{base.filename}'"
-                    ),
-                    is_active=True,
-                )
-            )
-            moved += 1
+            if await claim_parent(
+                db,
+                child_id=child.id,
+                parent_id=base.id,
+                link_type="change_order" if is_change else "modification",
+                rule="document_number",
+                description=(
+                    "Work package structure: document number marks this as "
+                    + ("a change order of " if is_change else "a later revision of ")
+                    + f"'{base.filename}'"
+                ),
+            ):
+                moved += 1
 
     if moved:
         logger.info(
@@ -189,42 +182,25 @@ async def link_by_counterparty_master(
     if not subordinates:
         return 0
 
-    sub_ids = [c.id for c, _ in subordinates]
-    already_parented = set(
-        (
-            await db.execute(
-                select(ContractLink.child_contract_id).where(
-                    ContractLink.child_contract_id.in_(sub_ids),
-                    ContractLink.is_active == True,  # noqa: E712
-                    ContractLink.link_type.notin_(["related", "references"]),
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    from app.services.link_authority import claim_parent
 
     created = 0
     for child, ntype in subordinates:
-        if child.id in already_parented:
-            continue
         masters = masters_by_party.get(_norm_party(child.counterparty), [])
         if len(masters) != 1 or masters[0].id == child.id:
             continue
-        master = masters[0]
-        db.add(
-            ContractLink(
-                parent_contract_id=master.id,
-                child_contract_id=child.id,
-                link_type=ntype if ntype in _SUBORDINATE_TYPES else "sow",
-                link_description=(
-                    "Counterparty family: same counterparty as the tenant's "
-                    "only master agreement for this party"
-                ),
-                is_active=True,
-            )
-        )
-        created += 1
+        if await claim_parent(
+            db,
+            child_id=child.id,
+            parent_id=masters[0].id,
+            link_type=ntype if ntype in _SUBORDINATE_TYPES else "sow",
+            rule="counterparty_master",
+            description=(
+                "Counterparty family: same counterparty as the tenant's "
+                "only master agreement for this party"
+            ),
+        ):
+            created += 1
 
     if created:
         logger.info(
@@ -269,41 +245,25 @@ async def link_framework_sets(
             continue
         master = masters[0]
 
-        # Children that already have a parent link keep their structure
-        child_ids = [c.id for c in children]
-        already_parented = set(
-            (
-                await db.execute(
-                    select(ContractLink.child_contract_id).where(
-                        ContractLink.child_contract_id.in_(child_ids),
-                        ContractLink.is_active == True,  # noqa: E712
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
+        from app.services.link_authority import claim_parent
 
         for child in children:
-            if child.id in already_parented or child.id == master.id:
+            if child.id == master.id:
                 continue
             match = _CHILD_RE.match(child.filename)
             prefix = match.group(1).lower()
-            number = (match.group(2) or "").strip()
-            db.add(
-                ContractLink(
-                    parent_contract_id=master.id,
-                    child_contract_id=child.id,
-                    link_type=_PREFIX_TO_LINK_TYPE.get(prefix, "attachment"),
-                    reference_number=f"{prefix.title()} {number}".strip(),
-                    link_description=(
-                        "Framework set: filename declares this document as "
-                        f"{prefix} of the master agreement in the same upload folder"
-                    ),
-                    is_active=True,
-                )
-            )
-            created += 1
+            if await claim_parent(
+                db,
+                child_id=child.id,
+                parent_id=master.id,
+                link_type=_PREFIX_TO_LINK_TYPE.get(prefix, "attachment"),
+                rule="framework_set",
+                description=(
+                    "Framework set: filename declares this document as "
+                    f"{prefix} of the master agreement in the same upload folder"
+                ),
+            ):
+                created += 1
 
         if created:
             logger.info(

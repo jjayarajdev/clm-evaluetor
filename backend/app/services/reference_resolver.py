@@ -84,7 +84,8 @@ async def resolve_declared_references(
 
     corpus = (await db.execute(candidates_query)).scalars().all()
 
-    # Children that already have a parent keep their structure
+    # Weak-rule parents may be replaced by a declaration (the referee
+    # decides); suggestion-strength matches still skip parented children.
     parented = set(
         (
             await db.execute(
@@ -102,8 +103,6 @@ async def resolve_declared_references(
     suggestions_created = 0
 
     for child in children:
-        if child.id in parented:
-            continue
         refs = (child.schema_data or {}).get("_contract_references", {})
         document_role = refs.get("document_role")
 
@@ -150,32 +149,25 @@ async def resolve_declared_references(
             link_type = _link_type_for(ref, document_role)
 
             if best_score >= 4 and unique:
-                # Certain enough to link directly
-                exists = (
-                    await db.execute(
-                        select(ContractLink.id).where(
-                            ContractLink.parent_contract_id == best.id,
-                            ContractLink.child_contract_id == child.id,
-                        ).limit(1)
-                    )
-                ).scalar_one_or_none()
-                if not exists:
-                    db.add(
-                        ContractLink(
-                            parent_contract_id=best.id,
-                            child_contract_id=child.id,
-                            link_type=link_type,
-                            link_description=(
-                                "Declared reference: "
-                                + (ref.get("reference_text") or "")[:400]
-                            ),
-                            is_active=True,
-                        )
-                    )
+                # Certain enough to claim — the referee replaces any
+                # lower-evidence parent, never a human's
+                from app.services.link_authority import claim_parent
+
+                if await claim_parent(
+                    db,
+                    child_id=child.id,
+                    parent_id=best.id,
+                    link_type=link_type,
+                    rule="declared_reference",
+                    description=(
+                        "Declared reference: "
+                        + (ref.get("reference_text") or "")[:400]
+                    ),
+                ):
                     links_created += 1
                     parented.add(child.id)
                 break
-            elif best_score >= 2:
+            elif best_score >= 2 and child.id not in parented:
                 exists = (
                     await db.execute(
                         select(SuggestedContractLink.id).where(
