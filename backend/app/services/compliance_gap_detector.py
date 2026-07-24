@@ -191,6 +191,7 @@ class ComplianceGapDetector:
 
             # Create gap
             gap = ComplianceGap(
+                tenant_id=self.tenant_id,
                 contract_id=contract.id,
                 rule_id=rule.id,
                 missing_document_type=rule.required_document_type,

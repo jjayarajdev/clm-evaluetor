@@ -13,7 +13,7 @@ from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Index, String, T
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.base import TimestampMixin, UUIDMixin
+from app.models.base import TenantMixin, TimestampMixin, UUIDMixin
 from app.models.industry import (
     ComplianceDocumentType,
     ComplianceGapSeverity,
@@ -26,12 +26,15 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-class ComplianceGap(Base, UUIDMixin, TimestampMixin):
+class ComplianceGap(Base, UUIDMixin, TimestampMixin, TenantMixin):
     """Missing or incomplete compliance requirement.
 
     Each gap represents a specific compliance document that is required
     but not yet linked to a contract. Gaps can be resolved by linking
     an appropriate document or by waiving the requirement.
+
+    Carries an explicit ``tenant_id`` (from ``TenantMixin``) for
+    defense-in-depth isolation, in addition to the ``contract_id`` FK.
     """
 
     __tablename__ = "compliance_gaps"

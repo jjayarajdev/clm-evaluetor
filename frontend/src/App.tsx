@@ -19,6 +19,7 @@ import QueryPage from './pages/QueryPage'
 import UsersPage from './pages/UsersPage'
 import SettingsPage from './pages/SettingsPage'
 import PostSigningPage from './pages/PostSigningPage'
+import CompliancePage from './pages/CompliancePage'
 import MasterDataPage from './pages/admin/MasterDataPage'
 import SchedulerPage from './pages/admin/SchedulerPage'
 import BusinessUnitsPage from './pages/admin/BusinessUnitsPage'
@@ -95,7 +96,8 @@ function App() {
         <Route path="groups/:groupId" element={<GroupDetailPage />} />
         <Route path="obligations/:id" element={<ObligationDetailPage />} />
         <Route path="clauses/:id" element={<ClauseDetailPage />} />
-        <Route path="compliance" element={<PostSigningPage />} />
+        <Route path="compliance" element={<CompliancePage />} />
+        <Route path="post-signing" element={<PostSigningPage />} />
         <Route path="renewals" element={<RenewalsPage />} />
         <Route path="vendors" element={<VendorsPage />} />
         <Route path="reports" element={<ReportsPage />} />
