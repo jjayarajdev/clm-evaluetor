@@ -130,14 +130,24 @@ async def _match_profile_for_contract_type(
     detected-industry keyword match, else a unique candidate. Ambiguity
     returns None — no assignment beats a wrong one.
     """
-    from sqlalchemy import select
+    from sqlalchemy import or_, select
     from app.models.industry_profile import IndustryProfile
 
     if not contract_type:
         return None
 
     try:
-        result = await db.execute(select(IndustryProfile))
+        # Isolation: only global (owner NULL) and this tenant's own profiles
+        # are eligible — a contract must never match another tenant's profile.
+        profile_query = select(IndustryProfile)
+        if tenant_id is not None:
+            profile_query = profile_query.where(
+                or_(
+                    IndustryProfile.owner_tenant_id.is_(None),
+                    IndustryProfile.owner_tenant_id == tenant_id,
+                )
+            )
+        result = await db.execute(profile_query)
         all_profiles = result.scalars().all()
     except Exception as e:
         logger.debug(f"Profile matching skipped: {e}")
