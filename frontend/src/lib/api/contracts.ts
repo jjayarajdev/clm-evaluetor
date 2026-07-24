@@ -169,6 +169,7 @@ export interface ContractGroupDetail extends ContractGroupResponse {
   findings: Array<{
     id: string
     contract_id: string
+    contract_filename?: string | null
     finding_type: string
     reference_label: string
     reference_type?: string | null
