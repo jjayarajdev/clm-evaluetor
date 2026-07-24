@@ -324,6 +324,14 @@ async def get_industry_profile(
     if not profile:
         raise HTTPException(status_code=404, detail="Industry profile not found")
 
+    # Isolation: a tenant may only read global or its own profiles
+    if (
+        current_user.tenant_id is not None
+        and profile.owner_tenant_id is not None
+        and profile.owner_tenant_id != current_user.tenant_id
+    ):
+        raise HTTPException(status_code=404, detail="Industry profile not found")
+
     return {
         "id": str(profile.id),
         "name": profile.name,
@@ -362,10 +370,15 @@ async def set_my_tenant_profile(
         raise HTTPException(status_code=404, detail="Tenant not found")
 
     if profile_slug:
+        # Isolation: may only assign a global or own-tenant profile
         result = await db.execute(
             select(IndustryProfile).where(
                 IndustryProfile.slug == profile_slug,
                 IndustryProfile.is_active.is_(True),
+                or_(
+                    IndustryProfile.owner_tenant_id.is_(None),
+                    IndustryProfile.owner_tenant_id == current_user.tenant_id,
+                ),
             )
         )
         profile = result.scalar_one_or_none()
