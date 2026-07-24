@@ -1206,7 +1206,12 @@
     "generating": "Generating… (up to a minute)",
     "generateWithAi": "Generate with AI",
     "creating": "Creating…",
-    "createProfile": "Create Profile"
+    "createProfile": "Create Profile",
+    "usedByTenants_one": "Default for {{count}} tenant",
+    "usedByTenants_other": "Default for {{count}} tenants",
+    "usedByContracts_one": "{{count}} contract",
+    "usedByContracts_other": "{{count}} contracts",
+    "unused": "Not in use"
   },
   "ssoConfig": {
     "setupGuide": "Setup Guide",

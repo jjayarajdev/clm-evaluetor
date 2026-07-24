@@ -34,9 +34,18 @@ class IndustryProfileSummary(BaseModel):
     risk_category_count: int
     sla_metric_count: int
     is_active: bool
+    # Usage — profiles drive per-contract assignment and tenant fallback;
+    # admins need to see impact before editing/retiring one
+    tenant_default_count: int = 0
+    contract_count: int = 0
 
     @classmethod
-    def from_model(cls, profile: IndustryProfile) -> "IndustryProfileSummary":
+    def from_model(
+        cls,
+        profile: IndustryProfile,
+        tenant_default_count: int = 0,
+        contract_count: int = 0,
+    ) -> "IndustryProfileSummary":
         return cls(
             id=str(profile.id),
             name=profile.name,
@@ -47,6 +56,8 @@ class IndustryProfileSummary(BaseModel):
             risk_category_count=len(profile.risk_categories or []),
             sla_metric_count=len(profile.sla_metrics or []),
             is_active=profile.is_active,
+            tenant_default_count=tenant_default_count,
+            contract_count=contract_count,
         )
 
 
@@ -154,14 +165,46 @@ async def list_industry_profiles(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[IndustryProfileSummary]:
-    """List all active industry profiles."""
+    """List all active industry profiles with usage counts."""
+    from sqlalchemy import func
+
+    from app.models.contract import Contract
+    from app.models.tenant import Tenant
+
     result = await db.execute(
         select(IndustryProfile)
         .where(IndustryProfile.is_active.is_(True))
         .order_by(IndustryProfile.name)
     )
     profiles = result.scalars().all()
-    return [IndustryProfileSummary.from_model(p) for p in profiles]
+
+    tenant_counts = dict(
+        (
+            await db.execute(
+                select(Tenant.industry_profile_id, func.count(Tenant.id))
+                .where(Tenant.industry_profile_id.isnot(None))
+                .group_by(Tenant.industry_profile_id)
+            )
+        ).all()
+    )
+    contract_counts = dict(
+        (
+            await db.execute(
+                select(Contract.industry_profile_id, func.count(Contract.id))
+                .where(Contract.industry_profile_id.isnot(None))
+                .group_by(Contract.industry_profile_id)
+            )
+        ).all()
+    )
+
+    return [
+        IndustryProfileSummary.from_model(
+            p,
+            tenant_default_count=tenant_counts.get(p.id, 0),
+            contract_count=contract_counts.get(p.id, 0),
+        )
+        for p in profiles
+    ]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
