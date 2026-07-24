@@ -479,6 +479,9 @@ export default function PostSigningPage() {
   const trendDirection = trendData?.overall_trend
   const trendChange = trendData?.overall_change_pct
 
+  // Avoid a misleading "100%" when there is nothing to measure yet.
+  const hasComplianceData = dashboard.obligations.total > 0 || dashboard.slas.total_slas > 0
+
   const tabs = [
     { id: 'overview', label: t('postsigning.tabs.overview'), icon: ChartBarIcon },
     { id: 'obligations', label: t('postsigning.tabs.obligations', { count: dashboard.obligations.total }), icon: CheckCircleIcon },
@@ -513,13 +516,13 @@ export default function PostSigningPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title={t('postsigning.overallCompliance')}
-          value={`${dashboard.compliance.overall_compliance_rate.toFixed(1)}%`}
-          subtitle={trendDirection ? t('postsigning.trendSubtitle', { direction: t(`postsigning.trendDirections.${trendDirection}`, { defaultValue: trendDirection }) }) : undefined}
+          value={hasComplianceData ? `${dashboard.compliance.overall_compliance_rate.toFixed(1)}%` : '—'}
+          subtitle={!hasComplianceData ? t('postsigning.noData') : (trendDirection ? t('postsigning.trendSubtitle', { direction: t(`postsigning.trendDirections.${trendDirection}`, { defaultValue: trendDirection }) }) : undefined)}
           icon={CheckCircleIcon}
-          color={dashboard.compliance.overall_compliance_rate >= 90 ? 'success' : dashboard.compliance.overall_compliance_rate >= 70 ? 'warning' : 'danger'}
+          color={!hasComplianceData ? 'default' : (dashboard.compliance.overall_compliance_rate >= 90 ? 'success' : dashboard.compliance.overall_compliance_rate >= 70 ? 'warning' : 'danger')}
           variant="filled"
-          chart={complianceChart}
-          trend={trendChange != null ? { value: Math.round(trendChange), label: t('postsigning.vsLastPeriod') } : undefined}
+          chart={hasComplianceData ? complianceChart : undefined}
+          trend={hasComplianceData && trendChange != null ? { value: Math.round(trendChange), label: t('postsigning.vsLastPeriod') } : undefined}
         />
         <StatCard
           title={t('postsigning.contractsAtRisk')}
@@ -603,10 +606,16 @@ export default function PostSigningPage() {
               </div>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-2xl font-bold text-gray-900">
-                    {dashboard.obligations.compliance_rate.toFixed(1)}%
-                  </span>
-                  <span className="text-sm text-gray-500">{t('postsigning.compliance')}</span>
+                  {dashboard.obligations.total > 0 ? (
+                    <>
+                      <span className="text-2xl font-bold text-gray-900">
+                        {dashboard.obligations.compliance_rate.toFixed(1)}%
+                      </span>
+                      <span className="text-sm text-gray-500">{t('postsigning.compliance')}</span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-gray-400">{t('postsigning.noData')}</span>
+                  )}
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
@@ -653,10 +662,16 @@ export default function PostSigningPage() {
               </div>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-2xl font-bold text-gray-900">
-                    {dashboard.slas.compliance_rate.toFixed(1)}%
-                  </span>
-                  <span className="text-sm text-gray-500">{t('postsigning.compliance')}</span>
+                  {dashboard.slas.total_slas > 0 ? (
+                    <>
+                      <span className="text-2xl font-bold text-gray-900">
+                        {dashboard.slas.compliance_rate.toFixed(1)}%
+                      </span>
+                      <span className="text-sm text-gray-500">{t('postsigning.compliance')}</span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-gray-400">{t('postsigning.noData')}</span>
+                  )}
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
@@ -690,10 +705,16 @@ export default function PostSigningPage() {
               </div>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-2xl font-bold text-gray-900">
-                    {dashboard.milestones.completion_rate.toFixed(1)}%
-                  </span>
-                  <span className="text-sm text-gray-500">{t('postsigning.complete')}</span>
+                  {dashboard.milestones.total_milestones > 0 ? (
+                    <>
+                      <span className="text-2xl font-bold text-gray-900">
+                        {dashboard.milestones.completion_rate.toFixed(1)}%
+                      </span>
+                      <span className="text-sm text-gray-500">{t('postsigning.complete')}</span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-gray-400">{t('postsigning.noData')}</span>
+                  )}
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">

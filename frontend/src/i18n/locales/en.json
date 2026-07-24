@@ -547,6 +547,7 @@
   },
   "postsigning": {
     "na": "N/A",
+    "noData": "No data yet",
     "rag": {
       "green": "Green",
       "amber": "Amber",
