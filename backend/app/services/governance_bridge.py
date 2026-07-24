@@ -130,6 +130,9 @@ class GovernanceBridgeService:
             if org:
                 summary["org_matched"] = str(org.id)
                 summary["org_created"] = org in self.db.new
+                # Single source of truth: stamp the contract's canonical org
+                await self.db.flush()
+                contract.organization_id = org.id
         except Exception as e:
             logger.warning(f"Governance bridge: org matching failed: {e}")
             summary["errors"].append(f"org_match: {e}")

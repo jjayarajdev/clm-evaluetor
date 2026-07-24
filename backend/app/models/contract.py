@@ -259,6 +259,15 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         index=True,
     )
 
+    # Canonical counterparty organization — single source of truth so the
+    # Organizations registry and the Vendors view are the same set by
+    # construction. Resolved once at extraction via the governance bridge.
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Versioning
     version: Mapped[int] = mapped_column(
         nullable=False,
