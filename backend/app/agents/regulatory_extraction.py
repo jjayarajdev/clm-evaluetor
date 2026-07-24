@@ -439,6 +439,17 @@ async def store_regulatory_obligations(
     """
     created = []
 
+    # Resolve the owning contract's tenant for defense-in-depth isolation.
+    from sqlalchemy import select
+
+    from app.models.contract import Contract
+
+    tenant_id = (
+        await db.execute(
+            select(Contract.tenant_id).where(Contract.id == contract_id)
+        )
+    ).scalar_one_or_none()
+
     category_map = {
         "audit_rights": ObligationCategory.AUDIT_RIGHTS,
         "change_control": ObligationCategory.CHANGE_CONTROL,
@@ -471,6 +482,7 @@ async def store_regulatory_obligations(
         regulation = regulation_map.get(extracted.regulation_type, RegulationType.OTHER)
 
         obligation = RegulatoryObligation(
+            tenant_id=tenant_id,
             contract_id=contract_id,
             industry=industry,
             regulation_type=regulation,

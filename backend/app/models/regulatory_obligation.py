@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.base import TimestampMixin, UUIDMixin
+from app.models.base import TenantMixin, TimestampMixin, UUIDMixin
 from app.models.industry import Industry
 from app.models.obligation import RAGStatus
 
@@ -101,11 +101,14 @@ class ObligationCategory(str, __import__("enum").Enum):
     OTHER = "other"
 
 
-class RegulatoryObligation(Base, UUIDMixin, TimestampMixin):
+class RegulatoryObligation(Base, UUIDMixin, TimestampMixin, TenantMixin):
     """Industry-specific regulatory obligation extracted from a contract.
 
     These obligations are extracted from contracts in regulated industries
     and track specific regulatory requirements that must be complied with.
+
+    Carries an explicit ``tenant_id`` (from ``TenantMixin``) for
+    defense-in-depth isolation, in addition to the ``contract_id`` FK.
     """
 
     __tablename__ = "regulatory_obligations"
