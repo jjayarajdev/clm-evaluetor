@@ -121,30 +121,32 @@ def _link(parent, child, link_type="schedule"):
 
 
 @pytest.mark.asyncio
-async def test_inheritance_overrides_junk_keeps_corroborated(db):
+async def test_inheritance_overrides_only_junk(db):
     tid = uuid.uuid4()
 
     master = _contract(tid, "Sigma_MSA.docx", "DemoSup1 BPO Limited", "msa")
+    # junk (document-title) child -> inherits the master's party
     junk = _contract(tid, "Schedule 03 - Service Levels-Nov2022.docx", "Service Levels-Nov2022", "schedule")
-    client_master = _contract(tid, "ClientAA_MSA.docx", "ClientAA Nobel N.V.", "msa")
-    corroborated = _contract(tid, "Schedule 16 Exit plan.docx", "ClientAA Nobel N.V.", "schedule")
-    differing = _contract(tid, "Schedule 04 - Transition.docx", "Transition-Nov2022", "schedule")
+    # empty-counterparty child -> inherits the master's party
+    empty = _contract(tid, "Schedule 09 Technology.docx", None, "schedule")
+    # clean but DIFFERENT real party (e.g. a named subcontractor) -> KEPT
+    distinct = _contract(tid, "Schedule 17B List of Local Service Agreements.docx", "Infosys BPM Limited", "sow")
 
-    db.add_all([master, junk, client_master, corroborated, differing])
+    db.add_all([master, junk, empty, distinct])
     db.add_all([
         _link(master, junk),
-        _link(master, corroborated),
-        _link(master, differing),
+        _link(master, empty),
+        _link(master, distinct),
     ])
     await db.flush()
 
     changed = await enrich_from_family(db, tid)
 
     await db.refresh(junk)
-    await db.refresh(corroborated)
-    await db.refresh(differing)
+    await db.refresh(empty)
+    await db.refresh(distinct)
 
-    assert junk.counterparty == "DemoSup1 BPO Limited"        # junk -> master
-    assert differing.counterparty == "DemoSup1 BPO Limited"   # uncorroborated -> master
-    assert corroborated.counterparty == "ClientAA Nobel N.V." # corroborated -> kept
+    assert junk.counterparty == "DemoSup1 BPO Limited"       # junk -> master
+    assert empty.counterparty == "DemoSup1 BPO Limited"      # empty -> master
+    assert distinct.counterparty == "Infosys BPM Limited"    # clean differing -> kept
     assert changed == 2
