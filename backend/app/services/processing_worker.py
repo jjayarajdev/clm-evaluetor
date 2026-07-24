@@ -163,6 +163,24 @@ async def _check_batch_completion(batch_id: str, session: AsyncSession) -> None:
     if len(completed_ids) < 2:
         return
 
+    # Stage 0: Deterministic framework-set linking from filename structure
+    # (Exhibit/Attachment sets under a single master) — runs before the LLM
+    # detection so its links take precedence and the LLM only fills gaps.
+    try:
+        from app.services.framework_linker import link_framework_sets
+
+        result = await session.execute(
+            select(Contract).where(Contract.id == completed_ids[0])
+        )
+        first = result.scalar_one_or_none()
+        if first and first.tenant_id:
+            n = await link_framework_sets(session, first.tenant_id)
+            if n:
+                await session.commit()
+                logger.info(f"Batch {batch_id}: framework linking created {n} links")
+    except Exception as e:
+        logger.warning(f"Framework linking failed for batch {batch_id}: {e}")
+
     # Stage 1: Run hierarchy detection (new pairwise system)
     try:
         from app.services.hierarchy_detection import detect_hierarchy
