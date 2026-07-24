@@ -389,6 +389,7 @@ class WorkflowOrchestrator:
         # Create approval request
         approval = ApprovalRequest(
             action_execution_id=execution.id,
+            tenant_id=getattr(event, "tenant_id", None),
             title=title,
             description=description,
             context_data=event.details,

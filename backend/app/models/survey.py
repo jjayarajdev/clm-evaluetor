@@ -39,6 +39,14 @@ class SurveyTemplate(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
+    # Owning tenant — survey templates are tenant-specific, not global.
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
     # Template info
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)

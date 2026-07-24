@@ -45,8 +45,22 @@ class AuditService:
         Returns:
             Created AuditLog entry.
         """
+        # Resolve the acting user's tenant so the row is tenant-stamped even
+        # if a future query path skips the User join.
+        resolved_uid = uuid.UUID(str(user_id)) if user_id else None
+        tenant_id = self.tenant_id
+        if tenant_id is None and resolved_uid is not None:
+            from app.models.user import User
+
+            tenant_id = (
+                await self.db.execute(
+                    select(User.tenant_id).where(User.id == resolved_uid)
+                )
+            ).scalar_one_or_none()
+
         log = AuditLog(
-            user_id=uuid.UUID(str(user_id)) if user_id else None,
+            user_id=resolved_uid,
+            tenant_id=tenant_id,
             action=action,
             resource_type=resource_type,
             resource_id=str(resource_id) if resource_id else None,

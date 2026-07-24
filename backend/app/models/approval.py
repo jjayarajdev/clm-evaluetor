@@ -86,6 +86,10 @@ class ApprovalRequest(Base, TimestampMixin):
     action_execution_id: Mapped[UUID] = mapped_column(
         ForeignKey("action_executions.id", ondelete="CASCADE"), nullable=False
     )
+    # Tenant scope for isolation on the monitor approvals endpoint.
+    tenant_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True
+    )
 
     # Request details
     title: Mapped[str] = mapped_column(String(500), nullable=False)
