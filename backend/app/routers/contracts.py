@@ -2081,10 +2081,13 @@ async def get_contract_hierarchy(
     if not contracts:
         return ContractHierarchyResponse(roots=[], total_contracts=0, total_links=0)
 
-    # Get all active links for these contracts
+    # Get all active links for these contracts. Weak association types
+    # (related/references) are lateral, not hierarchical — they must not
+    # create parent/child nesting in the tree (same rule as family groups).
     contract_ids = [c.id for c in contracts]
     links_query = select(ContractLink).where(
         ContractLink.is_active == True,
+        ContractLink.link_type.notin_(["related", "references"]),
         or_(
             ContractLink.parent_contract_id.in_(contract_ids),
             ContractLink.child_contract_id.in_(contract_ids),
