@@ -1001,10 +1001,32 @@ async def update_contract_metadata(
         except Exception:
             pass
 
-    # Update value
+    # Update value — gated. Structural documents (pricing forms, attachments,
+    # exhibits, rate cards) are line-item tables, not deal values; extraction
+    # sums them into absurd totals. Their value belongs on the master, not
+    # them. Also reject implausibly large values as extraction noise.
     if metadata.contract_value and _check("contract_value", metadata.contract_value):
         try:
-            contract.contract_value = Decimal(str(metadata.contract_value.value))
+            value = Decimal(str(metadata.contract_value.value))
+            fname = (contract.filename or "").lower()
+            is_structural = bool(
+                _DOC_STRUCTURE_PREFIX_RE.match(fname)
+                or re.search(r"\b(pricing|rate\s*card|price\s*list|tariff|cola|baseline)\b", fname)
+            )
+            # ~$100B ceiling: above this it is almost always a summed table
+            # or a mis-read identifier, not a real contract value.
+            if is_structural:
+                logger.info(
+                    f"Skipped contract_value {value} on structural document "
+                    f"'{contract.filename}'"
+                )
+            elif value > Decimal("100000000000"):
+                logger.info(
+                    f"Rejected implausible contract_value {value} on "
+                    f"'{contract.filename}'"
+                )
+            else:
+                contract.contract_value = value
         except Exception:
             pass
 

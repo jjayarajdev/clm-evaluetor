@@ -201,12 +201,13 @@ async def calculate_obligation_compliance(db: AsyncSession, contract_ids: list[u
     today = date.today()
     waived = sum(1 for o in obligations if o.status == ObligationStatus.WAIVED)
     in_progress = sum(1 for o in obligations if o.status == ObligationStatus.IN_PROGRESS)
-    pending_future = sum(
-        1 for o in obligations
-        if o.status == ObligationStatus.PENDING
-        and o.deadline and o.deadline > today
-    )
-    assessable = total - waived - pending_future
+    # Only obligations that have reached a verdict count toward compliance:
+    # completed / in-progress (on track) vs overdue (failed). PENDING
+    # obligations — including freshly extracted ones with no deadline, or a
+    # deadline still in the future — are not yet due and must NOT count as
+    # failures, and WAIVED are excluded. If nothing is due yet, compliance is
+    # 100% (nothing has failed) rather than 0%.
+    assessable = completed + in_progress + overdue
     compliance_rate = ((completed + in_progress) / assessable * 100) if assessable > 0 else 100.0
 
     return compliance_rate, {
