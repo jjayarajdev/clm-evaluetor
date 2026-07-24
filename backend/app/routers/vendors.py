@@ -76,10 +76,22 @@ async def list_vendors(
     raw_counterparties = [row[0] for row in result.all() if row[0]]
 
     # Collapse counterparty variants into one organization each
-    # (ING / ING Bank N.V. / ING Group -> one vendor).
-    from app.services.org_resolver import choose_display_name, group_by_organization
+    # (ING / ING Bank N.V. / ING Group -> one vendor). Clean each name for
+    # display (strip 'the ', drop fragments) so legacy pre-gate values read
+    # consistently without waiting for re-analysis; keep the raw name to fetch
+    # its contracts.
+    from app.agents.metadata_extraction import clean_counterparty
+    from app.services.org_resolver import canonical_org_key, choose_display_name
 
-    org_groups = group_by_organization(raw_counterparties)
+    # Map canonical key -> {raw variants} and -> {clean display candidates}
+    org_variants: dict[str, list[str]] = {}
+    org_display: dict[str, list[str]] = {}
+    for raw in raw_counterparties:
+        cleaned = clean_counterparty(raw) or raw
+        key = canonical_org_key(cleaned) or cleaned.strip().lower()
+        org_variants.setdefault(key, []).append(raw)
+        org_display.setdefault(key, []).append(cleaned)
+    org_groups = org_variants
 
     # Build vendor list — one entry per organization
     vendors = []
@@ -87,7 +99,8 @@ async def list_vendors(
     at_risk_count = 0
 
     for _key, variants in org_groups.items():
-        counterparty = choose_display_name(variants)
+        # Display from cleaned candidates; fetch contracts by raw variants
+        counterparty = choose_display_name(org_display.get(_key, variants))
         # Combine contracts across every name variant of this organization
         contracts = []
         seen_ids = set()
