@@ -470,6 +470,44 @@ Rules:
         return None
 
 
+_DOC_STRUCTURE_PREFIX_RE = re.compile(
+    r"^(exhibit|attachment|schedule|annex|appendix|amendment|addendum|sow|statement of work)\b",
+    re.IGNORECASE,
+)
+_FILENAME_NOISE_RE = re.compile(
+    r"\.(docx?|pdf|xlsx?|pptx?)$|\b(formatted|reformatted|final|draft|v\d+|copy)\b",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_document_title(value: str | None, filename: str | None = None) -> bool:
+    """True when a 'counterparty' is really a document title/filename.
+
+    Extraction on structural documents (exhibits, attachments) often returns
+    the document's own name — a wrong value is worse than none, because it
+    poisons counterparty matching downstream.
+    """
+    if not value:
+        return False
+    v = value.strip().lower()
+
+    if _DOC_STRUCTURE_PREFIX_RE.match(v):
+        return True
+    if _FILENAME_NOISE_RE.search(v):
+        return True
+
+    if filename:
+        stem = re.sub(r"\.[a-z0-9]+$", "", filename.strip().lower())
+        norm = lambda s: re.sub(r"[^a-z0-9]+", " ", s).split()  # noqa: E731
+        v_words, f_words = norm(v), norm(stem)
+        if v_words and f_words:
+            overlap = len(set(v_words) & set(f_words)) / len(v_words)
+            # Most of the "counterparty" words come from the filename
+            if overlap >= 0.8 and len(v_words) >= 3:
+                return True
+    return False
+
+
 def _is_generic_counterparty(value: str | None) -> bool:
     """Quick check if a counterparty value is obviously generic or garbage."""
     if not value:
@@ -862,22 +900,36 @@ async def update_contract_metadata(
     counterparty_set = False
     if metadata.counterparty and _check("counterparty", metadata.counterparty):
         counterparty_value = str(metadata.counterparty.value)
-        if not _is_generic_counterparty(counterparty_value) and not _is_excluded_party(counterparty_value):
+        if (
+            not _is_generic_counterparty(counterparty_value)
+            and not _is_excluded_party(counterparty_value)
+            and not _looks_like_document_title(counterparty_value, contract.filename)
+        ):
             contract.counterparty = counterparty_value
             counterparty_set = True
             logger.info(f"Set counterparty to '{counterparty_value}'")
         elif is_excluded:
             logger.info(f"Rejected counterparty '{counterparty_value}' — matches uploading org")
+        elif _looks_like_document_title(counterparty_value, contract.filename):
+            logger.info(f"Rejected counterparty '{counterparty_value}' — looks like a document title")
     # Fallback: try to extract counterparty from filename if not set from metadata
     if not counterparty_set and (not contract.counterparty or _is_generic_counterparty(contract.counterparty)):
         filename_counterparty = extract_counterparty_from_filename(contract.filename)
-        if filename_counterparty and not _is_excluded_party(filename_counterparty):
+        if (
+            filename_counterparty
+            and not _is_excluded_party(filename_counterparty)
+            and not _looks_like_document_title(filename_counterparty, contract.filename)
+        ):
             logger.info(f"Using filename-derived counterparty: {filename_counterparty}")
             contract.counterparty = filename_counterparty
         elif metadata.parties:
             # Try to use first non-generic, non-excluded party from parties list
             for party in metadata.parties:
-                if not _is_generic_counterparty(party) and not _is_excluded_party(party):
+                if (
+                    not _is_generic_counterparty(party)
+                    and not _is_excluded_party(party)
+                    and not _looks_like_document_title(party, contract.filename)
+                ):
                     contract.counterparty = party
                     logger.info(f"Using parties list counterparty: {party}")
                     break
