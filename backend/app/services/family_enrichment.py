@@ -7,13 +7,17 @@ master agreement they hang under. Once links exist, this service flows that
 context down the family tree:
 
 - EMPTY counterparty/profile is filled from the nearest ancestor (as before).
-- An UNRELIABLE or uncorroborated counterparty on a child is OVERRIDDEN by the
-  family root's — but a child whose counterparty is itself a real party (it
-  heads its own master agreement somewhere in the tenant) is left untouched,
-  so genuine multi-party structures survive.
+- An UNRELIABLE counterparty on a child (empty, a document title, a generic
+  role word, or prose) is OVERRIDDEN by the family root's.
 
-When a child moves off a junk organization that this creates, the vacated org
-is pruned. All changes record provenance and never commit.
+A clean, real counterparty is NEVER overridden, even when it differs from the
+root — the linkers legitimately group documents that reference different
+parties (a "List of Local Service Agreements" schedule names a subcontractor),
+and collapsing those would merge distinct vendors. Only genuinely junk parties,
+which carry no usable identity of their own, inherit the master's.
+
+When a child moves off a junk organization that its own extraction created,
+the vacated org is pruned. All changes record provenance and never commit.
 """
 
 import logging
@@ -35,10 +39,6 @@ _MAX_ANCESTOR_DEPTH = 5
 
 # Weak links don't define family context either (consistent with grouping)
 _EXCLUDED_LINK_TYPES = ("related", "references")
-
-# Contract types whose extracted counterparty is authoritative — a party that
-# heads one of these is a real party, never overridden by family inheritance.
-_MASTER_TYPES = {"msa", "master", "framework", "master_services_agreement"}
 
 
 async def _parent_of(db: AsyncSession, contract_id: uuid.UUID) -> uuid.UUID | None:
@@ -82,23 +82,9 @@ async def enrich_from_family(
     Scoped to contract_ids when given, else all tenant contracts. Returns the
     number of contracts changed. Does not commit.
     """
-    from app.services.contract_types import normalize_contract_type
-
     all_tenant = (
         await db.execute(select(Contract).where(Contract.tenant_id == tenant_id))
     ).scalars().all()
-
-    # Canonical keys of parties that head a master agreement — authoritative,
-    # never overridden even when they appear as a differing child.
-    master_party_keys: set[str] = set()
-    for c in all_tenant:
-        ntype = normalize_contract_type(c.contract_type) or (c.contract_type or "")
-        if ntype in _MASTER_TYPES and c.counterparty and not is_unreliable_counterparty(
-            c.counterparty, c.filename
-        ):
-            key = canonical_org_key(c.counterparty)
-            if key:
-                master_party_keys.add(key)
 
     targets = all_tenant
     if contract_ids is not None:
@@ -109,28 +95,29 @@ async def enrich_from_family(
     vacated_orgs: set[uuid.UUID] = set()
 
     for contract in targets:
-        cp_unreliable = is_unreliable_counterparty(contract.counterparty, contract.filename)
-        cp_key = canonical_org_key(contract.counterparty or "")
+        # Only a junk/empty counterparty is a candidate for override; a clean
+        # real name is authoritative even if it differs from the root.
+        needs_counterparty = is_unreliable_counterparty(
+            contract.counterparty, contract.filename
+        )
         needs_profile = contract.industry_profile_id is None
+        if not needs_counterparty and not needs_profile:
+            continue
 
-        # A child keeps its own counterparty when it is reliable AND either
-        # matches nothing to override against or is itself a real master party.
         root = await _reliable_ancestor(db, contract)
         inherited: dict[str, str] = {}
 
         if root is not None:
-            root_key = canonical_org_key(root.counterparty or "")
-            differs = bool(cp_key) and bool(root_key) and cp_key != root_key
-            corroborated = cp_key in master_party_keys
-            should_override_cp = cp_unreliable or (differs and not corroborated)
-
-            if should_override_cp and root_key != cp_key:
-                if contract.organization_id and contract.organization_id != root.organization_id:
-                    vacated_orgs.add(contract.organization_id)
-                contract.counterparty = root.counterparty
-                if root.organization_id is not None:
-                    contract.organization_id = root.organization_id
-                inherited["counterparty"] = str(root.id)
+            if needs_counterparty and root.counterparty:
+                root_key = canonical_org_key(root.counterparty)
+                cur_key = canonical_org_key(contract.counterparty or "")
+                if root_key != cur_key:
+                    if contract.organization_id and contract.organization_id != root.organization_id:
+                        vacated_orgs.add(contract.organization_id)
+                    contract.counterparty = root.counterparty
+                    if root.organization_id is not None:
+                        contract.organization_id = root.organization_id
+                    inherited["counterparty"] = str(root.id)
             if needs_profile and root.industry_profile_id is not None:
                 contract.industry_profile_id = root.industry_profile_id
                 inherited["industry_profile_id"] = str(root.id)
