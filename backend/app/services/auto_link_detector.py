@@ -1310,6 +1310,7 @@ async def auto_approve_batch_links(
             child_contract_id=child_id,
             link_type=suggestion.suggested_link_type,
             link_description=f"Auto-approved: {suggestion.reasoning[:200]}" if suggestion.reasoning else "Auto-approved from batch upload",
+            created_by_rule="llm_detection",
             is_active=True,
         )
         db.add(link)

@@ -627,6 +627,8 @@ class IndexingService:
                 ).scalar_one_or_none()
                 has_suggestions = None
                 if not has_links:
+                    # Only live suggestions count — expired/rejected ones
+                    # must not block re-detection forever
                     has_suggestions = (
                         await self.db.execute(
                             select(SuggestedContractLink.id)
@@ -634,7 +636,8 @@ class IndexingService:
                                 or_(
                                     SuggestedContractLink.source_contract_id == contract.id,
                                     SuggestedContractLink.target_contract_id == contract.id,
-                                )
+                                ),
+                                SuggestedContractLink.status.in_(["pending", "approved"]),
                             )
                             .limit(1)
                         )
