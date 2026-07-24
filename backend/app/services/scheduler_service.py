@@ -325,7 +325,10 @@ class SchedulerService:
         errors = []
         for tid in tenant_ids:
             try:
+                from app.services.framework_linker import link_by_counterparty_master
+
                 n_links, _ = await resolve_declared_references(db, tid)
+                n_links += await link_by_counterparty_master(db, tid)
                 links_resolved += n_links
                 touched += await sync_auto_family_groups(db, tid)
                 enriched += await enrich_from_family(db, tid)
