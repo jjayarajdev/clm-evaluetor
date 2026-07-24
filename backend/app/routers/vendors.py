@@ -147,22 +147,21 @@ async def list_vendors(
         if is_at_risk:
             at_risk_count += 1
 
-        if True:
-            vendors.append(VendorListItem(
-                vendor_name=counterparty,
-                normalized_name=normalize_vendor_name(counterparty),
-                tenant_name=g["tenant"] if show_tenant else None,
-                party_type=cp_type,
-                performance_score=score,
-                risk_level=determine_risk_level(score),
-                is_at_risk=is_at_risk,
-                contract_count=metrics["contracts"].total_contracts,
-                total_exposure=exposure,
-                sla_compliance_rate=metrics["slas"].compliance_rate,
-                obligation_compliance_rate=metrics["obligations"].compliance_rate,
-                active_breaches=metrics["active_breaches"],
-                last_updated=datetime.utcnow(),
-            ))
+        vendors.append(VendorListItem(
+            vendor_name=counterparty,
+            normalized_name=normalize_vendor_name(counterparty),
+            tenant_name=g["tenant"] if show_tenant else None,
+            party_type=cp_type,
+            performance_score=score,
+            risk_level=determine_risk_level(score),
+            is_at_risk=is_at_risk,
+            contract_count=metrics["contracts"].total_contracts,
+            total_exposure=exposure,
+            sla_compliance_rate=metrics["slas"].compliance_rate,
+            obligation_compliance_rate=metrics["obligations"].compliance_rate,
+            active_breaches=metrics["active_breaches"],
+            last_updated=datetime.utcnow(),
+        ))
 
     # Sort vendors
     reverse = sort_order == "desc"
