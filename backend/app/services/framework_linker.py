@@ -39,6 +39,102 @@ _PREFIX_TO_LINK_TYPE = {
 }
 
 
+# Subordinate types that naturally hang under a master agreement
+_SUBORDINATE_TYPES = {"sow", "amendment", "addendum", "schedule", "exhibit", "attachment"}
+_MASTER_TYPES = {"msa"}
+
+
+def _norm_party(value: str | None) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (value or "").lower()).strip()
+
+
+async def link_by_counterparty_master(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+) -> int:
+    """Link unparented subordinate contracts under their counterparty's master.
+
+    Metadata-driven rule: when a tenant has exactly ONE master agreement for
+    a counterparty, subordinate-type contracts (SOWs, amendments, schedules)
+    with the same counterparty belong under it — the same reasoning a human
+    applies. Ambiguity (multiple masters for the counterparty) creates
+    nothing. Returns links created; does not commit.
+    """
+    from app.services.contract_types import normalize_contract_type
+
+    contracts = (
+        (
+            await db.execute(
+                select(Contract).where(
+                    Contract.tenant_id == tenant_id,
+                    Contract.counterparty.isnot(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    masters_by_party: dict[str, list[Contract]] = defaultdict(list)
+    subordinates: list[tuple[Contract, str]] = []
+    for c in contracts:
+        ntype = normalize_contract_type(c.contract_type) or (c.contract_type or "")
+        party = _norm_party(c.counterparty)
+        if not party:
+            continue
+        if ntype in _MASTER_TYPES:
+            masters_by_party[party].append(c)
+        elif ntype in _SUBORDINATE_TYPES:
+            subordinates.append((c, ntype))
+
+    if not subordinates:
+        return 0
+
+    sub_ids = [c.id for c, _ in subordinates]
+    already_parented = set(
+        (
+            await db.execute(
+                select(ContractLink.child_contract_id).where(
+                    ContractLink.child_contract_id.in_(sub_ids),
+                    ContractLink.is_active == True,  # noqa: E712
+                    ContractLink.link_type.notin_(["related", "references"]),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    created = 0
+    for child, ntype in subordinates:
+        if child.id in already_parented:
+            continue
+        masters = masters_by_party.get(_norm_party(child.counterparty), [])
+        if len(masters) != 1 or masters[0].id == child.id:
+            continue
+        master = masters[0]
+        db.add(
+            ContractLink(
+                parent_contract_id=master.id,
+                child_contract_id=child.id,
+                link_type=ntype if ntype in _SUBORDINATE_TYPES else "sow",
+                link_description=(
+                    "Counterparty family: same counterparty as the tenant's "
+                    "only master agreement for this party"
+                ),
+                is_active=True,
+            )
+        )
+        created += 1
+
+    if created:
+        logger.info(
+            f"Counterparty-master linking created {created} link(s) for tenant {tenant_id}"
+        )
+    await db.flush()
+    return created
+
+
 async def link_framework_sets(
     db: AsyncSession,
     tenant_id: uuid.UUID,
