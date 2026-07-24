@@ -39,6 +39,105 @@ _PREFIX_TO_LINK_TYPE = {
 }
 
 
+# "Algoleap_SOW 122_... - SOW0001894.pdf" → root="Algoleap_SOW 122_...",
+# num="SOW0001894"; CSOW-numbered or "(CR n)"-marked documents are change
+# orders of the root's base SOW.
+_DOCNUM_RE = re.compile(
+    r"^(?P<root>.+?)\s*-\s*(?P<num>C?SOW\s?0*(?P<digits>\d+))\s*(?P<cr>\(CR\s*\d+\))?\s*(?:\.[A-Za-z0-9]+)?$",
+    re.IGNORECASE,
+)
+
+
+async def link_change_orders(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+) -> int:
+    """Nest change orders under their base SOW by document-number structure.
+
+    Documents sharing a filename root form one work package: the lowest
+    plain SOW number is the base; CSOW-numbered / CR-marked documents become
+    its change orders, and later plain SOW numbers its modifications. A
+    child currently parented at the family master (or unparented) is moved
+    one level down under the base — curated deeper structure is preserved.
+    Returns links created/moved; does not commit.
+    """
+    contracts = (
+        (
+            await db.execute(
+                select(Contract).where(Contract.tenant_id == tenant_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    groups: dict[str, list[tuple[Contract, int, bool]]] = defaultdict(list)
+    for c in contracts:
+        m = _DOCNUM_RE.match(c.filename or "")
+        if not m:
+            continue
+        is_change = m.group("num").lower().startswith("csow") or bool(m.group("cr"))
+        groups[m.group("root").strip().lower()].append(
+            (c, int(m.group("digits")), is_change)
+        )
+
+    moved = 0
+    for root, docs in groups.items():
+        if len(docs) < 2:
+            continue
+        bases = [(n, c) for c, n, is_change in docs if not is_change]
+        if not bases:
+            continue
+        base = min(bases, key=lambda t: t[0])[1]
+
+        base_parent = await _parent_link_of(db, base.id)
+        for child, _num, is_change in docs:
+            if child.id == base.id:
+                continue
+            child_link = await _parent_link_of(db, child.id)
+            # Only move children that are unparented or flat-parented at the
+            # base's own parent (the family master)
+            if child_link is not None:
+                if base_parent is None or child_link.parent_contract_id != base_parent.parent_contract_id:
+                    continue
+                await db.delete(child_link)
+            db.add(
+                ContractLink(
+                    parent_contract_id=base.id,
+                    child_contract_id=child.id,
+                    link_type="change_order" if is_change else "modification",
+                    link_description=(
+                        "Work package structure: document number marks this as "
+                        + ("a change order of " if is_change else "a later revision of ")
+                        + f"'{base.filename}'"
+                    ),
+                    is_active=True,
+                )
+            )
+            moved += 1
+
+    if moved:
+        logger.info(
+            f"Change-order nesting created/moved {moved} link(s) for tenant {tenant_id}"
+        )
+    await db.flush()
+    return moved
+
+
+async def _parent_link_of(db: AsyncSession, contract_id: uuid.UUID):
+    return (
+        await db.execute(
+            select(ContractLink)
+            .where(
+                ContractLink.child_contract_id == contract_id,
+                ContractLink.is_active == True,  # noqa: E712
+                ContractLink.link_type.notin_(["related", "references"]),
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
 # Subordinate types that naturally hang under a master agreement
 _SUBORDINATE_TYPES = {"sow", "amendment", "addendum", "schedule", "exhibit", "attachment"}
 _MASTER_TYPES = {"msa"}
