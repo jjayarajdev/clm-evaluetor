@@ -83,9 +83,9 @@ async def get_contract_links(
     """
     contract_uuid = uuid.UUID(contract_id)
 
-    # Verify contract exists
+    # Verify contract exists and belongs to the caller's tenant
     contract = await db.get(Contract, contract_uuid)
-    if not contract:
+    if not contract or (tenant_id is not None and contract.tenant_id != tenant_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Contract not found: {contract_id}",

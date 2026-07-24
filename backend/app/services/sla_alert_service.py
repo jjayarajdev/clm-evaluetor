@@ -394,27 +394,30 @@ class SLAAlertService:
 
         return alert
 
+    async def _get_alert_scoped(
+        self, alert_id: UUID, tenant_id: Optional[UUID]
+    ) -> SLAAlert:
+        """Load an alert, enforcing tenant ownership via its contract."""
+        from app.models.contract import Contract
+
+        query = select(SLAAlert).where(SLAAlert.id == alert_id)
+        if tenant_id is not None:
+            query = query.join(
+                Contract, SLAAlert.contract_id == Contract.id
+            ).where(Contract.tenant_id == tenant_id)
+        alert = (await self.db.execute(query)).scalar_one_or_none()
+        if not alert:
+            raise ValueError(f"Alert {alert_id} not found")
+        return alert
+
     async def acknowledge_alert(
         self,
         alert_id: UUID,
         user_id: UUID,
+        tenant_id: Optional[UUID] = None,
     ) -> SLAAlert:
-        """Mark an alert as acknowledged.
-
-        Args:
-            alert_id: Alert ID.
-            user_id: User acknowledging the alert.
-
-        Returns:
-            Updated SLAAlert.
-        """
-        result = await self.db.execute(
-            select(SLAAlert).where(SLAAlert.id == alert_id)
-        )
-        alert = result.scalar_one_or_none()
-
-        if not alert:
-            raise ValueError(f"Alert {alert_id} not found")
+        """Mark an alert as acknowledged (scoped to tenant)."""
+        alert = await self._get_alert_scoped(alert_id, tenant_id)
 
         alert.status = AlertStatus.ACKNOWLEDGED
         alert.acknowledged_at = datetime.utcnow()
@@ -428,24 +431,10 @@ class SLAAlertService:
         alert_id: UUID,
         user_id: UUID,
         resolution_notes: Optional[str] = None,
+        tenant_id: Optional[UUID] = None,
     ) -> SLAAlert:
-        """Mark an alert as resolved.
-
-        Args:
-            alert_id: Alert ID.
-            user_id: User resolving the alert.
-            resolution_notes: Notes on how it was resolved.
-
-        Returns:
-            Updated SLAAlert.
-        """
-        result = await self.db.execute(
-            select(SLAAlert).where(SLAAlert.id == alert_id)
-        )
-        alert = result.scalar_one_or_none()
-
-        if not alert:
-            raise ValueError(f"Alert {alert_id} not found")
+        """Mark an alert as resolved (scoped to tenant)."""
+        alert = await self._get_alert_scoped(alert_id, tenant_id)
 
         alert.status = AlertStatus.RESOLVED
         alert.resolved_at = datetime.utcnow()
@@ -460,24 +449,10 @@ class SLAAlertService:
         alert_id: UUID,
         escalate_to: str,
         notify: bool = True,
+        tenant_id: Optional[UUID] = None,
     ) -> SLAAlert:
-        """Escalate an alert to a higher authority.
-
-        Args:
-            alert_id: Alert ID.
-            escalate_to: Email or name of escalation contact.
-            notify: Whether to send notification.
-
-        Returns:
-            Updated SLAAlert.
-        """
-        result = await self.db.execute(
-            select(SLAAlert).where(SLAAlert.id == alert_id)
-        )
-        alert = result.scalar_one_or_none()
-
-        if not alert:
-            raise ValueError(f"Alert {alert_id} not found")
+        """Escalate an alert to a higher authority (scoped to tenant)."""
+        alert = await self._get_alert_scoped(alert_id, tenant_id)
 
         alert.status = AlertStatus.ESCALATED
         alert.escalation_level += 1
