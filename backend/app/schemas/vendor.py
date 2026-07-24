@@ -73,6 +73,7 @@ class VendorListItem(BaseModel):
 
     vendor_name: str
     normalized_name: str  # Lowercase, trimmed for matching
+    tenant_name: str | None = None  # Owning tenant (populated for super-admin)
     party_type: CounterpartyType = CounterpartyType.UNKNOWN  # vendor or client
     performance_score: float  # 0-100 composite score
     risk_level: Literal["low", "medium", "high", "critical"]

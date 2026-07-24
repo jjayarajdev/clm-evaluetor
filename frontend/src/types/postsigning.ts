@@ -159,6 +159,7 @@ export type CounterpartyType = 'vendor' | 'client' | 'unknown'
 export interface VendorListItem {
   vendor_name: string
   normalized_name: string
+  tenant_name?: string | null
   party_type: CounterpartyType
   performance_score: number
   risk_level: string
