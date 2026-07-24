@@ -310,18 +310,25 @@ class SchedulerService:
     async def _execute_auto_family_sync_job(self, db: AsyncSession) -> dict:
         """Nightly reconcile of auto_family contract groups for all tenants."""
         from app.models.tenant import Tenant
+        from app.services.family_enrichment import enrich_from_family
         from app.services.group_sync import (
             detect_missing_references,
             sync_auto_family_groups,
         )
+        from app.services.reference_resolver import resolve_declared_references
 
         tenant_ids = (await db.execute(select(Tenant.id))).scalars().all()
         touched = 0
         findings_changed = 0
+        links_resolved = 0
+        enriched = 0
         errors = []
         for tid in tenant_ids:
             try:
+                n_links, _ = await resolve_declared_references(db, tid)
+                links_resolved += n_links
                 touched += await sync_auto_family_groups(db, tid)
+                enriched += await enrich_from_family(db, tid)
                 findings_changed += await detect_missing_references(db, tid)
                 await db.commit()
             except Exception as e:
@@ -330,6 +337,8 @@ class SchedulerService:
         return {
             "tenants": len(tenant_ids),
             "groups_touched": touched,
+            "links_resolved": links_resolved,
+            "enriched": enriched,
             "findings_changed": findings_changed,
             "errors": errors,
         }
