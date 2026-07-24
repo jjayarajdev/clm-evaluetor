@@ -455,10 +455,35 @@ export default function VendorsPage() {
                   {t('vendors.noCounterparties')}
                 </td>
               </tr>
+            ) : data.vendors.some((v) => v.tenant_name) ? (
+              // Super-admin cross-tenant view — group under tenant headers
+              Object.entries(
+                data.vendors.reduce<Record<string, VendorListItem[]>>((acc, v) => {
+                  const key = v.tenant_name || '—'
+                  ;(acc[key] ||= []).push(v)
+                  return acc
+                }, {}),
+              )
+                .sort(([a], [b]) => a.localeCompare(b))
+                .flatMap(([tenant, rows]) => [
+                  <tr key={`hdr-${tenant}`} className="bg-gray-50">
+                    <td colSpan={7} className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      {tenant} · {t('vendors.contractsCount', { count: rows.length })}
+                    </td>
+                  </tr>,
+                  ...rows.map((vendor, i) => (
+                    <VendorRow
+                      key={`${tenant}-${vendor.normalized_name}-${i}`}
+                      vendor={vendor}
+                      onClick={() => setSelectedVendor(vendor.vendor_name)}
+                      showType={partyFilter === 'all'}
+                    />
+                  )),
+                ])
             ) : (
-              data.vendors.map((vendor) => (
+              data.vendors.map((vendor, i) => (
                 <VendorRow
-                  key={vendor.normalized_name}
+                  key={`${vendor.normalized_name}-${i}`}
                   vendor={vendor}
                   onClick={() => setSelectedVendor(vendor.vendor_name)}
                   showType={partyFilter === 'all'}
