@@ -1211,7 +1211,9 @@
     "usedByTenants_other": "Par défaut pour {{count}} locataires",
     "usedByContracts_one": "{{count}} contrat",
     "usedByContracts_other": "{{count}} contrats",
-    "unused": "Non utilisé"
+    "unused": "Non utilisé",
+    "aiSuggestions_one": "{{count}} suggestion IA à examiner",
+    "aiSuggestions_other": "{{count}} suggestions IA à examiner"
   },
   "ssoConfig": {
     "setupGuide": "Guide de configuration",

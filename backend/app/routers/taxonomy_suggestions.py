@@ -63,6 +63,16 @@ class SuggestionStats(BaseModel):
 # =============================================================================
 
 
+async def _resolve_active_profile(db: AsyncSession, tenant_id):
+    """The tenant's default industry profile (or None)."""
+    from app.models.industry_profile import IndustryProfile
+
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant or not tenant.industry_profile_id:
+        return None
+    return await db.get(IndustryProfile, tenant.industry_profile_id)
+
+
 @router.get("", response_model=list[SuggestionResponse])
 async def list_suggestions(
     current_user: AdminUser,
@@ -90,7 +100,34 @@ async def list_suggestions(
         )
 
     result = await db.execute(query)
-    suggestions = result.scalars().all()
+    suggestions = list(result.scalars().all())
+
+    # Suppress contract-type suggestions that normalize to a type the active
+    # profile already has — these are variants (Statement of Work (SOW),
+    # Statements of Work → sow), not genuinely new types.
+    pending_ct = [
+        s for s in suggestions
+        if s.status == "pending" and s.category == "contract_types"
+    ]
+    if pending_ct:
+        from app.services.contract_types import normalize_contract_type
+        from app.services.indexer import _match_profile_for_contract_type
+
+        existing_codes: set[str] = set()
+        profile = await _resolve_active_profile(db, current_user.tenant_id)
+        if profile and profile.contract_types:
+            existing_codes = {
+                (ct.get("code") or "").lower() for ct in profile.contract_types
+            }
+        redundant = []
+        for s in pending_ct:
+            canonical = normalize_contract_type(s.code) or normalize_contract_type(s.label)
+            if canonical and canonical.lower() in existing_codes:
+                s.status = "expired"
+                redundant.append(s)
+        if redundant:
+            await db.commit()
+            suggestions = [s for s in suggestions if s not in redundant]
 
     return [
         SuggestionResponse(

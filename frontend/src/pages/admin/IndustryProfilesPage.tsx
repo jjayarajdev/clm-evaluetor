@@ -409,14 +409,12 @@ function SuggestionPill({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm">
-      <SparklesIcon className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-      <span className="font-medium text-gray-800 truncate">{suggestion.label}</span>
-      <span className="text-[10px] text-gray-400 font-mono">{suggestion.code}</span>
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-amber-200 rounded-md text-sm">
+      <span className="font-medium text-gray-800 truncate flex-1" title={suggestion.code}>{suggestion.label}</span>
       <button
         onClick={() => onApprove(suggestion.id)}
         disabled={isProcessing}
-        className="p-0.5 text-green-600 hover:bg-green-100 rounded disabled:opacity-40"
+        className="p-0.5 text-green-600 hover:bg-green-100 rounded disabled:opacity-40 flex-shrink-0"
         title={t('industry.approve')}
       >
         <CheckIcon className="h-3.5 w-3.5" />
@@ -1081,18 +1079,26 @@ export default function IndustryProfilesPage() {
                 </button>
               </div>
 
-              {/* Tab-specific suggestions */}
+              {/* Tab-specific suggestions — AI-proposed additions to review */}
               {tabSuggestions.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {tabSuggestions.map((s) => (
-                    <SuggestionPill
-                      key={s.id}
-                      suggestion={s}
-                      onApprove={(id) => approveMutation.mutate({ id })}
-                      onReject={(id) => rejectMutation.mutate(id)}
-                      isProcessing={approveMutation.isPending || rejectMutation.isPending}
-                    />
-                  ))}
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <SparklesIcon className="h-4 w-4 text-amber-500" />
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+                      {t('industry.aiSuggestions', { count: tabSuggestions.length })}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+                    {tabSuggestions.map((s) => (
+                      <SuggestionPill
+                        key={s.id}
+                        suggestion={s}
+                        onApprove={(id) => approveMutation.mutate({ id })}
+                        onReject={(id) => rejectMutation.mutate(id)}
+                        isProcessing={approveMutation.isPending || rejectMutation.isPending}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
 
