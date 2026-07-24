@@ -395,7 +395,7 @@ async def acknowledge_alert(
     alert_service = SLAAlertService(db)
 
     try:
-        alert = await alert_service.acknowledge_alert(alert_id, current_user.id)
+        alert = await alert_service.acknowledge_alert(alert_id, current_user.id, tenant_id=tenant_id)
         await db.commit()
 
         return {
@@ -423,7 +423,8 @@ async def resolve_alert(
         alert = await alert_service.resolve_alert(
             alert_id,
             current_user.id,
-            request.resolution_notes
+            request.resolution_notes,
+            tenant_id=tenant_id,
         )
         await db.commit()
 
@@ -452,7 +453,8 @@ async def escalate_alert(
         alert = await alert_service.escalate_alert(
             alert_id,
             request.escalate_to,
-            request.notify
+            request.notify,
+            tenant_id=tenant_id,
         )
         await db.commit()
 

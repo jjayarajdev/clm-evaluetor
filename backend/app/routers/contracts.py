@@ -2413,10 +2413,15 @@ async def create_contract_link(
     if parent_uuid == child_uuid:
         raise HTTPException(status_code=400, detail="Cannot link a contract to itself")
 
-    # Verify both contracts exist
+    # Verify both contracts exist AND belong to the caller's tenant —
+    # prevents linking to another tenant's contracts.
     parent = await db.get(Contract, parent_uuid)
     child = await db.get(Contract, child_uuid)
     if not parent or not child:
+        raise HTTPException(status_code=404, detail="One or both contracts not found")
+    if tenant_id is not None and (
+        parent.tenant_id != tenant_id or child.tenant_id != tenant_id
+    ):
         raise HTTPException(status_code=404, detail="One or both contracts not found")
 
     # Check for existing link
@@ -2474,6 +2479,12 @@ async def delete_contract_link(
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
 
+    # The link's parent must belong to the caller's tenant
+    if tenant_id is not None:
+        parent = await db.get(Contract, link.parent_contract_id)
+        if not parent or parent.tenant_id != tenant_id:
+            raise HTTPException(status_code=404, detail="Link not found")
+
     affected = [link.parent_contract_id, link.child_contract_id]
     await db.delete(link)
     await db.commit()
@@ -2505,6 +2516,12 @@ async def move_contract(
 
     contract_uuid = uuid.UUID(body.contract_id)
 
+    # The contract being moved must belong to the caller's tenant
+    if tenant_id is not None:
+        moving = await db.get(Contract, contract_uuid)
+        if not moving or moving.tenant_id != tenant_id:
+            raise HTTPException(status_code=404, detail="Contract not found")
+
     # Remove existing parent link (where this contract is the child)
     existing_parent_query = select(ContractLink).where(
         ContractLink.child_contract_id == contract_uuid,
@@ -2527,8 +2544,10 @@ async def move_contract(
     if new_parent_uuid == contract_uuid:
         raise HTTPException(status_code=400, detail="Cannot link a contract to itself")
 
-    # Verify parent exists
+    # Verify parent exists and belongs to the caller's tenant
     parent = await db.get(Contract, new_parent_uuid)
+    if tenant_id is not None and parent and parent.tenant_id != tenant_id:
+        raise HTTPException(status_code=404, detail="Parent contract not found")
     if not parent:
         raise HTTPException(status_code=404, detail="Parent contract not found")
 
@@ -3570,6 +3589,7 @@ async def update_contract_metadata(
     contract_id: str,
     update_data: "ContractUpdate",
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ContractResponse:
@@ -3578,14 +3598,15 @@ async def update_contract_metadata(
     Allows updating extracted metadata fields like counterparty, dates, etc.
     """
     from sqlalchemy import select
+    from app.core.tenant import apply_tenant_filter
     from app.models.contract import Contract
     from app.schemas.contract import ContractUpdate
     import uuid
 
-    # Get contract
-    result = await db.execute(
-        select(Contract).where(Contract.id == uuid.UUID(contract_id))
-    )
+    # Get contract, scoped to the caller's tenant (super-admin: no scope)
+    query = select(Contract).where(Contract.id == uuid.UUID(contract_id))
+    query = apply_tenant_filter(query, tenant_id, Contract)
+    result = await db.execute(query)
     contract = result.scalar_one_or_none()
 
     if not contract:
