@@ -63,14 +63,23 @@ async def list_vendors(
     from collections import defaultdict
 
     from app.agents.metadata_extraction import clean_counterparty
+    from app.models.organization import Organization
     from app.models.tenant import Tenant
     from app.services.org_resolver import canonical_org_key, choose_display_name
 
-    # Get (tenant, counterparty) pairs. Org resolution and contract fetching
-    # must stay WITHIN a tenant — a vendor never spans tenants.
+    # Fetch completed contracts with their canonical organization (the single
+    # source of truth) and tenant. Grouping by organization_id makes the
+    # Vendors view and the Organizations registry the same set by
+    # construction; contracts not yet linked to an org fall back to a
+    # counterparty-key bucket so nothing is dropped.
     query = (
-        select(Contract.tenant_id, Tenant.name, Contract.counterparty)
+        select(
+            Contract,
+            Tenant.name.label("tenant_name"),
+            Organization.name.label("org_name"),
+        )
         .join(Tenant, Tenant.id == Contract.tenant_id)
+        .outerjoin(Organization, Organization.id == Contract.organization_id)
         .where(
             and_(
                 Contract.status == ContractStatus.COMPLETED,
@@ -81,15 +90,24 @@ async def list_vendors(
     if tenant_id is not None:
         query = query.where(Contract.tenant_id == tenant_id)
     query = apply_bu_filter(query, bu_id, role)
-    query = query.distinct()
 
-    result = await db.execute(query)
-    # tenant_id -> {"name": str, "cps": [counterparty, ...]}
-    by_tenant: dict = defaultdict(lambda: {"name": None, "cps": []})
-    for tid, tname, cp in result.all():
-        if cp:
-            by_tenant[tid]["name"] = tname
-            by_tenant[tid]["cps"].append(cp)
+    rows = (await db.execute(query)).all()
+
+    # Group key: organization_id when present, else canonical counterparty
+    # bucket. Each group carries its display name, tenant, and contracts.
+    groups: dict = defaultdict(lambda: {"name": None, "tenant": None, "contracts": []})
+    for contract, tname, org_name in rows:
+        if contract.organization_id is not None:
+            key = ("org", str(contract.organization_id))
+            display = org_name or contract.counterparty
+        else:
+            cleaned = clean_counterparty(contract.counterparty) or contract.counterparty
+            key = ("cp", str(contract.tenant_id), canonical_org_key(cleaned) or cleaned.lower())
+            display = cleaned
+        g = groups[key]
+        g["name"] = g["name"] or display
+        g["tenant"] = tname
+        g["contracts"].append(contract)
 
     # Only tag rows with a tenant when the view spans tenants (super-admin)
     show_tenant = tenant_id is None
@@ -98,59 +116,42 @@ async def list_vendors(
     total_exposure = 0.0
     at_risk_count = 0
 
-    for tid, info in by_tenant.items():
-        # Collapse counterparty variants into one organization, within tenant
-        org_variants: dict[str, list[str]] = {}
-        org_display: dict[str, list[str]] = {}
-        for raw in info["cps"]:
-            cleaned = clean_counterparty(raw) or raw
-            key = canonical_org_key(cleaned) or cleaned.strip().lower()
-            org_variants.setdefault(key, []).append(raw)
-            org_display.setdefault(key, []).append(cleaned)
+    for _key, g in groups.items():
+        counterparty = g["name"]
+        contracts = g["contracts"]
+        if not contracts:
+            continue
 
-        for _key, variants in org_variants.items():
-            counterparty = choose_display_name(org_display[_key])
-            contracts = []
-            seen_ids = set()
-            for variant in variants:
-                for c in await get_vendor_contracts(
-                    db, variant, tenant_id=tid, business_unit_id=bu_id, user_role=role
-                ):
-                    if c.id not in seen_ids:
-                        seen_ids.add(c.id)
-                        contracts.append(c)
-            if not contracts:
+        if not include_inactive:
+            active = [c for c in contracts if not c.expiration_date or c.expiration_date >= datetime.now().date()]
+            if not active:
                 continue
 
-            if not include_inactive:
-                active = [c for c in contracts if not c.expiration_date or c.expiration_date >= datetime.now().date()]
-                if not active:
-                    continue
+        contract_ids = [c.id for c in contracts]
+        cp_type = await determine_counterparty_type(db, counterparty, contract_ids)
 
-            contract_ids = [c.id for c in contracts]
-            cp_type = await determine_counterparty_type(db, counterparty, contract_ids)
+        if party_type == "vendor" and cp_type != CounterpartyType.VENDOR:
+            if cp_type == CounterpartyType.CLIENT:
+                continue
+        elif party_type == "client" and cp_type != CounterpartyType.CLIENT:
+            if cp_type == CounterpartyType.VENDOR:
+                continue
 
-            if party_type == "vendor" and cp_type != CounterpartyType.VENDOR:
-                if cp_type == CounterpartyType.CLIENT:
-                    continue
-            elif party_type == "client" and cp_type != CounterpartyType.CLIENT:
-                if cp_type == CounterpartyType.VENDOR:
-                    continue
+        metrics = await build_vendor_metrics(db, counterparty, contracts)
 
-            metrics = await build_vendor_metrics(db, counterparty, contracts)
+        score = metrics["score_breakdown"].weighted_total
+        exposure = metrics["contracts"].total_value
+        total_exposure += exposure
 
-            score = metrics["score_breakdown"].weighted_total
-            exposure = metrics["contracts"].total_value
-            total_exposure += exposure
+        is_at_risk = score < AT_RISK_THRESHOLD
+        if is_at_risk:
+            at_risk_count += 1
 
-            is_at_risk = score < AT_RISK_THRESHOLD
-            if is_at_risk:
-                at_risk_count += 1
-
+        if True:
             vendors.append(VendorListItem(
                 vendor_name=counterparty,
                 normalized_name=normalize_vendor_name(counterparty),
-                tenant_name=info["name"] if show_tenant else None,
+                tenant_name=g["tenant"] if show_tenant else None,
                 party_type=cp_type,
                 performance_score=score,
                 risk_level=determine_risk_level(score),
