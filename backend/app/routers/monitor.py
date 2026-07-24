@@ -18,6 +18,8 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.deps import CurrentTenantId
+
 from app.core.deps import get_db, require_admin_if_enterprise
 from app.models.approval import ApprovalRequest, ApprovalStatus
 from app.models.event import Event, EventStatus, EventType
@@ -168,16 +170,24 @@ async def run_processing(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _scope_events(query, tenant_id):
+    """Restrict an Event query to the caller's tenant (super-admin: no scope)."""
+    return query.where(Event.tenant_id == tenant_id) if tenant_id is not None else query
+
+
 @router.get("/stats", response_model=MonitorStats)
 async def get_stats(
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
 ):
-    """Get monitoring statistics."""
+    """Get monitoring statistics (scoped to the caller's tenant)."""
     # Total events by status
     status_counts = {}
     for status in EventStatus:
         result = await db.execute(
-            select(func.count(Event.id)).where(Event.status == status)
+            _scope_events(
+                select(func.count(Event.id)).where(Event.status == status), tenant_id
+            )
         )
         status_counts[status.value] = result.scalar() or 0
 
@@ -185,23 +195,29 @@ async def get_stats(
     type_counts = {}
     for event_type in EventType:
         result = await db.execute(
-            select(func.count(Event.id)).where(Event.event_type == event_type)
+            _scope_events(
+                select(func.count(Event.id)).where(Event.event_type == event_type),
+                tenant_id,
+            )
         )
         type_counts[event_type.value] = result.scalar() or 0
 
     # Pending approvals
-    approval_result = await db.execute(
-        select(func.count(ApprovalRequest.id)).where(
-            ApprovalRequest.status == ApprovalStatus.pending
-        )
+    approval_q = select(func.count(ApprovalRequest.id)).where(
+        ApprovalRequest.status == ApprovalStatus.pending
     )
+    if tenant_id is not None:
+        approval_q = approval_q.where(ApprovalRequest.tenant_id == tenant_id)
+    approval_result = await db.execute(approval_q)
     pending_approvals = approval_result.scalar() or 0
 
     # Events in last 24 hours
     from datetime import timedelta
     cutoff = datetime.utcnow() - timedelta(hours=24)
     recent_result = await db.execute(
-        select(func.count(Event.id)).where(Event.detected_at >= cutoff)
+        _scope_events(
+            select(func.count(Event.id)).where(Event.detected_at >= cutoff), tenant_id
+        )
     )
     events_24h = recent_result.scalar() or 0
 
@@ -219,14 +235,15 @@ async def get_stats(
 
 @router.get("/events", response_model=list[EventSummary])
 async def list_events(
+    tenant_id: CurrentTenantId,
     status: Optional[EventStatus] = None,
     event_type: Optional[EventType] = None,
     limit: int = Query(default=50, le=100),
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
 ):
-    """List events with optional filters."""
-    query = select(Event).options(selectinload(Event.workflow))
+    """List events (scoped to the caller's tenant)."""
+    query = _scope_events(select(Event).options(selectinload(Event.workflow)), tenant_id)
 
     if status:
         query = query.where(Event.status == status)
@@ -256,12 +273,12 @@ async def list_events(
 @router.get("/events/{event_id}", response_model=EventDetail)
 async def get_event(
     event_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
 ):
-    """Get detailed event information."""
+    """Get detailed event information (scoped to the caller's tenant)."""
     result = await db.execute(
-        select(Event)
-        .where(Event.id == event_id)
+        _scope_events(select(Event).where(Event.id == event_id), tenant_id)
         .options(
             selectinload(Event.workflow),
             selectinload(Event.action_executions),
@@ -308,15 +325,18 @@ async def get_event(
 
 @router.get("/approvals", response_model=list[ApprovalSummary])
 async def list_approvals(
+    tenant_id: CurrentTenantId,
     status: Optional[ApprovalStatus] = None,
     limit: int = Query(default=50, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    """List approval requests."""
+    """List approval requests (scoped to the caller's tenant)."""
     query = (
         select(ApprovalRequest)
         .options(selectinload(ApprovalRequest.action_execution))
     )
+    if tenant_id is not None:
+        query = query.where(ApprovalRequest.tenant_id == tenant_id)
 
     if status:
         query = query.where(ApprovalRequest.status == status)
@@ -355,11 +375,25 @@ async def list_approvals(
 async def decide_approval(
     approval_id: UUID,
     decision: ApprovalDecision,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(require_admin_if_enterprise),
 ):
-    """Approve or reject an approval request."""
+    """Approve or reject an approval request (scoped to the caller's tenant)."""
     orchestrator = WorkflowOrchestrator(db)
+
+    # The approval must belong to the caller's tenant
+    if tenant_id is not None:
+        approval = (
+            await db.execute(
+                select(ApprovalRequest).where(
+                    ApprovalRequest.id == approval_id,
+                    ApprovalRequest.tenant_id == tenant_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if not approval:
+            raise HTTPException(status_code=404, detail="Approval request not found")
 
     # Demo profile has no authenticated user — fall back to placeholder ID
     user_id = current_user.id if current_user else UUID("00000000-0000-0000-0000-000000000001")

@@ -107,6 +107,7 @@ class EventDetector:
 
             # Create the event
             event = Event(
+                tenant_id=contract.tenant_id,
                 event_type=EventType.sla_breach,
                 severity=severity,
                 contract_id=sla.contract_id,
@@ -207,6 +208,7 @@ class EventDetector:
                 continue
 
             event = Event(
+                tenant_id=contract.tenant_id,
                 event_type=EventType.sla_warning,
                 severity=EventSeverity.warning,
                 contract_id=sla.contract_id,
@@ -293,6 +295,7 @@ class EventDetector:
                 severity = EventSeverity.info
 
             event = Event(
+                tenant_id=contract.tenant_id,
                 event_type=EventType.renewal_approaching,
                 severity=severity,
                 contract_id=contract.id,
@@ -368,6 +371,7 @@ class EventDetector:
             days_overdue = (now.date() - key_date.event_date).days
 
             event = Event(
+                tenant_id=contract.tenant_id,
                 event_type=EventType.milestone_overdue,
                 severity=EventSeverity.warning if days_overdue < 7 else EventSeverity.critical,
                 contract_id=key_date.contract_id,
@@ -449,6 +453,7 @@ class EventDetector:
             days_remaining = (obligation.deadline - now.date()).days
 
             event = Event(
+                tenant_id=contract.tenant_id,
                 event_type=EventType.obligation_due,
                 severity=EventSeverity.warning if days_remaining > 2 else EventSeverity.critical,
                 contract_id=obligation.contract_id,

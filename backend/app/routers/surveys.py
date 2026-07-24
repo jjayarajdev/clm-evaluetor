@@ -70,15 +70,38 @@ async def _verify_instance_tenant(
 
 # ===== Templates =====
 
+async def _get_template_scoped(db, template_id, tenant_id):
+    """Load a survey template enforcing tenant ownership (or global NULL)."""
+    from sqlalchemy import or_
+    query = select(SurveyTemplate).where(SurveyTemplate.id == template_id)
+    if tenant_id is not None:
+        query = query.where(
+            or_(
+                SurveyTemplate.tenant_id.is_(None),
+                SurveyTemplate.tenant_id == tenant_id,
+            )
+        )
+    return (await db.execute(query)).scalar_one_or_none()
+
+
 @router.get("/templates", response_model=TemplateListResponse)
 async def list_templates(
+    tenant_id: CurrentTenantId,
     active_only: bool = Query(True),
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List survey templates."""
+    """List survey templates (own-tenant + global only)."""
+    from sqlalchemy import or_
     query = select(SurveyTemplate)
+    if tenant_id is not None:
+        query = query.where(
+            or_(
+                SurveyTemplate.tenant_id.is_(None),
+                SurveyTemplate.tenant_id == tenant_id,
+            )
+        )
 
     if active_only:
         query = query.where(SurveyTemplate.is_active == True)
@@ -110,11 +133,13 @@ async def list_templates(
 @router.post("/templates", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
 async def create_template(
     data: TemplateCreate,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin"])),
 ):
-    """Create a new survey template."""
+    """Create a new survey template (owned by the caller's tenant)."""
     template = SurveyTemplate(
+        tenant_id=tenant_id,
         name=data.name,
         description=data.description,
         frequency=data.frequency,
@@ -160,17 +185,25 @@ async def create_template(
 @router.get("/templates/{template_id}", response_model=TemplateResponse)
 async def get_template(
     template_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get a template by ID."""
-    result = await db.execute(
+    """Get a template by ID (own-tenant or global only)."""
+    from sqlalchemy import or_
+    query = (
         select(SurveyTemplate)
         .where(SurveyTemplate.id == template_id)
         .options(selectinload(SurveyTemplate.questions))
     )
-    template = result.scalar_one_or_none()
-
+    if tenant_id is not None:
+        query = query.where(
+            or_(
+                SurveyTemplate.tenant_id.is_(None),
+                SurveyTemplate.tenant_id == tenant_id,
+            )
+        )
+    template = (await db.execute(query)).scalar_one_or_none()
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -184,12 +217,12 @@ async def get_template(
 async def update_template(
     template_id: UUID,
     data: TemplateUpdate,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin"])),
 ):
-    """Update a template."""
-    template = await db.get(SurveyTemplate, template_id)
-
+    """Update a template (own-tenant only)."""
+    template = await _get_template_scoped(db, template_id, tenant_id)
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -210,12 +243,12 @@ async def update_template(
 @router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_template(
     template_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin"])),
 ):
-    """Soft delete a template."""
-    template = await db.get(SurveyTemplate, template_id)
-
+    """Soft delete a template (own-tenant only)."""
+    template = await _get_template_scoped(db, template_id, tenant_id)
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -232,11 +265,12 @@ async def delete_template(
 async def add_question(
     template_id: UUID,
     data: QuestionCreate,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin"])),
 ):
-    """Add a question to a template."""
-    template = await db.get(SurveyTemplate, template_id)
+    """Add a question to a template (own-tenant only)."""
+    template = await _get_template_scoped(db, template_id, tenant_id)
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -275,10 +309,13 @@ async def update_question(
     template_id: UUID,
     question_id: UUID,
     data: QuestionUpdate,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin"])),
 ):
-    """Update a question."""
+    """Update a question (own-tenant template only)."""
+    if not await _get_template_scoped(db, template_id, tenant_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     result = await db.execute(
         select(SurveyQuestion).where(
             SurveyQuestion.id == question_id,
@@ -307,10 +344,13 @@ async def update_question(
 async def delete_question(
     template_id: UUID,
     question_id: UUID,
+    tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin"])),
 ):
-    """Soft delete a question."""
+    """Soft delete a question (own-tenant template only)."""
+    if not await _get_template_scoped(db, template_id, tenant_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     result = await db.execute(
         select(SurveyQuestion).where(
             SurveyQuestion.id == question_id,

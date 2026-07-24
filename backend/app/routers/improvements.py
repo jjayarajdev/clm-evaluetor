@@ -148,9 +148,17 @@ async def create_improvement(
             detail="Relationship not found",
         )
 
-    # Verify KPI if provided
+    # Verify KPI if provided — must belong to the caller's tenant (via its
+    # relationship), else an improvement could cross-link another tenant's KPI
     if data.kpi_id:
-        kpi = await db.get(KPI, data.kpi_id)
+        from app.models.relationship import BusinessRelationship
+
+        kpi_query = select(KPI).join(
+            BusinessRelationship, KPI.relationship_id == BusinessRelationship.id
+        ).where(KPI.id == data.kpi_id)
+        if tenant_id is not None:
+            kpi_query = kpi_query.where(BusinessRelationship.tenant_id == tenant_id)
+        kpi = (await db.execute(kpi_query)).scalar_one_or_none()
         if not kpi:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

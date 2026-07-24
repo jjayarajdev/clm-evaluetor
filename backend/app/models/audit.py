@@ -49,6 +49,13 @@ class AuditLog(Base, UUIDMixin, TimestampMixin):
         nullable=True,
         index=True,
     )
+    # Tenant scope (mirrors the acting user's tenant) — model-level guard so
+    # audit queries cannot leak across tenants even without the User join.
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     user: Mapped["User | None"] = relationship(
         "User",
         back_populates="audit_logs",

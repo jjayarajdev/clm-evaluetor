@@ -75,6 +75,11 @@ class Event(Base, TimestampMixin):
     contract_id: Mapped[UUID] = mapped_column(
         ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False
     )
+    # Tenant scope (mirrors the contract's tenant) for isolation on the
+    # monitor endpoints without a Contract join per query.
+    tenant_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     obligation_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("obligations.id", ondelete="SET NULL"), nullable=True
     )
