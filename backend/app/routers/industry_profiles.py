@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import AdminUser, CurrentUser, SuperAdminUser
@@ -171,11 +171,22 @@ async def list_industry_profiles(
     from app.models.contract import Contract
     from app.models.tenant import Tenant
 
-    result = await db.execute(
+    # Isolation: every tenant sees global profiles (owner NULL) plus its own;
+    # a tenant-created profile never leaks into another tenant. Super admins
+    # (tenant_id None) see all.
+    profiles_query = (
         select(IndustryProfile)
         .where(IndustryProfile.is_active.is_(True))
         .order_by(IndustryProfile.name)
     )
+    if current_user.tenant_id is not None:
+        profiles_query = profiles_query.where(
+            or_(
+                IndustryProfile.owner_tenant_id.is_(None),
+                IndustryProfile.owner_tenant_id == current_user.tenant_id,
+            )
+        )
+    result = await db.execute(profiles_query)
     profiles = result.scalars().all()
 
     tenant_counts = dict(

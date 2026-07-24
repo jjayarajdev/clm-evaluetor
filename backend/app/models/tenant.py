@@ -115,6 +115,7 @@ class Tenant(Base, UUIDMixin, TimestampMixin):
     industry_profile: Mapped["IndustryProfile | None"] = relationship(
         "IndustryProfile",
         back_populates="tenants",
+        foreign_keys="Tenant.industry_profile_id",
         lazy="selectin",
     )
     users: Mapped[list["User"]] = relationship(
