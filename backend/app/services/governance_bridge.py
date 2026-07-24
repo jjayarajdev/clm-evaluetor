@@ -304,7 +304,38 @@ class GovernanceBridgeService:
         if not counterparty:
             return None
 
-        # Exact case-insensitive match
+        # Gate: don't create organizations from document titles or fragments.
+        # A wrong org ('Exhibit 1 Definitions') pollutes the registry; better
+        # to skip governance bridging than invent a bogus organization.
+        from app.agents.metadata_extraction import (
+            _looks_like_document_title,
+            clean_counterparty,
+        )
+
+        cleaned = clean_counterparty(counterparty)
+        if not cleaned or _looks_like_document_title(cleaned, contract.filename):
+            logger.info(
+                f"Skipped org creation for non-organization counterparty "
+                f"'{counterparty}'"
+            )
+            return None
+        counterparty = cleaned
+
+        # Match existing organization by canonical key so name variants
+        # (ING / ING Bank N.V. / ING Group) resolve to one org, not three.
+        from app.services.org_resolver import canonical_org_key
+
+        target_key = canonical_org_key(counterparty)
+        existing_orgs = (
+            await self.db.execute(
+                select(Organization).where(Organization.tenant_id == tenant_id)
+            )
+        ).scalars().all()
+        for existing in existing_orgs:
+            if target_key and canonical_org_key(existing.name) == target_key:
+                return existing
+
+        # Exact case-insensitive match (belt and suspenders)
         result = await self.db.execute(
             select(Organization).where(
                 Organization.tenant_id == tenant_id,
