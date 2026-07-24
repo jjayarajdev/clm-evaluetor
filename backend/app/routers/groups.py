@@ -249,17 +249,16 @@ async def get_group(
         for m, c in member_rows
     ]
 
-    findings = (
-        (
-            await db.execute(
-                select(ContractGroupFinding)
-                .where(ContractGroupFinding.group_id == group_id)
-                .order_by(ContractGroupFinding.status, ContractGroupFinding.created_at)
-            )
+    finding_rows = (
+        await db.execute(
+            select(ContractGroupFinding, Contract.filename)
+            .join(Contract, ContractGroupFinding.contract_id == Contract.id)
+            .where(ContractGroupFinding.group_id == group_id)
+            .order_by(ContractGroupFinding.status, ContractGroupFinding.reference_label)
         )
-        .scalars()
-        .all()
-    )
+    ).all()
+    findings = [f for f, _ in finding_rows]
+    finding_filenames = {f.id: fn for f, fn in finding_rows}
 
     children = (
         (
@@ -299,10 +298,16 @@ async def get_group(
             for c in children
         ],
     )
+    finding_responses = []
+    for f in findings:
+        fr = GroupFindingResponse.model_validate(f)
+        fr.contract_filename = finding_filenames.get(f.id)
+        finding_responses.append(fr)
+
     return GroupDetailResponse(
         **base.model_dump(),
         members=members,
-        findings=[GroupFindingResponse.model_validate(f) for f in findings],
+        findings=finding_responses,
     )
 
 

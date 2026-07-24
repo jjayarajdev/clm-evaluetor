@@ -2885,6 +2885,8 @@
     "findingDismissed": "\"{{label}}\" — dismissed",
     "dismiss": "Dismiss",
     "reopen": "Re-open",
-    "findingUpdateFailed": "Failed to update finding"
+    "findingUpdateFailed": "Failed to update finding",
+    "findingSources_one": "Referenced by {{count}} document:",
+    "findingSources_other": "Referenced by {{count}} documents:"
   }
 }

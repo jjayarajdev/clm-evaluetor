@@ -147,45 +147,69 @@ export default function GroupDetailPage() {
         </div>
       )}
 
-      {group.findings.length > 0 && (
-        <div className="card p-5">
-          <h2 className="mb-3 font-semibold text-gray-900">{t('groups.findingsTitle')}</h2>
-          <ul className="space-y-2">
-            {group.findings.map((finding) => (
-              <li
-                key={finding.id}
-                className={cn(
-                  'flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm',
-                  finding.status === 'open'
-                    ? 'border-amber-200 bg-amber-50'
-                    : 'border-gray-100 bg-gray-50 text-gray-400',
-                )}
-              >
-                <span>
-                  {finding.status === 'open'
-                    ? t('groups.findingMissing', { label: finding.reference_label })
-                    : finding.status === 'resolved'
-                      ? t('groups.findingResolved', { label: finding.reference_label })
-                      : t('groups.findingDismissed', { label: finding.reference_label })}
-                </span>
-                {canWrite && finding.status !== 'resolved' && (
-                  <button
-                    className="whitespace-nowrap text-xs font-medium text-gray-500 hover:text-gray-800"
-                    onClick={() =>
-                      findingMutation.mutate({
-                        findingId: finding.id,
-                        status: finding.status === 'open' ? 'dismissed' : 'open',
-                      })
-                    }
-                  >
-                    {finding.status === 'open' ? t('groups.dismiss') : t('groups.reopen')}
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {group.findings.length > 0 && (() => {
+        // One row per (reference, status); identical references from several
+        // documents collapse together with their sources listed.
+        const aggregated = new Map<string, { label: string; status: string; ids: string[]; sources: string[] }>()
+        for (const f of group.findings) {
+          const key = `${f.reference_label}|${f.status}`
+          const entry = aggregated.get(key) ?? { label: f.reference_label, status: f.status, ids: [], sources: [] }
+          entry.ids.push(f.id)
+          if (f.contract_filename && !entry.sources.includes(f.contract_filename)) {
+            entry.sources.push(f.contract_filename)
+          }
+          aggregated.set(key, entry)
+        }
+        const rows = Array.from(aggregated.values()).sort((a, b) =>
+          a.status === b.status ? a.label.localeCompare(b.label) : a.status === 'open' ? -1 : 1,
+        )
+        return (
+          <div className="card p-5">
+            <h2 className="mb-3 font-semibold text-gray-900">{t('groups.findingsTitle')}</h2>
+            <ul className="space-y-2">
+              {rows.map((row) => (
+                <li
+                  key={`${row.label}|${row.status}`}
+                  className={cn(
+                    'flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm',
+                    row.status === 'open'
+                      ? 'border-amber-200 bg-amber-50'
+                      : 'border-gray-100 bg-gray-50 text-gray-400',
+                  )}
+                >
+                  <div>
+                    <div>
+                      {row.status === 'open'
+                        ? t('groups.findingMissing', { label: row.label })
+                        : row.status === 'resolved'
+                          ? t('groups.findingResolved', { label: row.label })
+                          : t('groups.findingDismissed', { label: row.label })}
+                    </div>
+                    {row.sources.length > 0 && (
+                      <div className="mt-0.5 text-xs text-gray-500">
+                        {t('groups.findingSources', { count: row.sources.length })}{' '}
+                        {row.sources.slice(0, 3).join(', ')}
+                        {row.sources.length > 3 && ` +${row.sources.length - 3}`}
+                      </div>
+                    )}
+                  </div>
+                  {canWrite && row.status !== 'resolved' && (
+                    <button
+                      className="whitespace-nowrap text-xs font-medium text-gray-500 hover:text-gray-800"
+                      onClick={() => {
+                        const next = row.status === 'open' ? 'dismissed' as const : 'open' as const
+                        row.ids.forEach((id) => findingMutation.mutate({ findingId: id, status: next }))
+                      }}
+                    >
+                      {row.status === 'open' ? t('groups.dismiss') : t('groups.reopen')}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      })()}
 
       {group.child_groups.length > 0 && (
         <div className="card p-5">

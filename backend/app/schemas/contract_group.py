@@ -65,6 +65,7 @@ class GroupFindingResponse(BaseModel):
     id: UUID
     group_id: Optional[UUID] = None
     contract_id: UUID
+    contract_filename: Optional[str] = None
     finding_type: str
     reference_label: str
     reference_type: Optional[str] = None

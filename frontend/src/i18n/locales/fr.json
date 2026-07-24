@@ -2885,6 +2885,8 @@
     "findingDismissed": "« {{label}} » — ignoré",
     "dismiss": "Ignorer",
     "reopen": "Rouvrir",
-    "findingUpdateFailed": "Échec de la mise à jour du constat"
+    "findingUpdateFailed": "Échec de la mise à jour du constat",
+    "findingSources_one": "Mentionné par {{count}} document :",
+    "findingSources_other": "Mentionné par {{count}} documents :"
   }
 }
