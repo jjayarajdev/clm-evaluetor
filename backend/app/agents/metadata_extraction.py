@@ -508,6 +508,39 @@ def _looks_like_document_title(value: str | None, filename: str | None = None) -
     return False
 
 
+# Sentence-fragment tells: an extracted "counterparty" that is really prose
+# ("the ING business units and other affiliates ...").
+_FRAGMENT_WORDS_RE = re.compile(
+    r"\b(and|or|the following|including|as well as|together with|other|"
+    r"affiliates|business units|its subsidiaries)\b",
+    re.IGNORECASE,
+)
+_LEADING_ARTICLE_RE = re.compile(r"^(the|a|an)\s+", re.IGNORECASE)
+
+
+def clean_counterparty(value: str | None) -> str | None:
+    """Normalize a counterparty string, or None if it's not a usable name.
+
+    Strips a leading article ('the PST Supplier' -> 'PST Supplier'), trims
+    trailing legal punctuation, and rejects sentence fragments / overly long
+    phrases that are prose rather than an organization name.
+    """
+    if not value:
+        return None
+    v = " ".join(value.strip().split())
+    # Strip leading article and trailing separators — but keep trailing '.'
+    # so legal abbreviations survive (N.V., Ltd., Inc.).
+    v = _LEADING_ARTICLE_RE.sub("", v).strip(" ,;:-")
+    if not v or len(v) < 2:
+        return None
+    # Prose, not a name
+    if _FRAGMENT_WORDS_RE.search(v):
+        return None
+    if len(v.split()) > 7:
+        return None
+    return v
+
+
 def _is_generic_counterparty(value: str | None) -> bool:
     """Quick check if a counterparty value is obviously generic or garbage."""
     if not value:
@@ -896,23 +929,31 @@ async def update_contract_metadata(
                 return True
         return False
 
-    # Self-clean: a stored counterparty that is really a document title came
-    # from pre-gate extraction — clear it so re-analysis can repair or leave
-    # it honestly empty.
-    if contract.counterparty and _looks_like_document_title(
-        contract.counterparty, contract.filename
-    ):
-        logger.info(
-            f"Clearing stored title-like counterparty '{contract.counterparty}'"
-        )
-        contract.counterparty = None
+    # Self-clean stored values from pre-gate extraction: document titles get
+    # cleared; article-prefixed/fragment values get normalized or cleared so
+    # re-analysis repairs or honestly empties them.
+    if contract.counterparty:
+        if _looks_like_document_title(contract.counterparty, contract.filename):
+            logger.info(
+                f"Clearing stored title-like counterparty '{contract.counterparty}'"
+            )
+            contract.counterparty = None
+        else:
+            cleaned = clean_counterparty(contract.counterparty)
+            if cleaned != contract.counterparty:
+                logger.info(
+                    f"Normalized stored counterparty '{contract.counterparty}' -> "
+                    f"{cleaned!r}"
+                )
+                contract.counterparty = cleaned
 
     # Update counterparty
     counterparty_set = False
     if metadata.counterparty and _check("counterparty", metadata.counterparty):
-        counterparty_value = str(metadata.counterparty.value)
+        counterparty_value = clean_counterparty(str(metadata.counterparty.value))
         if (
-            not _is_generic_counterparty(counterparty_value)
+            counterparty_value
+            and not _is_generic_counterparty(counterparty_value)
             and not _is_excluded_party(counterparty_value)
             and not _looks_like_document_title(counterparty_value, contract.filename)
         ):
@@ -936,13 +977,15 @@ async def update_contract_metadata(
         elif metadata.parties:
             # Try to use first non-generic, non-excluded party from parties list
             for party in metadata.parties:
+                cleaned_party = clean_counterparty(party)
                 if (
-                    not _is_generic_counterparty(party)
-                    and not _is_excluded_party(party)
-                    and not _looks_like_document_title(party, contract.filename)
+                    cleaned_party
+                    and not _is_generic_counterparty(cleaned_party)
+                    and not _is_excluded_party(cleaned_party)
+                    and not _looks_like_document_title(cleaned_party, contract.filename)
                 ):
-                    contract.counterparty = party
-                    logger.info(f"Using parties list counterparty: {party}")
+                    contract.counterparty = cleaned_party
+                    logger.info(f"Using parties list counterparty: {cleaned_party}")
                     break
 
     # Update dates
