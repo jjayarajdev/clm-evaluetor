@@ -1094,10 +1094,15 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
         except Exception as e:
             logger.warning(f"[DEEP ANALYSIS] Persisting extraction_health failed for {contract_id}: {e}")
 
-        # Missing-reference findings: this contract may reference absent
-        # schedules, or may resolve another contract's open finding.
+        # Resolve declared parent references into links, then recompute
+        # missing-reference findings (a new link may satisfy a finding, and
+        # this contract may resolve another contract's open finding).
         try:
-            from app.services.group_sync import detect_missing_references
+            from app.services.group_sync import (
+                detect_missing_references,
+                sync_auto_family_groups,
+            )
+            from app.services.reference_resolver import resolve_declared_references
 
             async with async_session_maker() as session:
                 row = await session.execute(
@@ -1105,12 +1110,19 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                 )
                 doc_tenant_id = row.scalar_one_or_none()
                 if doc_tenant_id:
+                    n_links, _ = await resolve_declared_references(
+                        session, doc_tenant_id, [cid_uuid]
+                    )
+                    if n_links:
+                        await sync_auto_family_groups(
+                            session, doc_tenant_id, [cid_uuid]
+                        )
                     await detect_missing_references(
                         session, doc_tenant_id, [cid_uuid]
                     )
                     await session.commit()
         except Exception as e:
-            logger.warning(f"[DEEP ANALYSIS] Missing-reference detection failed for {contract_id}: {e}")
+            logger.warning(f"[DEEP ANALYSIS] Reference resolution failed for {contract_id}: {e}")
 
         tracker.update_progress(contract_id, ProcessingStage.COMPLETED, "Processing complete")
         logger.info(f"[DEEP ANALYSIS] Completed for {contract_id}")
