@@ -73,15 +73,31 @@ async def list_vendors(
     query = query.distinct()
 
     result = await db.execute(query)
-    counterparties = [row[0] for row in result.all() if row[0]]
+    raw_counterparties = [row[0] for row in result.all() if row[0]]
 
-    # Build vendor list
+    # Collapse counterparty variants into one organization each
+    # (ING / ING Bank N.V. / ING Group -> one vendor).
+    from app.services.org_resolver import choose_display_name, group_by_organization
+
+    org_groups = group_by_organization(raw_counterparties)
+
+    # Build vendor list — one entry per organization
     vendors = []
     total_exposure = 0.0
     at_risk_count = 0
 
-    for counterparty in counterparties:
-        contracts = await get_vendor_contracts(db, counterparty, tenant_id=tenant_id, business_unit_id=bu_id, user_role=role)
+    for _key, variants in org_groups.items():
+        counterparty = choose_display_name(variants)
+        # Combine contracts across every name variant of this organization
+        contracts = []
+        seen_ids = set()
+        for variant in variants:
+            for c in await get_vendor_contracts(
+                db, variant, tenant_id=tenant_id, business_unit_id=bu_id, user_role=role
+            ):
+                if c.id not in seen_ids:
+                    seen_ids.add(c.id)
+                    contracts.append(c)
         if not contracts:
             continue
 
@@ -299,6 +315,31 @@ async def get_vendor_scorecards(
     return scorecards
 
 
+async def _get_org_contracts(db, vendor_name, tenant_id, bu_id, role):
+    """All contracts for the organization behind vendor_name, across every
+    counterparty variant that resolves to the same canonical organization."""
+    from sqlalchemy import select
+    from app.models import Contract
+    from app.services.org_resolver import canonical_org_key
+
+    target_key = canonical_org_key(vendor_name)
+    cp_query = select(Contract.counterparty).where(Contract.counterparty.isnot(None))
+    if tenant_id is not None:
+        cp_query = cp_query.where(Contract.tenant_id == tenant_id)
+    all_cps = {row[0] for row in (await db.execute(cp_query.distinct())).all() if row[0]}
+    variants = [cp for cp in all_cps if canonical_org_key(cp) == target_key] or [vendor_name]
+
+    contracts, seen = [], set()
+    for v in variants:
+        for c in await get_vendor_contracts(
+            db, v, tenant_id=tenant_id, business_unit_id=bu_id, user_role=role
+        ):
+            if c.id not in seen:
+                seen.add(c.id)
+                contracts.append(c)
+    return contracts
+
+
 @router.get("/{vendor_name}/performance", response_model=VendorPerformanceDetail)
 async def get_vendor_performance(
     vendor_name: str,
@@ -306,9 +347,9 @@ async def get_vendor_performance(
     current_user: CurrentUser = None,
     tenant_id: CurrentTenantId = None,
 ):
-    """Get detailed performance profile for a specific vendor."""
+    """Get detailed performance profile for a specific vendor (all name variants)."""
     bu_id, role = _bu_args(current_user)
-    contracts = await get_vendor_contracts(db, vendor_name, tenant_id=tenant_id, business_unit_id=bu_id, user_role=role)
+    contracts = await _get_org_contracts(db, vendor_name, tenant_id, bu_id, role)
 
     if not contracts:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Vendor '{vendor_name}' not found")
