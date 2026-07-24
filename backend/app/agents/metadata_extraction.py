@@ -896,6 +896,17 @@ async def update_contract_metadata(
                 return True
         return False
 
+    # Self-clean: a stored counterparty that is really a document title came
+    # from pre-gate extraction — clear it so re-analysis can repair or leave
+    # it honestly empty.
+    if contract.counterparty and _looks_like_document_title(
+        contract.counterparty, contract.filename
+    ):
+        logger.info(
+            f"Clearing stored title-like counterparty '{contract.counterparty}'"
+        )
+        contract.counterparty = None
+
     # Update counterparty
     counterparty_set = False
     if metadata.counterparty and _check("counterparty", metadata.counterparty):
