@@ -10,8 +10,8 @@ override specific values via the tenant's config_overrides JSONB column.
 
 import uuid
 
-from sqlalchemy import Boolean, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Boolean, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -190,10 +190,20 @@ class IndustryProfile(Base, UUIDMixin, TimestampMixin):
         default=True,
     )
 
+    # Ownership: NULL = global/system profile (visible to all tenants);
+    # otherwise the tenant that created it — visible only to that tenant.
+    owner_tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
     # Relationships
     tenants: Mapped[list["Tenant"]] = relationship(
         "Tenant",
         back_populates="industry_profile",
+        foreign_keys="Tenant.industry_profile_id",
         lazy="noload",
     )
 

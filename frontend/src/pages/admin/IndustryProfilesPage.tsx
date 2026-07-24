@@ -146,10 +146,12 @@ function ProfileSelector({
   profiles,
   currentSlug,
   onSwitch,
+  isSuperAdmin,
 }: {
   profiles: ProfileSummary[]
   currentSlug: string | null
   onSwitch: (slug: string) => void
+  isSuperAdmin: boolean
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -192,21 +194,21 @@ function ProfileSelector({
                 <span className="text-[10px] text-gray-400">{t('industry.clausesCount', { count: p.clause_type_count })}</span>
                 <span className="text-[10px] text-gray-400">{t('industry.slasCount', { count: p.sla_metric_count })}</span>
               </div>
-              <div className="flex gap-3 mt-0.5">
-                {(p.tenant_default_count ?? 0) > 0 && (
-                  <span className="text-[10px] font-medium text-violet-500">
-                    {t('industry.usedByTenants', { count: p.tenant_default_count })}
-                  </span>
-                )}
-                {(p.contract_count ?? 0) > 0 && (
-                  <span className="text-[10px] font-medium text-violet-500">
-                    {t('industry.usedByContracts', { count: p.contract_count })}
-                  </span>
-                )}
-                {(p.tenant_default_count ?? 0) === 0 && (p.contract_count ?? 0) === 0 && (
-                  <span className="text-[10px] text-gray-300">{t('industry.unused')}</span>
-                )}
-              </div>
+              {/* Usage is a cross-tenant, super-admin-only concern */}
+              {isSuperAdmin && ((p.tenant_default_count ?? 0) > 0 || (p.contract_count ?? 0) > 0) && (
+                <div className="flex gap-3 mt-0.5">
+                  {(p.tenant_default_count ?? 0) > 0 && (
+                    <span className="text-[10px] font-medium text-violet-500">
+                      {t('industry.usedByTenants', { count: p.tenant_default_count })}
+                    </span>
+                  )}
+                  {(p.contract_count ?? 0) > 0 && (
+                    <span className="text-[10px] font-medium text-violet-500">
+                      {t('industry.usedByContracts', { count: p.contract_count })}
+                    </span>
+                  )}
+                </div>
+              )}
             </button>
           ))}
         </div>
@@ -965,6 +967,7 @@ export default function IndustryProfilesPage() {
           <ProfileSelector
             profiles={profiles}
             currentSlug={effectiveSlug || null}
+            isSuperAdmin={isSuperAdmin}
             onSwitch={(slug) =>
               isSuperAdmin ? setViewSlug(slug) : switchProfileMutation.mutate(slug)
             }
