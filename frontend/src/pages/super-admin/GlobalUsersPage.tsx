@@ -34,7 +34,15 @@ const ROLE_COLORS: Record<Role, string> = {
   bu_head: 'bg-amber-100 text-amber-700',
 }
 
-interface UserFormData {
+interface ProfileFields {
+  first_name: string
+  last_name: string
+  job_title: string
+  phone: string
+  department: string
+}
+
+interface UserFormData extends ProfileFields {
   tenant_id: string
   username: string
   email: string
@@ -43,12 +51,20 @@ interface UserFormData {
   business_unit_id: string
 }
 
-interface EditFormData {
+interface EditFormData extends ProfileFields {
   username: string
   role: Role
   is_active: boolean
   new_password: string
   business_unit_id: string
+}
+
+const EMPTY_PROFILE: ProfileFields = {
+  first_name: '',
+  last_name: '',
+  job_title: '',
+  phone: '',
+  department: '',
 }
 
 export default function GlobalUsersPage() {
@@ -67,6 +83,7 @@ export default function GlobalUsersPage() {
     role: 'viewer',
     password: '',
     business_unit_id: '',
+    ...EMPTY_PROFILE,
   })
   const [editFormData, setEditFormData] = useState<EditFormData>({
     username: '',
@@ -74,6 +91,7 @@ export default function GlobalUsersPage() {
     is_active: true,
     new_password: '',
     business_unit_id: '',
+    ...EMPTY_PROFILE,
   })
 
   const { data: users, isLoading: usersLoading, error } = useQuery<UserWithTenant[]>({
@@ -99,6 +117,11 @@ export default function GlobalUsersPage() {
     mutationFn: (data: UserFormData) => api.createUserForTenant(data.tenant_id, {
       username: data.username,
       email: data.email,
+      first_name: data.first_name || undefined,
+      last_name: data.last_name || undefined,
+      job_title: data.job_title || undefined,
+      phone: data.phone || undefined,
+      department: data.department || undefined,
       password: data.password,
       role: data.role,
       business_unit_id: data.business_unit_id || undefined,
@@ -150,6 +173,7 @@ export default function GlobalUsersPage() {
       role: 'viewer',
       password: '',
       business_unit_id: '',
+      ...EMPTY_PROFILE,
     })
     setIsCreateModalOpen(true)
   }
@@ -163,6 +187,7 @@ export default function GlobalUsersPage() {
       role: 'viewer',
       password: '',
       business_unit_id: '',
+      ...EMPTY_PROFILE,
     })
   }
 
@@ -174,6 +199,11 @@ export default function GlobalUsersPage() {
       is_active: user.is_active,
       new_password: '',
       business_unit_id: user.business_unit_id || '',
+      first_name: user.first_name || '',
+      last_name: user.last_name || '',
+      job_title: user.job_title || '',
+      phone: user.phone || '',
+      department: user.department || '',
     })
   }
 
@@ -286,9 +316,16 @@ export default function GlobalUsersPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          {user.username}
+                          {user.full_name || user.username}
                         </p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
+                        <p className="text-xs text-gray-500">
+                          {user.full_name ? `${user.username} · ${user.email}` : user.email}
+                        </p>
+                        {user.job_title && (
+                          <p className="text-xs text-gray-400">
+                            {user.job_title}{user.department ? ` · ${user.department}` : ''}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -413,6 +450,65 @@ export default function GlobalUsersPage() {
                     required
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.firstName', { defaultValue: 'First name' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.first_name}
+                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.lastName', { defaultValue: 'Last name' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.last_name}
+                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.jobTitle', { defaultValue: 'Job title' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.job_title}
+                      onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.department', { defaultValue: 'Department' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.department}
+                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('superadmin.users.phone', { defaultValue: 'Phone' })}
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="input"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     {t('superadmin.role')} *
@@ -525,6 +621,65 @@ export default function GlobalUsersPage() {
                     required
                     pattern="^\S+$"
                     title={t('superadmin.users.usernameNoSpaces')}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.firstName', { defaultValue: 'First name' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.first_name}
+                      onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.lastName', { defaultValue: 'Last name' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.last_name}
+                      onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.jobTitle', { defaultValue: 'Job title' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.job_title}
+                      onChange={(e) => setEditFormData({ ...editFormData, job_title: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.department', { defaultValue: 'Department' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.department}
+                      onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('superadmin.users.phone', { defaultValue: 'Phone' })}
+                  </label>
+                  <input
+                    type="tel"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    className="input"
                   />
                 </div>
                 <div>

@@ -141,7 +141,7 @@ export async function getUsers(): Promise<User[]> {
   return response.data.users
 }
 
-export async function createUser(data: { username: string; email: string; full_name?: string; password: string; role: string; business_unit_id?: string }): Promise<User> {
+export async function createUser(data: { username: string; email: string; full_name?: string; first_name?: string; last_name?: string; job_title?: string; phone?: string; department?: string; password: string; role: string; business_unit_id?: string }): Promise<User> {
   const response = await client.post<User>('/users', data)
   return response.data
 }
@@ -613,7 +613,7 @@ export async function getAllUsers(tenantId?: string): Promise<UserWithTenant[]> 
   return response.data.users.map((u: any) => ({ ...u, tenant_id: u.tenant_id || '' }))
 }
 
-export async function createUserForTenant(tenantId: string, data: { username: string; email: string; password: string; role: string; business_unit_id?: string }): Promise<User> {
+export async function createUserForTenant(tenantId: string, data: { username: string; email: string; first_name?: string; last_name?: string; job_title?: string; phone?: string; department?: string; password: string; role: string; business_unit_id?: string }): Promise<User> {
   const response = await client.post<User>('/users', { ...data, tenant_id: tenantId })
   return response.data
 }

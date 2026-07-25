@@ -6,6 +6,11 @@ export interface User {
   username: string
   email: string
   full_name?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  job_title?: string | null
+  phone?: string | null
+  department?: string | null
   role: Role
   // Optional, backend-provided permission list. When present it overrides the
   // static role→permission map in lib/rbac.ts (future tenant-customizable RBAC).

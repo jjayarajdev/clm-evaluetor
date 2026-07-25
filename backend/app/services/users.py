@@ -12,6 +12,14 @@ from app.models.user import Role, User
 from app.schemas.user import UserCreate, UserFilter, UserUpdate
 
 
+def _derive_full_name(
+    first: str | None, last: str | None, fallback: str | None = None
+) -> str | None:
+    """Compose full_name from first/last; fall back to an explicit value."""
+    combined = " ".join(p.strip() for p in (first, last) if p and p.strip())
+    return combined or (fallback.strip() if fallback and fallback.strip() else None)
+
+
 class UserService:
     """Service for user management operations."""
 
@@ -151,7 +159,12 @@ class UserService:
         user = User(
             username=data.username,
             email=data.email,
-            full_name=data.full_name,
+            full_name=_derive_full_name(data.first_name, data.last_name, data.full_name),
+            first_name=data.first_name,
+            last_name=data.last_name,
+            job_title=data.job_title,
+            phone=data.phone,
+            department=data.department,
             password_hash=hash_password(data.password),
             role=data.role,
             is_active=True,
@@ -190,8 +203,24 @@ class UserService:
                 raise ValueError(f"Email '{data.email}' already exists")
             user.email = data.email
 
-        # Update other fields
-        if data.full_name is not None:
+        # Update name/contact fields
+        if data.first_name is not None:
+            user.first_name = data.first_name
+        if data.last_name is not None:
+            user.last_name = data.last_name
+        if data.job_title is not None:
+            user.job_title = data.job_title
+        if data.phone is not None:
+            user.phone = data.phone
+        if data.department is not None:
+            user.department = data.department
+        # Keep full_name in sync: derive from first/last when either is set,
+        # otherwise honour an explicit full_name update.
+        if data.first_name is not None or data.last_name is not None:
+            user.full_name = _derive_full_name(
+                user.first_name, user.last_name, data.full_name or user.full_name
+            )
+        elif data.full_name is not None:
             user.full_name = data.full_name
         if data.role is not None:
             user.role = data.role
