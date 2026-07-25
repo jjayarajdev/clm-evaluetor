@@ -253,7 +253,7 @@ export default function CompliancePage() {
                 <tbody>
                   {(obligations as RegulatoryObligationSummary[]).map((o) => (
                     <tr key={o.id} className="border-b border-gray-100 align-top">
-                      <td className="py-2 pr-4 font-medium text-gray-900 max-w-md">{o.title}</td>
+                      <td className="py-2 pr-4 font-medium text-gray-900 max-w-md">{o.title || o.description || '—'}</td>
                       <td className="py-2 pr-4 uppercase text-gray-600">{o.regulation_type}</td>
                       <td className="py-2 pr-4 capitalize text-gray-600">{o.obligation_category.replace(/_/g, ' ')}</td>
                       <td className="py-2 pr-4">

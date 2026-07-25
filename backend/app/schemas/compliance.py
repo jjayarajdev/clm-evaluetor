@@ -225,6 +225,7 @@ class RegulatoryObligationSummary(BaseModel):
     regulation_type: str
     obligation_category: str
     title: str
+    description: str | None = None
     compliance_status: str
     next_due_date: date | None
     is_overdue: bool

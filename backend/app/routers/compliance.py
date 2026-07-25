@@ -632,6 +632,7 @@ async def list_regulatory_obligations(
             regulation_type=o.regulation_type.value,
             obligation_category=o.obligation_category.value,
             title=o.title,
+            description=o.description,
             compliance_status=o.compliance_status.value,
             next_due_date=o.next_due_date,
             is_overdue=o.is_overdue,
