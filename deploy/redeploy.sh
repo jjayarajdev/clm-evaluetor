@@ -40,10 +40,12 @@ SSH_CMD=(ssh -i "$KEY")
 # ── 1. Commit identity + cleanliness guard ───────────────────────────
 COMMIT=$(git rev-parse --short HEAD)
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
-DIRTY=$(git status --porcelain | wc -l | tr -d ' ')
+# Only tracked changes matter — they would make the deployed code differ from
+# the commit. Untracked files aren't committed and aren't synced, so ignore them.
+DIRTY=$(git status --porcelain --untracked-files=no | wc -l | tr -d ' ')
 if [ "$DIRTY" != "0" ] && [ "$ALLOW_DIRTY" = false ]; then
-  echo "ERROR: $DIRTY uncommitted change(s). Commit first (deploys should be a known commit), or pass --allow-dirty."
-  git status -s | head
+  echo "ERROR: $DIRTY uncommitted change(s) to tracked files. Commit first (deploy a known commit), or pass --allow-dirty."
+  git status -s --untracked-files=no | head
   exit 1
 fi
 DIRTY_TAG=""; [ "$DIRTY" != "0" ] && DIRTY_TAG=" [dirty]"
