@@ -7,6 +7,9 @@ export interface User {
   email: string
   full_name?: string | null
   role: Role
+  // Optional, backend-provided permission list. When present it overrides the
+  // static role→permission map in lib/rbac.ts (future tenant-customizable RBAC).
+  permissions?: string[]
   is_active: boolean
   preferred_language?: string
   tenant_id?: string | null

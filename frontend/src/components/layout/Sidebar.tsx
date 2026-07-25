@@ -30,6 +30,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
+import { can, type Permission } from '@/lib/rbac'
 import { useSidebar } from '@/contexts/SidebarContext'
 import { cn } from '@/lib/utils'
 
@@ -42,7 +43,7 @@ interface NavItem {
   name: string
   href: string
   icon: React.ComponentType<{ className?: string }>
-  roles: string[]
+  permission: Permission
 }
 
 interface NavGroup {
@@ -52,31 +53,33 @@ interface NavGroup {
 }
 
 // ── Navigation Structure ──────────────────────────────────────────
-// `name` holds an i18n key, translated at render time via t(item.name)
+// `name` holds an i18n key, translated at render time via t(item.name).
+// Visibility is driven entirely by `permission` via can() — the role→permission
+// map lives in src/lib/rbac.ts (single source of truth).
 
 const mainSection: NavItem[] = [
-  { name: 'nav.dashboard', href: '/dashboard', icon: HomeIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
-  { name: 'nav.contracts', href: '/contracts', icon: DocumentTextIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
-  { name: 'nav.groups', href: '/groups', icon: FolderIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
-  { name: 'nav.postSigning', href: '/post-signing', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
-  { name: 'nav.renewals', href: '/renewals', icon: CalendarDaysIcon, roles: ['admin', 'legal', 'procurement', 'bu_head'] },
+  { name: 'nav.dashboard', href: '/dashboard', icon: HomeIcon, permission: 'dashboard' },
+  { name: 'nav.contracts', href: '/contracts', icon: DocumentTextIcon, permission: 'contracts' },
+  { name: 'nav.groups', href: '/groups', icon: FolderIcon, permission: 'groups' },
+  { name: 'nav.postSigning', href: '/post-signing', icon: ClipboardDocumentCheckIcon, permission: 'postSigning' },
+  { name: 'nav.renewals', href: '/renewals', icon: CalendarDaysIcon, permission: 'renewals' },
 ]
 
 const managementSection: NavItem[] = [
-  { name: 'nav.vendors', href: '/vendors', icon: BuildingOffice2Icon, roles: ['admin', 'procurement', 'bu_head'] },
-  { name: 'nav.reports', href: '/reports', icon: DocumentChartBarIcon, roles: ['admin', 'legal', 'bu_head'] },
-  { name: 'nav.upload', href: '/upload', icon: CloudArrowUpIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'nav.vendors', href: '/vendors', icon: BuildingOffice2Icon, permission: 'vendors' },
+  { name: 'nav.reports', href: '/reports', icon: DocumentChartBarIcon, permission: 'reports' },
+  { name: 'nav.upload', href: '/upload', icon: CloudArrowUpIcon, permission: 'upload' },
 ]
 
 const governanceSection: NavItem[] = [
-  { name: 'nav.organizations', href: '/organizations', icon: BuildingLibraryIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'nav.relationships', href: '/relationships', icon: LinkIcon, roles: ['admin', 'legal', 'procurement'] },
-  { name: 'nav.kpiApprovals', href: '/kpi-approvals', icon: ShieldCheckIcon, roles: ['admin'] },
-  { name: 'nav.surveys', href: '/surveys', icon: ClipboardDocumentListIcon, roles: ['admin', 'legal'] },
+  { name: 'nav.organizations', href: '/organizations', icon: BuildingLibraryIcon, permission: 'organizations' },
+  { name: 'nav.relationships', href: '/relationships', icon: LinkIcon, permission: 'relationships' },
+  { name: 'nav.kpiApprovals', href: '/kpi-approvals', icon: ShieldCheckIcon, permission: 'kpiApprovals' },
+  { name: 'nav.surveys', href: '/surveys', icon: ClipboardDocumentListIcon, permission: 'surveys' },
 ]
 
 const intelligenceSection: NavItem[] = [
-  { name: 'nav.askAi', href: '/query', icon: ChatBubbleLeftRightIcon, roles: ['admin', 'legal', 'procurement'] },
+  { name: 'nav.askAi', href: '/query', icon: ChatBubbleLeftRightIcon, permission: 'askAi' },
 ]
 
 const adminGroups: NavGroup[] = [
@@ -84,41 +87,41 @@ const adminGroups: NavGroup[] = [
     label: 'nav.usersAccess',
     collapsible: true,
     items: [
-      { name: 'nav.users', href: '/users', icon: UsersIcon, roles: ['admin'] },
-      { name: 'nav.businessUnits', href: '/admin/business-units', icon: BuildingOffice2Icon, roles: ['admin'] },
-      { name: 'nav.externalUsers', href: '/admin/external-users', icon: UserGroupIcon, roles: ['admin'] },
+      { name: 'nav.users', href: '/users', icon: UsersIcon, permission: 'admin' },
+      { name: 'nav.businessUnits', href: '/admin/business-units', icon: BuildingOffice2Icon, permission: 'admin' },
+      { name: 'nav.externalUsers', href: '/admin/external-users', icon: UserGroupIcon, permission: 'admin' },
     ],
   },
   {
     label: 'nav.integrations',
     collapsible: true,
     items: [
-      { name: 'nav.servicenow', href: '/admin/integrations/servicenow', icon: CloudArrowUpIcon, roles: ['admin'] },
-      { name: 'nav.sharepoint', href: '/admin/integrations/sharepoint', icon: FolderIcon, roles: ['admin'] },
-      { name: 'nav.sso', href: '/admin/sso', icon: ShieldCheckIcon, roles: ['admin'] },
+      { name: 'nav.servicenow', href: '/admin/integrations/servicenow', icon: CloudArrowUpIcon, permission: 'admin' },
+      { name: 'nav.sharepoint', href: '/admin/integrations/sharepoint', icon: FolderIcon, permission: 'admin' },
+      { name: 'nav.sso', href: '/admin/sso', icon: ShieldCheckIcon, permission: 'admin' },
     ],
   },
   {
     label: 'nav.system',
     collapsible: true,
     items: [
-      { name: 'nav.industryProfiles', href: '/admin/industry-profiles', icon: SwatchIcon, roles: ['admin'] },
-      { name: 'nav.extractionQuality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['admin'] },
-      { name: 'nav.masterData', href: '/admin/master-data', icon: CircleStackIcon, roles: ['admin'] },
-      { name: 'nav.scheduler', href: '/admin/scheduler', icon: ClockIcon, roles: ['admin'] },
-      { name: 'nav.settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
+      { name: 'nav.industryProfiles', href: '/admin/industry-profiles', icon: SwatchIcon, permission: 'admin' },
+      { name: 'nav.extractionQuality', href: '/admin/extraction-quality', icon: BeakerIcon, permission: 'admin' },
+      { name: 'nav.masterData', href: '/admin/master-data', icon: CircleStackIcon, permission: 'admin' },
+      { name: 'nav.scheduler', href: '/admin/scheduler', icon: ClockIcon, permission: 'admin' },
+      { name: 'nav.settings', href: '/settings', icon: Cog6ToothIcon, permission: 'settings' },
     ],
   },
 ]
 
 const superAdminNav: NavItem[] = [
-  { name: 'nav.platformOverview', href: '/super-admin', icon: GlobeAltIcon, roles: ['super_admin'] },
-  { name: 'nav.tenants', href: '/super-admin/tenants', icon: BuildingOffice2Icon, roles: ['super_admin'] },
-  { name: 'nav.allUsers', href: '/super-admin/users', icon: UserGroupIcon, roles: ['super_admin'] },
-  { name: 'nav.extractionQuality', href: '/admin/extraction-quality', icon: BeakerIcon, roles: ['super_admin'] },
-  { name: 'nav.industryProfiles', href: '/admin/industry-profiles', icon: SwatchIcon, roles: ['super_admin'] },
-  { name: 'nav.customFields', href: '/super-admin/custom-fields', icon: AdjustmentsHorizontalIcon, roles: ['super_admin'] },
-  { name: 'nav.integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, roles: ['super_admin'] },
+  { name: 'nav.platformOverview', href: '/super-admin', icon: GlobeAltIcon, permission: 'superadmin' },
+  { name: 'nav.tenants', href: '/super-admin/tenants', icon: BuildingOffice2Icon, permission: 'superadmin' },
+  { name: 'nav.allUsers', href: '/super-admin/users', icon: UserGroupIcon, permission: 'superadmin' },
+  { name: 'nav.extractionQuality', href: '/admin/extraction-quality', icon: BeakerIcon, permission: 'superadmin' },
+  { name: 'nav.industryProfiles', href: '/admin/industry-profiles', icon: SwatchIcon, permission: 'superadmin' },
+  { name: 'nav.customFields', href: '/super-admin/custom-fields', icon: AdjustmentsHorizontalIcon, permission: 'superadmin' },
+  { name: 'nav.integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, permission: 'superadmin' },
 ]
 
 // ── Section Label ─────────────────────────────────────────────────
@@ -205,14 +208,14 @@ function NavItemLink({
 
 function FlyoutMenu({
   groups,
-  userRole,
+  allow,
   onClose,
   collapsed,
   triggerIcon: TriggerIcon,
   triggerLabel,
 }: {
   groups: NavGroup[]
-  userRole: string
+  allow: (p: Permission) => boolean
   onClose: () => void
   collapsed: boolean
   triggerIcon: React.ComponentType<{ className?: string }>
@@ -225,8 +228,8 @@ function FlyoutMenu({
   const panelRef = useRef<HTMLDivElement>(null)
   const [panelPos, setPanelPos] = useState({ bottom: 0, left: 0 })
 
-  // All items across groups for this role
-  const allItems = groups.flatMap((g) => g.items.filter((item) => item.roles.includes(userRole)))
+  // All items across groups the user is allowed to see
+  const allItems = groups.flatMap((g) => g.items.filter((item) => allow(item.permission)))
   const hasActiveChild = allItems.some((item) => location.pathname.startsWith(item.href))
 
   // Position the flyout panel next to the trigger button, growing upward
@@ -323,7 +326,7 @@ function FlyoutMenu({
           {/* Groups */}
           <div className="py-2 max-h-[60vh] overflow-y-auto">
             {groups.map((group, gi) => {
-              const items = group.items.filter((item) => item.roles.includes(userRole))
+              const items = group.items.filter((item) => allow(item.permission))
               if (items.length === 0) return null
               return (
                 <div key={group.label}>
@@ -374,17 +377,17 @@ function FlyoutMenu({
 function NavSection({
   label,
   items,
-  role,
+  allow,
   onClose,
   collapsed,
 }: {
   label: string
   items: NavItem[]
-  role: string
+  allow: (p: Permission) => boolean
   onClose: () => void
   collapsed: boolean
 }) {
-  const filtered = items.filter((item) => item.roles.includes(role))
+  const filtered = items.filter((item) => allow(item.permission))
   if (filtered.length === 0) return null
 
   return (
@@ -404,14 +407,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const { t } = useTranslation()
   const { collapsed, toggleCollapsed } = useSidebar()
 
-  const role = user?.role || ''
-  const filteredMain = mainSection.filter((item) => item.roles.includes(role))
-  const filteredMgmt = managementSection.filter((item) => item.roles.includes(role))
-  const filteredGov = governanceSection.filter((item) => item.roles.includes(role))
-  const filteredIntel = intelligenceSection.filter((item) => item.roles.includes(role))
-  const filteredSuperAdmin = superAdminNav.filter((item) => item.roles.includes(role))
-  const hasAdmin = role === 'admin'
-  const hasSuperAdmin = role === 'super_admin'
+  const allow = (p: Permission) => can(user, p)
+  const filteredMain = mainSection.filter((item) => allow(item.permission))
+  const filteredMgmt = managementSection.filter((item) => allow(item.permission))
+  const filteredGov = governanceSection.filter((item) => allow(item.permission))
+  const filteredIntel = intelligenceSection.filter((item) => allow(item.permission))
+  const filteredSuperAdmin = superAdminNav.filter((item) => allow(item.permission))
+  const hasAdmin = allow('admin')
+  const hasSuperAdmin = allow('superadmin')
 
   const sidebarWidth = collapsed ? 'w-[60px]' : 'w-[220px]'
 
@@ -459,14 +462,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       >
         {/* MAIN */}
         {filteredMain.length > 0 && (
-          <NavSection label="nav.sectionMain" items={mainSection} role={role} onClose={onClose} collapsed={collapsed} />
+          <NavSection label="nav.sectionMain" items={mainSection} allow={allow} onClose={onClose} collapsed={collapsed} />
         )}
 
         {/* MANAGEMENT */}
         {filteredMgmt.length > 0 && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <NavSection label="nav.sectionManagement" items={managementSection} role={role} onClose={onClose} collapsed={collapsed} />
+            <NavSection label="nav.sectionManagement" items={managementSection} allow={allow} onClose={onClose} collapsed={collapsed} />
           </>
         )}
 
@@ -474,7 +477,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {filteredGov.length > 0 && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <NavSection label="nav.sectionGovernance" items={governanceSection} role={role} onClose={onClose} collapsed={collapsed} />
+            <NavSection label="nav.sectionGovernance" items={governanceSection} allow={allow} onClose={onClose} collapsed={collapsed} />
           </>
         )}
 
@@ -482,7 +485,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {filteredIntel.length > 0 && (
           <>
             <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <NavSection label="nav.sectionIntelligence" items={intelligenceSection} role={role} onClose={onClose} collapsed={collapsed} />
+            <NavSection label="nav.sectionIntelligence" items={intelligenceSection} allow={allow} onClose={onClose} collapsed={collapsed} />
           </>
         )}
 
@@ -493,7 +496,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <SectionLabel label="nav.sectionAdmin" collapsed={collapsed} />
             <FlyoutMenu
               groups={adminGroups}
-              userRole={role}
+              allow={allow}
               onClose={onClose}
               collapsed={collapsed}
               triggerIcon={Cog6ToothIcon}

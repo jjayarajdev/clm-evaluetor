@@ -172,7 +172,7 @@ export default function ContractViewPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const { can } = useAuth()
   const { config, contractTypeLabel, uiLabel } = useTenantConfig()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
@@ -183,7 +183,7 @@ export default function ContractViewPage() {
   }
 
   // Determine if user can edit custom fields (admin, legal, or procurement roles)
-  const canEditCustomFields = user?.role === 'admin' || user?.role === 'legal' || user?.role === 'procurement' || user?.role === 'super_admin'
+  const canEditCustomFields = can('contract.editFields')
 
   const { data: contract, isLoading, error } = useQuery({
     queryKey: ['contract', id],
