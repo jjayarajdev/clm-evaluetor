@@ -270,7 +270,6 @@
   "nav": {
     "dashboard": "Tableau de bord",
     "contracts": "Contrats",
-    "compliance": "Conformité",
     "postSigning": "Post-signature",
     "renewals": "Renouvellements",
     "vendors": "Fournisseurs",
@@ -504,46 +503,6 @@
     "slaCompliance": "Conformité SLA",
     "breaches": "Manquements",
     "noCounterparties": "Aucune contrepartie trouvée"
-  },
-  "compliancePage": {
-    "title": "Conformité réglementaire",
-    "description": "Suivez les obligations réglementaires, la conformité sectorielle et les écarts sur vos contrats",
-    "tabs": {
-      "overview": "Vue d'ensemble",
-      "obligations": "Obligations réglementaires ({{count}})",
-      "byContract": "Par contrat"
-    },
-    "stats": {
-      "totalContracts": "Contrats évalués",
-      "avgScore": "Score de conformité moyen",
-      "obligations": "Obligations réglementaires",
-      "needsAttention": "Nécessite attention"
-    },
-    "byIndustry": "Conformité par secteur",
-    "obligationsNeedingAttention": "Obligations nécessitant attention",
-    "noObligations": "Aucune obligation réglementaire trouvée",
-    "noIndustryData": "Aucune donnée de conformité sectorielle pour l'instant",
-    "gapsEmptyTitle": "Détection des écarts non configurée",
-    "gapsEmptyBody": "La détection des écarts de conformité nécessite la configuration de règles sectorielles. Une fois les règles définies, les écarts de documents manquants apparaîtront ici.",
-    "cols": {
-      "obligation": "Obligation",
-      "regulation": "Réglementation",
-      "category": "Catégorie",
-      "status": "Statut",
-      "dueDate": "Échéance",
-      "contract": "Contrat",
-      "industry": "Secteur",
-      "score": "Score",
-      "openGaps": "Écarts ouverts",
-      "criticalGaps": "Écarts critiques"
-    },
-    "filters": {
-      "allRegulations": "Toutes les réglementations",
-      "allStatuses": "Tous les statuts",
-      "needsAttentionOnly": "Nécessitant attention uniquement"
-    },
-    "overdue": "En retard",
-    "viewContract": "Voir le contrat"
   },
   "postsigning": {
     "na": "N/D",
