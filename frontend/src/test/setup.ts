@@ -32,21 +32,21 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
-})
+});
 
 // Mock ResizeObserver
 (globalThis as unknown as Record<string, unknown>).ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
-}))
+}));
 
 // Mock IntersectionObserver
 (globalThis as unknown as Record<string, unknown>).IntersectionObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
-}))
+}));
 
 // Mock scrollTo
 window.scrollTo = vi.fn()

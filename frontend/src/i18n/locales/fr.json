@@ -1,4 +1,10 @@
 {
+  "error": {
+    "title": "Une erreur est survenue",
+    "body": "Cette section a rencontré une erreur inattendue. Vous pouvez réessayer, recharger la page ou naviguer ailleurs.",
+    "retry": "Réessayer",
+    "reload": "Recharger la page"
+  },
   "common": {
     "loading": "Chargement...",
     "save": "Enregistrer",
