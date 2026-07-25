@@ -174,15 +174,15 @@ export interface VendorListItem {
 
 export interface VendorPerformanceDetail {
   vendor_name: string
-  performance_score: number
+  performance_score: number | null
   risk_level: string
   is_at_risk: boolean
   score_breakdown: {
-    obligation_compliance_score: number
-    sla_compliance_score: number
-    responsiveness_score: number
-    issue_rate_score: number
-    weighted_total: number
+    obligation_compliance_score: number | null
+    sla_compliance_score: number | null
+    responsiveness_score: number | null
+    issue_rate_score: number | null
+    weighted_total: number | null
   }
   contracts: {
     total_contracts: number
@@ -193,11 +193,11 @@ export interface VendorPerformanceDetail {
     total_obligations: number
     completed_obligations: number
     overdue_obligations: number
-    compliance_rate: number
+    compliance_rate: number | null
   }
   slas: {
     total_slas: number
-    compliance_rate: number
+    compliance_rate: number | null
     total_breaches: number
     total_penalties: number
   }
