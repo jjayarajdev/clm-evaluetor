@@ -92,7 +92,9 @@ function VendorRow({ vendor, onClick, showType }: { vendor: VendorListItem; onCl
     >
       <td className="px-4 py-4">
         <div className="flex items-center gap-3">
-          <ScoreGauge score={vendor.performance_score} size="sm" />
+          {vendor.performance_score != null
+            ? <ScoreGauge score={vendor.performance_score} size="sm" />
+            : <div className="w-8 h-8 flex items-center justify-center text-xs text-gray-400">—</div>}
           <div>
             <div className="flex items-center gap-2">
               <p className="font-medium text-gray-900">{vendor.vendor_name}</p>
@@ -103,25 +105,33 @@ function VendorRow({ vendor, onClick, showType }: { vendor: VendorListItem; onCl
         </div>
       </td>
       <td className="px-4 py-4 text-sm">
-        <span className={cn(
-          'font-semibold',
-          vendor.performance_score >= 80 ? 'text-green-600' :
-          vendor.performance_score >= 60 ? 'text-amber-600' :
-          'text-red-600'
-        )}>
-          {vendor.performance_score.toFixed(1)}
-        </span>
+        {vendor.performance_score != null ? (
+          <span className={cn(
+            'font-semibold',
+            vendor.performance_score >= 80 ? 'text-green-600' :
+            vendor.performance_score >= 60 ? 'text-amber-600' :
+            'text-red-600'
+          )}>
+            {vendor.performance_score.toFixed(1)}
+          </span>
+        ) : <span className="text-gray-400">{t('vendors.notRated')}</span>}
       </td>
       <td className="px-4 py-4 text-sm">
-        <span className={cn(
-          'px-2 py-0.5 rounded-full text-xs font-medium',
-          vendor.risk_level === 'low' ? 'bg-green-100 text-green-800' :
-          vendor.risk_level === 'medium' ? 'bg-amber-100 text-amber-800' :
-          vendor.risk_level === 'high' ? 'bg-orange-100 text-orange-800' :
-          'bg-red-100 text-red-800'
-        )}>
-          {t(`risk.${vendor.risk_level}`, { defaultValue: vendor.risk_level })}
-        </span>
+        {vendor.risk_level === 'unrated' ? (
+          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+            {t('vendors.notRated')}
+          </span>
+        ) : (
+          <span className={cn(
+            'px-2 py-0.5 rounded-full text-xs font-medium',
+            vendor.risk_level === 'low' ? 'bg-green-100 text-green-800' :
+            vendor.risk_level === 'medium' ? 'bg-amber-100 text-amber-800' :
+            vendor.risk_level === 'high' ? 'bg-orange-100 text-orange-800' :
+            'bg-red-100 text-red-800'
+          )}>
+            {t(`risk.${vendor.risk_level}`, { defaultValue: vendor.risk_level })}
+          </span>
+        )}
       </td>
       <td className="px-4 py-4 text-sm text-gray-600">
         ${vendor.total_exposure.toLocaleString()}
@@ -187,7 +197,9 @@ function VendorDetailModal({
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <ScoreGauge score={vendor.performance_score} size="lg" />
+              {vendor.performance_score != null
+                ? <ScoreGauge score={vendor.performance_score} size="lg" />
+                : <div className="w-20 h-20 flex items-center justify-center rounded-full bg-gray-100 text-xs text-gray-400">{t('vendors.notRated')}</div>}
               <div>
                 <h2 className="text-xl font-bold text-gray-900">{vendor.vendor_name}</h2>
                 <p className={cn(
@@ -403,9 +415,12 @@ export default function VendorsPage() {
         />
         <StatCard
           title={t('vendors.avgScore')}
-          value={data.vendors.length > 0
-            ? (data.vendors.reduce((sum, v) => sum + v.performance_score, 0) / data.vendors.length).toFixed(1)
-            : '-'}
+          value={(() => {
+            const rated = data.vendors.filter((v) => v.performance_score != null) as (VendorListItem & { performance_score: number })[]
+            return rated.length > 0
+              ? (rated.reduce((sum, v) => sum + v.performance_score, 0) / rated.length).toFixed(1)
+              : '—'
+          })()}
           icon={ChartBarIcon}
           color="success"
         />
