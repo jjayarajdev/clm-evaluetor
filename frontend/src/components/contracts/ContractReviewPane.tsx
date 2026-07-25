@@ -235,8 +235,8 @@ const CONTRACT_TYPE_OPTIONS = [
 export default function ContractReviewPane({ contractId, contract }: ContractReviewPaneProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { user } = useAuth()
-  const canEdit = user?.role === 'admin' || user?.role === 'legal' || user?.role === 'super_admin'
+  const { can } = useAuth()
+  const canEdit = can('contract.edit')
   const [highlightPage, setHighlightPage] = useState<number | null>(null)
   const [highlightText, setHighlightText] = useState<string | null>(null)
   const [activeRects, setActiveRects] = useState<HighlightRect[] | null>(null)

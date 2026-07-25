@@ -463,7 +463,7 @@ function SLAEditModal({
 
 export default function SLASummary({ contractId }: SLASummaryProps) {
   const { t } = useTranslation()
-  const { user } = useAuth()
+  const { can } = useAuth()
   const queryClient = useQueryClient()
   const [editingSLA, setEditingSLA] = useState<SLAWithPerformance | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -472,7 +472,7 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
   const [librarySearch, setLibrarySearch] = useState('')
 
-  const canEdit = user?.role === 'admin' || user?.role === 'legal'
+  const canEdit = can('sla.edit')
 
   const { data: slas, isLoading, error } = useQuery({
     queryKey: ['contract-slas', contractId],

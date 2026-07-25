@@ -46,6 +46,7 @@ import SurveysPage from './pages/governance/SurveysPage'
 import OrganizationDetailPage from './pages/governance/OrganizationDetailPage'
 import KPIApprovalsPage from './pages/governance/KPIApprovalsPage'
 import LoadingSpinner from './components/ui/LoadingSpinner'
+import { can, defaultLandingFor, type Permission } from '@/lib/rbac'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth()
@@ -62,6 +63,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />
   }
 
+  return <>{children}</>
+}
+
+// Route-level RBAC: a role without `perm` is redirected to its landing page
+// instead of seeing a forbidden page. Enforces what the sidebar only hides.
+function RequirePermission({ perm, children }: { perm: Permission; children: React.ReactNode }) {
+  const { user } = useAuth()
+  if (user && !can(user, perm)) {
+    return <Navigate to={defaultLandingFor(user)} replace />
+  }
   return <>{children}</>
 }
 
@@ -101,38 +112,39 @@ function App() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="upload" element={<UploadPage />} />
         <Route path="query" element={<QueryPage />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="admin/master-data" element={<MasterDataPage />} />
+        <Route path="users" element={<RequirePermission perm="admin"><UsersPage /></RequirePermission>} />
+        <Route path="settings" element={<RequirePermission perm="settings"><SettingsPage /></RequirePermission>} />
+        <Route path="admin/master-data" element={<RequirePermission perm="admin"><MasterDataPage /></RequirePermission>} />
         {/* Redirects for old routes */}
         <Route path="admin/sla-config" element={<Navigate to="/admin/master-data" replace />} />
         <Route path="admin/milestone-config" element={<Navigate to="/admin/master-data" replace />} />
-        <Route path="admin/scheduler" element={<SchedulerPage />} />
+        <Route path="admin/scheduler" element={<RequirePermission perm="admin"><SchedulerPage /></RequirePermission>} />
         {/* Governance Routes */}
         <Route path="organizations" element={<OrganizationsPage />} />
         <Route path="organizations/:id" element={<OrganizationDetailPage />} />
         <Route path="relationships" element={<RelationshipsPage />} />
         <Route path="relationships/:id" element={<RelationshipDetailPage />} />
-        <Route path="kpi-approvals" element={<KPIApprovalsPage />} />
+        <Route path="kpi-approvals" element={<RequirePermission perm="kpiApprovals"><KPIApprovalsPage /></RequirePermission>} />
         {/* Redirects for consolidated governance pages */}
         <Route path="kpis" element={<Navigate to="/relationships" replace />} />
         <Route path="service-portfolio" element={<Navigate to="/organizations" replace />} />
         <Route path="improvements" element={<Navigate to="/relationships" replace />} />
         <Route path="surveys" element={<SurveysPage />} />
-        <Route path="admin/business-units" element={<BusinessUnitsPage />} />
-        <Route path="admin/external-users" element={<ExternalUsersPage />} />
-        <Route path="admin/integrations/servicenow" element={<SnowIntegrationPage />} />
-        <Route path="admin/integrations/sharepoint" element={<SharePointIntegrationPage />} />
-        <Route path="admin/sso" element={<SSOConfigPage />} />
-        <Route path="admin/extraction-quality" element={<ExtractionQualityPage />} />
-        <Route path="admin/industry-profiles" element={<IndustryProfilesPage />} />
+        <Route path="admin/business-units" element={<RequirePermission perm="admin"><BusinessUnitsPage /></RequirePermission>} />
+        <Route path="admin/external-users" element={<RequirePermission perm="admin"><ExternalUsersPage /></RequirePermission>} />
+        <Route path="admin/integrations/servicenow" element={<RequirePermission perm="admin"><SnowIntegrationPage /></RequirePermission>} />
+        <Route path="admin/integrations/sharepoint" element={<RequirePermission perm="admin"><SharePointIntegrationPage /></RequirePermission>} />
+        <Route path="admin/sso" element={<RequirePermission perm="admin"><SSOConfigPage /></RequirePermission>} />
+        {/* Shared curation tools: tenant admin + super-admin */}
+        <Route path="admin/extraction-quality" element={<RequirePermission perm="extraction.configure"><ExtractionQualityPage /></RequirePermission>} />
+        <Route path="admin/industry-profiles" element={<RequirePermission perm="extraction.configure"><IndustryProfilesPage /></RequirePermission>} />
         {/* Super Admin Routes */}
-        <Route path="super-admin" element={<SuperAdminDashboardPage />} />
-        <Route path="super-admin/tenants" element={<TenantManagementPage />} />
-        <Route path="super-admin/tenants/:id" element={<TenantDetailPage />} />
-        <Route path="super-admin/users" element={<GlobalUsersPage />} />
-        <Route path="super-admin/custom-fields" element={<CustomFieldsPage />} />
-        <Route path="super-admin/integrations" element={<SnowAdminPage />} />
+        <Route path="super-admin" element={<RequirePermission perm="superadmin"><SuperAdminDashboardPage /></RequirePermission>} />
+        <Route path="super-admin/tenants" element={<RequirePermission perm="superadmin"><TenantManagementPage /></RequirePermission>} />
+        <Route path="super-admin/tenants/:id" element={<RequirePermission perm="superadmin"><TenantDetailPage /></RequirePermission>} />
+        <Route path="super-admin/users" element={<RequirePermission perm="superadmin"><GlobalUsersPage /></RequirePermission>} />
+        <Route path="super-admin/custom-fields" element={<RequirePermission perm="superadmin"><CustomFieldsPage /></RequirePermission>} />
+        <Route path="super-admin/integrations" element={<RequirePermission perm="superadmin"><SnowAdminPage /></RequirePermission>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

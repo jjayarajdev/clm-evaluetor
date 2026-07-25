@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { setAppLanguage, type AppLanguage } from '@/i18n'
 import type { User, LoginRequest } from '@/types'
+import { permissionsForUser, can as canFor, type Permission } from '@/lib/rbac'
 
 function applyUserLanguage(user: User) {
   if (user.preferred_language === 'en' || user.preferred_language === 'fr') {
@@ -16,6 +17,10 @@ interface AuthContextType {
   isLoading: boolean
   login: (credentials: LoginRequest) => Promise<void>
   logout: () => Promise<void>
+  // Central RBAC — prefer these over the role booleans below.
+  can: (permission: Permission) => boolean
+  permissions: Permission[]
+  // Legacy role booleans (still used by some call sites; prefer can()).
   isAdmin: boolean
   isLegal: boolean
   isProcurement: boolean
@@ -103,6 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     login,
     logout,
+    can: (permission: Permission) => canFor(user, permission),
+    permissions: permissionsForUser(user),
     isAdmin: user?.role === 'admin',
     isLegal: user?.role === 'legal',
     isProcurement: user?.role === 'procurement',
@@ -111,6 +118,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+// Convenience hook for permission checks: `const { can } = usePermissions()`.
+export function usePermissions() {
+  const { can, permissions } = useAuth()
+  return { can, permissions }
 }
 
 export function useAuth() {
