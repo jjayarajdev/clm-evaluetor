@@ -126,7 +126,17 @@ Organizations → Business Relationships → KPIs → Perception Scores → Gap 
 
 ## Deployment
 
+- **Canonical deploy (use this):** `deploy/redeploy.sh [all|backend|frontend]`
+  from a clean git checkout. It drift-free-syncs the tree (`rsync --delete`),
+  stamps the deployed commit on the box (`~/clm/DEPLOYED_COMMIT`), rebuilds
+  (frontend `--no-cache`), runs `alembic upgrade head`, and health-checks.
+  Prefer this over ad-hoc per-file rsync (which risks drift). Rollback:
+  `git checkout <sha> && deploy/redeploy.sh`.
+- **What's deployed:** `ssh … 'cat clm/DEPLOYED_COMMIT'`. The box is NOT a git
+  repo — `redeploy.sh` is the source of truth for what's on it.
 - **AWS SSH:** `ssh -i ~/.ssh/clm-demo-key.pem ec2-user@52.21.204.211`
-- **IMPORTANT:** Always use `-f docker-compose.prod.yml` flag on AWS
-- **IMPORTANT:** `docker-compose up -d` alone does NOT rebuild — use `--build`
-- **Frontend** requires `--no-cache` to pick up source changes
+- Manual fallback: box uses standalone `docker-compose -f docker-compose.prod.yml`;
+  `up -d` alone does NOT rebuild (use `--build`); frontend needs `--no-cache`.
+- Migrations are healthy from a fresh DB (`alembic upgrade head` builds the full
+  chain from base) — verified; a stale Docker image, not the chain, was the
+  earlier from-scratch failure.
