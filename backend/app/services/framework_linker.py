@@ -131,8 +131,14 @@ async def _parent_link_of(db: AsyncSession, contract_id: uuid.UUID):
     ).scalar_one_or_none()
 
 
-# Subordinate types that naturally hang under a master agreement
-_SUBORDINATE_TYPES = {"sow", "amendment", "addendum", "schedule", "exhibit", "attachment"}
+# Subordinate types that naturally hang under a master agreement. These are
+# canonical codes (see contract_types.canonical_contract_type) — the schedule
+# family an outsourcing MSA spawns: work orders, service levels, pricing/rate
+# cards, governance & operating-model docs, policies, amendments, etc.
+_SUBORDINATE_TYPES = {
+    "sow", "amendment", "addendum", "schedule", "exhibit", "attachment",
+    "sla", "service_agreement", "pricing", "governance", "policy", "order", "mou",
+}
 _MASTER_TYPES = {"msa"}
 
 
@@ -152,7 +158,7 @@ async def link_by_counterparty_master(
     applies. Ambiguity (multiple masters for the counterparty) creates
     nothing. Returns links created; does not commit.
     """
-    from app.services.contract_types import normalize_contract_type
+    from app.services.contract_types import canonical_contract_type
 
     contracts = (
         (
@@ -170,7 +176,7 @@ async def link_by_counterparty_master(
     masters_by_party: dict[str, list[Contract]] = defaultdict(list)
     subordinates: list[tuple[Contract, str]] = []
     for c in contracts:
-        ntype = normalize_contract_type(c.contract_type) or (c.contract_type or "")
+        ntype = canonical_contract_type(c.contract_type) or (c.contract_type or "")
         party = _norm_party(c.counterparty)
         if not party:
             continue

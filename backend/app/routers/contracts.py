@@ -1853,7 +1853,14 @@ async def get_filter_options(
         .where(Contract.contract_type.isnot(None))
     )
     type_result = await db.execute(add_tenant_filter(type_query))
-    contract_types = [r[0] for r in type_result.fetchall() if r[0]]
+    # Canonicalize to the controlled vocabulary and de-duplicate, so the filter
+    # dropdown shows a tidy finite set rather than every raw AI-extracted value.
+    from app.services.contract_types import canonical_contract_type
+
+    contract_types = sorted(
+        {canonical_contract_type(r[0]) for r in type_result.fetchall() if r[0]}
+        - {None}
+    )
 
     # Get unique risk levels - with tenant filter
     risk_query = (

@@ -13,6 +13,30 @@ export interface ContractTypeConfig {
   icon?: string
 }
 
+// Human labels for the canonical contract-type vocabulary (mirrors the backend
+// `canonical_contract_type`). Used as a fallback when the tenant/industry config
+// doesn't define a label, so codes like "sla"/"mou" don't render as "Sla"/"Mou".
+export const CANONICAL_CONTRACT_TYPE_LABELS: Record<string, string> = {
+  msa: 'Master Agreement',
+  sow: 'Statement of Work',
+  sla: 'Service Level Agreement',
+  service_agreement: 'Service Agreement',
+  amendment: 'Amendment',
+  lease: 'Lease',
+  nda: 'NDA',
+  license: 'License',
+  mou: 'Memorandum of Understanding',
+  order: 'Order / Procurement',
+  pricing: 'Pricing & Rate Card',
+  governance: 'Governance & Operating Model',
+  policy: 'Policy & Procedure',
+  schedule: 'Schedule / Exhibit',
+  supply_agreement: 'Supply Agreement',
+  vendor_agreement: 'Vendor Agreement',
+  employment_contract: 'Employment Contract',
+  other: 'Other',
+}
+
 export interface ClauseTypeConfig {
   code: string
   label: string
@@ -149,7 +173,11 @@ export function TenantConfigProvider({ children }: { children: ReactNode }) {
   const contractTypeLabel = useCallback(
     (code: string) => {
       const ct = config?.contract_types?.find((t) => t.code === code)
-      return ct?.label || code?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+      return (
+        ct?.label ||
+        CANONICAL_CONTRACT_TYPE_LABELS[code] ||
+        code?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+      )
     },
     [config]
   )
