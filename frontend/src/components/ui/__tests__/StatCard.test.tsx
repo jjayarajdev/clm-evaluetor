@@ -17,27 +17,23 @@ describe('StatCard', () => {
     expect(screen.getByText('Updated today')).toBeInTheDocument()
   })
 
-  it('renders icon when provided', () => {
-    const { container } = render(
-      <StatCard title="Documents" value={5} icon={DocumentIcon} />
-    )
-
-    // Check for icon container
-    const iconContainer = container.querySelector('.rounded-lg')
-    expect(iconContainer).toBeInTheDocument()
+  it('accepts an icon prop without breaking (current design does not render it)', () => {
+    render(<StatCard title="Documents" value={5} icon={DocumentIcon} />)
+    expect(screen.getByText('Documents')).toBeInTheDocument()
+    expect(screen.getByText('5')).toBeInTheDocument()
   })
 
   it('renders positive trend indicator', () => {
     render(<StatCard title="Revenue" value="$100K" trend={{ value: 15, label: 'vs last month' }} />)
 
-    expect(screen.getByText(/↑ 15%/)).toBeInTheDocument()
+    expect(screen.getByText(/▲ 15%/)).toBeInTheDocument()
     expect(screen.getByText('vs last month')).toBeInTheDocument()
   })
 
   it('renders negative trend indicator', () => {
     render(<StatCard title="Costs" value="$50K" trend={{ value: -10 }} />)
 
-    expect(screen.getByText(/↓ 10%/)).toBeInTheDocument()
+    expect(screen.getByText(/▼ 10%/)).toBeInTheDocument()
   })
 
   it('renders neutral trend indicator', () => {
@@ -77,16 +73,17 @@ describe('StatCard', () => {
   })
 
   it('applies color variants', () => {
+    // Cards use a colored top-border accent (bordered design), not a filled bg.
     const { container, rerender } = render(
       <StatCard title="Success" value={1} color="success" variant="filled" />
     )
-    expect(container.firstChild).toHaveClass('bg-emerald-50')
+    expect(container.firstChild).toHaveClass('border-t-emerald-500')
 
     rerender(<StatCard title="Warning" value={1} color="warning" variant="filled" />)
-    expect(container.firstChild).toHaveClass('bg-amber-50')
+    expect(container.firstChild).toHaveClass('border-t-amber-500')
 
     rerender(<StatCard title="Danger" value={1} color="danger" variant="filled" />)
-    expect(container.firstChild).toHaveClass('bg-red-50')
+    expect(container.firstChild).toHaveClass('border-t-red-500')
   })
 })
 

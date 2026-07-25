@@ -1,4 +1,10 @@
 {
+  "error": {
+    "title": "Something went wrong",
+    "body": "This section hit an unexpected error. You can retry, reload the page, or navigate elsewhere.",
+    "retry": "Try again",
+    "reload": "Reload page"
+  },
   "common": {
     "loading": "Loading...",
     "save": "Save",
