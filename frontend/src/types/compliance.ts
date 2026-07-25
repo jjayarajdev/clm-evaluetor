@@ -19,6 +19,7 @@ export interface RegulatoryObligationSummary {
   regulation_type: string
   obligation_category: string
   title: string
+  description?: string | null
   compliance_status: string
   next_due_date: string | null
   is_overdue: boolean

@@ -12,6 +12,7 @@ industries. Focuses on obligations related to:
 
 import json
 import logging
+import re
 import uuid
 from datetime import date
 from typing import Any
@@ -420,6 +421,26 @@ def _parse_regulatory_response(data: dict[str, Any], industry: Industry) -> Regu
     )
 
 
+def _obligation_title(title: str | None, description: str | None) -> str | None:
+    """Return a usable title, deriving one from the description if empty.
+
+    The extractor sometimes fills only the description. A blank title renders
+    as an empty row in the UI, so derive a concise title from the first clause
+    of the description. Returns None when there is no usable content at all.
+    """
+    t = (title or "").strip()
+    if t:
+        return t[:500]
+    desc = (description or "").strip()
+    if not desc:
+        return None
+    # First sentence / clause, capped for a title.
+    first = re.split(r"(?<=[.;])\s|\n", desc, maxsplit=1)[0].strip()
+    if len(first) > 120:
+        first = first[:117].rstrip() + "..."
+    return first or None
+
+
 async def store_regulatory_obligations(
     db: AsyncSession,
     contract_id: uuid.UUID,
@@ -481,6 +502,14 @@ async def store_regulatory_obligations(
         category = category_map.get(extracted.obligation_category, ObligationCategory.OTHER)
         regulation = regulation_map.get(extracted.regulation_type, RegulationType.OTHER)
 
+        # Quality gate: an obligation with no title AND no description carries
+        # no information — skip it. Otherwise ensure a non-empty title by
+        # deriving one from the description (the LLM often fills only one).
+        title = _obligation_title(extracted.title, extracted.description)
+        if not title:
+            logger.debug("Skipping regulatory obligation with no title or description")
+            continue
+
         obligation = RegulatoryObligation(
             tenant_id=tenant_id,
             contract_id=contract_id,
@@ -488,7 +517,7 @@ async def store_regulatory_obligations(
             regulation_type=regulation,
             regulation_reference=extracted.regulation_reference,
             obligation_category=category,
-            title=extracted.title,
+            title=title,
             description=extracted.description,
             source_text=extracted.source_text,
             source_section=extracted.source_section,
