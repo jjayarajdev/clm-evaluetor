@@ -303,34 +303,19 @@ export default function ContractsPage() {
         </div>
       </form>
 
-      {/* Type filter pills + advanced filter toggle */}
+      {/* Type filter dropdown + advanced filter toggle */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => { setSelectedType(null); setPage(1) }}
-            className={cn(
-              'px-4 py-1.5 rounded-full text-sm font-medium border transition-all',
-              !selectedType
-                ? 'bg-primary-700 text-white border-primary-700'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-            )}
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedType || ''}
+            onChange={(e) => { setSelectedType(e.target.value || null); setPage(1) }}
+            className="input py-1.5 text-sm w-auto max-w-xs"
           >
-            {t('contracts.all')}
-          </button>
-          {(filterOptions?.contract_types || []).map((type: string) => (
-            <button
-              key={type}
-              onClick={() => { setSelectedType(selectedType === type ? null : type); setPage(1) }}
-              className={cn(
-                'px-4 py-1.5 rounded-full text-sm font-medium border transition-all',
-                selectedType === type
-                  ? 'bg-primary-700 text-white border-primary-700'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-              )}
-            >
-              {contractTypeLabel(type)}
-            </button>
-          ))}
+            <option value="">{t('contracts.all')}</option>
+            {(filterOptions?.contract_types || []).map((type: string) => (
+              <option key={type} value={type}>{contractTypeLabel(type)}</option>
+            ))}
+          </select>
         </div>
         <div className="flex items-center gap-2">
           <button
