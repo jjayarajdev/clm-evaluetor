@@ -383,11 +383,6 @@ export default function PostSigningPage() {
   })
 
   // Build sparkline data from trend
-  const complianceChart = useMemo(() => {
-    if (!trendData?.data_points?.length) return undefined
-    return trendData.data_points.map(p => Math.round(p.overall_compliance_rate))
-  }, [trendData])
-
   const obligationChart = useMemo(() => {
     if (!trendData?.data_points?.length) return undefined
     return trendData.data_points.map(p => Math.round(p.obligation_compliance_rate))
@@ -476,11 +471,9 @@ export default function PostSigningPage() {
     )
   }
 
-  const trendDirection = trendData?.overall_trend
-  const trendChange = trendData?.overall_change_pct
-
-  // Avoid a misleading "100%" when there is nothing to measure yet.
-  const hasComplianceData = dashboard.obligations.total > 0 || dashboard.slas.total_slas > 0
+  // A rate is only meaningful once the underlying items are actually tracked.
+  const oblTracked = dashboard.obligations.completed + dashboard.obligations.in_progress + dashboard.obligations.overdue
+  const slaMeasured = dashboard.slas.compliant + dashboard.slas.breached > 0
 
   const tabs = [
     { id: 'overview', label: t('postsigning.tabs.overview'), icon: ChartBarIcon },
@@ -515,14 +508,12 @@ export default function PostSigningPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title={t('postsigning.overallCompliance')}
-          value={hasComplianceData ? `${dashboard.compliance.overall_compliance_rate.toFixed(1)}%` : '—'}
-          subtitle={!hasComplianceData ? t('postsigning.noData') : (trendDirection ? t('postsigning.trendSubtitle', { direction: t(`postsigning.trendDirections.${trendDirection}`, { defaultValue: trendDirection }) }) : undefined)}
+          title={t('postsigning.obligationsTracked')}
+          value={dashboard.obligations.total}
+          subtitle={t('postsigning.obligationsCardSubtitle', { completed: dashboard.obligations.completed, overdue: dashboard.obligations.overdue })}
           icon={CheckCircleIcon}
-          color={!hasComplianceData ? 'default' : (dashboard.compliance.overall_compliance_rate >= 90 ? 'success' : dashboard.compliance.overall_compliance_rate >= 70 ? 'warning' : 'danger')}
+          color={dashboard.obligations.overdue > 0 ? 'warning' : 'primary'}
           variant="filled"
-          chart={hasComplianceData ? complianceChart : undefined}
-          trend={hasComplianceData && trendChange != null ? { value: Math.round(trendChange), label: t('postsigning.vsLastPeriod') } : undefined}
         />
         <StatCard
           title={t('postsigning.contractsAtRisk')}
@@ -606,7 +597,9 @@ export default function PostSigningPage() {
               </div>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  {dashboard.obligations.total > 0 ? (
+                  {dashboard.obligations.total === 0 ? (
+                    <span className="text-sm text-gray-400">{t('postsigning.noData')}</span>
+                  ) : oblTracked > 0 ? (
                     <>
                       <span className="text-2xl font-bold text-gray-900">
                         {dashboard.obligations.compliance_rate.toFixed(1)}%
@@ -614,7 +607,10 @@ export default function PostSigningPage() {
                       <span className="text-sm text-gray-500">{t('postsigning.compliance')}</span>
                     </>
                   ) : (
-                    <span className="text-sm text-gray-400">{t('postsigning.noData')}</span>
+                    <>
+                      <span className="text-2xl font-bold text-gray-900">{dashboard.obligations.total}</span>
+                      <span className="text-sm text-gray-400">{t('postsigning.notTracked')}</span>
+                    </>
                   )}
                 </div>
                 <div className="space-y-2 text-sm">
@@ -662,7 +658,9 @@ export default function PostSigningPage() {
               </div>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  {dashboard.slas.total_slas > 0 ? (
+                  {dashboard.slas.total_slas === 0 ? (
+                    <span className="text-sm text-gray-400">{t('postsigning.noData')}</span>
+                  ) : slaMeasured ? (
                     <>
                       <span className="text-2xl font-bold text-gray-900">
                         {dashboard.slas.compliance_rate.toFixed(1)}%
@@ -670,7 +668,10 @@ export default function PostSigningPage() {
                       <span className="text-sm text-gray-500">{t('postsigning.compliance')}</span>
                     </>
                   ) : (
-                    <span className="text-sm text-gray-400">{t('postsigning.noData')}</span>
+                    <>
+                      <span className="text-2xl font-bold text-gray-900">{dashboard.slas.active_slas}</span>
+                      <span className="text-sm text-gray-400">{t('postsigning.notMeasured')}</span>
+                    </>
                   )}
                 </div>
                 <div className="space-y-2 text-sm">
@@ -869,7 +870,7 @@ export default function PostSigningPage() {
         <div className="space-y-4">
           {/* SLA Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard title={t('postsigning.slaCompliance')} value={`${dashboard.slas.compliance_rate.toFixed(1)}%`} icon={CheckCircleIcon} color={dashboard.slas.compliance_rate >= 90 ? 'success' : 'warning'} variant="filled" chart={slaChart} />
+            <StatCard title={t('postsigning.slaCompliance')} value={slaMeasured ? `${dashboard.slas.compliance_rate.toFixed(1)}%` : t('postsigning.notMeasured')} subtitle={!slaMeasured ? t('postsigning.noData') : undefined} icon={CheckCircleIcon} color={!slaMeasured ? 'default' : (dashboard.slas.compliance_rate >= 90 ? 'success' : 'warning')} variant="filled" chart={slaMeasured ? slaChart : undefined} />
             <StatCard title={t('postsigning.activeSlas')} value={dashboard.slas.active_slas} icon={FlagIcon} color="primary" variant="filled" />
             <StatCard title={t('status.breached')} value={dashboard.slas.breached} icon={ExclamationTriangleIcon} color="danger" variant="filled" />
             <StatCard title={t('postsigning.penaltiesMtd')} value={`$${dashboard.slas.total_penalties_mtd.toLocaleString()}`} icon={ChartBarIcon} color="warning" variant="filled" />

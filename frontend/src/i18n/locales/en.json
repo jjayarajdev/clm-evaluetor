@@ -507,6 +507,10 @@
   "postsigning": {
     "na": "N/A",
     "noData": "No data yet",
+    "obligationsTracked": "Obligations",
+    "obligationsCardSubtitle": "{{completed}} completed · {{overdue}} overdue",
+    "notTracked": "not yet tracked",
+    "notMeasured": "not yet measured",
     "rag": {
       "green": "Green",
       "amber": "Amber",
