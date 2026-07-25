@@ -975,7 +975,16 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                         },
                     )
 
-                    if industry_result.industry in REGULATED_INDUSTRIES and full_text:
+                    # Only extract regulatory obligations when we are CONFIDENT
+                    # the contract belongs to a regulated industry. A low-
+                    # confidence guess (e.g. an IT-outsourcing contract nudged
+                    # to 'financial_services' merely because its counterparty is
+                    # a bank) otherwise produces noise obligations.
+                    if (
+                        industry_result.industry in REGULATED_INDUSTRIES
+                        and industry_result.is_confident
+                        and full_text
+                    ):
                         reg_result = await extract_regulatory_obligations(
                             contract_text=full_text,
                             industry=industry_result.industry,
@@ -997,10 +1006,14 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
                             details={"count": reg_count, "industry": industry_result.industry.value},
                         )
                     else:
-                        recorder.skipped(
-                            "regulatory_extraction",
-                            reason=f"industry '{industry_result.industry.value}' is not regulated",
-                        )
+                        if industry_result.industry in REGULATED_INDUSTRIES and not industry_result.is_confident:
+                            skip_reason = (
+                                f"industry '{industry_result.industry.value}' detected but "
+                                f"confidence {industry_result.confidence:.2f} is below threshold"
+                            )
+                        else:
+                            skip_reason = f"industry '{industry_result.industry.value}' is not regulated"
+                        recorder.skipped("regulatory_extraction", reason=skip_reason)
 
                     await session.commit()
 
