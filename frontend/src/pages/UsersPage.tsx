@@ -35,10 +35,22 @@ const ROLE_COLORS: Record<Role, string> = {
 interface UserFormData {
   username: string
   email: string
-  full_name: string
+  first_name: string
+  last_name: string
+  job_title: string
+  phone: string
+  department: string
   role: Role
   password?: string
   business_unit_id?: string
+}
+
+const EMPTY_PROFILE = {
+  first_name: '',
+  last_name: '',
+  job_title: '',
+  phone: '',
+  department: '',
 }
 
 export default function UsersPage() {
@@ -50,9 +62,9 @@ export default function UsersPage() {
   const [formData, setFormData] = useState<UserFormData>({
     email: '',
     username: '',
-    full_name: '',
     role: 'viewer',
     password: '',
+    ...EMPTY_PROFILE,
   })
 
   const { data: users, isLoading, error } = useQuery({
@@ -76,7 +88,11 @@ export default function UsersPage() {
     mutationFn: (data: UserFormData) => api.createUser({
       username: data.username,
       email: data.email,
-      full_name: data.full_name || undefined,
+      first_name: data.first_name || undefined,
+      last_name: data.last_name || undefined,
+      job_title: data.job_title || undefined,
+      phone: data.phone || undefined,
+      department: data.department || undefined,
       password: data.password || '',
       role: data.role,
       business_unit_id: data.business_unit_id || undefined,
@@ -114,7 +130,7 @@ export default function UsersPage() {
   const openCreateModal = () => {
     setEditingUser(null)
     setFormError(null)
-    setFormData({ email: '', username: '', full_name: '', role: 'viewer', password: '', business_unit_id: '' })
+    setFormData({ email: '', username: '', role: 'viewer', password: '', business_unit_id: '', ...EMPTY_PROFILE })
     setIsModalOpen(true)
   }
 
@@ -124,7 +140,11 @@ export default function UsersPage() {
     setFormData({
       email: user.email,
       username: user.username,
-      full_name: user.full_name || '',
+      first_name: user.first_name || '',
+      last_name: user.last_name || '',
+      job_title: user.job_title || '',
+      phone: user.phone || '',
+      department: user.department || '',
       role: user.role,
       password: '',
       business_unit_id: user.business_unit_id || '',
@@ -136,7 +156,7 @@ export default function UsersPage() {
     setIsModalOpen(false)
     setEditingUser(null)
     setFormError(null)
-    setFormData({ email: '', username: '', full_name: '', role: 'viewer', password: '', business_unit_id: '' })
+    setFormData({ email: '', username: '', role: 'viewer', password: '', business_unit_id: '', ...EMPTY_PROFILE })
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -146,7 +166,11 @@ export default function UsersPage() {
       const updateData: Record<string, unknown> = {
         email: formData.email,
         username: formData.username,
-        full_name: formData.full_name || null,
+        first_name: formData.first_name || null,
+        last_name: formData.last_name || null,
+        job_title: formData.job_title || null,
+        phone: formData.phone || null,
+        department: formData.department || null,
         role: formData.role,
         business_unit_id: formData.business_unit_id || null,
       }
@@ -222,9 +246,16 @@ export default function UsersPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          {user.username}
+                          {user.full_name || user.username}
                         </p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
+                        <p className="text-xs text-gray-500">
+                          {user.full_name ? `${user.username} · ${user.email}` : user.email}
+                        </p>
+                        {user.job_title && (
+                          <p className="text-xs text-gray-400">
+                            {user.job_title}{user.department ? ` · ${user.department}` : ''}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -309,18 +340,63 @@ export default function UsersPage() {
                     required
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.firstName', { defaultValue: 'First name' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.first_name}
+                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.lastName', { defaultValue: 'Last name' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.last_name}
+                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.jobTitle', { defaultValue: 'Job title' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.job_title}
+                      onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('superadmin.users.department', { defaultValue: 'Department' })}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.department}
+                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('users.fullName')}
+                    {t('superadmin.users.phone', { defaultValue: 'Phone' })}
                   </label>
                   <input
-                    type="text"
-                    value={formData.full_name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, full_name: e.target.value })
-                    }
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="input"
-                    placeholder={t('users.fullNamePlaceholder')}
                   />
                 </div>
                 <div>
