@@ -9,13 +9,6 @@ import type {
   ComplianceTrend,
   SLADetail,
 } from '@/types/postsigning'
-import type {
-  ComplianceDashboardSummary,
-  RegulatoryObligationSummary,
-  RegulatoryObligationUpdateStatus,
-  IndustryComplianceSummary,
-  ContractComplianceSummary,
-} from '@/types/compliance'
 
 // ============ POST-SIGNING DASHBOARD ============
 
@@ -311,40 +304,3 @@ export async function exportCalendarICS(options?: {
   return response.data
 }
 
-// ============ REGULATORY COMPLIANCE ENGINE ============
-// Distinct from the post-signing "obligations" above: these back the
-// /compliance page (industry rules → gaps → regulatory obligations).
-
-export async function getComplianceDashboard(): Promise<ComplianceDashboardSummary> {
-  const response = await client.get<ComplianceDashboardSummary>('/compliance/dashboard')
-  return response.data
-}
-
-export async function getComplianceByIndustry(): Promise<IndustryComplianceSummary[]> {
-  const response = await client.get<IndustryComplianceSummary[]>('/compliance/by-industry')
-  return response.data
-}
-
-export async function getContractComplianceList(): Promise<ContractComplianceSummary[]> {
-  const response = await client.get<ContractComplianceSummary[]>('/compliance/contracts')
-  return response.data
-}
-
-export async function getRegulatoryObligations(params?: {
-  contract_id?: string
-  regulation_type?: string
-  status?: string
-  needs_attention?: boolean
-}): Promise<RegulatoryObligationSummary[]> {
-  const response = await client.get<RegulatoryObligationSummary[]>('/compliance/obligations', { params })
-  return response.data
-}
-
-// Named distinctly from updateObligationStatus (post-signing obligations).
-export async function updateRegulatoryObligationStatus(
-  obligationId: string,
-  data: RegulatoryObligationUpdateStatus,
-): Promise<unknown> {
-  const response = await client.patch(`/compliance/obligations/${obligationId}/status`, data)
-  return response.data
-}

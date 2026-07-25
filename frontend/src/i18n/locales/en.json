@@ -270,7 +270,6 @@
   "nav": {
     "dashboard": "Dashboard",
     "contracts": "Contracts",
-    "compliance": "Compliance",
     "postSigning": "Post-Signing",
     "renewals": "Renewals",
     "vendors": "Vendors",
@@ -504,46 +503,6 @@
     "slaCompliance": "SLA Compliance",
     "breaches": "Breaches",
     "noCounterparties": "No counterparties found"
-  },
-  "compliancePage": {
-    "title": "Regulatory Compliance",
-    "description": "Track regulatory obligations, industry compliance, and gaps across your contracts",
-    "tabs": {
-      "overview": "Overview",
-      "obligations": "Regulatory Obligations ({{count}})",
-      "byContract": "By Contract"
-    },
-    "stats": {
-      "totalContracts": "Contracts Assessed",
-      "avgScore": "Avg Compliance Score",
-      "obligations": "Regulatory Obligations",
-      "needsAttention": "Needs Attention"
-    },
-    "byIndustry": "Compliance by Industry",
-    "obligationsNeedingAttention": "Obligations Needing Attention",
-    "noObligations": "No regulatory obligations found",
-    "noIndustryData": "No industry compliance data yet",
-    "gapsEmptyTitle": "Gap detection not configured",
-    "gapsEmptyBody": "Compliance gap detection requires industry rules to be configured. Once rules are set up, missing-document gaps will appear here.",
-    "cols": {
-      "obligation": "Obligation",
-      "regulation": "Regulation",
-      "category": "Category",
-      "status": "Status",
-      "dueDate": "Due Date",
-      "contract": "Contract",
-      "industry": "Industry",
-      "score": "Score",
-      "openGaps": "Open Gaps",
-      "criticalGaps": "Critical Gaps"
-    },
-    "filters": {
-      "allRegulations": "All Regulations",
-      "allStatuses": "All Statuses",
-      "needsAttentionOnly": "Needs attention only"
-    },
-    "overdue": "Overdue",
-    "viewContract": "View contract"
   },
   "postsigning": {
     "na": "N/A",
