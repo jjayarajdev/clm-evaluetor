@@ -328,7 +328,7 @@ export default function PostSigningPage() {
   // Fetch full vendor list when on vendors tab
   const { data: vendorData, isLoading: vendorsLoading } = useQuery({
     queryKey: ['vendor-list'],
-    queryFn: () => api.getVendors({ sort_by: 'performance_score', sort_order: 'desc' }),
+    queryFn: () => api.getVendors({ sort_by: 'score', sort_order: 'desc' }),
     enabled: activeTab === 'vendors',
   })
 
