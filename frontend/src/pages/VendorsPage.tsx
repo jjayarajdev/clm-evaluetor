@@ -226,23 +226,23 @@ function VendorDetailModal({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">{t('vendors.obligationComplianceWeight')}</span>
-                <span className="font-medium">{vendor.score_breakdown.obligation_compliance_score.toFixed(1)}</span>
+                <span className="font-medium">{vendor.score_breakdown.obligation_compliance_score?.toFixed(1) ?? '—'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">{t('vendors.slaComplianceWeight')}</span>
-                <span className="font-medium">{vendor.score_breakdown.sla_compliance_score.toFixed(1)}</span>
+                <span className="font-medium">{vendor.score_breakdown.sla_compliance_score?.toFixed(1) ?? '—'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">{t('vendors.responsivenessWeight')}</span>
-                <span className="font-medium">{vendor.score_breakdown.responsiveness_score.toFixed(1)}</span>
+                <span className="font-medium">{vendor.score_breakdown.responsiveness_score?.toFixed(1) ?? '—'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">{t('vendors.issueRateWeight')}</span>
-                <span className="font-medium">{vendor.score_breakdown.issue_rate_score.toFixed(1)}</span>
+                <span className="font-medium">{vendor.score_breakdown.issue_rate_score?.toFixed(1) ?? '—'}</span>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                 <span className="text-sm font-medium text-gray-900">{t('vendors.weightedTotal')}</span>
-                <span className="font-bold text-lg">{vendor.score_breakdown.weighted_total.toFixed(1)}</span>
+                <span className="font-bold text-lg">{vendor.score_breakdown.weighted_total != null ? vendor.score_breakdown.weighted_total.toFixed(1) : t('vendors.notRated')}</span>
               </div>
             </div>
           </div>
