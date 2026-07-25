@@ -52,8 +52,10 @@ def normalize_vendor_name(name: str | None) -> str:
     return normalized
 
 
-def determine_risk_level(score: float) -> str:
-    """Determine risk level from score."""
+def determine_risk_level(score: float | None) -> str:
+    """Determine risk level from score; 'unrated' when there is no score."""
+    if score is None:
+        return "unrated"
     if score >= 80:
         return "low"
     elif score >= 60:
@@ -64,8 +66,10 @@ def determine_risk_level(score: float) -> str:
         return "critical"
 
 
-def score_to_grade(score: float) -> str:
-    """Convert score to letter grade."""
+def score_to_grade(score: float | None) -> str:
+    """Convert score to letter grade; 'N/A' when unrated."""
+    if score is None:
+        return "N/A"
     if score >= 90:
         return "A"
     elif score >= 80:
@@ -79,29 +83,39 @@ def score_to_grade(score: float) -> str:
 
 
 def calculate_composite_score(
-    obligation_compliance: float,
-    sla_compliance: float,
-    responsiveness_score: float = 75.0,
-    issue_rate_score: float = 80.0,
+    obligation_compliance: float | None,
+    sla_compliance: float | None,
 ) -> VendorScoreBreakdown:
-    """Calculate composite vendor score."""
-    weighted_total = (
-        obligation_compliance * OBLIGATION_WEIGHT +
-        sla_compliance * SLA_WEIGHT +
-        responsiveness_score * RESPONSIVENESS_WEIGHT +
-        issue_rate_score * ISSUE_RATE_WEIGHT
-    )
+    """Composite vendor score from real signals only.
+
+    Only obligation compliance (when obligations are actually tracked) and SLA
+    compliance (when SLAs are actually measured) feed the score. Responsiveness
+    and issue-rate are not captured anywhere yet, so they are omitted rather
+    than faked with hardcoded values. ``weighted_total`` is None (unrated) when
+    there is no real signal at all.
+    """
+    signals: list[tuple[float, float]] = []
+    if obligation_compliance is not None:
+        signals.append((obligation_compliance, OBLIGATION_WEIGHT))
+    if sla_compliance is not None:
+        signals.append((sla_compliance, SLA_WEIGHT))
+
+    if signals:
+        weight_sum = sum(w for _, w in signals)
+        weighted_total = round(sum(v * w for v, w in signals) / weight_sum, 2)
+    else:
+        weighted_total = None
 
     return VendorScoreBreakdown(
         obligation_compliance_score=obligation_compliance,
         obligation_compliance_weight=OBLIGATION_WEIGHT,
         sla_compliance_score=sla_compliance,
         sla_compliance_weight=SLA_WEIGHT,
-        responsiveness_score=responsiveness_score,
+        responsiveness_score=None,
         responsiveness_weight=RESPONSIVENESS_WEIGHT,
-        issue_rate_score=issue_rate_score,
+        issue_rate_score=None,
         issue_rate_weight=ISSUE_RATE_WEIGHT,
-        weighted_total=round(weighted_total, 2),
+        weighted_total=weighted_total,
     )
 
 
@@ -175,14 +189,14 @@ async def get_vendor_contracts(
 async def calculate_obligation_compliance(db: AsyncSession, contract_ids: list[uuid.UUID]) -> tuple[float, dict]:
     """Calculate obligation compliance rate for given contracts."""
     if not contract_ids:
-        return 100.0, {"total": 0, "completed": 0, "overdue": 0, "by_status": {}, "by_rag": {}, "critical_overdue": 0}
+        return None, {"total": 0, "completed": 0, "overdue": 0, "by_status": {}, "by_rag": {}, "critical_overdue": 0}
 
     query = select(Obligation).where(Obligation.contract_id.in_(contract_ids))
     result = await db.execute(query)
     obligations = list(result.scalars().all())
 
     if not obligations:
-        return 100.0, {"total": 0, "completed": 0, "overdue": 0, "by_status": {}, "by_rag": {}, "critical_overdue": 0}
+        return None, {"total": 0, "completed": 0, "overdue": 0, "by_status": {}, "by_rag": {}, "critical_overdue": 0}
 
     total = len(obligations)
     completed = sum(1 for o in obligations if o.status == ObligationStatus.COMPLETED)
@@ -208,7 +222,8 @@ async def calculate_obligation_compliance(db: AsyncSession, contract_ids: list[u
     # failures, and WAIVED are excluded. If nothing is due yet, compliance is
     # 100% (nothing has failed) rather than 0%.
     assessable = completed + in_progress + overdue
-    compliance_rate = ((completed + in_progress) / assessable * 100) if assessable > 0 else 100.0
+    # None (not 100%) when nothing is assessable yet — untracked ≠ compliant.
+    compliance_rate = ((completed + in_progress) / assessable * 100) if assessable > 0 else None
 
     return compliance_rate, {
         "total": total,
@@ -223,14 +238,14 @@ async def calculate_obligation_compliance(db: AsyncSession, contract_ids: list[u
 async def calculate_sla_compliance(db: AsyncSession, contract_ids: list[uuid.UUID]) -> tuple[float, dict]:
     """Calculate SLA compliance rate for given contracts."""
     if not contract_ids:
-        return 100.0, {"total": 0, "active": 0, "breaches": 0, "critical_breaches": 0, "penalties": 0.0, "by_metric": {}}
+        return None, {"total": 0, "active": 0, "breaches": 0, "critical_breaches": 0, "penalties": 0.0, "by_metric": {}}
 
     query = select(ContractSLA).where(ContractSLA.contract_id.in_(contract_ids))
     result = await db.execute(query)
     slas = list(result.scalars().all())
 
     if not slas:
-        return 100.0, {"total": 0, "active": 0, "breaches": 0, "critical_breaches": 0, "penalties": 0.0, "by_metric": {}}
+        return None, {"total": 0, "active": 0, "breaches": 0, "critical_breaches": 0, "penalties": 0.0, "by_metric": {}}
 
     total = len(slas)
     active = sum(1 for s in slas if s.is_active)
@@ -248,7 +263,8 @@ async def calculate_sla_compliance(db: AsyncSession, contract_ids: list[uuid.UUI
     total_penalties = float(penalty_result.scalar() or 0)
 
     compliance_rates = [float(s.current_compliance_rate) for s in slas if s.current_compliance_rate is not None]
-    avg_compliance = sum(compliance_rates) / len(compliance_rates) if compliance_rates else 100.0
+    # None (not 100%) when no SLA has actually been measured.
+    avg_compliance = sum(compliance_rates) / len(compliance_rates) if compliance_rates else None
 
     by_metric = {}
     for s in slas:

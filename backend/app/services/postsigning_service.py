@@ -340,30 +340,38 @@ class PostSigningService:
             cp_completed = sum(1 for o in cp_obls if o.status == ObligationStatus.COMPLETED)
             cp_overdue = sum(1 for o in cp_obls if self._is_overdue(o, today))
             cp_total = len(cp_obls)
-            # Score accounts for both completions and overdue penalties
-            obl_rate = ((cp_completed / cp_total * 100) if cp_total > 0 else 100) - (cp_overdue / max(cp_total, 1) * 30)
+            # Obligations only inform the score once some are actually tracked
+            # (completed or overdue) — untracked ones don't default to 100%.
+            obl_tracked = (cp_completed + cp_overdue) > 0
+            obl_rate = (
+                ((cp_completed / cp_total * 100) if cp_total > 0 else 0)
+                - (cp_overdue / max(cp_total, 1) * 30)
+            ) if obl_tracked else None
 
             cp_slas = [s for s in slas if s.contract_id in cp_contract_ids]
             cp_sla_rates = [float(s.current_compliance_rate) for s in cp_slas if s.current_compliance_rate is not None]
-            sla_rate = sum(cp_sla_rates) / len(cp_sla_rates) if cp_sla_rates else 100
+            sla_rate = sum(cp_sla_rates) / len(cp_sla_rates) if cp_sla_rates else None
 
-            score = obl_rate * 0.5 + sla_rate * 0.5
+            # Score from real signals only; None (unrated) when neither exists.
+            comps = [r for r in (obl_rate, sla_rate) if r is not None]
+            score = round(sum(comps) / len(comps), 2) if comps else None
             vendor_scores.append({
                 "name": cp,
-                "score": round(score, 2),
+                "score": score,
                 "contracts": len(cp_contracts),
             })
 
-        vendor_scores.sort(key=lambda v: v["score"], reverse=True)
-        at_risk_vendors = sum(1 for v in vendor_scores if v["score"] < 60)
-        avg_score = sum(v["score"] for v in vendor_scores) / len(vendor_scores) if vendor_scores else 0
+        rated = [v for v in vendor_scores if v["score"] is not None]
+        rated.sort(key=lambda v: v["score"], reverse=True)
+        at_risk_vendors = sum(1 for v in rated if v["score"] < 60)
+        avg_score = round(sum(v["score"] for v in rated) / len(rated), 2) if rated else None
 
         return VendorWidget(
             total_vendors=len(counterparties),
             at_risk_vendors=at_risk_vendors,
-            avg_performance_score=round(avg_score, 2),
-            top_performers=vendor_scores[:3],
-            bottom_performers=vendor_scores[-3:][::-1] if len(vendor_scores) >= 3 else vendor_scores[::-1],
+            avg_performance_score=avg_score,
+            top_performers=rated[:3],
+            bottom_performers=rated[-3:][::-1] if len(rated) >= 3 else rated[::-1],
         )
 
     def _build_milestone_widget(self, obligations, today):

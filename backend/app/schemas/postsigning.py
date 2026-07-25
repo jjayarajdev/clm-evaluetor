@@ -59,7 +59,7 @@ class VendorWidget(BaseModel):
 
     total_vendors: int
     at_risk_vendors: int
-    avg_performance_score: float
+    avg_performance_score: float | None  # None when no vendor is rated yet
 
     # Top and bottom performers
     top_performers: list[dict]  # Top 3

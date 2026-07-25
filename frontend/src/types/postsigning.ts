@@ -143,14 +143,14 @@ export interface ContractRenewalInfo {
 export interface VendorWidget {
   total_vendors: number
   at_risk_vendors: number
-  avg_performance_score: number
+  avg_performance_score: number | null
   top_performers: VendorScore[]
   bottom_performers: VendorScore[]
 }
 
 export interface VendorScore {
   name: string
-  score: number
+  score: number | null
   contracts: number
 }
 
@@ -161,7 +161,7 @@ export interface VendorListItem {
   normalized_name: string
   tenant_name?: string | null
   party_type: CounterpartyType
-  performance_score: number
+  performance_score: number | null
   risk_level: string
   is_at_risk: boolean
   contract_count: number

@@ -143,7 +143,8 @@ async def list_vendors(
         exposure = metrics["contracts"].total_value
         total_exposure += exposure
 
-        is_at_risk = score < AT_RISK_THRESHOLD
+        # An unrated vendor (no tracked obligations / measured SLAs) is not "at risk".
+        is_at_risk = score is not None and score < AT_RISK_THRESHOLD
         if is_at_risk:
             at_risk_count += 1
 
@@ -166,7 +167,8 @@ async def list_vendors(
     # Sort vendors
     reverse = sort_order == "desc"
     if sort_by == "score":
-        vendors.sort(key=lambda v: v.performance_score, reverse=reverse)
+        # Unrated vendors (score None) always sort to the end.
+        vendors.sort(key=lambda v: (v.performance_score is None, -(v.performance_score or 0) if reverse else (v.performance_score or 0)))
     elif sort_by == "name":
         vendors.sort(key=lambda v: v.vendor_name.lower(), reverse=reverse)
     elif sort_by == "exposure":
@@ -206,10 +208,12 @@ async def get_at_risk_vendors(
         metrics = await build_vendor_metrics(db, vendor.vendor_name, contracts)
 
         issues = []
-        if metrics["obligations"].compliance_rate < 70:
-            issues.append(f"Low obligation compliance: {metrics['obligations'].compliance_rate:.1f}%")
-        if metrics["slas"].compliance_rate < 80:
-            issues.append(f"Low SLA compliance: {metrics['slas'].compliance_rate:.1f}%")
+        obl_rate = metrics["obligations"].compliance_rate
+        sla_rate = metrics["slas"].compliance_rate
+        if obl_rate is not None and obl_rate < 70:
+            issues.append(f"Low obligation compliance: {obl_rate:.1f}%")
+        if sla_rate is not None and sla_rate < 80:
+            issues.append(f"Low SLA compliance: {sla_rate:.1f}%")
         if metrics["slas"].total_breaches > 0:
             issues.append(f"{metrics['slas'].total_breaches} active SLA breaches")
         if metrics["obligations"].overdue_obligations > 0:
@@ -217,10 +221,11 @@ async def get_at_risk_vendors(
         if metrics["slas"].total_penalties > 0:
             issues.append(f"${metrics['slas'].total_penalties:,.2f} in penalties")
 
-        if vendor.performance_score < CRITICAL_RISK_THRESHOLD:
+        vscore = vendor.performance_score
+        if vscore is not None and vscore < CRITICAL_RISK_THRESHOLD:
             recommended_action = "Immediate contract review and potential termination"
             critical_count += 1
-        elif vendor.performance_score < HIGH_RISK_THRESHOLD:
+        elif vscore is not None and vscore < HIGH_RISK_THRESHOLD:
             recommended_action = "Escalate to vendor management for remediation plan"
             high_count += 1
         else:
@@ -288,10 +293,11 @@ async def compare_vendors(
         )
         compare_items.append(item)
 
-    best_overall = max(compare_items, key=lambda x: x.performance_score).vendor_name
-    worst_overall = min(compare_items, key=lambda x: x.performance_score).vendor_name
-    best_sla = max(compare_items, key=lambda x: x.sla_compliance).vendor_name
-    best_obligation = max(compare_items, key=lambda x: x.obligation_compliance).vendor_name
+    # None (unrated) sorts to the bottom so best/worst reflect rated vendors.
+    best_overall = max(compare_items, key=lambda x: (x.performance_score is not None, x.performance_score or 0)).vendor_name
+    worst_overall = min(compare_items, key=lambda x: (x.performance_score is None, x.performance_score or 0)).vendor_name
+    best_sla = max(compare_items, key=lambda x: (x.sla_compliance is not None, x.sla_compliance or 0)).vendor_name
+    best_obligation = max(compare_items, key=lambda x: (x.obligation_compliance is not None, x.obligation_compliance or 0)).vendor_name
     highest_exposure = max(compare_items, key=lambda x: x.total_exposure).vendor_name
 
     return VendorCompareResponse(
@@ -381,12 +387,14 @@ async def get_vendor_performance(
     risk_factors = []
     recommendations = []
 
-    if metrics["obligations"].compliance_rate < 80:
-        risk_factors.append(f"Obligation compliance below target: {metrics['obligations'].compliance_rate:.1f}%")
+    obl_rate = metrics["obligations"].compliance_rate
+    sla_rate = metrics["slas"].compliance_rate
+    if obl_rate is not None and obl_rate < 80:
+        risk_factors.append(f"Obligation compliance below target: {obl_rate:.1f}%")
         recommendations.append("Implement regular obligation tracking meetings")
 
-    if metrics["slas"].compliance_rate < 90:
-        risk_factors.append(f"SLA compliance needs improvement: {metrics['slas'].compliance_rate:.1f}%")
+    if sla_rate is not None and sla_rate < 90:
+        risk_factors.append(f"SLA compliance needs improvement: {sla_rate:.1f}%")
         recommendations.append("Review SLA terms and establish improvement plan")
 
     if metrics["slas"].total_breaches > 0:
@@ -410,7 +418,7 @@ async def get_vendor_performance(
         normalized_name=normalize_vendor_name(vendor_name),
         performance_score=score,
         risk_level=determine_risk_level(score),
-        is_at_risk=score < AT_RISK_THRESHOLD,
+        is_at_risk=score is not None and score < AT_RISK_THRESHOLD,
         score_breakdown=metrics["score_breakdown"],
         contracts=metrics["contracts"],
         obligations=metrics["obligations"],

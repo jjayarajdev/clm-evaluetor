@@ -16,19 +16,20 @@ class CounterpartyType(str, Enum):
 class VendorScoreBreakdown(BaseModel):
     """Breakdown of how vendor score is calculated."""
 
-    obligation_compliance_score: float  # 0-100, weight: 40%
+    # None when there is no real signal (obligations not tracked / SLAs not measured)
+    obligation_compliance_score: float | None  # 0-100, weight: 40%
     obligation_compliance_weight: float = 0.40
 
-    sla_compliance_score: float  # 0-100, weight: 30%
+    sla_compliance_score: float | None  # 0-100, weight: 30%
     sla_compliance_weight: float = 0.30
 
-    responsiveness_score: float  # 0-100, weight: 20%
+    responsiveness_score: float | None = None  # not yet captured
     responsiveness_weight: float = 0.20
 
-    issue_rate_score: float  # 0-100, weight: 10%
+    issue_rate_score: float | None = None  # not yet captured
     issue_rate_weight: float = 0.10
 
-    weighted_total: float  # Final composite score
+    weighted_total: float | None  # Final composite score; None = unrated
 
 
 class VendorContractSummary(BaseModel):
@@ -50,7 +51,7 @@ class VendorObligationSummary(BaseModel):
     total_obligations: int
     completed_obligations: int
     overdue_obligations: int
-    compliance_rate: float  # 0-100
+    compliance_rate: float | None  # 0-100; None when nothing is assessable yet
     by_status: dict[str, int]
     by_rag: dict[str, int]
     critical_overdue: int
@@ -61,7 +62,7 @@ class VendorSLASummary(BaseModel):
 
     total_slas: int
     active_slas: int
-    compliance_rate: float  # 0-100
+    compliance_rate: float | None  # 0-100; None when no SLA has been measured
     total_breaches: int
     critical_breaches: int
     total_penalties: float
@@ -75,8 +76,8 @@ class VendorListItem(BaseModel):
     normalized_name: str  # Lowercase, trimmed for matching
     tenant_name: str | None = None  # Owning tenant (populated for super-admin)
     party_type: CounterpartyType = CounterpartyType.UNKNOWN  # vendor or client
-    performance_score: float  # 0-100 composite score
-    risk_level: Literal["low", "medium", "high", "critical"]
+    performance_score: float | None  # 0-100 composite score; None = unrated
+    risk_level: Literal["low", "medium", "high", "critical", "unrated"]
     is_at_risk: bool  # Score < 60
 
     # Quick stats
@@ -105,8 +106,8 @@ class VendorPerformanceDetail(BaseModel):
     normalized_name: str
 
     # Overall score
-    performance_score: float
-    risk_level: Literal["low", "medium", "high", "critical"]
+    performance_score: float | None
+    risk_level: Literal["low", "medium", "high", "critical", "unrated"]
     is_at_risk: bool
     score_breakdown: VendorScoreBreakdown
 
@@ -130,9 +131,9 @@ class VendorCompareItem(BaseModel):
     """Vendor data for comparison."""
 
     vendor_name: str
-    performance_score: float
-    obligation_compliance: float
-    sla_compliance: float
+    performance_score: float | None
+    obligation_compliance: float | None
+    sla_compliance: float | None
     total_exposure: float
     contract_count: int
     active_breaches: int
@@ -157,7 +158,7 @@ class AtRiskVendor(BaseModel):
     """Vendor that is at risk (score < 60)."""
 
     vendor_name: str
-    performance_score: float
+    performance_score: float | None
     risk_level: str
 
     # Key issues
@@ -166,8 +167,8 @@ class AtRiskVendor(BaseModel):
     exposure_at_risk: float
 
     # Metrics driving the low score
-    obligation_compliance: float
-    sla_compliance: float
+    obligation_compliance: float | None
+    sla_compliance: float | None
     active_breaches: int
     overdue_obligations: int
 
@@ -188,8 +189,8 @@ class VendorScorecard(BaseModel):
     """Vendor scorecard for procurement dashboard."""
 
     vendor_name: str
-    score: float
-    grade: Literal["A", "B", "C", "D", "F"]  # A: 90+, B: 80-89, C: 70-79, D: 60-69, F: <60
+    score: float | None
+    grade: Literal["A", "B", "C", "D", "F", "N/A"]  # A: 90+, B: 80-89, C: 70-79, D: 60-69, F: <60
 
     # Key metrics
     contracts: int

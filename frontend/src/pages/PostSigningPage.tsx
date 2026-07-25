@@ -1210,9 +1210,10 @@ export default function PostSigningPage() {
             <StatCard title={t('vendors.atRisk')} value={dashboard.vendors.at_risk_vendors} icon={ExclamationTriangleIcon} color="danger" variant="filled" />
             <StatCard
               title={t('vendors.avgScore')}
-              value={dashboard.vendors.avg_performance_score.toFixed(1)}
+              value={dashboard.vendors.avg_performance_score != null ? dashboard.vendors.avg_performance_score.toFixed(1) : '—'}
+              subtitle={dashboard.vendors.avg_performance_score == null ? t('postsigning.notRated') : undefined}
               icon={ChartBarIcon}
-              color={dashboard.vendors.avg_performance_score >= 70 ? 'success' : 'warning'}
+              color={dashboard.vendors.avg_performance_score == null ? 'default' : (dashboard.vendors.avg_performance_score >= 70 ? 'success' : 'warning')}
               variant="filled"
             />
           </div>
@@ -1263,24 +1264,32 @@ export default function PostSigningPage() {
                             </Link>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={cn(
-                              'text-sm font-semibold',
-                              v.performance_score >= 80 ? 'text-green-600' :
-                              v.performance_score >= 60 ? 'text-amber-600' :
-                              'text-red-600'
-                            )}>
-                              {v.performance_score.toFixed(1)}
-                            </span>
+                            {v.performance_score != null ? (
+                              <span className={cn(
+                                'text-sm font-semibold',
+                                v.performance_score >= 80 ? 'text-green-600' :
+                                v.performance_score >= 60 ? 'text-amber-600' :
+                                'text-red-600'
+                              )}>
+                                {v.performance_score.toFixed(1)}
+                              </span>
+                            ) : <span className="text-sm text-gray-400">—</span>}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={cn(
-                              'px-2 py-0.5 rounded-full text-xs font-medium',
-                              v.risk_level === 'high' ? 'bg-red-100 text-red-800' :
-                              v.risk_level === 'medium' ? 'bg-amber-100 text-amber-800' :
-                              'bg-green-100 text-green-800'
-                            )}>
-                              {t(`risk.${v.risk_level}`, { defaultValue: v.risk_level })}
-                            </span>
+                            {v.risk_level === 'unrated' ? (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                {t('postsigning.notRated')}
+                              </span>
+                            ) : (
+                              <span className={cn(
+                                'px-2 py-0.5 rounded-full text-xs font-medium',
+                                v.risk_level === 'high' || v.risk_level === 'critical' ? 'bg-red-100 text-red-800' :
+                                v.risk_level === 'medium' ? 'bg-amber-100 text-amber-800' :
+                                'bg-green-100 text-green-800'
+                              )}>
+                                {t(`risk.${v.risk_level}`, { defaultValue: v.risk_level })}
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700">{v.contract_count}</td>
                           <td className="px-4 py-3 text-sm text-gray-700">
