@@ -22,7 +22,6 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import PageHeader from '@/components/ui/PageHeader'
 import StatCard from '@/components/ui/StatCard'
 import { cn } from '@/lib/utils'
-import type { PriorityAction } from '@/types/postsigning'
 import type { ContractRenewalInfo, VendorListItem } from '@/types/postsigning'
 
 interface SLABreachDetail {
@@ -249,45 +248,6 @@ function SLABreachDetailModal({
   )
 }
 
-function PriorityActionItem({ action }: { action: PriorityAction }) {
-  const { t } = useTranslation()
-  const severityColors: Record<string, string> = {
-    critical: 'border-l-red-500 bg-red-50',
-    high: 'border-l-amber-500 bg-amber-50',
-    medium: 'border-l-blue-500 bg-blue-50',
-  }
-
-  const linkTarget = action.type === 'obligation' && action.obligation_id
-    ? `/obligations/${action.obligation_id}`
-    : (action.type === 'sla' || action.type === 'renewal') && action.contract_id
-    ? `/contracts/${action.contract_id}`
-    : null
-
-  const content = (
-    <div className={cn('border-l-4 p-3 rounded-r', severityColors[action.severity] || 'border-l-gray-300 bg-gray-50')}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-900">{action.title}</p>
-          <p className="text-xs text-gray-500 mt-1">{action.action}</p>
-        </div>
-        <span className={cn(
-          'text-xs px-2 py-0.5 rounded-full',
-          action.type === 'obligation' ? 'bg-blue-100 text-blue-700' :
-          action.type === 'sla' ? 'bg-purple-100 text-purple-700' :
-          'bg-green-100 text-green-700'
-        )}>
-          {t(`postsigning.actionType.${action.type}`, { defaultValue: action.type })}
-        </span>
-      </div>
-    </div>
-  )
-
-  if (linkTarget) {
-    return <Link to={linkTarget} className="block hover:opacity-80 transition-opacity">{content}</Link>
-  }
-  return content
-}
-
 export default function PostSigningPage() {
   const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -393,10 +353,6 @@ export default function PostSigningPage() {
     return trendData.data_points.map(p => Math.round(p.sla_compliance_rate))
   }, [trendData])
 
-  const breachChart = useMemo(() => {
-    if (!trendData?.data_points?.length) return undefined
-    return trendData.data_points.map(p => p.sla_breaches)
-  }, [trendData])
 
   // Filter SLAs locally
   const filteredSLAs = useMemo(() => {
@@ -472,7 +428,6 @@ export default function PostSigningPage() {
   }
 
   // A rate is only meaningful once the underlying items are actually tracked.
-  const oblTracked = dashboard.obligations.completed + dashboard.obligations.in_progress + dashboard.obligations.overdue
   const slaMeasured = dashboard.slas.compliant + dashboard.slas.breached > 0
 
   const tabs = [
@@ -505,25 +460,8 @@ export default function PostSigningPage() {
         }
       />
 
-      {/* Summary Stats */}
+      {/* Summary Stats — fact-derived signals only */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title={t('postsigning.obligationsTracked')}
-          value={dashboard.obligations.total}
-          subtitle={t('postsigning.obligationsCardSubtitle', { completed: dashboard.obligations.completed, overdue: dashboard.obligations.overdue })}
-          icon={CheckCircleIcon}
-          color={dashboard.obligations.overdue > 0 ? 'warning' : 'primary'}
-          variant="filled"
-        />
-        <StatCard
-          title={t('postsigning.contractsAtRisk')}
-          value={dashboard.contracts_needing_attention}
-          subtitle={t('postsigning.priorityActionsCount', { count: dashboard.compliance.high_priority_actions })}
-          icon={ExclamationTriangleIcon}
-          color={dashboard.contracts_needing_attention > 0 ? 'danger' : 'success'}
-          variant="filled"
-          chart={breachChart}
-        />
         <StatCard
           title={t('postsigning.activeContracts')}
           value={dashboard.total_contracts}
@@ -538,6 +476,22 @@ export default function PostSigningPage() {
           subtitle={t('postsigning.pastNoticeDeadlineCount', { count: dashboard.renewals.past_notice_deadline })}
           icon={CalendarIcon}
           color={dashboard.renewals.past_notice_deadline > 0 ? 'warning' : 'default'}
+          variant="filled"
+        />
+        <StatCard
+          title={t('postsigning.tabs.vendors', { count: dashboard.vendors.total_vendors })}
+          value={dashboard.vendors.total_vendors}
+          subtitle={t('postsigning.vendorsSubtitle')}
+          icon={BuildingOfficeIcon}
+          color="primary"
+          variant="filled"
+        />
+        <StatCard
+          title={t('postsigning.obligationsTracked')}
+          value={dashboard.obligations.total}
+          subtitle={t('postsigning.extractedUntracked')}
+          icon={CheckCircleIcon}
+          color="default"
           variant="filled"
         />
       </div>
@@ -566,188 +520,77 @@ export default function PostSigningPage() {
       {/* Tab Content */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Priority Actions */}
+          {/* Renewals coming up — fact-derived from expiration dates */}
           <div className="lg:col-span-2 card">
-            <div className="card-header">
-              <h3 className="font-medium text-gray-900">{t('postsigning.priorityActions')}</h3>
+            <div className="card-header flex items-center justify-between">
+              <h3 className="font-medium text-gray-900">{t('postsigning.renewalsComingUp')}</h3>
+              <button
+                onClick={() => setActiveTab('renewals')}
+                className="text-xs text-primary-600 hover:underline"
+              >
+                {t('postsigning.viewAll')}
+              </button>
             </div>
-            <div className="p-4 space-y-3">
-              {dashboard.priority_actions.length > 0 ? (
-                dashboard.priority_actions.map((action, idx) => (
-                  <PriorityActionItem key={idx} action={action} />
-                ))
+            <div className="p-4">
+              {dashboard.renewals.upcoming_renewals.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-gray-500 border-b border-gray-200">
+                        <th className="py-2 pr-4">{t('postsigning.colContract')}</th>
+                        <th className="py-2 pr-4">{t('postsigning.colCounterparty')}</th>
+                        <th className="py-2 pr-4">{t('postsigning.colExpires')}</th>
+                        <th className="py-2 pr-4 text-right">{t('postsigning.colDays')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dashboard.renewals.upcoming_renewals.slice(0, 8).map((r) => {
+                        const days = r.expiration_date
+                          ? Math.ceil((new Date(r.expiration_date).getTime() - Date.now()) / 86400000)
+                          : null
+                        return (
+                          <tr key={r.contract_id} className="border-b border-gray-100">
+                            <td className="py-2 pr-4 max-w-xs truncate">
+                              <Link to={`/contracts/${r.contract_id}`} className="text-primary-600 hover:underline font-medium">
+                                {r.filename}
+                              </Link>
+                            </td>
+                            <td className="py-2 pr-4 text-gray-600">{r.counterparty || '—'}</td>
+                            <td className="py-2 pr-4 text-gray-600">{r.expiration_date || '—'}</td>
+                            <td className={cn('py-2 pr-4 text-right font-medium', days != null && days < 30 ? 'text-amber-600' : 'text-gray-700')}>
+                              {days != null ? t('postsigning.daysCount', { count: days }) : '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <p className="text-sm text-gray-500 text-center py-4">{t('postsigning.noPriorityActions')}</p>
+                <p className="text-sm text-gray-500 text-center py-6">{t('postsigning.noUpcomingRenewals')}</p>
               )}
             </div>
           </div>
 
-          {/* Quick Stats Sidebar */}
-          <div className="space-y-4">
-            {/* Obligations Summary */}
-            <div className="card">
-              <div className="card-header flex items-center justify-between">
-                <h3 className="font-medium text-gray-900">{t('postsigning.obligations')}</h3>
-                <button
-                  onClick={() => setActiveTab('obligations')}
-                  className="text-xs text-primary-600 hover:underline"
-                >
-                  {t('postsigning.viewAll')}
-                </button>
-              </div>
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  {dashboard.obligations.total === 0 ? (
-                    <span className="text-sm text-gray-400">{t('postsigning.noData')}</span>
-                  ) : oblTracked > 0 ? (
-                    <>
-                      <span className="text-2xl font-bold text-gray-900">
-                        {dashboard.obligations.compliance_rate.toFixed(1)}%
-                      </span>
-                      <span className="text-sm text-gray-500">{t('postsigning.compliance')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-2xl font-bold text-gray-900">{dashboard.obligations.total}</span>
-                      <span className="text-sm text-gray-400">{t('postsigning.notTracked')}</span>
-                    </>
-                  )}
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t('status.completed')}</span>
-                    <span className="font-medium text-green-600">{dashboard.obligations.completed}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t('postsigning.status.in_progress')}</span>
-                    <span className="font-medium text-blue-600">{dashboard.obligations.in_progress}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t('postsigning.status.overdue')}</span>
-                    <span className="font-medium text-red-600">{dashboard.obligations.overdue}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t('postsigning.atRisk')}</span>
-                    <span className="font-medium text-amber-600">{dashboard.obligations.at_risk}</span>
-                  </div>
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <div className="flex-1 text-center py-1 rounded bg-green-50 text-green-700 text-xs">
-                    {dashboard.obligations.green} {t('postsigning.rag.green')}
-                  </div>
-                  <div className="flex-1 text-center py-1 rounded bg-amber-50 text-amber-700 text-xs">
-                    {dashboard.obligations.amber} {t('postsigning.rag.amber')}
-                  </div>
-                  <div className="flex-1 text-center py-1 rounded bg-red-50 text-red-700 text-xs">
-                    {dashboard.obligations.red} {t('postsigning.rag.red')}
-                  </div>
-                </div>
-              </div>
+          {/* Extracted items — honest counts, no fabricated status */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="font-medium text-gray-900">{t('postsigning.extractedItems')}</h3>
             </div>
-
-            {/* SLA Summary */}
-            <div className="card">
-              <div className="card-header flex items-center justify-between">
-                <h3 className="font-medium text-gray-900">{t('postsigning.slaPerformance')}</h3>
-                <button
-                  onClick={() => setActiveTab('slas')}
-                  className="text-xs text-primary-600 hover:underline"
-                >
-                  {t('postsigning.viewAll')}
-                </button>
-              </div>
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  {dashboard.slas.total_slas === 0 ? (
-                    <span className="text-sm text-gray-400">{t('postsigning.noData')}</span>
-                  ) : slaMeasured ? (
-                    <>
-                      <span className="text-2xl font-bold text-gray-900">
-                        {dashboard.slas.compliance_rate.toFixed(1)}%
-                      </span>
-                      <span className="text-sm text-gray-500">{t('postsigning.compliance')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-2xl font-bold text-gray-900">{dashboard.slas.active_slas}</span>
-                      <span className="text-sm text-gray-400">{t('postsigning.notMeasured')}</span>
-                    </>
-                  )}
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t('postsigning.activeSlas')}</span>
-                    <span className="font-medium">{dashboard.slas.active_slas}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t('status.breached')}</span>
-                    <span className="font-medium text-red-600">{dashboard.slas.breached}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t('postsigning.penaltiesMtd')}</span>
-                    <span className="font-medium text-red-600">
-                      ${dashboard.slas.total_penalties_mtd.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Milestones Summary */}
-            <div className="card">
-              <div className="card-header flex items-center justify-between">
-                <h3 className="font-medium text-gray-900">{t('postsigning.milestones')}</h3>
-                <button
-                  onClick={() => setActiveTab('milestones')}
-                  className="text-xs text-primary-600 hover:underline"
-                >
-                  {t('postsigning.viewAll')}
-                </button>
-              </div>
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  {dashboard.milestones.total_milestones > 0 ? (
-                    <>
-                      <span className="text-2xl font-bold text-gray-900">
-                        {dashboard.milestones.completion_rate.toFixed(1)}%
-                      </span>
-                      <span className="text-sm text-gray-500">{t('postsigning.complete')}</span>
-                    </>
-                  ) : (
-                    <span className="text-sm text-gray-400">{t('postsigning.noData')}</span>
-                  )}
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t('postsigning.total')}</span>
-                    <span className="font-medium">{dashboard.milestones.total_milestones}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t('status.completed')}</span>
-                    <span className="font-medium text-green-600">{dashboard.milestones.completed}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t('postsigning.status.overdue')}</span>
-                    <span className="font-medium text-red-600">{dashboard.milestones.overdue}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">{t('postsigning.atRisk')}</span>
-                    <span className="font-medium text-amber-600">{dashboard.milestones.at_risk}</span>
-                  </div>
-                </div>
-                {/* Completion bar */}
-                <div className="mt-3">
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-green-500 rounded-full transition-all"
-                      style={{ width: `${dashboard.milestones.completion_rate}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {t('postsigning.completedOfTotal', { completed: dashboard.milestones.completed, total: dashboard.milestones.total_milestones })}
-                  </p>
-                </div>
-              </div>
+            <div className="p-4 text-sm">
+              <button onClick={() => setActiveTab('obligations')} className="w-full flex justify-between items-center py-2 hover:text-primary-600">
+                <span className="text-gray-600">{t('postsigning.obligations')}</span>
+                <span className="font-semibold text-gray-900">{dashboard.obligations.total}</span>
+              </button>
+              <button onClick={() => setActiveTab('slas')} className="w-full flex justify-between items-center py-2 border-t border-gray-100 hover:text-primary-600">
+                <span className="text-gray-600">{t('postsigning.slaPerformance')}</span>
+                <span className="font-semibold text-gray-900">{dashboard.slas.total_slas}</span>
+              </button>
+              <button onClick={() => setActiveTab('milestones')} className="w-full flex justify-between items-center py-2 border-t border-gray-100 hover:text-primary-600">
+                <span className="text-gray-600">{t('postsigning.milestones')}</span>
+                <span className="font-semibold text-gray-900">{dashboard.milestones.total_milestones}</span>
+              </button>
+              <p className="text-xs text-gray-400 pt-3 mt-1 border-t border-gray-100">{t('postsigning.statusTrackingNote')}</p>
             </div>
           </div>
         </div>
