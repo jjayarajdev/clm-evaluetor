@@ -54,20 +54,21 @@ class ContractService:
     def _apply_bu_filter(self, query):
         """Apply business unit filter based on user role.
 
-        Role hierarchy:
-        - SUPER_ADMIN: No BU filter (sees all)
-        - ADMIN: No BU filter within tenant (sees all in tenant)
-        - BU_HEAD: Sees all contracts in their BU and child BUs
-        - LEGAL/PROCUREMENT/VIEWER: Sees contracts in their BU only, or all if no BU assigned
+        BU scoping applies to every tenant role (admin included) when a BU is
+        assigned. Escape hatches:
+        - SUPER_ADMIN: cross-tenant platform operator, never BU-restricted.
+        - BU_HEAD: sees their BU and child BUs.
+        - Any role with NO BU assigned: full tenant visibility (a tenant-wide
+          admin is just an admin with no BU).
         """
         from sqlalchemy import or_
         from app.models.user import Role
 
-        # Super admin and tenant admin see everything
-        if self.user_role in [Role.SUPER_ADMIN.value, Role.ADMIN.value, "super_admin", "admin"]:
+        # Only the platform super_admin sees everything regardless of BU
+        if self.user_role in [Role.SUPER_ADMIN.value, "super_admin"]:
             return query
 
-        # If user has no BU assigned, they can see all (legacy behavior)
+        # If user has no BU assigned, they can see all (tenant-wide access)
         if self.business_unit_id is None:
             return query
 

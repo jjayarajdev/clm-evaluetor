@@ -685,7 +685,9 @@
     "buAdminNote": "Les administrateurs voient tous les contrats de toutes les unités opérationnelles.",
     "buNoneYet": "Aucune unité opérationnelle — créez-les dans Admin → Unités opérationnelles. Sans cela, cet utilisateur verra tous les contrats.",
     "buSelectPlaceholder": "Sélectionnez une unité opérationnelle…",
-    "buScopeHint": "Détermine les contrats visibles par cet utilisateur (son unité + non attribués)."
+    "buScopeHint": "Détermine les contrats visibles par cet utilisateur (son unité + non attribués).",
+    "buFullAccess": "— Non attribué (accès à tout le tenant) —",
+    "buAdminScopeHint": "Laissez non attribué pour un accès à tout le tenant, ou choisissez une unité pour y restreindre cet administrateur."
   },
   "obligation": {
     "notFound": "Obligation introuvable",

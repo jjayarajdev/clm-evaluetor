@@ -685,7 +685,9 @@
     "buAdminNote": "Admins see all contracts across every business unit.",
     "buNoneYet": "No business units yet — create them under Admin → Business Units. Without one, this user will see all contracts.",
     "buSelectPlaceholder": "Select a business unit…",
-    "buScopeHint": "Controls which contracts this user can see (their unit + unassigned)."
+    "buScopeHint": "Controls which contracts this user can see (their unit + unassigned).",
+    "buFullAccess": "— Unassigned (full tenant access) —",
+    "buAdminScopeHint": "Leave unassigned for full tenant access, or pick a unit to restrict this admin to it."
   },
   "obligation": {
     "notFound": "Obligation not found",
