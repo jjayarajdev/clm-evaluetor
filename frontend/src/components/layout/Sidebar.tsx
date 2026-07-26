@@ -32,7 +32,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { can, type Permission } from '@/lib/rbac'
 import { useSidebar } from '@/contexts/SidebarContext'
-import { cn } from '@/lib/utils'
+import { cn, userDisplayName, userInitials } from '@/lib/utils'
 
 interface SidebarProps {
   open: boolean
@@ -535,13 +535,13 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             )}>
               <div className="h-9 w-9 shrink-0 rounded-full bg-primary-600 flex items-center justify-center hover:ring-2 hover:ring-primary-400 transition-all">
                 <span className="text-sm font-semibold text-white">
-                  {user.username.charAt(0).toUpperCase()}
+                  {userInitials(user)}
                 </span>
               </div>
               {!collapsed && (
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white truncate">
-                    {user.full_name || user.username}
+                    {userDisplayName(user)}
                   </p>
                   <p className="text-xs text-gray-400 truncate">{t(`roles.${user.role}`)}</p>
                   {user.tenant_name && (
@@ -554,7 +554,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             {collapsed && (
               <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                 <div className="bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap shadow-lg">
-                  {user.full_name || user.username}
+                  {userDisplayName(user)}
                   <span className="text-gray-400 ml-1">({t(`roles.${user.role}`)})</span>
                   {user.tenant_name && (
                     <span className="text-primary-400 ml-1">&middot; {user.tenant_name}</span>

@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { setAppLanguage, type AppLanguage } from '@/i18n'
 import api from '@/lib/api'
-import { cn } from '@/lib/utils'
+import { cn, userDisplayName, userInitials } from '@/lib/utils'
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -112,7 +112,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Menu.Button className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-gray-50">
               <div className="hidden sm:block text-right">
                 <span className="block text-sm font-semibold text-gray-900">
-                  {user?.full_name || user?.username}
+                  {userDisplayName(user)}
                 </span>
                 <span className="flex items-center justify-end gap-1.5 text-xs text-gray-500">
                   <span className={cn(
@@ -129,7 +129,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
               </div>
               <div className="h-9 w-9 rounded-full bg-primary-100 flex items-center justify-center">
                 <span className="text-sm font-semibold text-primary-700">
-                  {user?.username.charAt(0).toUpperCase()}
+                  {userInitials(user)}
                 </span>
               </div>
               <ChevronDownIcon className="h-4 w-4 text-gray-400" />
@@ -147,8 +147,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
               <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                 <div className="px-4 py-2 border-b border-gray-100">
                   <p className="text-sm font-medium text-gray-900">
-                    {user?.full_name || user?.username}
+                    {userDisplayName(user)}
                   </p>
+                  <p className="text-xs text-gray-500">@{user?.username}</p>
                   <p className="text-xs text-gray-500">{user?.email}</p>
                   <p className="text-xs font-medium text-primary-600 capitalize mt-0.5">
                     {user?.role ? t(`roles.${user.role}`) : ''} &middot; {user?.tenant_name || t('nav.system')}

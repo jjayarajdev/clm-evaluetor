@@ -93,3 +93,29 @@ export function truncate(str: string, length: number): string {
   if (str.length <= length) return str
   return str.slice(0, length) + '...'
 }
+
+interface NameParts {
+  full_name?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  username?: string | null
+}
+
+/** Preferred display name: full name → first + last → username. */
+export function userDisplayName(user?: NameParts | null): string {
+  if (!user) return ''
+  const composed = [user.first_name, user.last_name]
+    .filter((p) => p && p.trim())
+    .join(' ')
+    .trim()
+  return user.full_name?.trim() || composed || user.username || ''
+}
+
+/** Avatar initial(s) derived from the display name (falls back to username). */
+export function userInitials(user?: NameParts | null): string {
+  const name = userDisplayName(user)
+  if (!name) return '?'
+  const parts = name.split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return name.charAt(0).toUpperCase()
+}
