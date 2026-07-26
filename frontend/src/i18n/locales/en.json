@@ -407,7 +407,9 @@
       "risk_assessment_one": "{{count}} high-risk contract identified. Review risk mitigation strategies.",
       "risk_assessment_other": "{{count}} high-risk contracts identified. Review risk mitigation strategies.",
       "all_clear": "No critical issues detected. All contracts and obligations are on track."
-    }
+    },
+    "notTracked": "Not tracked — no obligations marked completed or in progress.",
+    "notMeasured": "Not measured — no SLA performance data yet."
   },
   "query": {
     "suggested": {

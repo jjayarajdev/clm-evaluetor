@@ -289,6 +289,11 @@ export default function ModernDashboardPage() {
 
       {/* Stats Grid - driven by config.ui.dashboard_widgets */}
       {(() => {
+        // Honest %: show "—" when the backend reports null (not measured / not
+        // tracked) rather than a misleading 0.0% / 100.0%.
+        const pct = (v: number | null | undefined) => (v == null ? '—' : `${v.toFixed(1)}%`)
+        const rateColor = (v: number | null | undefined): 'default' | 'success' | 'warning' | 'danger' =>
+          v == null ? 'default' : v >= 90 ? 'success' : v >= 70 ? 'warning' : 'danger'
         // Map widget keys to their computed values, icons, colors, trends, and charts
         const widgetDataMap: Record<string, {
           value: string | number
@@ -319,9 +324,9 @@ export default function ModernDashboardPage() {
             chart: trendData?.contracts_at_risk,
           },
           compliance_rate: {
-            value: `${(complianceData?.compliance?.overall_compliance_rate || 0).toFixed(1)}%`,
+            value: pct(complianceData?.compliance?.overall_compliance_rate),
             icon: CheckCircleIcon,
-            color: 'success',
+            color: complianceData?.compliance?.overall_compliance_rate == null ? 'default' : 'success',
             info: t('dashboard.complianceInfo'),
             trend: (trendData?.compliance_rate?.length ?? 0) >= 2 ? {
               value: Math.round(trendData!.compliance_rate![trendData!.compliance_rate!.length - 1] - trendData!.compliance_rate![0]),
@@ -340,15 +345,17 @@ export default function ModernDashboardPage() {
             chart: trendData?.total_contract_value,
           },
           obligation_rate: {
-            value: `${(complianceData?.obligations?.compliance_rate || 0).toFixed(1)}%`,
+            value: pct(complianceData?.obligations?.compliance_rate),
             icon: ScaleIcon,
-            color: (complianceData?.obligations?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.obligations?.compliance_rate || 0) >= 70 ? 'warning' : 'danger',
+            color: rateColor(complianceData?.obligations?.compliance_rate),
+            info: complianceData?.obligations?.compliance_rate == null ? t('dashboard.notTracked') : undefined,
             chart: trendData?.compliance_rate,
           },
           sla_rate: {
-            value: `${(complianceData?.slas?.compliance_rate || 0).toFixed(1)}%`,
+            value: pct(complianceData?.slas?.compliance_rate),
             icon: ChartBarIcon,
-            color: (complianceData?.slas?.compliance_rate || 0) >= 90 ? 'success' : (complianceData?.slas?.compliance_rate || 0) >= 70 ? 'warning' : 'danger',
+            color: rateColor(complianceData?.slas?.compliance_rate),
+            info: complianceData?.slas?.compliance_rate == null ? t('dashboard.notMeasured') : undefined,
             chart: trendData?.sla_compliance_rate,
           },
         }
