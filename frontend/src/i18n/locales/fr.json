@@ -2931,5 +2931,10 @@
     "findingUpdateFailed": "Échec de la mise à jour du constat",
     "findingSources_one": "Mentionné par {{count}} document :",
     "findingSources_other": "Mentionné par {{count}} documents :"
+  },
+  "notifFeed": {
+    "title": "Notifications",
+    "count": "{{count}} à traiter",
+    "empty": "Vous êtes à jour"
   }
 }

@@ -1,5 +1,7 @@
 import { Menu, Transition } from '@headlessui/react'
 import { Fragment } from 'react'
+import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   Bars3Icon,
   BellIcon,
@@ -12,7 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { setAppLanguage, type AppLanguage } from '@/i18n'
 import api from '@/lib/api'
-import { cn, userDisplayName, userInitials } from '@/lib/utils'
+import { cn, userDisplayName, userInitials, formatDate } from '@/lib/utils'
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -23,9 +25,29 @@ const LANGUAGES: { code: AppLanguage; labelKey: string }[] = [
   { code: 'fr', labelKey: 'common.french' },
 ]
 
+const SEVERITY_DOT: Record<string, string> = {
+  high: 'bg-red-500',
+  medium: 'bg-amber-500',
+  low: 'bg-gray-300',
+}
+const SEVERITY_BADGE: Record<string, string> = {
+  high: 'bg-red-50 text-red-700',
+  medium: 'bg-amber-50 text-amber-700',
+  low: 'bg-gray-100 text-gray-600',
+}
+
 export default function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth()
   const { t, i18n } = useTranslation()
+
+  const { data: notif } = useQuery({
+    queryKey: ['notifications-feed'],
+    queryFn: () => api.getNotificationFeed(),
+    enabled: !!user,
+    refetchInterval: 60000,
+    staleTime: 30000,
+  })
+  const notifCount = notif?.count ?? 0
 
   const changeLanguage = async (code: AppLanguage) => {
     setAppLanguage(code)
@@ -57,15 +79,74 @@ export default function Header({ onMenuClick }: HeaderProps) {
         {/* Right section */}
         <div className="flex items-center gap-4">
           {/* Notifications */}
-          <button
-            type="button"
-            className="p-2 text-gray-500 hover:text-gray-700 relative"
-          >
-            <span className="sr-only">{t('nav.viewNotifications')}</span>
-            <BellIcon className="h-6 w-6" />
-            {/* Notification badge */}
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />
-          </button>
+          <Menu as="div" className="relative">
+            <Menu.Button className="p-2 text-gray-500 hover:text-gray-700 relative rounded-lg hover:bg-gray-50">
+              <span className="sr-only">{t('nav.viewNotifications')}</span>
+              <BellIcon className="h-6 w-6" />
+              {notifCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
+                  {notifCount > 9 ? '9+' : notifCount}
+                </span>
+              )}
+            </Menu.Button>
+            <Transition
+              as={Fragment}
+              enter="transition ease-out duration-100"
+              enterFrom="transform opacity-0 scale-95"
+              enterTo="transform opacity-100 scale-100"
+              leave="transition ease-in duration-75"
+              leaveFrom="transform opacity-100 scale-100"
+              leaveTo="transform opacity-0 scale-95"
+            >
+              <Menu.Items className="absolute right-0 z-10 mt-2 w-96 max-w-[calc(100vw-2rem)] origin-top-right rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none flex flex-col max-h-[70vh]">
+                <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {t('notifFeed.title', { defaultValue: 'Notifications' })}
+                  </p>
+                  {notifCount > 0 && (
+                    <span className="text-xs text-gray-400">
+                      {t('notifFeed.count', { defaultValue: '{{count}} needing attention', count: notifCount })}
+                    </span>
+                  )}
+                </div>
+                <div className="overflow-y-auto flex-1 py-1">
+                  {!notif || notif.items.length === 0 ? (
+                    <div className="px-4 py-10 text-center">
+                      <BellIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm text-gray-400">
+                        {t('notifFeed.empty', { defaultValue: "You're all caught up" })}
+                      </p>
+                    </div>
+                  ) : (
+                    notif.items.map((item) => (
+                      <Menu.Item key={item.id}>
+                        {({ active }) => (
+                          <Link
+                            to={item.link}
+                            className={cn('flex gap-3 px-4 py-2.5', active && 'bg-gray-50')}
+                          >
+                            <span className={cn('mt-1.5 h-2 w-2 rounded-full flex-shrink-0', SEVERITY_DOT[item.severity] || 'bg-gray-300')} />
+                            <span className="flex-1 min-w-0">
+                              <span className="flex items-center gap-2">
+                                <span className={cn('text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded', SEVERITY_BADGE[item.severity] || 'bg-gray-100 text-gray-600')}>
+                                  {item.label}
+                                </span>
+                                <span className="text-[11px] text-gray-400">{formatDate(item.date)}</span>
+                              </span>
+                              <span className="block text-sm text-gray-800 truncate mt-0.5">{item.title}</span>
+                              {item.subtitle && (
+                                <span className="block text-xs text-gray-400 truncate">{item.subtitle}</span>
+                              )}
+                            </span>
+                          </Link>
+                        )}
+                      </Menu.Item>
+                    ))
+                  )}
+                </div>
+              </Menu.Items>
+            </Transition>
+          </Menu>
 
           {/* Language switcher */}
           <Menu as="div" className="relative">
