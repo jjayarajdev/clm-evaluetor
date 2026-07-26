@@ -73,7 +73,7 @@ class MilestoneWidget(BaseModel):
     completed: int
     at_risk: int
     overdue: int
-    completion_rate: float
+    completion_rate: float | None = None  # None = no milestones to measure
 
     # This week's milestones
     due_this_week: list[dict]

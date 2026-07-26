@@ -394,7 +394,8 @@ class PostSigningService:
             and o.status not in (ObligationStatus.COMPLETED, ObligationStatus.WAIVED)
             and o.deadline and 0 <= (o.deadline - today).days <= 7
         )
-        ms_completion_rate = (ms_completed / ms_total * 100) if ms_total > 0 else 100
+        # Honest: None when there are no milestones (not a fake 100% complete).
+        ms_completion_rate = round(ms_completed / ms_total * 100, 2) if ms_total > 0 else None
 
         week_end = today + timedelta(days=7)
         due_this_week_obls = [

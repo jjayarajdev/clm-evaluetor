@@ -427,8 +427,9 @@ export default function PostSigningPage() {
     )
   }
 
-  // A rate is only meaningful once the underlying items are actually tracked.
-  const slaMeasured = dashboard.slas.compliant + dashboard.slas.breached > 0
+  // A rate is only meaningful once the backend actually measured it (null = not measured).
+  const slaMeasured = dashboard.slas.compliance_rate != null
+  const msMeasured = dashboard.milestones.completion_rate != null
 
   const tabs = [
     { id: 'overview', label: t('postsigning.tabs.overview'), icon: ChartBarIcon },
@@ -713,7 +714,7 @@ export default function PostSigningPage() {
         <div className="space-y-4">
           {/* SLA Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard title={t('postsigning.slaCompliance')} value={slaMeasured ? `${dashboard.slas.compliance_rate.toFixed(1)}%` : t('postsigning.notMeasured')} subtitle={!slaMeasured ? t('postsigning.noData') : undefined} icon={CheckCircleIcon} color={!slaMeasured ? 'default' : (dashboard.slas.compliance_rate >= 90 ? 'success' : 'warning')} variant="filled" chart={slaMeasured ? slaChart : undefined} />
+            <StatCard title={t('postsigning.slaCompliance')} value={slaMeasured ? `${dashboard.slas.compliance_rate!.toFixed(1)}%` : t('postsigning.notMeasured')} subtitle={!slaMeasured ? t('postsigning.noData') : undefined} icon={CheckCircleIcon} color={!slaMeasured ? 'default' : (dashboard.slas.compliance_rate! >= 90 ? 'success' : 'warning')} variant="filled" chart={slaMeasured ? slaChart : undefined} />
             <StatCard title={t('postsigning.activeSlas')} value={dashboard.slas.active_slas} icon={FlagIcon} color="primary" variant="filled" />
             <StatCard title={t('status.breached')} value={dashboard.slas.breached} icon={ExclamationTriangleIcon} color="danger" variant="filled" />
             <StatCard title={t('postsigning.penaltiesMtd')} value={`$${dashboard.slas.total_penalties_mtd.toLocaleString()}`} icon={ChartBarIcon} color="warning" variant="filled" />
@@ -924,9 +925,10 @@ export default function PostSigningPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard
               title={t('postsigning.completionRate')}
-              value={`${dashboard.milestones.completion_rate.toFixed(1)}%`}
+              value={msMeasured ? `${dashboard.milestones.completion_rate!.toFixed(1)}%` : t('postsigning.notMeasured')}
+              subtitle={!msMeasured ? t('postsigning.noData') : undefined}
               icon={CheckCircleIcon}
-              color={dashboard.milestones.completion_rate >= 80 ? 'success' : dashboard.milestones.completion_rate >= 50 ? 'warning' : 'danger'}
+              color={!msMeasured ? 'default' : (dashboard.milestones.completion_rate! >= 80 ? 'success' : dashboard.milestones.completion_rate! >= 50 ? 'warning' : 'danger')}
               variant="filled"
               chart={obligationChart}
             />
