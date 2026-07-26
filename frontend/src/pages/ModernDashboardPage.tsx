@@ -470,9 +470,11 @@ export default function ModernDashboardPage() {
               <InsightCard
                 key={idx}
                 title={t(`dashboard.dyn.${slugKey(insight.title)}`, { defaultValue: insight.title })}
-                description={insight.description}
+                description={(insight as any).key
+                  ? (t(`dashboard.insightDesc.${(insight as any).key}`, { ...((insight as any).params || {}), defaultValue: insight.description }) as string)
+                  : insight.description}
                 action={insight.action}
-                actionLabel={insight.action_label}
+                actionLabel={t(`dashboard.dyn.${slugKey(insight.action_label)}`, { defaultValue: insight.action_label })}
                 variant={insight.variant as 'info' | 'warning' | 'success'}
               />
             ))}

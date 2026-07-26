@@ -32,6 +32,10 @@ interface WelcomeBannerProps {
   quickActions?: QuickAction[]
 }
 
+// Quick-action labels/descriptions are static config; translate at render by
+// slugging the English string into a key (English kept as fallback).
+const slugKey = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+
 const defaultQuickActions: Record<RoleType, QuickAction[]> = {
   legal: [
     { label: 'High Risk', description: 'Review contracts', href: '/contracts?risk=high', icon: ExclamationTriangleIcon, badge: 5, badgeColor: 'red' },
@@ -137,7 +141,7 @@ export default function WelcomeBanner({
                   action.badgeColor === 'red' ? 'text-red-900'
                   : action.badgeColor === 'amber' ? 'text-amber-900'
                   : 'text-primary-900'
-                )}>{action.label}</span>
+                )}>{t(`welcomeBanner.${slugKey(action.label)}`, { defaultValue: action.label })}</span>
                 {action.badge !== undefined && (
                   <span className={cn(
                     'px-1.5 py-0.5 text-xs font-semibold rounded-full',
@@ -154,7 +158,7 @@ export default function WelcomeBanner({
                 action.badgeColor === 'red' ? 'text-red-600'
                 : action.badgeColor === 'amber' ? 'text-amber-600'
                 : 'text-primary-500'
-              )}>{action.description}</p>
+              )}>{t(`welcomeBanner.${slugKey(action.description)}`, { defaultValue: action.description })}</p>
             </div>
             <ArrowRightIcon className={cn(
               'h-4 w-4 group-hover:translate-x-0.5 transition-all',

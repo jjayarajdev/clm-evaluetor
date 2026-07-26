@@ -390,7 +390,23 @@
       "contract_updated": "Contrat mis à jour",
       "obligation_completed": "Obligation terminée",
       "sla_breach_detected": "Violation de SLA détectée",
-      "contract_analyzed": "Contrat analysé"
+      "contract_analyzed": "Contrat analysé",
+      "view_renewals": "Voir les renouvellements",
+      "review_compliance": "Examiner la conformité",
+      "view_overdue": "Voir les retards",
+      "view_risks": "Voir les risques",
+      "view_contracts": "Voir les contrats"
+    },
+    "insightDesc": {
+      "renewal_opportunity_one": "{{count}} contrat expirant sous 30 jours d'une valeur de {{value}}. Envisagez une renégociation anticipée.",
+      "renewal_opportunity_other": "{{count}} contrats expirant sous 30 jours d'une valeur de {{value}}. Envisagez une renégociation anticipée.",
+      "compliance_alert_one": "{{count}} SLA en violation de cible actuellement. Examinez et escaladez.",
+      "compliance_alert_other": "{{count}} SLA en violation de cibles actuellement. Examinez et escaladez.",
+      "overdue_obligations_one": "{{count}} obligation dépassant l'échéance. Action immédiate requise.",
+      "overdue_obligations_other": "{{count}} obligations dépassant l'échéance. Action immédiate requise.",
+      "risk_assessment_one": "{{count}} contrat à haut risque identifié. Examinez les stratégies d'atténuation.",
+      "risk_assessment_other": "{{count}} contrats à haut risque identifiés. Examinez les stratégies d'atténuation.",
+      "all_clear": "Aucun problème critique détecté. Tous les contrats et obligations sont en ordre."
     }
   },
   "query": {
@@ -2963,5 +2979,31 @@
       "renewal_due": "Renouvellement dû",
       "sla": "Alerte SLA"
     }
+  },
+  "welcomeBanner": {
+    "high_risk": "Risque élevé",
+    "pending_review": "En attente de révision",
+    "ask_ai": "Demander à l'IA",
+    "expiring_soon": "Bientôt expiré",
+    "vendors": "Fournisseurs",
+    "new_contract": "Nouveau contrat",
+    "system_health": "État du système",
+    "renewals": "Renouvellements",
+    "users": "Utilisateurs",
+    "my_contracts": "Mes contrats",
+    "reports": "Rapports",
+    "browse": "Parcourir",
+    "review_contracts": "Examiner les contrats",
+    "awaiting_approval": "En attente d'approbation",
+    "query_contracts": "Interroger les contrats",
+    "next_30_days": "30 prochains jours",
+    "performance_scores": "Scores de performance",
+    "upload_analyze": "Téléverser et analyser",
+    "monitor_services": "Surveiller les services",
+    "manage_access": "Gérer les accès",
+    "business_unit_contracts": "Contrats de l'unité",
+    "unit_analytics": "Analytique de l'unité",
+    "all_contracts": "Tous les contrats",
+    "view_analytics": "Voir l'analytique"
   }
 }

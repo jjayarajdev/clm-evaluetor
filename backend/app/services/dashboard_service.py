@@ -1307,7 +1307,9 @@ async def get_insights(
             description=f"{expiring_count} contract{'s' if expiring_count > 1 else ''} expiring in 30 days worth {value_str}. Consider early renewal negotiations.",
             action="/renewals?window=30",
             action_label="View renewals",
-            variant="info"
+            variant="info",
+            key="renewal_opportunity",
+            params={"count": expiring_count, "value": value_str},
         ))
 
     # 2. Compliance Alert
@@ -1325,7 +1327,9 @@ async def get_insights(
             description=f"{breached_sla_count} SLA{'s' if breached_sla_count > 1 else ''} currently breaching target{'s' if breached_sla_count > 1 else ''}. Review and escalate.",
             action="/compliance",
             action_label="Review compliance",
-            variant="warning"
+            variant="warning",
+            key="compliance_alert",
+            params={"count": breached_sla_count},
         ))
 
     # 3. Overdue Obligations
@@ -1344,7 +1348,9 @@ async def get_insights(
             description=f"{overdue_count} obligation{'s' if overdue_count > 1 else ''} past due date. Immediate action required.",
             action="/compliance?tab=obligations&status=overdue",
             action_label="View overdue",
-            variant="warning"
+            variant="warning",
+            key="overdue_obligations",
+            params={"count": overdue_count},
         ))
 
     # 4. High Risk Contracts
@@ -1362,7 +1368,9 @@ async def get_insights(
             description=f"{high_risk_count} high-risk contract{'s' if high_risk_count > 1 else ''} identified. Review risk mitigation strategies.",
             action="/contracts?risk=high",
             action_label="View risks",
-            variant="warning"
+            variant="warning",
+            key="risk_assessment",
+            params={"count": high_risk_count},
         ))
 
     if not insights:
@@ -1371,7 +1379,9 @@ async def get_insights(
             description="No critical issues detected. All contracts and obligations are on track.",
             action="/contracts",
             action_label="View contracts",
-            variant="success"
+            variant="success",
+            key="all_clear",
+            params={},
         ))
 
     return InsightsResponse(insights=insights)

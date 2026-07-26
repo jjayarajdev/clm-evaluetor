@@ -390,7 +390,23 @@
       "contract_updated": "Contract updated",
       "obligation_completed": "Obligation completed",
       "sla_breach_detected": "SLA breach detected",
-      "contract_analyzed": "Contract analyzed"
+      "contract_analyzed": "Contract analyzed",
+      "view_renewals": "View renewals",
+      "review_compliance": "Review compliance",
+      "view_overdue": "View overdue",
+      "view_risks": "View risks",
+      "view_contracts": "View contracts"
+    },
+    "insightDesc": {
+      "renewal_opportunity_one": "{{count}} contract expiring in 30 days worth {{value}}. Consider early renewal negotiations.",
+      "renewal_opportunity_other": "{{count}} contracts expiring in 30 days worth {{value}}. Consider early renewal negotiations.",
+      "compliance_alert_one": "{{count}} SLA currently breaching target. Review and escalate.",
+      "compliance_alert_other": "{{count}} SLAs currently breaching targets. Review and escalate.",
+      "overdue_obligations_one": "{{count}} obligation past due date. Immediate action required.",
+      "overdue_obligations_other": "{{count}} obligations past due date. Immediate action required.",
+      "risk_assessment_one": "{{count}} high-risk contract identified. Review risk mitigation strategies.",
+      "risk_assessment_other": "{{count}} high-risk contracts identified. Review risk mitigation strategies.",
+      "all_clear": "No critical issues detected. All contracts and obligations are on track."
     }
   },
   "query": {
@@ -2963,5 +2979,31 @@
       "renewal_due": "Renewal due",
       "sla": "SLA alert"
     }
+  },
+  "welcomeBanner": {
+    "high_risk": "High Risk",
+    "pending_review": "Pending Review",
+    "ask_ai": "Ask AI",
+    "expiring_soon": "Expiring Soon",
+    "vendors": "Vendors",
+    "new_contract": "New Contract",
+    "system_health": "System Health",
+    "renewals": "Renewals",
+    "users": "Users",
+    "my_contracts": "My Contracts",
+    "reports": "Reports",
+    "browse": "Browse",
+    "review_contracts": "Review contracts",
+    "awaiting_approval": "Awaiting approval",
+    "query_contracts": "Query contracts",
+    "next_30_days": "Next 30 days",
+    "performance_scores": "Performance scores",
+    "upload_analyze": "Upload & analyze",
+    "monitor_services": "Monitor services",
+    "manage_access": "Manage access",
+    "business_unit_contracts": "Business unit contracts",
+    "unit_analytics": "Unit analytics",
+    "all_contracts": "All contracts",
+    "view_analytics": "View analytics"
   }
 }
