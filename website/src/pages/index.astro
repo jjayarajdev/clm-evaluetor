@@ -87,14 +87,12 @@ const audiences = [
       <h2 class="sechead-h display display-lg">Five disciplines. <span class="emph">One platform.</span></h2>
     </header>
 
-    <div style="margin-top: 32px;">
+    <div class="grid grid-cols-1 md:grid-cols-5" style="gap: 1px; margin-top: 32px; background: var(--rule-2);">
       {capabilities.map((c) => (
-        <a href={c.href} class="cap-row" style="text-decoration: none; transition: background .15s ease;">
-          <span class="cap-num">{c.n}</span>
-          <div>
-            <div class="cap-t">{c.t} <span class="ink-3" style="font-size: 11px; font-family: 'Geist Mono', monospace; letter-spacing: 0.06em;">→</span></div>
-            <p class="cap-d">{c.d}</p>
-          </div>
+        <a href={c.href} class="cap-box">
+          <div class="label label-orange">{c.n}</div>
+          <div class="cap-box-t">{c.t} <span class="arr">→</span></div>
+          <p class="cap-box-d">{c.d}</p>
         </a>
       ))}
     </div>
@@ -191,5 +189,40 @@ const audiences = [
     </div>
   </div>
 </section>
+
+<style>
+  /* "What's in the box" — five disciplines as a connected box grid
+     (mirrors the "Who uses it" grid below for a consistent, non-list layout). */
+  .cap-box {
+    display: block;
+    background: var(--surface);
+    padding: 24px 20px 26px;
+    text-decoration: none;
+    transition: background .15s ease;
+  }
+  .cap-box:hover { background: var(--paper-2); }
+  .cap-box .cap-num { display: block; }
+  .cap-box-t {
+    margin-top: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .cap-box-t .arr {
+    color: var(--orange);
+    font-size: 13px;
+    display: inline-block;
+    transition: transform .2s ease;
+  }
+  .cap-box:hover .arr { transform: translateX(3px); }
+  .cap-box-d {
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-3);
+  }
+</style>
 
 </MarketingLayout>
