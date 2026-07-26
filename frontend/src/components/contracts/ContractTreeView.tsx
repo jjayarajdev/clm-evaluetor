@@ -33,6 +33,7 @@ const LINK_TYPE_LABELS: Record<string, string> = {
   supersedes: 'Supersedes',
   references: 'References',
   related: 'Related',
+  child: 'Linked',
 }
 
 interface TreeNodeProps {
@@ -266,7 +267,7 @@ export default function ContractTreeView({ roots, totalContracts, totalLinks }: 
     moveMutation.mutate({
       contract_id: sourceId,
       new_parent_id: targetId,
-      link_type: 'related',
+      link_type: 'child',
     })
   }, [moveMutation])
 
@@ -283,7 +284,7 @@ export default function ContractTreeView({ roots, totalContracts, totalLinks }: 
     moveMutation.mutate({
       contract_id: sourceId,
       new_parent_id: null,
-      link_type: 'related',
+      link_type: 'child',
     })
   }, [moveMutation])
 

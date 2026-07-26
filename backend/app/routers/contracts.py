@@ -2138,6 +2138,8 @@ async def get_contract_hierarchy(
 
     # Priority: specific link types are better parents than generic ones
     LINK_PRIORITY = {
+        # A manual drag-to-parent ('child') is deliberate human intent — it wins.
+        'child': 0,
         'sow': 0, 'work_order': 0, 'service_order': 0, 'purchase_order': 0,
         'amendment': 1, 'addendum': 1, 'change_order': 1, 'modification': 1,
         'renewal': 2, 'exhibit': 2, 'schedule': 2, 'appendix': 2, 'attachment': 2,
@@ -2518,7 +2520,7 @@ class MoveContractRequest(BaseModel):
     """Request to move a contract to a new parent (or to root)."""
     contract_id: str
     new_parent_id: str | None = None  # None = move to root
-    link_type: str = "related"
+    link_type: str = "child"  # hierarchical (nests); 'related' would be lateral
 
 
 @router.post("/links/move", response_model=CreateLinkResponse | dict, dependencies=[Depends(require_write)])

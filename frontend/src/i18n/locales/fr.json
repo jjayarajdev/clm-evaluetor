@@ -2113,7 +2113,8 @@
       "attachment": "Pièce jointe",
       "supersedes": "Remplace",
       "references": "Références",
-      "related": "Lié"
+      "related": "Lié",
+      "child": "Lié"
     },
     "removeFromParent": "Détacher du parent (déplacer à la racine)",
     "contracts_one": "{{count}} contrat",
@@ -2172,7 +2173,8 @@
       "attachment": "Pièce jointe",
       "supersedes": "Remplace",
       "references": "Références",
-      "related": "Lié"
+      "related": "Lié",
+      "child": "Lié"
     },
     "parent": "Parent",
     "child": "Enfant",

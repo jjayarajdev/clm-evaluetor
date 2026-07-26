@@ -42,6 +42,7 @@ class LinkType(str, enum.Enum):
     SUPERSEDES = "supersedes"  # This contract replaces another
     REFERENCES = "references"  # References another contract
     RELATED = "related"  # Generally related
+    CHILD = "child"  # Generic parent-child, e.g. a manual drag-to-parent move
 
 
 class ContractLink(Base, UUIDMixin, TimestampMixin):
@@ -73,7 +74,7 @@ class ContractLink(Base, UUIDMixin, TimestampMixin):
             'sow', 'work_order', 'service_order', 'purchase_order',
             'amendment', 'addendum', 'change_order', 'modification',
             'renewal', 'exhibit', 'schedule', 'appendix', 'attachment',
-            'supersedes', 'references', 'related',
+            'supersedes', 'references', 'related', 'child',
             name='linktype', create_type=False
         ),
         nullable=False,
