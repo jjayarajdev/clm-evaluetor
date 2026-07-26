@@ -2931,5 +2931,10 @@
     "findingUpdateFailed": "Failed to update finding",
     "findingSources_one": "Referenced by {{count}} document:",
     "findingSources_other": "Referenced by {{count}} documents:"
+  },
+  "notifFeed": {
+    "title": "Notifications",
+    "count": "{{count}} needing attention",
+    "empty": "You're all caught up"
   }
 }

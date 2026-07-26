@@ -23,6 +23,7 @@ import * as compliance from './compliance'
 import * as governance from './governance'
 import * as admin from './admin'
 import * as ai from './ai'
+import * as notifications from './notifications'
 
 export const api = {
   // Client / auth
@@ -48,6 +49,9 @@ export const api = {
 
   // AI / chat / integrations
   ...ai,
+
+  // Notifications feed (header bell)
+  ...notifications,
 }
 
 export default api
@@ -57,6 +61,7 @@ export { clientModule as client }
 export * from './contracts'
 export * from './compliance'
 export * from './governance'
+export * from './notifications'
 export * from './admin'
 export * from './ai'
 export { setToken, clearToken, getToken, login, getCurrentUser, updateMyPreferences, logout } from './client'
