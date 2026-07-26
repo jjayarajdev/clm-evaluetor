@@ -378,6 +378,19 @@
       "browse": "Browse",
       "browseDesc": "All contracts",
       "viewAnalyticsDesc": "View analytics"
+    },
+    "dyn": {
+      "overdue_obligations": "Overdue Obligations",
+      "renewal_opportunity": "Renewal Opportunity",
+      "compliance_alert": "Compliance Alert",
+      "risk_assessment": "Risk Assessment",
+      "all_clear": "All Clear",
+      "contract_uploaded": "Contract uploaded",
+      "analysis_started": "Analysis started",
+      "contract_updated": "Contract updated",
+      "obligation_completed": "Obligation completed",
+      "sla_breach_detected": "SLA breach detected",
+      "contract_analyzed": "Contract analyzed"
     }
   },
   "query": {
@@ -2942,6 +2955,13 @@
   "notifFeed": {
     "title": "Notifications",
     "count": "{{count}} needing attention",
-    "empty": "You're all caught up"
+    "empty": "You're all caught up",
+    "labels": {
+      "overdue": "Overdue",
+      "due_soon": "Due soon",
+      "expired": "Expired",
+      "renewal_due": "Renewal due",
+      "sla": "SLA alert"
+    }
   }
 }

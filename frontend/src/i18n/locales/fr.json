@@ -378,6 +378,19 @@
       "browse": "Parcourir",
       "browseDesc": "Tous les contrats",
       "viewAnalyticsDesc": "Voir les analyses"
+    },
+    "dyn": {
+      "overdue_obligations": "Obligations en retard",
+      "renewal_opportunity": "Opportunité de renouvellement",
+      "compliance_alert": "Alerte de conformité",
+      "risk_assessment": "Évaluation des risques",
+      "all_clear": "Tout est en ordre",
+      "contract_uploaded": "Contrat téléversé",
+      "analysis_started": "Analyse démarrée",
+      "contract_updated": "Contrat mis à jour",
+      "obligation_completed": "Obligation terminée",
+      "sla_breach_detected": "Violation de SLA détectée",
+      "contract_analyzed": "Contrat analysé"
     }
   },
   "query": {
@@ -2942,6 +2955,13 @@
   "notifFeed": {
     "title": "Notifications",
     "count": "{{count}} à traiter",
-    "empty": "Vous êtes à jour"
+    "empty": "Vous êtes à jour",
+    "labels": {
+      "overdue": "En retard",
+      "due_soon": "Bientôt dû",
+      "expired": "Expiré",
+      "renewal_due": "Renouvellement dû",
+      "sla": "Alerte SLA"
+    }
   }
 }

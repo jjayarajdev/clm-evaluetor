@@ -5,6 +5,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+
+// Backend returns fixed English titles for insights/activity; translate them by
+// slugging the English string into an i18n key (fallback keeps the English).
+const slugKey = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
 import {
   DocumentTextIcon,
   ExclamationTriangleIcon,
@@ -465,7 +469,7 @@ export default function ModernDashboardPage() {
             {insightsData?.insights?.map((insight, idx) => (
               <InsightCard
                 key={idx}
-                title={insight.title}
+                title={t(`dashboard.dyn.${slugKey(insight.title)}`, { defaultValue: insight.title })}
                 description={insight.description}
                 action={insight.action}
                 actionLabel={insight.action_label}
@@ -507,7 +511,7 @@ export default function ModernDashboardPage() {
                   <ActivityItem
                     key={idx}
                     icon={Icon}
-                    title={activity.title}
+                    title={t(`dashboard.dyn.${slugKey(activity.title)}`, { defaultValue: activity.title })}
                     subtitle={activity.subtitle}
                     time={activity.time}
                     color={activity.color as 'gray' | 'green' | 'red' | 'amber' | 'blue'}
