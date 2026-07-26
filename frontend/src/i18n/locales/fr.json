@@ -681,7 +681,11 @@
     "create": "Créer",
     "createFailed": "Échec de la création de l'utilisateur",
     "updateFailed": "Échec de la mise à jour de l'utilisateur",
-    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer {{username}} ?"
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer {{username}} ?",
+    "buAdminNote": "Les administrateurs voient tous les contrats de toutes les unités opérationnelles.",
+    "buNoneYet": "Aucune unité opérationnelle — créez-les dans Admin → Unités opérationnelles. Sans cela, cet utilisateur verra tous les contrats.",
+    "buSelectPlaceholder": "Sélectionnez une unité opérationnelle…",
+    "buScopeHint": "Détermine les contrats visibles par cet utilisateur (son unité + non attribués)."
   },
   "obligation": {
     "notFound": "Obligation introuvable",
@@ -2026,7 +2030,8 @@
       "in_progress": "En cours",
       "overdue": "En retard",
       "waived": "Levée"
-    }
+    },
+    "unassigned": "Non attribué"
   },
   "docsTab": {
     "title_one": "Documents contractuels ({{count}})",

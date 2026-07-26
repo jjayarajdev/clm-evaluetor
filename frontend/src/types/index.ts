@@ -109,6 +109,7 @@ export interface Contract extends ContractSummary {
   renewal_term_months: number | null
   processing_error: string | null
   uploaded_by: string
+  business_unit_id?: string | null
   clause_count: number
   obligation_count: number
   sla_count: number

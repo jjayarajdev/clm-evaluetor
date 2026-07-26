@@ -61,6 +61,8 @@ function InlineEdit({
     ? value ? t('common.yes') : t('common.no')
     : type === 'number' && value
     ? String(value)
+    : type === 'select' && options
+    ? (options.find((o) => o.value === String(value ?? ''))?.label ?? String(value || '-'))
     : String(value || '-')
 
   if (!editing) {
@@ -237,6 +239,20 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
   const queryClient = useQueryClient()
   const { can } = useAuth()
   const canEdit = can('contract.edit')
+  const canAssignBU = can('admin')  // BU assignment is a team-routing / admin concern
+
+  // Business units for the assignment picklist (admins only)
+  const { data: buData } = useQuery({
+    queryKey: ['business-units-list'],
+    queryFn: () => api.getBusinessUnits({ page: 1, page_size: 100 }),
+    enabled: canAssignBU,
+  })
+  const buOptions = [
+    { value: '', label: t('reviewPane.unassigned', { defaultValue: 'Unassigned' }) },
+    ...(((buData as { items?: { id: string; name: string; is_active: boolean }[] } | undefined)?.items ?? [])
+      .filter((b) => b.is_active)
+      .map((b) => ({ value: b.id, label: b.name }))),
+  ]
   const [highlightPage, setHighlightPage] = useState<number | null>(null)
   const [highlightText, setHighlightText] = useState<string | null>(null)
   const [activeRects, setActiveRects] = useState<HighlightRect[] | null>(null)
@@ -481,6 +497,15 @@ export default function ContractReviewPane({ contractId, contract }: ContractRev
               type="number"
               onSave={(v) => canEdit && updateMeta.mutate({ renewal_term_months: v })}
             />
+            {canAssignBU && (
+              <InlineEdit
+                label={t('users.businessUnit', { defaultValue: 'Business Unit' })}
+                value={contract.business_unit_id}
+                type="select"
+                options={buOptions}
+                onSave={(v) => updateMeta.mutate({ business_unit_id: v })}
+              />
+            )}
           </div>
         </Section>
 
