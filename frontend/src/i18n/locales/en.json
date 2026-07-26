@@ -2113,7 +2113,8 @@
       "attachment": "Attachment",
       "supersedes": "Supersedes",
       "references": "References",
-      "related": "Related"
+      "related": "Related",
+      "child": "Linked"
     },
     "removeFromParent": "Remove from parent (move to root)",
     "contracts_one": "{{count}} contract",
@@ -2172,7 +2173,8 @@
       "attachment": "Attachment",
       "supersedes": "Supersedes",
       "references": "References",
-      "related": "Related"
+      "related": "Related",
+      "child": "Linked"
     },
     "parent": "Parent",
     "child": "Child",
