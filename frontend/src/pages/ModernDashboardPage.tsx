@@ -9,6 +9,20 @@ import { useTranslation } from 'react-i18next'
 // Backend returns fixed English titles for insights/activity; translate them by
 // slugging the English string into an i18n key (fallback keeps the English).
 const slugKey = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+
+// Dashboard stat widgets come from the tenant/industry config with hardcoded
+// English labels; translate by their stable key (fallback keeps the config label
+// for industry-specific customizations we don't have a translation for).
+const WIDGET_LABEL_I18N: Record<string, string> = {
+  total_contracts: 'dashboard.widgets.totalContracts',
+  at_risk: 'dashboard.widgets.atRisk',
+  at_risk_contracts: 'dashboard.widgets.atRisk',
+  compliance_rate: 'dashboard.widgets.compliance',
+  total_value: 'dashboard.widgets.contractValue',
+  obligation_rate: 'dashboard.widgets.obligations',
+  sla_rate: 'dashboard.widgets.slaPerformance',
+  sla_performance: 'dashboard.widgets.slaPerformance',
+}
 import {
   DocumentTextIcon,
   ExclamationTriangleIcon,
@@ -358,7 +372,7 @@ export default function ModernDashboardPage() {
               return (
                 <StatCard
                   key={w.key}
-                  title={w.label}
+                  title={WIDGET_LABEL_I18N[w.key] ? t(WIDGET_LABEL_I18N[w.key], { defaultValue: w.label }) : w.label}
                   value={data.value}
                   icon={WIDGET_ICON_MAP[w.icon] || data.icon}
                   color={data.color as any}
