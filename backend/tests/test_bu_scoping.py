@@ -265,6 +265,19 @@ class TestBUScoping:
         assert filenames == {"alpha.pdf", "beta.pdf", "unassigned.pdf"}
 
     @pytest.mark.asyncio
+    async def test_admin_with_bu_is_scoped(self, db, seed):
+        """BU restriction applies to ALL tenant roles — an admin assigned to a BU
+        sees only that BU + unassigned (only super_admin / no-BU bypasses)."""
+        query = select(Contract).where(Contract.tenant_id == TENANT_ID)
+        query = apply_bu_filter(query, BU_ALPHA_ID, "admin")
+
+        result = await db.execute(query)
+        filenames = {c.filename for c in result.scalars().all()}
+
+        assert filenames == {"alpha.pdf", "unassigned.pdf"}
+        assert "beta.pdf" not in filenames
+
+    @pytest.mark.asyncio
     async def test_user_without_bu_assignment_sees_all(self, db, seed):
         """Non-admin user with no BU assigned sees all contracts (legacy behavior)."""
         # apply_bu_filter returns unfiltered query when business_unit_id is None
@@ -278,15 +291,12 @@ class TestBUScoping:
         assert len(contracts) == 3
 
     @pytest.mark.asyncio
-    async def test_admin_with_bu_still_sees_all(self, db, seed):
-        """Admin user even WITH a BU assigned should still see all contracts."""
-        # Admin role bypasses BU filter regardless of BU assignment
+    async def test_super_admin_with_bu_still_sees_all(self, db, seed):
+        """Only super_admin bypasses BU even when a BU is set (platform operator)."""
         query = select(Contract).where(Contract.tenant_id == TENANT_ID)
-        query = apply_bu_filter(query, BU_ALPHA_ID, "admin")
+        query = apply_bu_filter(query, BU_ALPHA_ID, "super_admin")
 
         result = await db.execute(query)
-        contracts = result.scalars().all()
+        filenames = {c.filename for c in result.scalars().all()}
 
-        assert len(contracts) == 3
-        filenames = {c.filename for c in contracts}
         assert filenames == {"alpha.pdf", "beta.pdf", "unassigned.pdf"}

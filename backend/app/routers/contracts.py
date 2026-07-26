@@ -2085,10 +2085,11 @@ async def get_contract_hierarchy(
     contracts_query = select(Contract)
     contracts_query = apply_tenant_filter(contracts_query, tenant_id, Contract)
 
-    # Apply BU filter based on user role (same logic as ContractService)
+    # Apply BU filter based on user role (same logic as ContractService).
+    # Every tenant role honors its BU; only super_admin (or no BU) sees all.
     user_role = current_user.role.value if current_user.role else None
     bu_id = current_user.business_unit_id
-    if user_role not in [Role.SUPER_ADMIN.value, Role.ADMIN.value, "super_admin", "admin"]:
+    if user_role not in [Role.SUPER_ADMIN.value, "super_admin"]:
         if bu_id is not None:
             if user_role in [Role.BU_HEAD.value, "bu_head"]:
                 bu_child_ids = await _get_all_child_bu_ids(db, bu_id)

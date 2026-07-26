@@ -79,9 +79,12 @@ def apply_bu_filter(
 ) -> Select:
     """Apply business unit filter to a query.
 
-    Admin and super_admin roles see all contracts regardless of BU.
-    Other roles see only contracts in their BU or unassigned contracts.
-    Users without a BU assigned see all contracts (legacy behavior).
+    BU scoping applies to EVERY tenant role (admin included) when a BU is
+    assigned — an admin pinned to a unit sees only that unit's contracts.
+    Escape hatches:
+    - super_admin: the cross-tenant platform operator, never BU-restricted.
+    - Users with no BU assigned: full tenant visibility (how you grant a
+      tenant-wide admin — leave their BU blank).
 
     Args:
         query: SQLAlchemy select statement.
@@ -93,8 +96,8 @@ def apply_bu_filter(
     Returns:
         Filtered query.
     """
-    # Admin and super_admin see everything
-    if not business_unit_id or user_role in ("admin", "super_admin"):
+    # Only the platform super_admin, or a user with no BU, sees everything.
+    if not business_unit_id or user_role == "super_admin":
         return query
 
     if model is None:
