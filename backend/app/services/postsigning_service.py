@@ -126,9 +126,15 @@ class PostSigningService:
             if o.status in (ObligationStatus.PENDING, ObligationStatus.IN_PROGRESS)
             and o.deadline and o.deadline > today
         )
-        # Assessable = total minus waived minus future pending (not yet due)
+        # Assessable = total minus waived minus future pending (not yet due).
+        # Honest: None ("not tracked") when there's no completion signal at all —
+        # a bare 0% on untracked obligations reads as failure, not "unmaintained".
         assessable = obl_total - waived - pending_future
-        obl_compliance = ((obl_completed + obl_in_progress) / assessable * 100) if assessable > 0 else 100.0
+        obl_compliance = (
+            round((obl_completed + obl_in_progress) / assessable * 100, 2)
+            if assessable > 0 and (obl_completed + obl_in_progress) > 0
+            else None
+        )
 
         # Urgent obligations: overdue + due within 3 days
         urgent_obls = [
@@ -158,7 +164,7 @@ class PostSigningService:
             in_progress=obl_in_progress,
             overdue=obl_overdue,
             at_risk=obl_at_risk,
-            compliance_rate=round(obl_compliance, 2),
+            compliance_rate=obl_compliance,
             green=obl_green,
             amber=obl_amber,
             red=obl_red,
@@ -203,7 +209,9 @@ class PostSigningService:
         )
 
         compliance_rates = [float(s.current_compliance_rate) for s in slas if s.current_compliance_rate is not None]
-        sla_compliance = sum(compliance_rates) / len(compliance_rates) if compliance_rates else 100.0
+        # Honest: None ("not measured") when there's no actual performance data —
+        # not a fake 100% that reads as perfect when nothing has been measured.
+        sla_compliance = round(sum(compliance_rates) / len(compliance_rates), 2) if compliance_rates else None
 
         # MTD penalties
         mtd_start = date(today.year, today.month, 1)
@@ -272,7 +280,7 @@ class PostSigningService:
             active_slas=sla_active,
             compliant=sla_compliant,
             breached=sla_breached,
-            compliance_rate=round(sla_compliance, 2),
+            compliance_rate=sla_compliance,
             critical_breaches=critical_breaches,
             total_penalties_mtd=total_penalties_mtd,
             recent_breaches=recent_breaches,
@@ -434,8 +442,13 @@ class PostSigningService:
         vendor_widget = self._build_vendor_widget(contracts, obligations, slas, today)
         milestone_widget = self._build_milestone_widget(obligations, today)
 
-        # Compliance widget
-        overall_compliance = obl_compliance * 0.6 + sla_compliance * 0.4
+        # Compliance widget — blend only the components that are actually
+        # measured (an unmeasured SLA no longer inflates the overall score).
+        _measured = [(v, w) for v, w in ((obl_compliance, 0.6), (sla_compliance, 0.4)) if v is not None]
+        overall_compliance = (
+            round(sum(v * w for v, w in _measured) / sum(w for _, w in _measured), 2)
+            if _measured else None
+        )
         contracts_at_risk = 0
         for c in contracts:
             c_obls = [o for o in obligations if o.contract_id == c.id]
@@ -446,9 +459,9 @@ class PostSigningService:
         high_priority = obl_overdue + sla_breached + len(past_notice)
 
         compliance_widget = ComplianceWidget(
-            overall_compliance_rate=round(overall_compliance, 2),
-            obligation_compliance_rate=round(obl_compliance, 2),
-            sla_compliance_rate=round(sla_compliance, 2),
+            overall_compliance_rate=overall_compliance,
+            obligation_compliance_rate=obl_compliance,
+            sla_compliance_rate=sla_compliance,
             trend=None,
             change_from_last_month=None,
             contracts_at_risk=contracts_at_risk,

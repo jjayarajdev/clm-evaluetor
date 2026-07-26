@@ -13,7 +13,7 @@ class ObligationWidget(BaseModel):
     in_progress: int
     overdue: int
     at_risk: int
-    compliance_rate: float
+    compliance_rate: float | None = None  # None = not tracked (no completions/progress)
 
     # RAG breakdown
     green: int
@@ -31,7 +31,7 @@ class SLAWidget(BaseModel):
     active_slas: int
     compliant: int
     breached: int
-    compliance_rate: float
+    compliance_rate: float | None = None  # None = not measured (no performance data)
 
     # Breaches
     critical_breaches: int
@@ -82,9 +82,9 @@ class MilestoneWidget(BaseModel):
 class ComplianceWidget(BaseModel):
     """Overall compliance widget data."""
 
-    overall_compliance_rate: float
-    obligation_compliance_rate: float
-    sla_compliance_rate: float
+    overall_compliance_rate: float | None = None  # None = nothing measured
+    obligation_compliance_rate: float | None = None
+    sla_compliance_rate: float | None = None
 
     trend: Literal["improving", "stable", "declining"] | None
     change_from_last_month: float | None

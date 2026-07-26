@@ -407,7 +407,9 @@
       "risk_assessment_one": "{{count}} contrat à haut risque identifié. Examinez les stratégies d'atténuation.",
       "risk_assessment_other": "{{count}} contrats à haut risque identifiés. Examinez les stratégies d'atténuation.",
       "all_clear": "Aucun problème critique détecté. Tous les contrats et obligations sont en ordre."
-    }
+    },
+    "notTracked": "Non suivi — aucune obligation marquée terminée ou en cours.",
+    "notMeasured": "Non mesuré — aucune donnée de performance SLA pour l'instant."
   },
   "query": {
     "suggested": {
