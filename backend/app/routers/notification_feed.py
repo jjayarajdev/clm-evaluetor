@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentUser, CurrentTenantId
+from app.core.tenant import apply_bu_filter
 from app.database import get_db
 from app.models.contract import Contract
 from app.models.obligation import Obligation, ObligationStatus
@@ -48,6 +49,15 @@ async def get_notification_feed(
     expiring_horizon = today + timedelta(days=90)
     recently_expired = today - timedelta(days=30)
 
+    # Respect business-unit scoping: a BU-restricted user must only be notified
+    # about their own BU's contracts. All three feeds join/select Contract, so
+    # we filter on Contract.business_unit_id (admins/unassigned users see all).
+    bu_id = current_user.business_unit_id if current_user else None
+    role = current_user.role.value if current_user and current_user.role else None
+
+    def _bu(query):
+        return apply_bu_filter(query, bu_id, role, model=Contract)
+
     items: list[dict] = []
 
     # 1) Obligations overdue or due within 30 days, still open
@@ -65,7 +75,7 @@ async def get_notification_feed(
     )
     if tenant_id is not None:
         oq = oq.where(Contract.tenant_id == tenant_id)
-    oq = oq.order_by(Obligation.deadline.asc()).limit(200)
+    oq = _bu(oq).order_by(Obligation.deadline.asc()).limit(200)
     for obl, con in (await db.execute(oq)).all():
         overdue = obl.deadline < today
         items.append({
@@ -88,7 +98,7 @@ async def get_notification_feed(
     )
     if tenant_id is not None:
         cq = cq.where(Contract.tenant_id == tenant_id)
-    cq = cq.order_by(Contract.expiration_date.asc()).limit(200)
+    cq = _bu(cq).order_by(Contract.expiration_date.asc()).limit(200)
     for con in (await db.execute(cq)).scalars().all():
         expired = con.expiration_date < today
         urgent = expired or con.expiration_date <= today + timedelta(days=30)
@@ -116,7 +126,7 @@ async def get_notification_feed(
     )
     if tenant_id is not None:
         aq = aq.where(Contract.tenant_id == tenant_id)
-    aq = aq.order_by(SLAAlert.detected_at.desc()).limit(100)
+    aq = _bu(aq).order_by(SLAAlert.detected_at.desc()).limit(100)
     for al, con in (await db.execute(aq)).all():
         high = al.priority in (AlertPriority.CRITICAL, AlertPriority.HIGH)
         items.append({

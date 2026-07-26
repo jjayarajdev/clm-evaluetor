@@ -1800,6 +1800,7 @@ def contract_to_response(contract, clause_count=None, obligation_count=None, sla
         industry_profile_id=str(contract.industry_profile_id) if contract.industry_profile_id else None,
         custom_fields=contract.custom_fields or {},
         business_relationship_id=str(contract.business_relationship_id) if contract.business_relationship_id else None,
+        business_unit_id=str(contract.business_unit_id) if contract.business_unit_id else None,
         uploaded_by=str(contract.uploaded_by),
         clause_count=_clause_count,
         obligation_count=_obligation_count,
@@ -3639,6 +3640,24 @@ async def update_contract_metadata(
 
     # Update fields that were provided
     update_dict = update_data.model_dump(exclude_unset=True)
+
+    # A reassigned business unit must belong to this contract's tenant (guard
+    # against tagging a contract into another tenant's BU).
+    if "business_unit_id" in update_dict:
+        import uuid as _uuid
+        raw_bu = update_dict["business_unit_id"]
+        if raw_bu and str(raw_bu).strip():
+            from app.models.business_unit import BusinessUnit
+            bu = await db.get(BusinessUnit, _uuid.UUID(str(raw_bu)))
+            if not bu or (contract.tenant_id and bu.tenant_id != contract.tenant_id):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Business unit not found or belongs to a different tenant",
+                )
+            update_dict["business_unit_id"] = bu.id
+        else:
+            update_dict["business_unit_id"] = None  # unassign
+
     for field, value in update_dict.items():
         if hasattr(contract, field):
             # Handle UUID fields: convert string to UUID, empty string to None

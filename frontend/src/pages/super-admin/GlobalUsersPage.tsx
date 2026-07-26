@@ -112,6 +112,7 @@ export default function GlobalUsersPage() {
     enabled: !!buTenantId,
   })
   const businessUnits: BusinessUnit[] = businessUnitsData?.items ?? []
+  const activeBusinessUnits = businessUnits.filter((bu) => bu.is_active)
 
   const createMutation = useMutation({
     mutationFn: (data: UserFormData) => api.createUserForTenant(data.tenant_id, {
@@ -515,7 +516,10 @@ export default function GlobalUsersPage() {
                   </label>
                   <select
                     value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
+                    onChange={(e) => {
+                      const role = e.target.value as Role
+                      setFormData({ ...formData, role, business_unit_id: role === 'admin' ? '' : formData.business_unit_id })
+                    }}
                     className="input"
                   >
                     {Object.entries(ROLE_LABELS)
@@ -529,25 +533,35 @@ export default function GlobalUsersPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.businessUnit')}
+                    {t('superadmin.users.businessUnit')}{formData.role !== 'admin' && activeBusinessUnits.length > 0 ? ' *' : ''}
                   </label>
-                  <select
-                    value={formData.business_unit_id}
-                    onChange={(e) => setFormData({ ...formData, business_unit_id: e.target.value })}
-                    className="input"
-                    disabled={!formData.tenant_id}
-                  >
-                    <option value="">{t('superadmin.users.noneOption')}</option>
-                    {businessUnits
-                      .filter((bu) => bu.is_active)
-                      .map((bu) => (
-                        <option key={bu.id} value={bu.id}>
-                          {bu.name}
-                        </option>
-                      ))}
-                  </select>
-                  {!formData.tenant_id && (
-                    <p className="mt-1 text-xs text-gray-400">{t('superadmin.users.selectTenantFirst')}</p>
+                  {formData.role === 'admin' ? (
+                    <p className="text-xs text-gray-500">
+                      {t('users.buAdminNote', { defaultValue: 'Admins see all contracts across every business unit.' })}
+                    </p>
+                  ) : !formData.tenant_id ? (
+                    <p className="text-xs text-gray-400">{t('superadmin.users.selectTenantFirst')}</p>
+                  ) : activeBusinessUnits.length === 0 ? (
+                    <p className="text-xs text-amber-600">
+                      {t('users.buNoneYet', { defaultValue: 'No business units in this tenant yet. Without one, this user will see all contracts.' })}
+                    </p>
+                  ) : (
+                    <>
+                      <select
+                        value={formData.business_unit_id}
+                        onChange={(e) => setFormData({ ...formData, business_unit_id: e.target.value })}
+                        className="input"
+                        required
+                      >
+                        <option value="" disabled>{t('users.buSelectPlaceholder', { defaultValue: 'Select a business unit…' })}</option>
+                        {activeBusinessUnits.map((bu) => (
+                          <option key={bu.id} value={bu.id}>{bu.name}</option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {t('users.buScopeHint', { defaultValue: 'Controls which contracts this user can see (their unit + unassigned).' })}
+                      </p>
+                    </>
                   )}
                 </div>
                 <div>
@@ -701,7 +715,10 @@ export default function GlobalUsersPage() {
                   </label>
                   <select
                     value={editFormData.role}
-                    onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as Role })}
+                    onChange={(e) => {
+                      const role = e.target.value as Role
+                      setEditFormData({ ...editFormData, role, business_unit_id: role === 'admin' ? '' : editFormData.business_unit_id })
+                    }}
                     className="input"
                   >
                     {Object.entries(ROLE_LABELS)
@@ -715,22 +732,34 @@ export default function GlobalUsersPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.businessUnit')}
+                    {t('superadmin.users.businessUnit')}{editFormData.role !== 'admin' && activeBusinessUnits.length > 0 ? ' *' : ''}
                   </label>
-                  <select
-                    value={editFormData.business_unit_id}
-                    onChange={(e) => setEditFormData({ ...editFormData, business_unit_id: e.target.value })}
-                    className="input"
-                  >
-                    <option value="">{t('superadmin.users.noneOption')}</option>
-                    {businessUnits
-                      .filter((bu) => bu.is_active)
-                      .map((bu) => (
-                        <option key={bu.id} value={bu.id}>
-                          {bu.name}
-                        </option>
-                      ))}
-                  </select>
+                  {editFormData.role === 'admin' ? (
+                    <p className="text-xs text-gray-500">
+                      {t('users.buAdminNote', { defaultValue: 'Admins see all contracts across every business unit.' })}
+                    </p>
+                  ) : activeBusinessUnits.length === 0 ? (
+                    <p className="text-xs text-amber-600">
+                      {t('users.buNoneYet', { defaultValue: 'No business units in this tenant yet. Without one, this user will see all contracts.' })}
+                    </p>
+                  ) : (
+                    <>
+                      <select
+                        value={editFormData.business_unit_id}
+                        onChange={(e) => setEditFormData({ ...editFormData, business_unit_id: e.target.value })}
+                        className="input"
+                        required
+                      >
+                        <option value="" disabled>{t('users.buSelectPlaceholder', { defaultValue: 'Select a business unit…' })}</option>
+                        {activeBusinessUnits.map((bu) => (
+                          <option key={bu.id} value={bu.id}>{bu.name}</option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {t('users.buScopeHint', { defaultValue: 'Controls which contracts this user can see (their unit + unassigned).' })}
+                      </p>
+                    </>
+                  )}
                 </div>
                 <div>
                   <label className="flex items-center gap-3 cursor-pointer">

@@ -78,6 +78,7 @@ export default function UsersPage() {
   })
 
   const businessUnits: BusinessUnit[] = businessUnitsData?.items ?? []
+  const activeBusinessUnits = businessUnits.filter((bu) => bu.is_active)
 
   // Log error for debugging
   if (error) {
@@ -419,9 +420,11 @@ export default function UsersPage() {
                   </label>
                   <select
                     value={formData.role}
-                    onChange={(e) =>
-                      setFormData({ ...formData, role: e.target.value as Role })
-                    }
+                    onChange={(e) => {
+                      const role = e.target.value as Role
+                      // Admins bypass BU scoping — clear any BU when switching to admin
+                      setFormData({ ...formData, role, business_unit_id: role === 'admin' ? '' : formData.business_unit_id })
+                    }}
                     className="input"
                   >
                     {Object.entries(ROLE_LABELS)
@@ -435,24 +438,34 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('users.businessUnit')}
+                    {t('users.businessUnit')}{formData.role !== 'admin' && activeBusinessUnits.length > 0 ? ' *' : ''}
                   </label>
-                  <select
-                    value={formData.business_unit_id || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, business_unit_id: e.target.value })
-                    }
-                    className="input"
-                  >
-                    <option value="">{t('users.noneOption')}</option>
-                    {businessUnits
-                      .filter((bu) => bu.is_active)
-                      .map((bu) => (
-                        <option key={bu.id} value={bu.id}>
-                          {bu.name}
-                        </option>
-                      ))}
-                  </select>
+                  {formData.role === 'admin' ? (
+                    <p className="text-xs text-gray-500">
+                      {t('users.buAdminNote', { defaultValue: 'Admins see all contracts across every business unit.' })}
+                    </p>
+                  ) : activeBusinessUnits.length === 0 ? (
+                    <p className="text-xs text-amber-600">
+                      {t('users.buNoneYet', { defaultValue: 'No business units yet — create them under Admin → Business Units. Without one, this user will see all contracts.' })}
+                    </p>
+                  ) : (
+                    <>
+                      <select
+                        value={formData.business_unit_id || ''}
+                        onChange={(e) => setFormData({ ...formData, business_unit_id: e.target.value })}
+                        className="input"
+                        required
+                      >
+                        <option value="" disabled>{t('users.buSelectPlaceholder', { defaultValue: 'Select a business unit…' })}</option>
+                        {activeBusinessUnits.map((bu) => (
+                          <option key={bu.id} value={bu.id}>{bu.name}</option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {t('users.buScopeHint', { defaultValue: 'Controls which contracts this user can see (their unit + unassigned).' })}
+                      </p>
+                    </>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

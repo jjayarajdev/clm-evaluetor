@@ -112,6 +112,7 @@ class ContractResponse(BaseModel):
 
     # Relationships
     business_relationship_id: str | None = None
+    business_unit_id: str | None = None
     uploaded_by: str
     clause_count: int = 0
     obligation_count: int = 0
@@ -161,6 +162,7 @@ class ContractUpdate(BaseModel):
     contract_type: str | None = None
     risk_level: RiskLevel | None = None
     industry_profile_id: str | None = None
+    business_unit_id: str | None = None  # "" / null clears (unassign); scopes visibility
     custom_fields: dict | None = None
 
 
