@@ -114,9 +114,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 <span className="block text-sm font-semibold text-gray-900">
                   {user?.full_name || user?.username}
                 </span>
-                <span className="block text-xs text-gray-500">
+                <span className="flex items-center justify-end gap-1.5 text-xs text-gray-500">
                   <span className={cn(
-                    'inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide mr-1',
+                    'inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide',
                     user?.role === 'super_admin' ? 'bg-pink-100 text-pink-700' :
                     user?.role === 'legal' ? 'bg-blue-100 text-blue-700' :
                     user?.role === 'admin' ? 'bg-primary-100 text-primary-700' :
@@ -124,7 +124,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   )}>
                     {user?.role ? t(`roles.${user.role}`) : ''}
                   </span>
-                  {user?.tenant_name || t('nav.system')}
+                  <span className="truncate">{user?.tenant_name || t('nav.system')}</span>
                 </span>
               </div>
               <div className="h-9 w-9 rounded-full bg-primary-100 flex items-center justify-center">
