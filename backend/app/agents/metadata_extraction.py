@@ -912,17 +912,15 @@ async def update_contract_metadata(
             "CLINICAL RESEARCH AGREEMENT": "cro_agreement",
             "PHARMACOVIGILANCE AGREEMENT": "pharmacovigilance",
         }
-        # Tiered normalizer handles variants the exact map misses
-        # ("Statement of Work (SOW)", plurals, embedded phrases).
-        from app.services.contract_types import normalize_contract_type
+        # Canonicalize into the controlled vocabulary: the tiered normalizer
+        # handles variants ("Statement of Work (SOW)", plurals, embedded
+        # phrases); the long tail is bucketed (e.g. schedules, pricing,
+        # governance) or falls to "other" — so no raw one-off slugs get stored.
+        from app.services.contract_types import canonical_contract_type
 
-        mapped_type = normalize_contract_type(type_value) or type_map.get(type_value)
-        if mapped_type:
+        mapped_type = canonical_contract_type(type_value)
+        if mapped_type:  # None only for empty input — leave existing value intact
             contract.contract_type = mapped_type
-        elif type_value:
-            # For unrecognized types, store as lowercase slug
-            slug = type_value.lower().replace(" ", "_").replace("-", "_")
-            contract.contract_type = slug
 
     # Helper to check if a value matches any excluded party (the uploader's org)
     def _is_excluded_party(value: str) -> bool:

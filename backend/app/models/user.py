@@ -40,6 +40,12 @@ class User(Base, UUIDMixin, TimestampMixin):
         String(255),
         nullable=True,
     )
+    # Structured name + contact profile (full_name is derived from first/last)
+    first_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    job_title: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    department: Mapped[str | None] = mapped_column(String(128), nullable=True)
     password_hash: Mapped[str] = mapped_column(
         String(255),
         nullable=False,

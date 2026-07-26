@@ -206,3 +206,128 @@ def normalize_contract_type(raw: str | None) -> str | None:
             return CONTRACT_TYPE_ALIASES[alias]
 
     return None
+
+
+# ── Display / filter / storage canonicalization ──────────────────────────────
+#
+# `normalize_contract_type` is deliberately strict: it returns None for anything
+# it can't confidently map, and it feeds framework-linking, schema lookup, and
+# profile matching (so it must not guess). But the UI needs EVERY contract to
+# land in a small, controlled vocabulary — otherwise the raw AI-extracted type
+# ("roles_and_responsibilities_matrix", "termination_charges", ...) leaks into
+# filters and lists as dozens of one-off values.
+#
+# `canonical_contract_type` sits on top: it tries the strict normalizer first,
+# then a permissive ordered keyword tier, and finally buckets the remainder as
+# "other". It never returns a raw value and never returns None for a non-empty
+# input — so the type dropdown always shows a tidy, finite set. Order matters
+# (first match wins): amendments before the parent type, procedures before
+# change-control, pricing schedules before generic "services".
+_KEYWORD_BUCKETS: list[tuple[str, str]] = [
+    # amendments to an existing agreement (win over the parent type)
+    ("allonge", "amendment"),
+    ("addendum", "amendment"),
+    ("amendment", "amendment"),
+    ("variation", "amendment"),
+    # procedures / policies (before change-control, which is otherwise an amendment)
+    ("procedural", "policy"),
+    ("procedure", "policy"),
+    ("policies", "policy"),
+    ("policy", "policy"),
+    ("compliance", "policy"),
+    # change control notices / management = amendments to scope
+    ("change control", "amendment"),
+    ("change management", "amendment"),
+    # leases (NL "huurovereenkomst" = office lease)
+    ("huurovereenkomst", "lease"),
+    ("lease", "lease"),
+    # service level agreements
+    ("service level", "sla"),
+    ("sla", "sla"),
+    # pricing / rate / financial schedules
+    ("termination charge", "pricing"),
+    ("pricing", "pricing"),
+    ("tariff", "pricing"),
+    ("rate card", "pricing"),
+    ("cola", "pricing"),
+    ("cost of living", "pricing"),
+    ("financial provision", "pricing"),
+    ("resource baseline", "pricing"),
+    # governance / operating model / performance
+    ("roles and responsibilit", "governance"),
+    ("operating model", "governance"),
+    ("governance", "governance"),
+    ("continuous improvement", "governance"),
+    ("benchmark", "governance"),
+    # memoranda / letters of intent
+    ("memorandum", "mou"),
+    ("mou", "mou"),
+    ("letter of intent", "mou"),
+    # procurement / hardware / assets
+    ("procurement", "order"),
+    ("purchase order", "order"),
+    ("asset inventory", "order"),
+    ("hardware", "order"),
+    # delivery / acceptance / structural schedules (NL "oplevering" = handover)
+    ("oplevering", "schedule"),
+    ("proces verbaal", "schedule"),
+    ("acceptance", "schedule"),
+    ("matrix", "schedule"),
+    ("exhibit", "schedule"),
+    ("appendix", "schedule"),
+    ("attachment", "schedule"),
+    ("annex", "schedule"),
+    ("schedule", "schedule"),
+    # generic services (broadest — checked last)
+    ("service desk", "service_agreement"),
+    ("managed voice", "service_agreement"),
+    ("network service", "service_agreement"),
+    ("server management", "service_agreement"),
+    ("end user computing", "service_agreement"),
+    ("service provider", "service_agreement"),
+    ("local service", "service_agreement"),
+    ("managed service", "service_agreement"),
+    ("services", "service_agreement"),
+    ("service", "service_agreement"),
+]
+
+# The full controlled vocabulary the UI can expect from canonicalization.
+CANONICAL_CONTRACT_TYPES: tuple[str, ...] = (
+    "msa", "sow", "sla", "service_agreement", "amendment", "lease", "nda",
+    "license", "mou", "order", "pricing", "governance", "policy", "schedule",
+    "supply_agreement", "vendor_agreement", "employment_contract", "csa",
+    "quality_agreement", "cmo_agreement", "cro_agreement", "pharmacovigilance",
+    "toll_manufacturing", "tooling_agreement", "blanket_po", "other",
+)
+
+
+def canonical_contract_type(raw: str | None) -> str | None:
+    """Map any contract type to the controlled display vocabulary.
+
+    Returns None only for empty input; otherwise always a canonical code
+    (never a raw one-off value). Use this for filters, lists, and storage;
+    use `normalize_contract_type` where a confident, possibly-None answer is
+    needed (framework linking, schema lookup).
+    """
+    if not raw or not raw.strip():
+        return None
+
+    # Idempotent: an already-canonical code passes straight through. This also
+    # avoids re-mapping codes whose spelled-out form is a strict alias for a
+    # DIFFERENT concept (e.g. "service_agreement" → "SERVICE AGREEMENT" → msa).
+    lowered = raw.strip().lower()
+    if lowered in CANONICAL_CONTRACT_TYPES:
+        return lowered
+
+    strict = normalize_contract_type(raw)
+    if strict:
+        return strict
+
+    # Substring match on the cleaned text — do NOT depluralize here, or keywords
+    # like "policies"/"continuous improvement" get mangled ("policie"/"continuou").
+    cleaned = _clean(raw).lower()
+    for keyword, code in _KEYWORD_BUCKETS:
+        if keyword in cleaned:
+            return code
+
+    return "other"

@@ -89,14 +89,16 @@ if [ "$REINDEX" = "true" ]; then
 fi
 EOF
 
-# ── 4. Health check ──────────────────────────────────────────────────
-echo "==> Health:"
-ok=true
-for p in / /api/health; do
-  code=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL$p" || echo 000)
-  echo "    $APP_URL$p -> $code"
-  [ "$code" = "200" ] || ok=false
+# ── 4. Health check (poll — a freshly-restarted backend needs a moment) ──
+echo "==> Health (polling up to ~60s):"
+ok=false; front=000; api=000
+for _ in $(seq 1 20); do
+  front=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/" || echo 000)
+  api=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/api/health" || echo 000)
+  if [ "$front" = "200" ] && [ "$api" = "200" ]; then ok=true; break; fi
+  sleep 3
 done
+echo "    $APP_URL/ -> $front   $APP_URL/api/health -> $api"
 
 # ── 5. Changelog since previous deploy ───────────────────────────────
 if [ -n "$PREV" ]; then

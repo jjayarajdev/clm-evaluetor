@@ -63,7 +63,7 @@ List endpoints return: `{"items": [...], "total": N, "page": 1, "page_size": 20,
 - **Metadata flush:** Always flush metadata before optional AI stages (risk, KG) so it survives failures
 - **KG extraction:** Deferred to `_run_deep_analysis` to prevent FK violations poisoning the session
 - **Currency column:** VARCHAR(3) constraint — map full names to ISO codes ("US Dollar" → "USD")
-- **Contract type mapping:** Handle full names ("Master Services Agreement" → "MSA"), don't clear existing values for unrecognized types
+- **Contract type mapping:** Use `services/contract_types.canonical_contract_type()` for storage/filters/display — it maps any free-text type into the controlled vocabulary (`CANONICAL_CONTRACT_TYPES`), is idempotent, and buckets the long tail to `"other"` (never a raw slug). Use the stricter `normalize_contract_type()` (may return None) only where a confident answer is needed. Backfill the catalogue with `scripts.backfill_contract_types` after vocabulary changes.
 - **Super admin tenant_id:** Is None from JWT — must accept from request body when creating resources
 
 ## Key Files

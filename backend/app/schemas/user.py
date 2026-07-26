@@ -13,6 +13,11 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50, pattern=r'^[^\s]+$')
     email: EmailStr
     full_name: str | None = Field(None, max_length=255)
+    first_name: str | None = Field(None, max_length=128)
+    last_name: str | None = Field(None, max_length=128)
+    job_title: str | None = Field(None, max_length=128)
+    phone: str | None = Field(None, max_length=50)
+    department: str | None = Field(None, max_length=128)
     password: str = Field(..., min_length=8)
     role: Role = Role.LEGAL
     tenant_id: str | None = None  # Super admin can specify target tenant
@@ -25,6 +30,11 @@ class UserUpdate(BaseModel):
     username: str | None = Field(None, min_length=3, max_length=50, pattern=r'^[^\s]+$')
     email: EmailStr | None = None
     full_name: str | None = Field(None, max_length=255)
+    first_name: str | None = Field(None, max_length=128)
+    last_name: str | None = Field(None, max_length=128)
+    job_title: str | None = Field(None, max_length=128)
+    phone: str | None = Field(None, max_length=50)
+    department: str | None = Field(None, max_length=128)
     role: Role | None = None
     is_active: bool | None = None
     business_unit_id: str | None = None
@@ -50,6 +60,11 @@ class UserResponse(BaseModel):
     username: str
     email: str
     full_name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    job_title: str | None = None
+    phone: str | None = None
+    department: str | None = None
     role: str
     is_active: bool
     preferred_language: str = "en"
