@@ -103,11 +103,6 @@ class User(Base, UUIDMixin, TimestampMixin):
         back_populates="user",
         lazy="selectin",
     )
-    alert_configs: Mapped[list["AlertConfig"]] = relationship(
-        "AlertConfig",
-        back_populates="user",
-        lazy="selectin",
-    )
 
     @property
     def is_super_admin(self) -> bool:
