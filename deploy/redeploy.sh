@@ -70,19 +70,20 @@ sync_dir deploy
 "${SSH_CMD[@]}" "$HOST" "printf '%s\n' '$STAMP' > $REMOTE_DIR/DEPLOYED_COMMIT"
 
 # ── 3. Build + restart + migrate on the box ──────────────────────────
+# Order matters: build AND start both images BEFORE the DB migrate, so a
+# migrate failure (which would trip `set -e`) can never skip the frontend
+# rebuild — the bug that once shipped a stale frontend on an `all` deploy.
 echo "==> Building + starting on the box"
 "${SSH_CMD[@]}" "$HOST" bash -s <<EOF
 set -e
 cd $REMOTE_DIR/deploy
-if [ "$TARGET" = "backend" ] || [ "$TARGET" = "all" ]; then
-  $COMPOSE build backend
-  $COMPOSE up -d backend
+if [ "$TARGET" = "backend" ]  || [ "$TARGET" = "all" ]; then $COMPOSE build backend; fi
+if [ "$TARGET" = "frontend" ] || [ "$TARGET" = "all" ]; then $COMPOSE build --no-cache frontend; fi
+if [ "$TARGET" = "backend" ]  || [ "$TARGET" = "all" ]; then $COMPOSE up -d backend; fi
+if [ "$TARGET" = "frontend" ] || [ "$TARGET" = "all" ]; then $COMPOSE up -d frontend; fi
+if [ "$TARGET" = "backend" ]  || [ "$TARGET" = "all" ]; then
   echo "    waiting for backend..."; sleep 12
   $COMPOSE exec -T backend alembic upgrade head
-fi
-if [ "$TARGET" = "frontend" ] || [ "$TARGET" = "all" ]; then
-  $COMPOSE build --no-cache frontend
-  $COMPOSE up -d frontend
 fi
 if [ "$REINDEX" = "true" ]; then
   $COMPOSE exec -T backend python -m scripts.reindex_clauses || true
