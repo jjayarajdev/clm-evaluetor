@@ -1,5 +1,4 @@
 # SQLAlchemy Models
-from app.models.alert import AlertConfig, AlertType
 from app.models.audit import AuditAction, AuditLog
 from app.models.base import TenantMixin, TimestampMixin, UUIDMixin
 from app.models.tenant import Tenant, TenantPlan, PLAN_CONTRACT_LIMITS
@@ -47,13 +46,6 @@ from app.models.obligation import (
 )
 from app.models.party import ContractParty, PartyRole
 from app.models.user import Role, User
-from app.models.project_task import (
-    ProjectPhase,
-    ProjectTask,
-    ProjectNote,
-    TaskStatus,
-    TaskPriority,
-)
 from app.models.event import Event, EventType, EventSeverity, EventStatus
 from app.models.workflow import (
     WorkflowDefinition,
@@ -290,15 +282,6 @@ __all__ = [
     # Audit
     "AuditLog",
     "AuditAction",
-    # Alert
-    "AlertConfig",
-    "AlertType",
-    # Project Tracking
-    "ProjectPhase",
-    "ProjectTask",
-    "ProjectNote",
-    "TaskStatus",
-    "TaskPriority",
     # Event
     "Event",
     "EventType",

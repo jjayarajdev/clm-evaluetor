@@ -614,7 +614,6 @@ async def purge_tenant(
         ("contracts", "DELETE FROM contracts WHERE tenant_id = :tid", tid),
 
         # ── Phase 8: Tables referencing users (no tenant_id) ──
-        ("alert_configs", "DELETE FROM alert_configs WHERE user_id = ANY(:ids)", uids),
         ("approval_requests", "DELETE FROM approval_requests WHERE approver_id = ANY(:ids) OR original_approver_id = ANY(:ids)", uids),
         ("approvers", "DELETE FROM approvers WHERE user_id = ANY(:ids) OR delegate_to = ANY(:ids)", uids),
         ("audit_logs", "DELETE FROM audit_logs WHERE user_id = ANY(:ids)", uids),
