@@ -940,6 +940,9 @@ class InsightItem(BaseModel):
     action: str
     action_label: str
     variant: str  # info, warning, success
+    # i18n: frontend prefers these over the English title/description/label.
+    key: str = ""          # semantic key, e.g. "overdue_obligations"
+    params: dict = {}      # interpolation params, e.g. {"count": 3, "value": "$1.2M"}
 
 
 class InsightsResponse(BaseModel):
@@ -955,7 +958,8 @@ class ActivityItem(BaseModel):
     icon: str
     title: str
     subtitle: str
-    time: str
+    time: str            # English fallback ("5m ago")
+    iso_time: str = ""   # raw ISO timestamp; frontend formats relative time per locale
     color: str
 
 
