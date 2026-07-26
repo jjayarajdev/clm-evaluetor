@@ -82,7 +82,7 @@ async def get_notification_feed(
             "id": f"obl:{obl.id}",
             "type": "obligation",
             "severity": "high" if overdue else "medium",
-            "label": "Overdue" if overdue else "Due soon",
+            "label": "overdue" if overdue else "due_soon",  # i18n key; frontend translates
             "title": _trunc(obl.description) or "Obligation",
             "subtitle": con.counterparty or con.filename or "",
             "contract_id": str(obl.contract_id),
@@ -106,8 +106,8 @@ async def get_notification_feed(
             "id": f"con:{con.id}",
             "type": "renewal",
             "severity": "high" if urgent else "medium",
-            "label": "Expired" if expired else "Renewal due",
-            "title": ("Expired: " if expired else "Expiring: ") + (con.filename or "Contract"),
+            "label": "expired" if expired else "renewal_due",  # i18n key
+            "title": con.filename or "Contract",  # label badge conveys expired/expiring
             "subtitle": con.counterparty or "",
             "contract_id": str(con.id),
             "link": f"/contracts/{con.id}",
@@ -133,7 +133,7 @@ async def get_notification_feed(
             "id": f"sla:{al.id}",
             "type": "sla",
             "severity": "high" if high else "medium",
-            "label": "SLA alert",
+            "label": "sla",  # i18n key
             "title": _trunc(al.title) or "SLA alert",
             "subtitle": con.counterparty or con.filename or "",
             "contract_id": str(al.contract_id),

@@ -129,7 +129,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                             <span className="flex-1 min-w-0">
                               <span className="flex items-center gap-2">
                                 <span className={cn('text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded', SEVERITY_BADGE[item.severity] || 'bg-gray-100 text-gray-600')}>
-                                  {item.label}
+                                  {t(`notifFeed.labels.${item.label}`, { defaultValue: item.label })}
                                 </span>
                                 <span className="text-[11px] text-gray-400">{formatDate(item.date)}</span>
                               </span>
