@@ -424,10 +424,29 @@ class PostSigningService:
             due_this_week=due_this_week,
         )
 
+    async def _load_scoring_config(self) -> dict:
+        """Resolve At-Risk/Compliance scoring rules: default -> tenant -> BU."""
+        from app.models.tenant import Tenant
+        from app.models.business_unit import BusinessUnit
+        from app.services.scoring_config import resolve_scoring_config
+
+        sources: list[dict] = []
+        if self.tenant_id:
+            t = await self.db.get(Tenant, self.tenant_id)
+            if t and t.config_overrides:
+                sources.append(t.config_overrides)
+        if self.business_unit_id:
+            bu = await self.db.get(BusinessUnit, self.business_unit_id)
+            if bu and bu.config_overrides:
+                sources.append(bu.config_overrides)
+        return resolve_scoring_config(*sources)
+
     async def get_dashboard(self) -> PostSigningDashboard:
         """Build the complete post-signing dashboard."""
         today = date.today()
         now = datetime.utcnow()
+
+        self.scoring = await self._load_scoring_config()
 
         contracts = await self._fetch_contracts()
         obligations = await self._fetch_obligations()
@@ -458,18 +477,39 @@ class PostSigningService:
         vendor_widget = self._build_vendor_widget(contracts, obligations, slas, today)
         milestone_widget = self._build_milestone_widget(obligations, today)
 
-        # Compliance widget — blend only the components that are actually
-        # measured (an unmeasured SLA no longer inflates the overall score).
-        _measured = [(v, w) for v, w in ((obl_compliance, 0.6), (sla_compliance, 0.4)) if v is not None]
+        # Compliance widget — weighted blend of the measured components only.
+        # Weights are tenant/BU-configurable (default obligations 0.6 / SLA 0.4).
+        comp_cfg = self.scoring["compliance"]
+        _measured = [
+            (v, w) for v, w in (
+                (obl_compliance, comp_cfg["obligation_weight"]),
+                (sla_compliance, comp_cfg["sla_weight"]),
+            ) if v is not None
+        ]
         overall_compliance = (
             round(sum(v * w for v, w in _measured) / sum(w for _, w in _measured), 2)
-            if _measured else None
+            if _measured and sum(w for _, w in _measured) > 0 else None
         )
+
+        # Contracts at risk — tenant/BU-configurable definition + thresholds.
+        ar = self.scoring["at_risk"]
+        definition = ar["definition"]
+        count_th = ar["overdue_count_threshold"]
+        ratio_th = ar["overdue_ratio_threshold"]
+        risk_levels = {str(x).lower() for x in ar["risk_levels"]}
         contracts_at_risk = 0
         for c in contracts:
-            c_obls = [o for o in obligations if o.contract_id == c.id]
-            c_overdue = sum(1 for o in c_obls if self._is_overdue(o, today))
-            if c_overdue >= 2 or (len(c_obls) > 0 and c_overdue / len(c_obls) > 0.3):
+            at_risk = False
+            if definition in ("obligations", "both"):
+                c_obls = [o for o in obligations if o.contract_id == c.id]
+                c_overdue = sum(1 for o in c_obls if self._is_overdue(o, today))
+                if c_overdue >= count_th or (len(c_obls) > 0 and c_overdue / len(c_obls) > ratio_th):
+                    at_risk = True
+            if not at_risk and definition in ("risk_level", "both") and c.risk_level is not None:
+                lvl = c.risk_level.value if hasattr(c.risk_level, "value") else str(c.risk_level)
+                if lvl.lower() in risk_levels:
+                    at_risk = True
+            if at_risk:
                 contracts_at_risk += 1
 
         high_priority = obl_overdue + sla_breached + len(past_notice)

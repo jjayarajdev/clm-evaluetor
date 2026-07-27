@@ -335,7 +335,7 @@ async def update_current_tenant_overrides(
     allowed_keys = {
         "contract_types", "clause_types", "risk_categories",
         "sla_metrics", "extraction_hints", "field_definitions",
-        "party_aliases",
+        "party_aliases", "scoring",
     }
     invalid_keys = set(overrides.keys()) - allowed_keys
     if invalid_keys:
