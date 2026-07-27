@@ -113,6 +113,10 @@ class SyncResultResponse(BaseModel):
     created: int
     updated: int
     errors: int
+    # Performance sync (measurements pulled for mapped SLAs)
+    mapped: int = 0
+    measurements: int = 0
+    skipped_no_data: int = 0
 
 
 class TestConnectionResponse(BaseModel):
@@ -281,6 +285,10 @@ async def trigger_sla_sync(
 
     try:
         stats = await svc.sync_sla_definitions(config)
+        # Also pull measurements for any SLAs already mapped to a platform SLA.
+        perf = await svc.sync_sla_performance(config)
+        stats.update({k: perf[k] for k in ("mapped", "measurements", "skipped_no_data")})
+        stats["errors"] += perf.get("errors", 0)
         return SyncResultResponse(**stats)
     except Exception as e:
         raise HTTPException(

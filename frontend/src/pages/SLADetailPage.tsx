@@ -135,11 +135,22 @@ export default function SLADetailPage() {
         <div className="card-header flex items-center justify-between">
           <div>
             <h2 className="text-sm font-medium text-gray-900">{t('sla.measurements', { defaultValue: 'Measurements' })}</h2>
-            <p className="text-xs text-gray-500">{t('sla.sourceManual', { defaultValue: 'Data source: manual entry' })}</p>
+            {sla.data_source === 'servicenow' ? (
+              <p className="text-xs text-gray-500 flex items-center gap-1">
+                <BoltIcon className="h-3 w-3 text-primary-500" />
+                {t('sla.sourceServiceNow', { defaultValue: 'Data source: ServiceNow' })}
+                {sla.snow_sla_name ? ` · ${sla.snow_sla_name}` : ''}
+                {sla.snow_last_synced ? ` · ${t('sla.lastSynced', { defaultValue: 'synced' })} ${new Date(sla.snow_last_synced).toLocaleString()}` : ''}
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500">{t('sla.sourceManual', { defaultValue: 'Data source: manual entry' })}</p>
+            )}
           </div>
           {canRecord && (
-            <button onClick={() => { setActualValue(''); setNotes(''); setError(null); setShowModal(true) }} className="btn-primary text-sm">
-              {t('sla.recordMeasurement', { defaultValue: 'Record measurement' })}
+            <button onClick={() => { setActualValue(''); setNotes(''); setError(null); setShowModal(true) }} className={sla.data_source === 'servicenow' ? 'btn-secondary text-sm' : 'btn-primary text-sm'}>
+              {sla.data_source === 'servicenow'
+                ? t('sla.addOverride', { defaultValue: 'Add manual override' })
+                : t('sla.recordMeasurement', { defaultValue: 'Record measurement' })}
             </button>
           )}
         </div>

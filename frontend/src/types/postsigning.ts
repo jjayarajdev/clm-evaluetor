@@ -77,6 +77,9 @@ export interface SLADetail {
   consecutive_breaches: number
   source_text?: string | null
   compliance_trend?: string | null
+  data_source?: 'manual' | 'servicenow'
+  snow_sla_name?: string | null
+  snow_last_synced?: string | null
   recent_performances?: {
     id: string
     actual_value: number

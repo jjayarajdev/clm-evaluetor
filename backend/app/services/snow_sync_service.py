@@ -132,6 +132,71 @@ class SnowSyncService:
 
         return stats
 
+    async def sync_sla_performance(self, config: IntegrationConfig) -> dict:
+        """Pull ServiceNow task_sla results for each *mapped* SLA and record a
+        platform measurement (compliance = % of SLA instances that were met).
+
+        Only mappings linked to a platform SLA (status 'mapped') are synced.
+        """
+        from decimal import Decimal
+        from app.models.sla import ContractSLA, SLAPerformance
+        from app.routers.sla import (
+            check_compliance, calculate_deviation, determine_breach_severity,
+        )
+
+        stats = {"mapped": 0, "measurements": 0, "skipped_no_data": 0, "errors": 0}
+        mappings = [
+            m for m in await self.get_mappings(config.tenant_id, config.id)
+            if m.platform_sla_id and m.mapping_status == "mapped"
+        ]
+        stats["mapped"] = len(mappings)
+        now = datetime.utcnow()
+
+        async with ServiceNowClient(config, self.db) as client:
+            for m in mappings:
+                try:
+                    resp = await client.get_sla_performance(m.snow_sys_id, limit=500)
+                    rows = resp.get("result", [])
+                    if not isinstance(rows, list):
+                        rows = [rows] if rows else []
+                    n = len(rows)
+                    if n == 0:
+                        stats["skipped_no_data"] += 1
+                        continue
+
+                    breached = sum(1 for r in rows if str(r.get("has_breached")).lower() == "true")
+                    rate = Decimal(str(round((n - breached) / n * 100, 2)))
+
+                    sla = await self.db.get(ContractSLA, m.platform_sla_id)
+                    if not sla:
+                        stats["errors"] += 1
+                        continue
+
+                    is_compliant = check_compliance(sla.target_value, rate, sla.target_operator)
+                    deviation = calculate_deviation(sla.target_value, rate, sla.target_operator)
+                    self.db.add(SLAPerformance(
+                        sla_id=sla.id,
+                        actual_value=rate,
+                        measured_at=now,
+                        is_compliant=is_compliant,
+                        deviation_percentage=deviation,
+                        breach_severity=None if is_compliant else determine_breach_severity(deviation),
+                        notes=f"Synced from ServiceNow — {n - breached}/{n} instances met",
+                        recorded_by="servicenow-sync",
+                    ))
+                    sla.last_measured_at = now
+                    sla.current_compliance_rate = rate
+                    sla.consecutive_breaches = 0 if is_compliant else (sla.consecutive_breaches or 0) + 1
+                    m.last_synced_at = now
+                    stats["measurements"] += 1
+                except Exception as e:  # noqa: BLE001 — per-mapping isolation
+                    logger.error(f"Error syncing performance for mapping {m.id}: {e}")
+                    stats["errors"] += 1
+
+            await self.db.commit()
+
+        return stats
+
     async def get_mappings(
         self, tenant_id: UUID, config_id: Optional[UUID] = None
     ) -> list[SnowSLAMapping]:
