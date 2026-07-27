@@ -19,6 +19,7 @@ import {
   PaperClipIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import PageHeader from '@/components/ui/PageHeader'
 import StatCard from '@/components/ui/StatCard'
@@ -343,6 +344,38 @@ export default function PostSigningPage() {
       queryClient.invalidateQueries({ queryKey: ['postsigning-dashboard'] })
     },
   })
+
+  // SLA measurement recording (manual now; a ServiceNow/ITSM pull can post to the
+  // same endpoint later). Write roles only.
+  const { user } = useAuth()
+  const canRecord = ['super_admin', 'admin', 'legal', 'procurement', 'bu_head'].includes(user?.role || '')
+  const [measureSla, setMeasureSla] = useState<SLARow | null>(null)
+  const [actualValue, setActualValue] = useState('')
+  const [measureNotes, setMeasureNotes] = useState('')
+  const [measureError, setMeasureError] = useState<string | null>(null)
+  const recordMeasurementMutation = useMutation({
+    mutationFn: ({ contractId, slaId, actual, notes }: { contractId: string; slaId: string; actual: number; notes?: string }) =>
+      api.logSLAPerformance(contractId, slaId, { actual_value: actual, notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['postsigning-slas'] })
+      queryClient.invalidateQueries({ queryKey: ['postsigning-dashboard'] })
+      setMeasureSla(null)
+      setActualValue('')
+      setMeasureNotes('')
+      setMeasureError(null)
+    },
+    onError: (e: unknown) => setMeasureError(e instanceof Error ? e.message : t('postsigning.recordFailed', { defaultValue: 'Could not record the measurement.' })),
+  })
+
+  const submitMeasurement = () => {
+    const val = Number(actualValue)
+    if (!measureSla || actualValue.trim() === '' || Number.isNaN(val)) {
+      setMeasureError(t('postsigning.recordInvalid', { defaultValue: 'Enter a numeric value.' }))
+      return
+    }
+    setMeasureError(null)
+    recordMeasurementMutation.mutate({ contractId: measureSla.contract_id, slaId: measureSla.id, actual: val, notes: measureNotes.trim() || undefined })
+  }
 
   // Build sparkline data from trend
   const obligationChart = useMemo(() => {
@@ -804,12 +837,13 @@ export default function PostSigningPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.complianceColumn')}</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.breaches')}</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('postsigning.severity')}</th>
+                      {canRecord && <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('common.actions')}</th>}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredSLAs.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
+                        <td colSpan={canRecord ? 8 : 7} className="px-4 py-8 text-center text-sm text-gray-500">
                           {t('postsigning.noActiveSlas')}
                         </td>
                       </tr>
@@ -864,6 +898,16 @@ export default function PostSigningPage() {
                               {t(`risk.${sla.severity}`, { defaultValue: sla.severity })}
                             </span>
                           </td>
+                          {canRecord && (
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => { setMeasureSla(sla); setActualValue(''); setMeasureNotes(''); setMeasureError(null) }}
+                                className="text-xs font-medium text-primary-600 hover:underline whitespace-nowrap"
+                              >
+                                {t('postsigning.recordMeasurement')}
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))
                     )}
@@ -954,6 +998,57 @@ export default function PostSigningPage() {
           breach={selectedBreach}
           onClose={() => setSelectedBreach(null)}
         />
+      )}
+
+      {/* Record SLA measurement */}
+      {measureSla && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">{t('postsigning.recordMeasurementTitle')}</h3>
+            <p className="text-sm text-gray-500 mb-4">{measureSla.sla_name}</p>
+
+            <div className="rounded-lg bg-gray-50 p-3 mb-4 text-sm flex items-center justify-between">
+              <span className="text-gray-500">{t('postsigning.metric')} · {t('postsigning.target')}</span>
+              <span className="font-medium text-gray-900">
+                {(measureSla.metric_type?.replace(/_/g, ' ') || '')} {measureSla.target_value != null ? `(≥ ${measureSla.target_value})` : ''}
+              </span>
+            </div>
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('postsigning.actualValue')}</label>
+            <input
+              type="number"
+              value={actualValue}
+              onChange={(e) => setActualValue(e.target.value)}
+              placeholder={t('postsigning.actualValuePlaceholder', { defaultValue: 'e.g. 99.2' })}
+              className="input w-full mb-3"
+              autoFocus
+            />
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('postsigning.measureNotes')}</label>
+            <textarea
+              value={measureNotes}
+              onChange={(e) => setMeasureNotes(e.target.value)}
+              rows={2}
+              placeholder={t('postsigning.measureNotesPlaceholder', { defaultValue: 'Optional — period, source…' })}
+              className="input w-full"
+            />
+
+            {measureError && <p className="mt-3 text-sm text-red-600">{measureError}</p>}
+
+            <div className="flex justify-end gap-3 mt-5">
+              <button onClick={() => setMeasureSla(null)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={submitMeasurement}
+                disabled={recordMeasurementMutation.isPending || actualValue.trim() === ''}
+                className="btn-primary disabled:opacity-50"
+              >
+                {recordMeasurementMutation.isPending ? t('common.saving') : t('postsigning.recordMeasurement')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {activeTab === 'milestones' && (
