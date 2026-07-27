@@ -107,6 +107,9 @@ function App() {
         <Route path="obligations/:id" element={<ObligationDetailPage />} />
         <Route path="clauses/:id" element={<ClauseDetailPage />} />
         <Route path="post-signing" element={<PostSigningPage />} />
+        {/* /compliance is a legacy alias still referenced by dashboard cards, the
+            command palette and older nav — point it at the post-signing view. */}
+        <Route path="compliance" element={<Navigate to="/post-signing" replace />} />
         <Route path="renewals" element={<RenewalsPage />} />
         <Route path="vendors" element={<VendorsPage />} />
         <Route path="reports" element={<ReportsPage />} />
