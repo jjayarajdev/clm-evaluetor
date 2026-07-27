@@ -288,6 +288,14 @@ export async function uploadObligationEvidence(obligationId: string, data: {
   return response.data
 }
 
+export async function downloadObligationEvidence(obligationId: string, filename: string): Promise<Blob> {
+  const response = await client.get(
+    `/obligations/${obligationId}/evidence/${encodeURIComponent(filename)}`,
+    { responseType: 'blob' }
+  )
+  return response.data as Blob
+}
+
 // ============ CALENDAR EXPORT ============
 
 export async function exportCalendarICS(options?: {

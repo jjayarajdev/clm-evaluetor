@@ -100,6 +100,7 @@ export default function ObligationDetailPage() {
   const [evidenceDescription, setEvidenceDescription] = useState('')
   const [evidenceDate, setEvidenceDate] = useState('')
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null)
+  const [evidenceError, setEvidenceError] = useState<string | null>(null)
 
   const { data: obligation, isLoading, error } = useQuery({
     queryKey: ['obligation', id],
@@ -116,16 +117,37 @@ export default function ObligationDetailPage() {
       setEvidenceDescription('')
       setEvidenceDate('')
       setEvidenceFile(null)
+      setEvidenceError(null)
+    },
+    onError: (e: unknown) => {
+      setEvidenceError(e instanceof Error ? e.message : t('obligation.evidenceUploadFailed', { defaultValue: 'Upload failed. Please try again.' }))
     },
   })
 
   const handleEvidenceSubmit = () => {
-    if (!evidenceDescription.trim()) return
+    // A file alone is valid evidence — fall back to the filename as the description
+    // so uploading just an image works (the backend requires a description string).
+    const description = evidenceDescription.trim() || evidenceFile?.name || ''
+    if (!description) return
+    setEvidenceError(null)
     uploadEvidenceMutation.mutate({
-      evidence_description: evidenceDescription,
+      evidence_description: description,
       evidence_date: evidenceDate || undefined,
       file: evidenceFile || undefined,
     })
+  }
+
+  // Fetch the attached file through the API client (carries the auth token) and
+  // open it in a new tab — a plain <a href> can't send the Bearer header.
+  const viewEvidenceFile = async (filename: string) => {
+    try {
+      const blob = await api.downloadObligationEvidence(id!, filename)
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener')
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch {
+      setEvidenceError(t('obligation.evidenceViewFailed', { defaultValue: 'Could not open the attached file.' }))
+    }
   }
 
   if (isLoading) {
@@ -463,12 +485,25 @@ export default function ObligationDetailPage() {
             <div className="card-body">
               {obligation.compliance_evidence ? (
                 <div className="space-y-2">
-                  {obligation.compliance_evidence.split('\n').map((entry: string, idx: number) => (
-                    <div key={idx} className="flex items-start gap-2 text-sm">
-                      <CheckCircleIcon className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-700">{entry}</span>
-                    </div>
-                  ))}
+                  {obligation.compliance_evidence.split('\n').map((entry: string, idx: number) => {
+                    const fileMatch = entry.match(/\[File:\s*(.+?)\]/)
+                    const fileName = fileMatch?.[1]
+                    const label = fileMatch ? entry.replace(fileMatch[0], '').trim() : entry
+                    return (
+                      <div key={idx} className="flex items-start gap-2 text-sm">
+                        <CheckCircleIcon className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700">{label}</span>
+                        {fileName && (
+                          <button
+                            onClick={() => viewEvidenceFile(fileName)}
+                            className="text-primary-600 hover:underline whitespace-nowrap flex-shrink-0"
+                          >
+                            {t('obligation.viewFile', { defaultValue: 'View file' })}
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-4">
@@ -554,6 +589,10 @@ export default function ObligationDetailPage() {
               </div>
             </div>
 
+            {evidenceError && (
+              <p className="mt-4 text-sm text-red-600">{evidenceError}</p>
+            )}
+
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => setShowEvidenceModal(false)}
@@ -563,7 +602,7 @@ export default function ObligationDetailPage() {
               </button>
               <button
                 onClick={handleEvidenceSubmit}
-                disabled={!evidenceDescription.trim() || uploadEvidenceMutation.isPending}
+                disabled={(!evidenceDescription.trim() && !evidenceFile) || uploadEvidenceMutation.isPending}
                 className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2"
               >
                 {uploadEvidenceMutation.isPending ? (

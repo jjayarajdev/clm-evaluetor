@@ -1,10 +1,17 @@
 """Obligations router for compliance workflow management."""
 
+import os
 import uuid as uuid_mod
 from datetime import date, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status
+from fastapi.responses import FileResponse
+
+# Evidence files live under the mounted uploads volume so they survive redeploys.
+# (The old "storage/evidence" path was ephemeral — wiped on every backend rebuild.)
+EVIDENCE_DIR = "data/uploads/evidence"
+LEGACY_EVIDENCE_DIR = "storage/evidence"  # read-only fallback for pre-fix uploads
 from pydantic import BaseModel
 from sqlalchemy import func, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -310,14 +317,12 @@ async def upload_obligation_evidence(
     evidence_record = f"[{timestamp}] {evidence_description}"
 
     if file:
-        # Save file to storage
-        import os
-        storage_dir = "storage/evidence"
-        os.makedirs(storage_dir, exist_ok=True)
+        # Save file to the persistent uploads volume
+        os.makedirs(EVIDENCE_DIR, exist_ok=True)
 
         file_ext = os.path.splitext(file.filename)[1] if file.filename else ""
         safe_filename = f"{obligation_id}_{timestamp.replace(':', '-').replace(' ', '_')}{file_ext}"
-        file_path = os.path.join(storage_dir, safe_filename)
+        file_path = os.path.join(EVIDENCE_DIR, safe_filename)
 
         content = await file.read()
         with open(file_path, "wb") as f:
@@ -339,6 +344,35 @@ async def upload_obligation_evidence(
     await db.refresh(obligation)
 
     return obligation_to_response(obligation)
+
+
+@router.get("/{obligation_id}/evidence/{filename}")
+async def download_obligation_evidence(
+    obligation_id: str,
+    filename: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Download a compliance-evidence file previously attached to an obligation."""
+    # Tenant-scoped access check.
+    query = select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
+    query = apply_tenant_filter(query, tenant_id)
+    obligation = (await db.execute(query)).scalar_one_or_none()
+    if not obligation:
+        raise HTTPException(status_code=404, detail="Obligation not found")
+
+    # Path-traversal guard: only a bare filename, and it must belong to this obligation.
+    safe_name = os.path.basename(filename)
+    if safe_name != filename or not safe_name.startswith(f"{obligation_id}_"):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    for base in (EVIDENCE_DIR, LEGACY_EVIDENCE_DIR):
+        candidate = os.path.join(base, safe_name)
+        if os.path.isfile(candidate):
+            return FileResponse(candidate, filename=safe_name)
+
+    raise HTTPException(status_code=404, detail="Evidence file not found")
 
 
 @router.get("/compliance/rates", response_model=ComplianceRatesResponse)
