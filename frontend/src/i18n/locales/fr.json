@@ -1461,6 +1461,8 @@
       "saveConfiguration": "Enregistrer la configuration",
       "slaMappings": "Correspondances SLA",
       "syncSummary": "Récupérés : {{fetched}} | Créés : {{created}} | Mis à jour : {{updated}}",
+      "syncLinked": "{{n}} liés automatiquement",
+      "syncMeasured": "{{n}} mesures",
       "syncErrorCount": "Erreurs : {{count}}",
       "syncNow": "Synchroniser maintenant",
       "syncFailed": "La synchronisation a échoué. Veuillez vérifier votre connexion ServiceNow et réessayer.",

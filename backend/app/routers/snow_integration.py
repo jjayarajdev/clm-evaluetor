@@ -114,6 +114,7 @@ class SyncResultResponse(BaseModel):
     updated: int
     errors: int
     # Performance sync (measurements pulled for mapped SLAs)
+    auto_mapped: int = 0
     mapped: int = 0
     measurements: int = 0
     skipped_no_data: int = 0
@@ -285,7 +286,8 @@ async def trigger_sla_sync(
 
     try:
         stats = await svc.sync_sla_definitions(config)
-        # Also pull measurements for any SLAs already mapped to a platform SLA.
+        # Auto-link SLAs whose name matches a platform SLA, then pull measurements.
+        stats["auto_mapped"] = await svc.auto_map_by_name(config)
         perf = await svc.sync_sla_performance(config)
         stats.update({k: perf[k] for k in ("mapped", "measurements", "skipped_no_data")})
         stats["errors"] += perf.get("errors", 0)
