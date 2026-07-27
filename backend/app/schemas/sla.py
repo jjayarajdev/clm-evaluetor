@@ -137,6 +137,10 @@ class SLAWithPerformance(SLAResponse):
     # Contract context for the standalone SLA detail page (None on the per-contract list).
     contract_filename: str | None = None
     counterparty: str | None = None
+    # Data-source context: "manual" or "servicenow" (when mapped to a SNOW SLA).
+    data_source: str = "manual"
+    snow_sla_name: str | None = None
+    snow_last_synced: datetime | None = None
 
 
 class SLABreachItem(BaseModel):

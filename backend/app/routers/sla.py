@@ -66,7 +66,7 @@ def sla_to_response(sla: ContractSLA) -> SLAResponse:
         max_penalty_cap=float(sla.max_penalty_cap) if sla.max_penalty_cap else None,
         measurement_period=sla.measurement_period,
         is_active=sla.is_active,
-        current_compliance_rate=float(sla.current_compliance_rate) if sla.current_compliance_rate else None,
+        current_compliance_rate=float(sla.current_compliance_rate) if sla.current_compliance_rate is not None else None,
         last_measured_at=sla.last_measured_at,
         consecutive_breaches=sla.consecutive_breaches or 0,
         source_text=sla.source_text,
@@ -251,12 +251,21 @@ async def get_sla_detail(
         .limit(20)
     )).scalars().all()
 
+    # Is this SLA fed by ServiceNow? (mapped in snow_sla_mappings)
+    from app.models.snow_sla_mapping import SnowSLAMapping
+    mapping = (await db.execute(
+        select(SnowSLAMapping).where(SnowSLAMapping.platform_sla_id == sla.id).limit(1)
+    )).scalar_one_or_none()
+
     return SLAWithPerformance(
         **sla_to_response(sla).model_dump(),
         recent_performances=[performance_to_response(p) for p in perfs],
         compliance_trend=_compute_trend(perfs),
         contract_filename=contract.filename,
         counterparty=contract.counterparty,
+        data_source="servicenow" if mapping else "manual",
+        snow_sla_name=mapping.snow_sla_name if mapping else None,
+        snow_last_synced=mapping.last_synced_at if mapping else None,
     )
 
 
