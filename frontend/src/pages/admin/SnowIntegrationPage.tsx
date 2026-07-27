@@ -59,7 +59,7 @@ export default function SnowIntegrationPage() {
   const [formData, setFormData] = useState<ConfigFormData>(emptyFormData)
   const [showPassword, setShowPassword] = useState(false)
   const [testResult, setTestResult] = useState<{ healthy: boolean; message: string } | null>(null)
-  const [syncResult, setSyncResult] = useState<{ fetched: number; created: number; updated: number; errors: number } | null>(null)
+  const [syncResult, setSyncResult] = useState<{ fetched: number; created: number; updated: number; errors: number; auto_mapped?: number; measurements?: number } | null>(null)
 
   // Queries
   const { data: config, isLoading: configLoading, error: configError } = useQuery({
@@ -538,6 +538,9 @@ export default function SnowIntegrationPage() {
               {syncResult && (
                 <span className="text-xs text-gray-500">
                   {t('integrations.snow.syncSummary', { fetched: syncResult.fetched, created: syncResult.created, updated: syncResult.updated })}
+                  {(syncResult.auto_mapped || syncResult.measurements) ? (
+                    <span> · {t('integrations.snow.syncLinked', { defaultValue: '{{n}} auto-linked', n: syncResult.auto_mapped || 0 })} · {t('integrations.snow.syncMeasured', { defaultValue: '{{n}} measurements', n: syncResult.measurements || 0 })}</span>
+                  ) : null}
                   {syncResult.errors > 0 && (
                     <span className="text-red-600"> | {t('integrations.snow.syncErrorCount', { count: syncResult.errors })}</span>
                   )}

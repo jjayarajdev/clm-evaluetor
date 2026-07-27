@@ -132,6 +132,34 @@ class SnowSyncService:
 
         return stats
 
+    async def auto_map_by_name(self, config: IntegrationConfig) -> int:
+        """Link still-unmapped ServiceNow SLAs to platform SLAs with the same
+        (normalized) name. Never overrides an existing link. Returns count linked."""
+        import re
+        from app.models.sla import ContractSLA
+        from app.models.contract import Contract
+
+        norm = lambda s: re.sub(r"[^a-z0-9]", "", (s or "").lower())
+        slas = (await self.db.execute(
+            select(ContractSLA)
+            .join(Contract, ContractSLA.contract_id == Contract.id)
+            .where(Contract.tenant_id == config.tenant_id)
+        )).scalars().all()
+        by_name = {norm(s.sla_name): s.id for s in slas}
+
+        linked = 0
+        for m in await self.get_mappings(config.tenant_id, config.id):
+            if m.platform_sla_id:
+                continue
+            pid = by_name.get(norm(m.snow_sla_name))
+            if pid:
+                m.platform_sla_id = pid
+                m.mapping_status = "mapped"
+                linked += 1
+        if linked:
+            await self.db.commit()
+        return linked
+
     async def sync_sla_performance(self, config: IntegrationConfig) -> dict:
         """Pull ServiceNow task_sla results for each *mapped* SLA and record a
         platform measurement (compliance = % of SLA instances that were met).
