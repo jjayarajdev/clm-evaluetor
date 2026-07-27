@@ -103,11 +103,18 @@ export default function SnowIntegrationPage() {
   })
 
   const updateMappingMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      api.updateSnowMapping(id, { mapping_status: status }),
+    mutationFn: ({ id, status, platform_sla_id }: { id: string; status: string; platform_sla_id?: string | null }) =>
+      api.updateSnowMapping(id, { mapping_status: status, platform_sla_id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['snow-mappings'] })
     },
+  })
+
+  // Platform (tenant) SLAs to link ServiceNow SLAs to.
+  const { data: platformSlas } = useQuery({
+    queryKey: ['platform-slas-for-snow-mapping'],
+    queryFn: () => api.getPostSigningSLAs() as Promise<{ id: string; sla_name: string }[]>,
+    enabled: !!config,
   })
 
   const openEditForm = (existingConfig?: SnowConfig | null) => {
@@ -577,6 +584,9 @@ export default function SnowIntegrationPage() {
                         {t('integrations.snow.target')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t('integrations.snow.platformSla', { defaultValue: 'Platform SLA' })}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         {t('common.status')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -599,6 +609,23 @@ export default function SnowIntegrationPage() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                           {mapping.snow_target || '-'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={mapping.platform_sla_id || ''}
+                            onChange={(e) => updateMappingMutation.mutate({
+                              id: mapping.id,
+                              platform_sla_id: e.target.value || null,
+                              status: e.target.value ? 'mapped' : 'pending',
+                            })}
+                            disabled={updateMappingMutation.isPending}
+                            className="text-sm border border-gray-300 rounded-lg px-2 py-1 max-w-[220px] focus:ring-2 focus:ring-primary-500"
+                          >
+                            <option value="">{t('integrations.snow.notLinked', { defaultValue: '— not linked —' })}</option>
+                            {(platformSlas || []).map((s) => (
+                              <option key={s.id} value={s.id}>{s.sla_name}</option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={cn(

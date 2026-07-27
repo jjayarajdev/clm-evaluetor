@@ -1467,6 +1467,8 @@
       "slaName": "Nom du SLA",
       "metricType": "Type de métrique",
       "target": "Cible",
+      "platformSla": "SLA de la plateforme",
+      "notLinked": "— non lié —",
       "lastSynced": "Dernière synchronisation",
       "mappingStatus": {
         "mapped": "Mappé",
