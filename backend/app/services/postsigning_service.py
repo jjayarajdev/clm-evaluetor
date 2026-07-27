@@ -344,24 +344,43 @@ class PostSigningService:
         """Build the vendor widget from contract/obligation/SLA data."""
         if today is None:
             today = date.today()
-        counterparties = list(set(c.counterparty for c in contracts if c.counterparty))
+
+        # Group counterparties into distinct entities the same way the Vendors
+        # page does (organization_id, else canonical name key) — otherwise the
+        # same vendor fragments across name variants (e.g. "ING", "ING Bank N.V.",
+        # "ING Group") and the count/scores are inflated and inconsistent.
+        from collections import defaultdict
+        from app.services.org_resolver import canonical_org_key
+        from app.agents.metadata_extraction import clean_counterparty
+
+        groups: dict = defaultdict(list)
+        for c in contracts:
+            if not c.counterparty:
+                continue
+            if c.organization_id is not None:
+                key = ("org", str(c.organization_id))
+            else:
+                cleaned = clean_counterparty(c.counterparty) or c.counterparty
+                key = ("cp", canonical_org_key(cleaned) or cleaned.lower())
+            groups[key].append(c)
 
         vendor_scores = []
-        for cp in counterparties:
-            cp_contracts = [c for c in contracts if c.counterparty == cp]
+        for _key, cp_contracts in groups.items():
+            cp = clean_counterparty(cp_contracts[0].counterparty) or cp_contracts[0].counterparty
             cp_contract_ids = [c.id for c in cp_contracts]
 
+            # Obligation compliance — same definition the Vendors page uses
+            # (vendor_service.calculate_obligation_compliance): rate over the
+            # *assessable* obligations (completed + in_progress + overdue by
+            # stored status), and None (unrated) until something is actually
+            # tracked. Keeps the dashboard widget and the Vendors page in agreement
+            # instead of one deriving overdue from deadlines and the other not.
             cp_obls = [o for o in obligations if o.contract_id in cp_contract_ids]
             cp_completed = sum(1 for o in cp_obls if o.status == ObligationStatus.COMPLETED)
-            cp_overdue = sum(1 for o in cp_obls if self._is_overdue(o, today))
-            cp_total = len(cp_obls)
-            # Obligations only inform the score once some are actually tracked
-            # (completed or overdue) — untracked ones don't default to 100%.
-            obl_tracked = (cp_completed + cp_overdue) > 0
-            obl_rate = (
-                ((cp_completed / cp_total * 100) if cp_total > 0 else 0)
-                - (cp_overdue / max(cp_total, 1) * 30)
-            ) if obl_tracked else None
+            cp_in_progress = sum(1 for o in cp_obls if o.status == ObligationStatus.IN_PROGRESS)
+            cp_overdue = sum(1 for o in cp_obls if o.status == ObligationStatus.OVERDUE)
+            assessable = cp_completed + cp_in_progress + cp_overdue
+            obl_rate = ((cp_completed + cp_in_progress) / assessable * 100) if assessable > 0 else None
 
             cp_slas = [s for s in slas if s.contract_id in cp_contract_ids]
             cp_sla_rates = [float(s.current_compliance_rate) for s in cp_slas if s.current_compliance_rate is not None]
@@ -382,7 +401,7 @@ class PostSigningService:
         avg_score = round(sum(v["score"] for v in rated) / len(rated), 2) if rated else None
 
         return VendorWidget(
-            total_vendors=len(counterparties),
+            total_vendors=len(groups),
             at_risk_vendors=at_risk_vendors,
             avg_performance_score=avg_score,
             top_performers=rated[:3],
