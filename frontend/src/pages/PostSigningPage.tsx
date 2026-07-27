@@ -1053,6 +1053,7 @@ export default function PostSigningPage() {
 
       {activeTab === 'milestones' && (
         <div className="space-y-4">
+          <p className="text-xs text-gray-500">{t('postsigning.milestonesNote')}</p>
           {/* Milestone Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard

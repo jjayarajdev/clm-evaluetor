@@ -667,6 +667,7 @@
     "breaches": "Breaches",
     "severity": "Severity",
     "noActiveSlas": "No active SLAs found",
+    "milestonesNote": "Milestones are contract obligations that have a target date. Open one to assign, review, and record evidence.",
     "recordMeasurement": "Record measurement",
     "recordMeasurementTitle": "Record SLA measurement",
     "actualValue": "Actual value",

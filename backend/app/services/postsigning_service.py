@@ -427,7 +427,7 @@ class PostSigningService:
             completed=ms_completed,
             at_risk=ms_at_risk,
             overdue=ms_overdue,
-            completion_rate=round(ms_completion_rate, 2),
+            completion_rate=ms_completion_rate,  # already rounded; None when no milestones
             due_this_week=due_this_week,
         )
 
