@@ -14,7 +14,7 @@ import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import PageHeader from '@/components/ui/PageHeader'
 import StatCard from '@/components/ui/StatCard'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import type { ContractRenewalInfo } from '@/types/postsigning'
 
 function RenewalCard({ contract }: { contract: ContractRenewalInfo }) {
@@ -263,7 +263,8 @@ export default function RenewalsPage() {
         />
         <StatCard
           title={t('renewals.valueAtRisk')}
-          value={`$${(calendar.total_value_at_risk / 1000000).toFixed(1)}M`}
+          value={formatCurrency(calendar.upcoming_value_at_risk ?? calendar.total_value_at_risk, calendar.upcoming_value_currency || 'USD')}
+          subtitle={calendar.expired_value ? t('renewals.expiredValueNote', { value: formatCurrency(calendar.expired_value, calendar.expired_value_currency || 'USD') }) : undefined}
           icon={ClockIcon}
           color="primary"
         />

@@ -187,7 +187,11 @@ async def get_renewal_calendar(
     within_60 = []
     within_90 = []
 
-    total_value_at_risk = 0.0
+    # Value at risk, split upcoming (at risk of lapsing) vs already-expired, and
+    # grouped by currency (never a cross-currency sum). Conflating the two and
+    # summing across currencies made a fully-expired portfolio read as live risk.
+    upcoming_by_cur: dict[str, float] = {}
+    expired_by_cur: dict[str, float] = {}
     auto_renewal_count = 0
     requires_action_count = 0
 
@@ -197,9 +201,13 @@ async def get_renewal_calendar(
 
         info = build_contract_renewal_info(contract, today, sla_compliance, sla_breaches)
 
-        # Accumulate stats
+        # Accumulate value by risk-group and currency
         if info.contract_value:
-            total_value_at_risk += info.contract_value
+            cur = (contract.currency or "USD").upper()
+            if info.renewal_window == "expired":
+                expired_by_cur[cur] = expired_by_cur.get(cur, 0.0) + info.contract_value
+            elif info.renewal_window in ("critical", "30_days", "60_days", "90_days"):
+                upcoming_by_cur[cur] = upcoming_by_cur.get(cur, 0.0) + info.contract_value
 
         if info.auto_renewal:
             auto_renewal_count += 1
@@ -220,6 +228,15 @@ async def get_renewal_calendar(
         elif info.renewal_window == "90_days":
             within_90.append(info)
 
+    def _dominant(d: dict[str, float]) -> tuple[float, str]:
+        if not d:
+            return 0.0, "USD"
+        cur, val = max(d.items(), key=lambda kv: kv[1])
+        return round(val, 2), cur
+
+    upcoming_value, upcoming_currency = _dominant(upcoming_by_cur)
+    expired_value, expired_currency = _dominant(expired_by_cur)
+
     return RenewalCalendarResponse(
         as_of_date=today,
         total_contracts=len(contracts),
@@ -228,7 +245,11 @@ async def get_renewal_calendar(
         within_30_days=within_30,
         within_60_days=within_60,
         within_90_days=within_90,
-        total_value_at_risk=total_value_at_risk,
+        total_value_at_risk=upcoming_value,  # headline = value at risk of lapsing
+        upcoming_value_at_risk=upcoming_value,
+        upcoming_value_currency=upcoming_currency,
+        expired_value=expired_value,
+        expired_value_currency=expired_currency,
         auto_renewal_count=auto_renewal_count,
         requires_action_count=requires_action_count,
     )

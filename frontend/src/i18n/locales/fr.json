@@ -472,7 +472,8 @@
     "autoRenewing": "En renouvellement automatique",
     "totalExpiring": "Total arrivant à expiration",
     "valueAtRisk": "Valeur à risque",
-    "noContractsInWindow": "Aucun contrat dans cette fenêtre de renouvellement"
+    "noContractsInWindow": "Aucun contrat dans cette fenêtre de renouvellement",
+    "expiredValueNote": "+ {{value}} dans les contrats expirés"
   },
   "reports": {
     "title": "Rapports de conformité",
