@@ -152,6 +152,17 @@ export default function ObligationDetailPage() {
       ? obligation.rag_status
       : 'not_assessed'
 
+  // Mirror the backend's dynamic rule (_effective_status): a passed deadline on a
+  // not-completed/waived obligation is overdue, regardless of the stored default
+  // ('pending' is the untouched DB default on untracked obligations). Keeps the
+  // detail page consistent with the list, which already derives this.
+  const isOverdue =
+    !!obligation.deadline &&
+    new Date(obligation.deadline) < new Date() &&
+    obligation.status !== 'completed' &&
+    obligation.status !== 'waived'
+  const displayStatus = isOverdue ? 'overdue' : obligation.status
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -174,9 +185,9 @@ export default function ObligationDetailPage() {
             </span>
             <span className={cn(
               'px-2 py-0.5 rounded text-xs font-medium',
-              STATUS_COLORS[obligation.status] || STATUS_COLORS.pending
+              STATUS_COLORS[displayStatus] || STATUS_COLORS.pending
             )}>
-              {t(`obligation.status.${obligation.status}`, { defaultValue: obligation.status })}
+              {t(`obligation.status.${displayStatus}`, { defaultValue: displayStatus })}
             </span>
             {/* RAG Status Indicator */}
             {obligation.rag_status && (
