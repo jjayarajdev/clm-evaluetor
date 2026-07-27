@@ -233,6 +233,10 @@ async def create_or_update_snow_config(
         db.add(config)
 
     await db.flush()
+    # Refresh so server-default timestamps (created_at/updated_at) are loaded —
+    # otherwise validating the fresh row triggers a lazy async load in a sync
+    # context (MissingGreenlet) and the save 500s.
+    await db.refresh(config)
     return SnowConfigResponse.model_validate(config)
 
 
