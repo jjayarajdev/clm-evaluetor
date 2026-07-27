@@ -159,14 +159,32 @@ class SnowSyncService:
                 buckets[norm(s.sla_name)].append(s.id)
 
         linked = 0
-        for m in mappings:
-            if m.platform_sla_id:
-                continue
+        unmapped = [m for m in mappings if not m.platform_sla_id]
+
+        # Pass 1 — exact normalized-name match.
+        for m in unmapped:
             q = buckets.get(norm(m.snow_sla_name))
             if q:
                 m.platform_sla_id = q.popleft()
                 m.mapping_status = "mapped"
                 linked += 1
+
+        # Pass 2 — ServiceNow truncates contract_sla.name to 40 chars, so a long
+        # platform name arrives shortened. Match when the (long) ServiceNow name is
+        # a prefix of an unclaimed platform name. Longest first to avoid collisions.
+        still = sorted((m for m in unmapped if not m.platform_sla_id),
+                       key=lambda m: -len(norm(m.snow_sla_name)))
+        for m in still:
+            sn = norm(m.snow_sla_name)
+            if len(sn) < 20:
+                continue
+            for k, q in buckets.items():
+                if q and k.startswith(sn):
+                    m.platform_sla_id = q.popleft()
+                    m.mapping_status = "mapped"
+                    linked += 1
+                    break
+
         if linked:
             await self.db.commit()
         return linked
