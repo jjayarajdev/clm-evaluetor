@@ -109,7 +109,10 @@ class PostSigningDashboard(BaseModel):
 
     # Quick stats for header
     total_contracts: int
-    total_value: float
+    total_value: float  # dominant-currency subtotal (never a cross-currency sum)
+    total_value_currency: str = "USD"
+    total_value_by_currency: dict[str, float] = {}
+    valued_contracts: int = 0  # how many contracts actually have a recorded value
     contracts_needing_attention: int
 
     # Action items

@@ -409,7 +409,9 @@
       "all_clear": "No critical issues detected. All contracts and obligations are on track."
     },
     "notTracked": "Not tracked — no obligations marked completed or in progress.",
-    "notMeasured": "Not measured — no SLA performance data yet."
+    "notMeasured": "Not measured — no SLA performance data yet.",
+    "valueCoverage": "{{valued}} of {{total}} contracts valued",
+    "valueOtherCurrencies": "also amounts in {{currencies}}"
   },
   "query": {
     "suggested": {
@@ -690,7 +692,8 @@
     "vendorsCount_other": "{{count}} vendors",
     "oblPercent": "Obl %",
     "slaPercent": "SLA %",
-    "noVendorData": "No vendor data available"
+    "noVendorData": "No vendor data available",
+    "valueCoverage": "{{value}} · {{valued}}/{{total}} valued"
   },
   "users": {
     "subtitle": "Manage user accounts and permissions",
