@@ -190,12 +190,23 @@ export default function RenewalsPage() {
       case 'within_60_days': return calendar.within_60_days
       case 'within_90_days': return calendar.within_90_days
       case 'expired': return calendar.expired
-      default: return [
-        ...calendar.critical,
-        ...calendar.within_30_days,
-        ...calendar.within_60_days,
-        ...calendar.within_90_days,
-      ]
+      default: {
+        // "All" = every renewal-relevant contract, INCLUDING expired (the bug:
+        // expired was omitted, so All showed empty when everything was expired).
+        // Dedupe by contract_id since buckets (e.g. critical + 30-day) overlap.
+        const seen = new Set<string>()
+        return [
+          ...calendar.critical,
+          ...calendar.within_30_days,
+          ...calendar.within_60_days,
+          ...calendar.within_90_days,
+          ...calendar.expired,
+        ].filter((c) => {
+          if (seen.has(c.contract_id)) return false
+          seen.add(c.contract_id)
+          return true
+        })
+      }
     }
   }
 
