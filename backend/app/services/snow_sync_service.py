@@ -134,8 +134,11 @@ class SnowSyncService:
 
     async def auto_map_by_name(self, config: IntegrationConfig) -> int:
         """Link still-unmapped ServiceNow SLAs to platform SLAs with the same
-        (normalized) name. Never overrides an existing link. Returns count linked."""
+        (normalized) name. Duplicate names (e.g. 'System Uptime' on several
+        contracts) are paired 1:1 with distinct ServiceNow SLAs. Never overrides
+        an existing link or reuses an already-claimed platform SLA. Returns count."""
         import re
+        from collections import defaultdict, deque
         from app.models.sla import ContractSLA
         from app.models.contract import Contract
 
@@ -145,15 +148,23 @@ class SnowSyncService:
             .join(Contract, ContractSLA.contract_id == Contract.id)
             .where(Contract.tenant_id == config.tenant_id)
         )).scalars().all()
-        by_name = {norm(s.sla_name): s.id for s in slas}
+
+        mappings = await self.get_mappings(config.tenant_id, config.id)
+        claimed = {m.platform_sla_id for m in mappings if m.platform_sla_id}
+
+        # One queue of unclaimed platform SLA ids per normalized name.
+        buckets: dict[str, deque] = defaultdict(deque)
+        for s in slas:
+            if s.id not in claimed:
+                buckets[norm(s.sla_name)].append(s.id)
 
         linked = 0
-        for m in await self.get_mappings(config.tenant_id, config.id):
+        for m in mappings:
             if m.platform_sla_id:
                 continue
-            pid = by_name.get(norm(m.snow_sla_name))
-            if pid:
-                m.platform_sla_id = pid
+            q = buckets.get(norm(m.snow_sla_name))
+            if q:
+                m.platform_sla_id = q.popleft()
                 m.mapping_status = "mapped"
                 linked += 1
         if linked:
