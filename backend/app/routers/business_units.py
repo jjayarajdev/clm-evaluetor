@@ -309,8 +309,21 @@ async def update_business_unit(
 
     # Update fields
     update_data = data.model_dump(exclude_unset=True)
+    overrides = update_data.pop("config_overrides", None)
     for field, value in update_data.items():
         setattr(bu, field, value)
+
+    # Merge config_overrides (never blind-overwrite) — only known, safe keys.
+    if overrides is not None:
+        allowed_keys = {
+            "contract_types", "clause_types", "risk_categories", "sla_metrics",
+            "extraction_hints", "field_definitions", "party_aliases", "scoring",
+        }
+        merged = dict(bu.config_overrides or {})
+        for k, v in overrides.items():
+            if k in allowed_keys:
+                merged[k] = v
+        bu.config_overrides = merged  # reassignment => JSONB change tracked
 
     await db.commit()
     await db.refresh(bu)

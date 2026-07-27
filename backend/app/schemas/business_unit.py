@@ -34,6 +34,8 @@ class BusinessUnitUpdate(BaseModel):
     head_user_id: Optional[UUID] = None
     industry_profile_id: Optional[UUID] = None
     is_active: Optional[bool] = None
+    # Partial config overrides (e.g. {"scoring": {...}}). Merged + allowlisted in the router.
+    config_overrides: Optional[dict] = None
 
 
 # ===== Response Schemas =====
