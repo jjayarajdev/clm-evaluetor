@@ -13,6 +13,7 @@ import ContractViewPage from './pages/ContractViewPage'
 import GroupsPage from './pages/GroupsPage'
 import GroupDetailPage from './pages/GroupDetailPage'
 import ObligationDetailPage from './pages/ObligationDetailPage'
+import SLADetailPage from './pages/SLADetailPage'
 import ClauseDetailPage from './pages/ClauseDetailPage'
 import UploadPage from './pages/UploadPage'
 import QueryPage from './pages/QueryPage'
@@ -105,6 +106,7 @@ function App() {
         <Route path="groups" element={<GroupsPage />} />
         <Route path="groups/:groupId" element={<GroupDetailPage />} />
         <Route path="obligations/:id" element={<ObligationDetailPage />} />
+        <Route path="slas/:id" element={<SLADetailPage />} />
         <Route path="clauses/:id" element={<ClauseDetailPage />} />
         <Route path="post-signing" element={<PostSigningPage />} />
         {/* /compliance is a legacy alias still referenced by dashboard cards, the

@@ -851,7 +851,7 @@ export default function PostSigningPage() {
                       filteredSLAs.map((sla) => (
                         <tr key={sla.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                            <Link to={`/contracts/${sla.contract_id}?tab=slas`} className="hover:text-primary-600 hover:underline">
+                            <Link to={`/slas/${sla.id}`} className="hover:text-primary-600 hover:underline">
                               {sla.sla_name}
                             </Link>
                           </td>

@@ -208,6 +208,58 @@ async def get_contract_slas(
     return response
 
 
+def _compute_trend(performances) -> str | None:
+    """Improving / declining / stable from the compliance of recent measurements."""
+    if len(performances) < 3:
+        return None
+    recent = [p.is_compliant for p in performances[:3]]
+    older = [p.is_compliant for p in performances[3:6]] if len(performances) >= 6 else []
+    recent_rate = sum(recent) / len(recent)
+    older_rate = sum(older) / len(older) if older else recent_rate
+    if recent_rate > older_rate + 0.1:
+        return "improving"
+    if recent_rate < older_rate - 0.1:
+        return "declining"
+    return "stable"
+
+
+@router.get("/detail/{sla_id}", response_model=SLAWithPerformance)
+async def get_sla_detail(
+    sla_id: str,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SLAWithPerformance:
+    """A single SLA with its contract context and measurement history — powers
+    the standalone SLA detail page."""
+    query = (
+        select(ContractSLA, Contract)
+        .join(Contract, ContractSLA.contract_id == Contract.id)
+        .where(ContractSLA.id == uuid_mod.UUID(sla_id))
+    )
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    row = (await db.execute(query)).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="SLA not found")
+    sla, contract = row
+
+    perfs = (await db.execute(
+        select(SLAPerformance)
+        .where(SLAPerformance.sla_id == sla.id)
+        .order_by(SLAPerformance.measured_at.desc())
+        .limit(20)
+    )).scalars().all()
+
+    return SLAWithPerformance(
+        **sla_to_response(sla).model_dump(),
+        recent_performances=[performance_to_response(p) for p in perfs],
+        compliance_trend=_compute_trend(perfs),
+        contract_filename=contract.filename,
+        counterparty=contract.counterparty,
+    )
+
+
 @router.post("/{contract_id}", response_model=SLAResponse)
 async def create_sla(
     contract_id: str,
