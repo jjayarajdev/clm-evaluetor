@@ -700,6 +700,13 @@ async def get_obligation_detail(
         clause_page_number=row[7],
         clause_section_number=row[8],
         clause_risk_level=row[9].value if row[9] else None,
+        rag_status=obl.rag_status.value if obl.rag_status else None,
+        is_critical=bool(obl.is_critical),
+        compliance_notes=obl.compliance_notes,
+        compliance_evidence=obl.compliance_evidence,
+        last_compliance_date=obl.last_compliance_date,
+        next_compliance_due=obl.next_compliance_due,
+        assigned_user_id=str(obl.assigned_user_id) if obl.assigned_user_id else None,
     )
 
 

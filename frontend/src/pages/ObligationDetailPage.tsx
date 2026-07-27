@@ -19,6 +19,7 @@ import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import { getUsers } from '@/lib/api/admin'
 
 const OBLIGATION_TYPE_COLORS: Record<string, string> = {
   payment: 'bg-green-100 text-green-800 border-green-200',
@@ -149,7 +150,18 @@ export default function ObligationDetailPage() {
     mutationFn: (rag_status: string) => api.updateObligationRAG(id!, { rag_status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['obligation', id] }),
   })
-  const reviewBusy = statusMutation.isPending || ragMutation.isPending
+  const assignMutation = useMutation({
+    mutationFn: (userId: string | null) => api.assignObligation(id!, userId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['obligation', id] }),
+  })
+  const reviewBusy = statusMutation.isPending || ragMutation.isPending || assignMutation.isPending
+
+  // Tenant users for the assignee picker (only fetched for reviewers).
+  const { data: assignableUsers } = useQuery({
+    queryKey: ['assignable-users'],
+    queryFn: getUsers,
+    enabled: canReview,
+  })
 
   // Fetch the attached file through the API client (carries the auth token) and
   // open it in a new tab — a plain <a href> can't send the Bearer header.
@@ -548,6 +560,23 @@ export default function ObligationDetailPage() {
                 <p className="text-xs text-gray-500">{t('obligation.reviewHint')}</p>
               </div>
               <div className="card-body space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">{t('obligation.assignedTo')}</p>
+                  <select
+                    className="input w-full text-sm"
+                    value={obligation.assigned_user_id || ''}
+                    disabled={reviewBusy}
+                    onChange={(e) => assignMutation.mutate(e.target.value || null)}
+                  >
+                    <option value="">{t('obligation.unassigned', { defaultValue: 'Unassigned' })}</option>
+                    {(assignableUsers || []).map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-400">{t('obligation.assignHint')}</p>
+                </div>
                 <div>
                   <p className="text-xs font-medium text-gray-500 mb-1.5">{t('obligation.setStatus')}</p>
                   <div className="grid grid-cols-3 gap-2">

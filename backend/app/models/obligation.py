@@ -218,6 +218,13 @@ class Obligation(Base, UUIDMixin, TimestampMixin):
         index=True,
     )
 
+    # Assignee - the internal user responsible for actioning/reviewing this obligation.
+    assigned_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Detailed category
     category: Mapped[ObligationCategory | None] = mapped_column(
         Enum(ObligationCategory, name='obligationcategory', create_type=False, values_callable=lambda x: [e.value for e in x]),

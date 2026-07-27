@@ -800,6 +800,9 @@
     "evidenceUploadFailed": "Échec du téléversement. Veuillez réessayer.",
     "review": "Revue",
     "reviewHint": "Vérifiez la preuve, puis définissez le résultat.",
+    "assignedTo": "Assigné à",
+    "unassigned": "Non assigné",
+    "assignHint": "La personne assignée est notifiée et le voit dans ses notifications.",
     "setStatus": "Définir le statut",
     "markFulfilled": "Marquer comme rempli",
     "assessRag": "Évaluer la conformité",
@@ -3032,7 +3035,9 @@
       "due_soon": "Bientôt dû",
       "expired": "Expiré",
       "renewal_due": "Renouvellement dû",
-      "sla": "Alerte SLA"
+      "sla": "Alerte SLA",
+      "assigned": "Qui vous est assigné",
+      "assigned_overdue": "Assigné · en retard"
     }
   },
   "welcomeBanner": {

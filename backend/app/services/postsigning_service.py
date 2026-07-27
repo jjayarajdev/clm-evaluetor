@@ -635,6 +635,7 @@ class PostSigningService:
                 "status": "overdue" if (o.deadline and o.deadline < today_val and o.status not in (ObligationStatus.COMPLETED, ObligationStatus.WAIVED)) else (o.status.value if o.status else "pending"),
                 "rag_status": o.rag_status.value if o.rag_status else None,
                 "has_evidence": bool(o.compliance_evidence),
+                "assigned_user_id": str(o.assigned_user_id) if o.assigned_user_id else None,
             }
             for o, c in rows
         ]
