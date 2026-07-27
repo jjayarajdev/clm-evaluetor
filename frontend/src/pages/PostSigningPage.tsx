@@ -21,7 +21,7 @@ import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import PageHeader from '@/components/ui/PageHeader'
 import StatCard from '@/components/ui/StatCard'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import type { ContractRenewalInfo, VendorListItem } from '@/types/postsigning'
 
 interface SLABreachDetail {
@@ -466,7 +466,9 @@ export default function PostSigningPage() {
         <StatCard
           title={t('postsigning.activeContracts')}
           value={dashboard.total_contracts}
-          subtitle={dashboard.total_value ? t('postsigning.totalValueSubtitle', { value: (dashboard.total_value / 1000000).toFixed(1) }) : t('postsigning.na')}
+          subtitle={dashboard.valued_contracts && dashboard.valued_contracts > 0
+            ? t('postsigning.valueCoverage', { value: formatCurrency(dashboard.total_value, dashboard.total_value_currency || 'USD'), valued: dashboard.valued_contracts, total: dashboard.total_contracts })
+            : t('postsigning.na')}
           icon={ChartBarIcon}
           color="primary"
           variant="filled"

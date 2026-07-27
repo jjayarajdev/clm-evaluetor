@@ -326,7 +326,10 @@ export interface PostSigningDashboard {
   milestones: MilestoneWidget
   compliance: ComplianceWidget
   total_contracts: number
-  total_value: number
+  total_value: number  // dominant-currency subtotal (never a cross-currency sum)
+  total_value_currency?: string
+  total_value_by_currency?: Record<string, number>
+  valued_contracts?: number
   contracts_needing_attention: number
   priority_actions: PriorityAction[]
 }

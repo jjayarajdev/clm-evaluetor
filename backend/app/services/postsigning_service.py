@@ -434,7 +434,22 @@ class PostSigningService:
         slas = await self._fetch_slas()
 
         total_contracts = len(contracts)
-        total_value = sum(float(c.contract_value) for c in contracts if c.contract_value)
+        # Never sum across currencies. Group by currency, headline the dominant
+        # (largest) subtotal, and expose the full breakdown + coverage (how many
+        # contracts actually have a recorded value) so the figure is honest.
+        value_by_currency: dict[str, float] = {}
+        valued_contracts = 0
+        for c in contracts:
+            if c.contract_value:
+                cur = (c.currency or "USD").upper()
+                value_by_currency[cur] = value_by_currency.get(cur, 0.0) + float(c.contract_value)
+                valued_contracts += 1
+        if value_by_currency:
+            total_value_currency, total_value = max(value_by_currency.items(), key=lambda kv: kv[1])
+            total_value = round(total_value, 2)
+        else:
+            total_value_currency, total_value = "USD", 0.0
+        total_value_by_currency = {k: round(v, 2) for k, v in value_by_currency.items()}
 
         # Build widgets
         obl_widget, obl_compliance, obl_overdue, urgent_obls = self._build_obligation_widget(obligations, today)
@@ -516,6 +531,9 @@ class PostSigningService:
             compliance=compliance_widget,
             total_contracts=total_contracts,
             total_value=total_value,
+            total_value_currency=total_value_currency,
+            total_value_by_currency=total_value_by_currency,
+            valued_contracts=valued_contracts,
             contracts_needing_attention=contracts_needing_attention,
             priority_actions=priority_actions[:10],
         )

@@ -335,9 +335,18 @@ export default function ModernDashboardPage() {
             chart: trendData?.compliance_rate,
           },
           total_value: {
-            value: complianceData?.total_value ? formatCurrency(complianceData.total_value) : 'N/A',
+            value: complianceData?.total_value ? formatCurrency(complianceData.total_value, complianceData.total_value_currency || 'USD') : 'N/A',
             icon: CurrencyDollarIcon,
             color: 'blue',
+            info: (() => {
+              const valued = complianceData?.valued_contracts ?? 0
+              const total = complianceData?.total_contracts ?? 0
+              if (!valued) return undefined
+              const others = Object.keys(complianceData?.total_value_by_currency || {}).filter(c => c !== (complianceData?.total_value_currency || 'USD'))
+              let s = t('dashboard.valueCoverage', { valued, total })
+              if (others.length) s += ' · ' + t('dashboard.valueOtherCurrencies', { currencies: others.join(', ') })
+              return s
+            })(),
             trend: (trendData?.total_contract_value?.length ?? 0) >= 2 ? {
               value: Math.round(((trendData!.total_contract_value![trendData!.total_contract_value!.length - 1] - trendData!.total_contract_value![0]) / Math.max(trendData!.total_contract_value![0], 1)) * 100),
               label: t('dashboard.vsLastWeek')
