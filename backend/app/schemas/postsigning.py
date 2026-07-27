@@ -50,6 +50,11 @@ class RenewalWidget(BaseModel):
     past_notice_deadline: int
     total_value_at_risk: float
 
+    # Context for an otherwise-empty window: why there are no upcoming renewals.
+    expired_count: int = 0          # expiration_date already in the past
+    no_date_count: int = 0          # no expiration_date on file at all
+    total_contracts: int = 0
+
     # Upcoming renewals
     upcoming_renewals: list[dict]  # Top 5
 

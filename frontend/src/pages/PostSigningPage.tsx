@@ -476,7 +476,14 @@ export default function PostSigningPage() {
         <StatCard
           title={t('postsigning.renewals90Days')}
           value={dashboard.renewals.expiring_90_days}
-          subtitle={t('postsigning.pastNoticeDeadlineCount', { count: dashboard.renewals.past_notice_deadline })}
+          subtitle={
+            dashboard.renewals.expiring_90_days === 0 && (dashboard.renewals.expired_count || dashboard.renewals.no_date_count)
+              ? t('postsigning.renewalsContext', {
+                  expired: dashboard.renewals.expired_count ?? 0,
+                  undated: dashboard.renewals.no_date_count ?? 0,
+                })
+              : t('postsigning.pastNoticeDeadlineCount', { count: dashboard.renewals.past_notice_deadline })
+          }
           icon={CalendarIcon}
           color={dashboard.renewals.past_notice_deadline > 0 ? 'warning' : 'default'}
           variant="filled"
@@ -570,7 +577,25 @@ export default function PostSigningPage() {
                   </table>
                 </div>
               ) : (
-                <p className="text-sm text-gray-500 text-center py-6">{t('postsigning.noUpcomingRenewals')}</p>
+                <div className="text-center py-6 space-y-2">
+                  <p className="text-sm text-gray-500">{t('postsigning.noUpcomingRenewals')}</p>
+                  {(() => {
+                    const expired = dashboard.renewals.expired_count ?? 0
+                    const undated = dashboard.renewals.no_date_count ?? 0
+                    if (expired === 0 && undated === 0) return null
+                    return (
+                      <p className="text-xs text-gray-400">
+                        {expired > 0 && (
+                          <button onClick={() => setActiveTab('renewals')} className="text-primary-600 hover:underline">
+                            {t('postsigning.renewalsExpiredNote', { count: expired })}
+                          </button>
+                        )}
+                        {expired > 0 && undated > 0 && <span> · </span>}
+                        {undated > 0 && <span>{t('postsigning.renewalsUndatedNote', { count: undated })}</span>}
+                      </p>
+                    )
+                  })()}
+                </div>
               )}
             </div>
           </div>

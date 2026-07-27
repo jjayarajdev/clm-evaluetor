@@ -93,6 +93,9 @@ export interface RenewalWidget {
   expiring_90_days: number
   past_notice_deadline: number
   total_value_at_risk: number
+  expired_count?: number
+  no_date_count?: number
+  total_contracts?: number
   upcoming_renewals: UpcomingRenewal[]
 }
 
