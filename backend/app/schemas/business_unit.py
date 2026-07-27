@@ -34,6 +34,8 @@ class BusinessUnitUpdate(BaseModel):
     head_user_id: Optional[UUID] = None
     industry_profile_id: Optional[UUID] = None
     is_active: Optional[bool] = None
+    # Partial config overrides (e.g. {"scoring": {...}}). Merged + allowlisted in the router.
+    config_overrides: Optional[dict] = None
 
 
 # ===== Response Schemas =====
@@ -58,6 +60,7 @@ class BusinessUnitResponse(BusinessUnitBase):
     industry_profile_id: Optional[UUID] = None
     effective_profile_name: Optional[str] = None
     is_active: bool
+    config_overrides: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
 

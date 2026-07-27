@@ -11,6 +11,8 @@ export interface BusinessUnit {
   industry_profile_id?: string
   effective_profile_name?: string
   is_active: boolean
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  config_overrides?: Record<string, any> | null
   created_at: string
   updated_at: string
 }
@@ -44,6 +46,8 @@ export interface BusinessUnitUpdate {
   head_user_id?: string
   industry_profile_id?: string
   is_active?: boolean
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  config_overrides?: Record<string, any>
 }
 
 export interface BusinessUnitListResponse {

@@ -14,6 +14,7 @@ import {
   CheckCircleIcon,
   SparklesIcon,
   AdjustmentsHorizontalIcon,
+  ScaleIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
@@ -23,10 +24,11 @@ import {
   getIndustryProfiles, setMyIndustryProfile, getTenantOverrides, updateTenantOverrides,
   getExtractionThresholds, updateExtractionThresholds,
   getPromptAddenda, updatePromptAddenda,
+  getBusinessUnits, getBusinessUnit, updateBusinessUnit,
 } from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
-type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance' | 'extraction'
+type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance' | 'extraction' | 'scoring'
 
 interface SettingsSection {
   id: SettingsTab
@@ -72,6 +74,12 @@ const sections: SettingsSection[] = [
     icon: AdjustmentsHorizontalIcon,
     description: 'Confidence thresholds and prompt customization for AI extraction (admin only)',
   },
+  {
+    id: 'scoring',
+    name: 'Scoring Rules',
+    icon: ScaleIcon,
+    description: 'How "At Risk" and "Compliance" are calculated, per tenant or business unit (admin only)',
+  },
 ]
 
 export default function SettingsPage() {
@@ -79,8 +87,9 @@ export default function SettingsPage() {
   const { isAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
 
+  const adminOnly: SettingsTab[] = ['extraction', 'scoring']
   const visibleSections = useMemo(
-    () => sections.filter((s) => s.id !== 'extraction' || isAdmin),
+    () => sections.filter((s) => !adminOnly.includes(s.id) || isAdmin),
     [isAdmin]
   )
 
@@ -141,6 +150,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
               )}
+              {activeTab === 'scoring' && isAdmin && <ScoringRulesSection />}
             </div>
           </div>
         </div>
@@ -465,6 +475,237 @@ function PartyAliasesSection() {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+// ============================================================================
+// Scoring Rules — configure how "At Risk" and "Compliance" are computed.
+// Resolves default -> tenant -> BU on the backend; this UI edits one scope at a
+// time. Mirrors backend DEFAULT_SCORING_CONFIG (services/scoring_config.py).
+// ============================================================================
+
+const DEFAULT_SCORING = {
+  at_risk: {
+    definition: 'obligations' as 'obligations' | 'risk_level' | 'both',
+    overdue_count_threshold: 2,
+    overdue_ratio_threshold: 0.3,
+    risk_levels: ['high', 'critical'] as string[],
+  },
+  compliance: { obligation_weight: 0.6, sla_weight: 0.4 },
+}
+const RISK_LEVEL_OPTIONS = ['low', 'medium', 'high', 'critical']
+const DEFINITION_OPTIONS: Array<'obligations' | 'risk_level' | 'both'> = ['obligations', 'risk_level', 'both']
+
+function ScoringRulesSection() {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [scope, setScope] = useState<string>('tenant') // 'tenant' | <buId>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [draft, setDraft] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const { data: buList } = useQuery({
+    queryKey: ['scoring-bu-list'],
+    queryFn: () => getBusinessUnits({ page_size: 200, active_only: true }),
+  })
+
+  const { data: current, isLoading } = useQuery({
+    queryKey: ['scoring-config', scope],
+    queryFn: async () => {
+      if (scope === 'tenant') {
+        const o = await getTenantOverrides()
+        return o?.scoring ?? {}
+      }
+      const bu = await getBusinessUnit(scope)
+      return bu?.config_overrides?.scoring ?? {}
+    },
+  })
+
+  // Merge stored override onto defaults so every field is editable; unset fields
+  // show the inherited default. `hasOverride` drives the "inherited vs custom" hint.
+  const hasOverride = !!current && (!!current.at_risk || !!current.compliance)
+  useEffect(() => {
+    const s = current || {}
+    setDraft({
+      at_risk: { ...DEFAULT_SCORING.at_risk, ...(s.at_risk || {}) },
+      compliance: { ...DEFAULT_SCORING.compliance, ...(s.compliance || {}) },
+    })
+    setSaved(false)
+    setError(null)
+  }, [current, scope])
+
+  const setAtRisk = (patch: Record<string, unknown>) =>
+    setDraft((d: typeof draft) => ({ ...d, at_risk: { ...d.at_risk, ...patch } }))
+  const setCompliance = (patch: Record<string, unknown>) =>
+    setDraft((d: typeof draft) => ({ ...d, compliance: { ...d.compliance, ...patch } }))
+
+  const save = async (payload: typeof DEFAULT_SCORING | Record<string, never>) => {
+    setSaving(true)
+    setError(null)
+    try {
+      if (scope === 'tenant') {
+        await updateTenantOverrides({ scoring: payload })
+      } else {
+        await updateBusinessUnit(scope, { config_overrides: { scoring: payload } })
+      }
+      queryClient.invalidateQueries({ queryKey: ['scoring-config', scope] })
+      setSaved(true)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (isLoading || !draft) return <LoadingSpinner size="sm" />
+
+  const ar = draft.at_risk
+  const comp = draft.compliance
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      {/* Scope selector */}
+      <div>
+        <label className="label">{t('settings.scoring.scope', { defaultValue: 'Applies to' })}</label>
+        <select
+          className="input max-w-md"
+          value={scope}
+          onChange={(e) => setScope(e.target.value)}
+        >
+          <option value="tenant">{t('settings.scoring.scopeTenant', { defaultValue: 'Whole organization (default)' })}</option>
+          {(buList?.items || []).map((bu) => (
+            <option key={bu.id} value={bu.id}>
+              {t('settings.scoring.scopeBu', { defaultValue: 'Business unit: {{name}}', name: bu.name })}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          {scope === 'tenant'
+            ? t('settings.scoring.scopeTenantHint', { defaultValue: 'These rules apply everywhere unless a business unit overrides them.' })
+            : hasOverride
+              ? t('settings.scoring.scopeBuCustom', { defaultValue: 'This business unit has custom rules that override the organization defaults.' })
+              : t('settings.scoring.scopeBuInherited', { defaultValue: 'This business unit currently inherits the organization defaults. Saving here creates an override.' })}
+        </p>
+      </div>
+
+      {/* At Risk */}
+      <div className="pt-2">
+        <h3 className="text-sm font-semibold text-gray-900 mb-1">{t('settings.scoring.atRiskTitle', { defaultValue: 'At Risk' })}</h3>
+        <p className="text-xs text-gray-500 mb-3">{t('settings.scoring.atRiskDesc', { defaultValue: 'When a contract is counted as "at risk".' })}</p>
+
+        <label className="label">{t('settings.scoring.definition', { defaultValue: 'Definition' })}</label>
+        <select
+          className="input max-w-md"
+          value={ar.definition}
+          onChange={(e) => setAtRisk({ definition: e.target.value })}
+        >
+          {DEFINITION_OPTIONS.map((d) => (
+            <option key={d} value={d}>{t(`settings.scoring.definitionOpt.${d}`, {
+              defaultValue: d === 'obligations' ? 'Overdue obligations' : d === 'risk_level' ? 'AI risk level' : 'Either one',
+            })}</option>
+          ))}
+        </select>
+
+        {ar.definition !== 'risk_level' && (
+          <div className="mt-4 grid grid-cols-2 gap-4 max-w-md">
+            <div>
+              <label className="label">{t('settings.scoring.overdueCount', { defaultValue: 'Overdue obligations ≥' })}</label>
+              <input
+                type="number" min={1} step={1} className="input"
+                value={ar.overdue_count_threshold}
+                onChange={(e) => setAtRisk({ overdue_count_threshold: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <label className="label">{t('settings.scoring.overdueRatio', { defaultValue: 'or overdue share >' })}</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number" min={0} max={100} step={5} className="input"
+                  value={Math.round(ar.overdue_ratio_threshold * 100)}
+                  onChange={(e) => setAtRisk({ overdue_ratio_threshold: Number(e.target.value) / 100 })}
+                />
+                <span className="text-sm text-gray-500">%</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {ar.definition !== 'obligations' && (
+          <div className="mt-4">
+            <label className="label">{t('settings.scoring.riskLevels', { defaultValue: 'Risk levels that count as at-risk' })}</label>
+            <div className="flex flex-wrap gap-3">
+              {RISK_LEVEL_OPTIONS.map((lvl) => (
+                <label key={lvl} className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={ar.risk_levels.includes(lvl)}
+                    onChange={(e) => setAtRisk({
+                      risk_levels: e.target.checked
+                        ? [...ar.risk_levels, lvl]
+                        : ar.risk_levels.filter((x: string) => x !== lvl),
+                    })}
+                  />
+                  {t(`settings.scoring.riskLevel.${lvl}`, { defaultValue: lvl.charAt(0).toUpperCase() + lvl.slice(1) })}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Compliance */}
+      <div className="pt-4 border-t border-gray-200">
+        <h3 className="text-sm font-semibold text-gray-900 mb-1">{t('settings.scoring.complianceTitle', { defaultValue: 'Compliance' })}</h3>
+        <p className="text-xs text-gray-500 mb-3">{t('settings.scoring.complianceDesc', { defaultValue: 'Overall compliance is a weighted blend of the measured components (relative weights).' })}</p>
+        <div className="grid grid-cols-2 gap-4 max-w-md">
+          <div>
+            <label className="label">{t('settings.scoring.obligationWeight', { defaultValue: 'Obligation weight' })}</label>
+            <input
+              type="number" min={0} step={0.1} className="input"
+              value={comp.obligation_weight}
+              onChange={(e) => setCompliance({ obligation_weight: Number(e.target.value) })}
+            />
+          </div>
+          <div>
+            <label className="label">{t('settings.scoring.slaWeight', { defaultValue: 'SLA weight' })}</label>
+            <input
+              type="number" min={0} step={0.1} className="input"
+              value={comp.sla_weight}
+              onChange={(e) => setCompliance({ sla_weight: Number(e.target.value) })}
+            />
+          </div>
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      {/* Actions */}
+      <div className="flex items-center gap-3 pt-2">
+        <button onClick={() => save(draft)} disabled={saving} className="btn-primary disabled:opacity-50">
+          {saving ? t('common.saving', { defaultValue: 'Saving…' }) : t('common.save', { defaultValue: 'Save' })}
+        </button>
+        {hasOverride && (
+          <button
+            onClick={() => save({})}
+            disabled={saving}
+            className="btn-secondary disabled:opacity-50"
+            title={t('settings.scoring.resetHint', { defaultValue: 'Remove the override and fall back to the inherited defaults.' })}
+          >
+            {scope === 'tenant'
+              ? t('settings.scoring.resetTenant', { defaultValue: 'Reset to system defaults' })
+              : t('settings.scoring.resetBu', { defaultValue: 'Clear override (inherit)' })}
+          </button>
+        )}
+        {saved && (
+          <span className="inline-flex items-center gap-1 text-sm text-green-600">
+            <CheckCircleIcon className="h-4 w-4" />
+            {t('common.saved', { defaultValue: 'Saved' })}
+          </span>
+        )}
+      </div>
     </div>
   )
 }
