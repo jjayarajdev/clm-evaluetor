@@ -667,6 +667,7 @@
     "breaches": "Manquements",
     "severity": "Sévérité",
     "noActiveSlas": "Aucun SLA actif trouvé",
+    "milestonesNote": "Les jalons sont des obligations contractuelles ayant une date cible. Ouvrez-en un pour l'assigner, le réviser et enregistrer une preuve.",
     "recordMeasurement": "Enregistrer une mesure",
     "recordMeasurementTitle": "Enregistrer une mesure de SLA",
     "actualValue": "Valeur réelle",

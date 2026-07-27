@@ -218,7 +218,7 @@ export interface MilestoneWidget {
   completed: number
   at_risk: number
   overdue: number
-  completion_rate: number
+  completion_rate: number | null
   due_this_week: MilestoneItem[]
 }
 
