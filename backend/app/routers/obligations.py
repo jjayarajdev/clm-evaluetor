@@ -26,17 +26,23 @@ from app.models.obligation import (
     ObligationCategory,
 )
 from app.models.contract import Contract
+from app.models.user import User
 from app.schemas.obligation import (
     ObligationStatusUpdate,
     ObligationRAGUpdate,
     ObligationOwnerUpdate,
     ObligationEvidenceUpload,
+    ObligationAssignUpdate,
     ObligationResponse,
     ComplianceRatesResponse,
     ComplianceRatesByContract,
     ComplianceRatesByOwner,
     ComplianceRatesByCategory,
 )
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/obligations", tags=["Obligations"])
 
@@ -59,6 +65,7 @@ def obligation_to_response(obl: Obligation) -> ObligationResponse:
         status=obl.status.value if obl.status else "pending",
         rag_status=obl.rag_status.value if obl.rag_status else None,
         owner_type=obl.owner_type.value if obl.owner_type else None,
+        assigned_user_id=str(obl.assigned_user_id) if obl.assigned_user_id else None,
         category=obl.category.value if obl.category else None,
         frequency=obl.frequency.value if obl.frequency else None,
         deadline=obl.deadline,
@@ -223,6 +230,74 @@ async def update_obligation_owner(
 
     await db.commit()
     await db.refresh(obligation)
+
+    return obligation_to_response(obligation)
+
+
+async def _notify_assignee_email(db: AsyncSession, assignee: User, obligation: Obligation) -> None:
+    """Best-effort email to the newly assigned user. Never fails the request."""
+    if not assignee.email:
+        return
+    try:
+        from app.integrations.email import EmailService
+        from app.config import settings
+
+        base = (getattr(settings, "public_url", None) or "").rstrip("/")
+        link = f"{base}/obligations/{obligation.id}" if base else f"/obligations/{obligation.id}"
+        due = obligation.deadline.isoformat() if obligation.deadline else "no due date"
+        name = assignee.first_name or assignee.username or "there"
+        body = (
+            f"<p>Hi {name},</p>"
+            f"<p>You've been assigned a contract obligation to action:</p>"
+            f"<p><strong>{(obligation.description or 'Obligation')[:200]}</strong><br/>"
+            f"Due: {due}</p>"
+            f"<p><a href=\"{link}\">Open the obligation</a> to review and record evidence.</p>"
+        )
+        await EmailService(db).send_email(
+            to_email=assignee.email,
+            subject="You've been assigned a contract obligation",
+            body=body,
+            to_name=(assignee.first_name or assignee.username or ""),
+            is_html=True,
+        )
+    except Exception:  # noqa: BLE001 — notification is best-effort
+        logger.warning("Assignee email failed for obligation %s", obligation.id, exc_info=True)
+
+
+@router.put("/{obligation_id}/assign", response_model=ObligationResponse)
+async def assign_obligation(
+    obligation_id: str,
+    update: ObligationAssignUpdate,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ObligationResponse:
+    """Assign (or clear) the internal user responsible for an obligation, and
+    email the new assignee (best-effort)."""
+    query = select(Obligation).where(Obligation.id == uuid_mod.UUID(obligation_id))
+    query = apply_tenant_filter(query, tenant_id)
+    obligation = (await db.execute(query)).scalar_one_or_none()
+    if not obligation:
+        raise HTTPException(status_code=404, detail="Obligation not found")
+
+    assignee: User | None = None
+    if update.assigned_user_id:
+        uq = select(User).where(User.id == uuid_mod.UUID(update.assigned_user_id))
+        if tenant_id is not None:
+            uq = uq.where(User.tenant_id == tenant_id)
+        assignee = (await db.execute(uq)).scalar_one_or_none()
+        if not assignee:
+            raise HTTPException(status_code=400, detail="Assignee not found in this tenant")
+        obligation.assigned_user_id = assignee.id
+    else:
+        obligation.assigned_user_id = None
+
+    obligation.updated_at = datetime.now()
+    await db.commit()
+    await db.refresh(obligation)
+
+    if assignee:
+        await _notify_assignee_email(db, assignee, obligation)
 
     return obligation_to_response(obligation)
 

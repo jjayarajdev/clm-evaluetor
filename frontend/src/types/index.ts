@@ -518,6 +518,7 @@ export interface ObligationFullDetail {
   compliance_evidence: string | null
   last_compliance_date: string | null
   next_compliance_due: string | null
+  assigned_user_id: string | null
 
   clause_id: string | null
   clause_type: string | null

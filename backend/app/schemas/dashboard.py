@@ -399,6 +399,16 @@ class ObligationFullDetail(BaseModel):
     clause_section_number: str | None
     clause_risk_level: str | None
 
+    # Compliance tracking — the detail page reads these; they were previously
+    # dropped by this endpoint, so evidence/RAG/notes never appeared after upload.
+    rag_status: str | None = None
+    is_critical: bool = False
+    compliance_notes: str | None = None
+    compliance_evidence: str | None = None
+    last_compliance_date: date | None = None
+    next_compliance_due: date | None = None
+    assigned_user_id: str | None = None
+
 
 # ============== Contract Cockpit ==============
 

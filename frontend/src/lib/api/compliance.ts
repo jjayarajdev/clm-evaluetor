@@ -260,6 +260,11 @@ export async function updateObligationRAG(obligationId: string, data: {
   return response.data
 }
 
+export async function assignObligation(obligationId: string, assignedUserId: string | null): Promise<unknown> {
+  const response = await client.put(`/obligations/${obligationId}/assign`, { assigned_user_id: assignedUserId })
+  return response.data
+}
+
 export async function getObligationComplianceRates(contractId?: string): Promise<unknown> {
   const response = await client.get('/obligations/compliance/rates', {
     params: contractId ? { contract_id: contractId } : undefined

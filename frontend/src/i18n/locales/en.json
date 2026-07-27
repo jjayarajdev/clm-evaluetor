@@ -800,6 +800,9 @@
     "evidenceUploadFailed": "Upload failed. Please try again.",
     "review": "Review",
     "reviewHint": "Check the evidence, then set the outcome.",
+    "assignedTo": "Assigned to",
+    "unassigned": "Unassigned",
+    "assignHint": "The assignee is notified and sees this in their notifications.",
     "setStatus": "Set status",
     "markFulfilled": "Mark fulfilled",
     "assessRag": "Assess compliance",
@@ -3032,7 +3035,9 @@
       "due_soon": "Due soon",
       "expired": "Expired",
       "renewal_due": "Renewal due",
-      "sla": "SLA alert"
+      "sla": "SLA alert",
+      "assigned": "Assigned to you",
+      "assigned_overdue": "Assigned · overdue"
     }
   },
   "welcomeBanner": {

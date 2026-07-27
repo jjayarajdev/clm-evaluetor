@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentUser, CurrentTenantId
@@ -60,6 +60,34 @@ async def get_notification_feed(
 
     items: list[dict] = []
 
+    # 0) Obligations assigned to ME that are still open — surfaced regardless of
+    # due date so an assignment shows in the assignee's bell immediately.
+    if current_user is not None:
+        myq = (
+            select(Obligation, Contract)
+            .join(Contract, Obligation.contract_id == Contract.id)
+            .where(
+                Obligation.assigned_user_id == current_user.id,
+                Obligation.status.in_([ObligationStatus.PENDING, ObligationStatus.IN_PROGRESS]),
+            )
+        )
+        if tenant_id is not None:
+            myq = myq.where(Contract.tenant_id == tenant_id)
+        myq = myq.order_by(Obligation.deadline.asc().nullslast()).limit(100)
+        for obl, con in (await db.execute(myq)).all():
+            overdue = obl.deadline is not None and obl.deadline < today
+            items.append({
+                "id": f"assigned:{obl.id}",
+                "type": "obligation",
+                "severity": "high" if overdue else "medium",
+                "label": "assigned_overdue" if overdue else "assigned",  # i18n key
+                "title": _trunc(obl.description) or "Obligation",
+                "subtitle": con.counterparty or con.filename or "",
+                "contract_id": str(obl.contract_id),
+                "link": f"/obligations/{obl.id}",
+                "date": obl.deadline.isoformat() if obl.deadline else today.isoformat(),
+            })
+
     # 1) Obligations overdue or due within 30 days, still open
     oq = (
         select(Obligation, Contract)
@@ -75,6 +103,14 @@ async def get_notification_feed(
     )
     if tenant_id is not None:
         oq = oq.where(Contract.tenant_id == tenant_id)
+    if current_user is not None:
+        # Don't double-list items already surfaced as "assigned to me" above.
+        oq = oq.where(
+            or_(
+                Obligation.assigned_user_id.is_(None),
+                Obligation.assigned_user_id != current_user.id,
+            )
+        )
     oq = _bu(oq).order_by(Obligation.deadline.asc()).limit(200)
     for obl, con in (await db.execute(oq)).all():
         overdue = obl.deadline < today

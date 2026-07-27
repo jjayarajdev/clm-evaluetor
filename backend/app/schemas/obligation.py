@@ -38,6 +38,12 @@ class ObligationEvidenceUpload(BaseModel):
     evidence_date: date | None = Field(None, description="Date the evidence was collected")
 
 
+class ObligationAssignUpdate(BaseModel):
+    """Request to assign (or unassign) an obligation to an internal user."""
+
+    assigned_user_id: str | None = Field(None, description="User id to assign; null to clear")
+
+
 class ObligationResponse(BaseModel):
     """Response model for obligation details."""
 
@@ -48,6 +54,7 @@ class ObligationResponse(BaseModel):
     status: str
     rag_status: str | None
     owner_type: str | None
+    assigned_user_id: str | None = None
     category: str | None
     frequency: str | None
     deadline: date | None
