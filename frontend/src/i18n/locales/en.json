@@ -20,7 +20,8 @@
     "yes": "Yes",
     "no": "No",
     "create": "Create",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "saved": "Saved"
   },
   "roles": {
     "admin": "Admin",
@@ -2585,7 +2586,8 @@
       "security": "Security",
       "integrations": "Integrations",
       "appearance": "Appearance",
-      "extraction": "AI Extraction"
+      "extraction": "AI Extraction",
+      "scoring": "Scoring Rules"
     },
     "tabDescriptions": {
       "general": "Basic application settings",
@@ -2593,7 +2595,40 @@
       "security": "Security and authentication settings",
       "integrations": "Third-party integrations and APIs",
       "appearance": "Customize the look and feel",
-      "extraction": "Confidence thresholds and prompt customization for AI extraction (admin only)"
+      "extraction": "Confidence thresholds and prompt customization for AI extraction (admin only)",
+      "scoring": "How \"At Risk\" and \"Compliance\" are calculated, per organization or business unit (admin only)"
+    },
+    "scoring": {
+      "scope": "Applies to",
+      "scopeTenant": "Whole organization (default)",
+      "scopeBu": "Business unit: {{name}}",
+      "scopeTenantHint": "These rules apply everywhere unless a business unit overrides them.",
+      "scopeBuCustom": "This business unit has custom rules that override the organization defaults.",
+      "scopeBuInherited": "This business unit currently inherits the organization defaults. Saving here creates an override.",
+      "atRiskTitle": "At Risk",
+      "atRiskDesc": "When a contract is counted as \"at risk\".",
+      "definition": "Definition",
+      "definitionOpt": {
+        "obligations": "Overdue obligations",
+        "risk_level": "AI risk level",
+        "both": "Either one"
+      },
+      "overdueCount": "Overdue obligations ≥",
+      "overdueRatio": "or overdue share >",
+      "riskLevels": "Risk levels that count as at-risk",
+      "riskLevel": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "complianceTitle": "Compliance",
+      "complianceDesc": "Overall compliance is a weighted blend of the measured components (relative weights).",
+      "obligationWeight": "Obligation weight",
+      "slaWeight": "SLA weight",
+      "resetHint": "Remove the override and fall back to the inherited defaults.",
+      "resetTenant": "Reset to system defaults",
+      "resetBu": "Clear override (inherit)"
     },
     "general": {
       "industryProfile": "Industry Profile",

@@ -60,6 +60,7 @@ class BusinessUnitResponse(BusinessUnitBase):
     industry_profile_id: Optional[UUID] = None
     effective_profile_name: Optional[str] = None
     is_active: bool
+    config_overrides: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
 

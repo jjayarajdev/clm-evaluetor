@@ -20,7 +20,8 @@
     "yes": "Oui",
     "no": "Non",
     "create": "Créer",
-    "saving": "Enregistrement..."
+    "saving": "Enregistrement...",
+    "saved": "Enregistré"
   },
   "roles": {
     "admin": "Administrateur",
@@ -2585,7 +2586,8 @@
       "security": "Sécurité",
       "integrations": "Intégrations",
       "appearance": "Apparence",
-      "extraction": "Extraction IA"
+      "extraction": "Extraction IA",
+      "scoring": "Règles de notation"
     },
     "tabDescriptions": {
       "general": "Paramètres de base de l'application",
@@ -2593,7 +2595,40 @@
       "security": "Paramètres de sécurité et d'authentification",
       "integrations": "Intégrations tierces et API",
       "appearance": "Personnalisez l'apparence de l'application",
-      "extraction": "Seuils de confiance et personnalisation des prompts pour l'extraction IA (administrateurs uniquement)"
+      "extraction": "Seuils de confiance et personnalisation des prompts pour l'extraction IA (administrateurs uniquement)",
+      "scoring": "Mode de calcul de « À risque » et « Conformité », par organisation ou unité opérationnelle (administrateurs uniquement)"
+    },
+    "scoring": {
+      "scope": "S'applique à",
+      "scopeTenant": "Toute l'organisation (par défaut)",
+      "scopeBu": "Unité opérationnelle : {{name}}",
+      "scopeTenantHint": "Ces règles s'appliquent partout, sauf si une unité opérationnelle les remplace.",
+      "scopeBuCustom": "Cette unité opérationnelle possède des règles personnalisées qui remplacent les valeurs par défaut de l'organisation.",
+      "scopeBuInherited": "Cette unité opérationnelle hérite actuellement des valeurs par défaut de l'organisation. Enregistrer ici crée une dérogation.",
+      "atRiskTitle": "À risque",
+      "atRiskDesc": "Quand un contrat est compté comme « à risque ».",
+      "definition": "Définition",
+      "definitionOpt": {
+        "obligations": "Obligations en retard",
+        "risk_level": "Niveau de risque IA",
+        "both": "L'un ou l'autre"
+      },
+      "overdueCount": "Obligations en retard ≥",
+      "overdueRatio": "ou part en retard >",
+      "riskLevels": "Niveaux de risque considérés comme à risque",
+      "riskLevel": {
+        "low": "Faible",
+        "medium": "Moyen",
+        "high": "Élevé",
+        "critical": "Critique"
+      },
+      "complianceTitle": "Conformité",
+      "complianceDesc": "La conformité globale est une combinaison pondérée des composants mesurés (poids relatifs).",
+      "obligationWeight": "Poids des obligations",
+      "slaWeight": "Poids des SLA",
+      "resetHint": "Supprimer la dérogation et revenir aux valeurs par défaut héritées.",
+      "resetTenant": "Réinitialiser aux valeurs par défaut du système",
+      "resetBu": "Effacer la dérogation (hériter)"
     },
     "general": {
       "industryProfile": "Profil sectoriel",
