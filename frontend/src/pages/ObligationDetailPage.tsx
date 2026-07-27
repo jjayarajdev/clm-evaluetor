@@ -18,6 +18,7 @@ import {
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn, formatDate } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
 
 const OBLIGATION_TYPE_COLORS: Record<string, string> = {
   payment: 'bg-green-100 text-green-800 border-green-200',
@@ -96,6 +97,9 @@ export default function ObligationDetailPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  // Reviewers (write roles) can close out / assess obligations; viewers cannot.
+  const canReview = ['super_admin', 'admin', 'legal', 'procurement', 'bu_head'].includes(user?.role || '')
   const [showEvidenceModal, setShowEvidenceModal] = useState(false)
   const [evidenceDescription, setEvidenceDescription] = useState('')
   const [evidenceDate, setEvidenceDate] = useState('')
@@ -136,6 +140,16 @@ export default function ObligationDetailPage() {
       file: evidenceFile || undefined,
     })
   }
+
+  const statusMutation = useMutation({
+    mutationFn: (status: string) => api.updateObligationStatus(id!, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['obligation', id] }),
+  })
+  const ragMutation = useMutation({
+    mutationFn: (rag_status: string) => api.updateObligationRAG(id!, { rag_status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['obligation', id] }),
+  })
+  const reviewBusy = statusMutation.isPending || ragMutation.isPending
 
   // Fetch the attached file through the API client (carries the auth token) and
   // open it in a new tab — a plain <a href> can't send the Bearer header.
@@ -525,6 +539,64 @@ export default function ObligationDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Review — close out or assess the obligation (write roles only) */}
+          {canReview && (
+            <div className="card">
+              <div className="card-header">
+                <h2 className="text-sm font-medium text-gray-900">{t('obligation.review')}</h2>
+                <p className="text-xs text-gray-500">{t('obligation.reviewHint')}</p>
+              </div>
+              <div className="card-body space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">{t('obligation.setStatus')}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => statusMutation.mutate('in_progress')}
+                      disabled={reviewBusy || displayStatus === 'in_progress'}
+                      className="px-2 py-1.5 text-xs rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40"
+                    >
+                      {t('obligation.status.in_progress', { defaultValue: 'In progress' })}
+                    </button>
+                    <button
+                      onClick={() => statusMutation.mutate('completed')}
+                      disabled={reviewBusy || obligation.status === 'completed'}
+                      className="px-2 py-1.5 text-xs rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-40"
+                    >
+                      {t('obligation.markFulfilled')}
+                    </button>
+                    <button
+                      onClick={() => statusMutation.mutate('waived')}
+                      disabled={reviewBusy || obligation.status === 'waived'}
+                      className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-40"
+                    >
+                      {t('obligation.status.waived', { defaultValue: 'Waive' })}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">{t('obligation.assessRag')}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['green', 'amber', 'red'] as const).map((rag) => (
+                      <button
+                        key={rag}
+                        onClick={() => ragMutation.mutate(rag)}
+                        disabled={reviewBusy || obligation.rag_status === rag}
+                        className={cn(
+                          'px-2 py-1.5 text-xs rounded-lg border disabled:opacity-40',
+                          rag === 'green' ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
+                          : rag === 'amber' ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                          : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
+                        )}
+                      >
+                        {t(`obligation.rag.${rag}.label`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Quick Actions */}
           <div className="card">

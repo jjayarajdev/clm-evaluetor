@@ -16,6 +16,7 @@ import {
   FunnelIcon,
   ArrowDownTrayIcon,
   ArrowTopRightOnSquareIcon,
+  PaperClipIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -54,6 +55,7 @@ interface ObligationRow {
   due_date: string | null
   status: string
   rag_status: string | null
+  has_evidence?: boolean
 }
 
 interface SLARow {
@@ -688,12 +690,20 @@ export default function PostSigningPage() {
                     obligations.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 max-w-xs truncate">
-                          <Link
-                            to={`/obligations/${item.id}`}
-                            className="hover:text-primary-600 hover:underline"
-                          >
-                            {item.title}
-                          </Link>
+                          <div className="flex items-center gap-1.5">
+                            <Link
+                              to={`/obligations/${item.id}`}
+                              className="hover:text-primary-600 hover:underline truncate"
+                            >
+                              {item.title}
+                            </Link>
+                            {item.has_evidence && (
+                              <PaperClipIcon
+                                className="h-4 w-4 text-green-600 flex-shrink-0"
+                                title={t('postsigning.hasEvidence', { defaultValue: 'Evidence attached' })}
+                              />
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-500 max-w-[180px] truncate">
                           <Link
