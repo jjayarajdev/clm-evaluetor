@@ -563,6 +563,11 @@
     "colDays": "Days",
     "daysCount": "{{count}}d",
     "noUpcomingRenewals": "No upcoming renewals",
+    "renewalsExpiredNote_one": "{{count}} already expired",
+    "renewalsExpiredNote_other": "{{count}} already expired",
+    "renewalsUndatedNote_one": "{{count}} has no expiration date on file",
+    "renewalsUndatedNote_other": "{{count}} have no expiration date on file",
+    "renewalsContext": "{{expired}} expired · {{undated}} undated",
     "extractedItems": "Extracted items",
     "statusTrackingNote": "Status tracking (completion, SLA measurement) not yet in use",
     "rag": {
