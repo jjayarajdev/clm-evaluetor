@@ -314,7 +314,7 @@ export default function ModernDashboardPage() {
             chart: trendData?.total_contracts,
           },
           at_risk: {
-            value: complianceData?.compliance?.contracts_at_risk || summaryData?.by_risk?.high || 0,
+            value: complianceData?.compliance?.contracts_at_risk ?? summaryData?.by_risk?.high ?? 0,
             icon: ExclamationTriangleIcon,
             color: 'danger',
             trend: (trendData?.contracts_at_risk?.length ?? 0) >= 2 ? {
