@@ -134,6 +134,9 @@ class SLAWithPerformance(SLAResponse):
 
     recent_performances: list[SLAPerformanceResponse]
     compliance_trend: str | None  # "improving", "declining", "stable"
+    # Contract context for the standalone SLA detail page (None on the per-contract list).
+    contract_filename: str | None = None
+    counterparty: str | None = None
 
 
 class SLABreachItem(BaseModel):

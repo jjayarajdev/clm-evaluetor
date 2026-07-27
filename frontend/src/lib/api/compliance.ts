@@ -108,6 +108,11 @@ export async function getContractSLAs(contractId: string): Promise<SLADetail[]> 
   return response.data
 }
 
+export async function getSLADetail(slaId: string): Promise<SLADetail> {
+  const response = await client.get<SLADetail>(`/sla/detail/${slaId}`)
+  return response.data
+}
+
 export async function getSLAComplianceSummary(): Promise<unknown> {
   const response = await client.get('/sla/compliance/summary')
   return response.data
