@@ -66,7 +66,11 @@ class RenewalCalendarResponse(BaseModel):
     within_90_days: list[ContractRenewalInfo]
 
     # Summary stats
-    total_value_at_risk: float
+    total_value_at_risk: float  # = upcoming (at risk of lapsing), dominant currency
+    upcoming_value_at_risk: float = 0.0
+    upcoming_value_currency: str = "USD"
+    expired_value: float = 0.0
+    expired_value_currency: str = "USD"
     auto_renewal_count: int
     requires_action_count: int
 

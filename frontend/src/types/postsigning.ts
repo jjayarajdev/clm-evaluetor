@@ -114,6 +114,10 @@ export interface RenewalCalendar {
   within_60_days: ContractRenewalInfo[]
   within_90_days: ContractRenewalInfo[]
   total_value_at_risk: number
+  upcoming_value_at_risk?: number
+  upcoming_value_currency?: string
+  expired_value?: number
+  expired_value_currency?: string
   auto_renewal_count: number
   requires_action_count: number
 }

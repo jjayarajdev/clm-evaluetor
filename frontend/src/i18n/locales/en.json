@@ -472,7 +472,8 @@
     "autoRenewing": "Auto-Renewing",
     "totalExpiring": "Total Expiring",
     "valueAtRisk": "Value at Risk",
-    "noContractsInWindow": "No contracts in this renewal window"
+    "noContractsInWindow": "No contracts in this renewal window",
+    "expiredValueNote": "+ {{value}} in expired contracts"
   },
   "reports": {
     "title": "Compliance Reports",
