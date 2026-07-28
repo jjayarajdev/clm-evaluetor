@@ -71,25 +71,17 @@ class OrchestratorService:
 
     @property
     def async_client(self) -> AsyncOpenAI:
-        """Get async OpenAI client (with Langfuse tracing if available)."""
-        if self._async_client is None:
-            # Try to use Langfuse-wrapped client for automatic tracing
-            if settings.langfuse_public_key and settings.langfuse_secret_key:
-                try:
-                    from langfuse.openai import AsyncOpenAI as LangfuseAsyncOpenAI
-                    self._async_client = LangfuseAsyncOpenAI(api_key=settings.openai_api_key)
-                except ImportError:
-                    self._async_client = AsyncOpenAI(api_key=settings.openai_api_key)
-            else:
-                self._async_client = AsyncOpenAI(api_key=settings.openai_api_key)
-        return self._async_client
+        """Per-tenant async OpenAI/Azure client (resolved at call time from the
+        tenant ContextVar; not cached since it differs per tenant). Falls back to
+        the global client when the tenant is unset or has no Azure config."""
+        from app.core.llm import get_async_openai
+        return get_async_openai(trace=True)
 
     @property
     def sync_client(self) -> OpenAI:
-        """Get sync OpenAI client."""
-        if self._sync_client is None:
-            self._sync_client = OpenAI(api_key=settings.openai_api_key)
-        return self._sync_client
+        """Per-tenant sync OpenAI/Azure client (resolved from the current tenant)."""
+        from app.core.llm import get_sync_openai
+        return get_sync_openai()
 
     def register_agent(
         self,

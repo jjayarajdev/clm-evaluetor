@@ -2659,7 +2659,8 @@
       "integrations": "Intégrations",
       "appearance": "Apparence",
       "extraction": "Extraction IA",
-      "scoring": "Règles de notation"
+      "scoring": "Règles de notation",
+      "ai": "Fournisseur IA"
     },
     "tabDescriptions": {
       "general": "Paramètres de base de l'application",
@@ -2668,7 +2669,22 @@
       "integrations": "Intégrations tierces et API",
       "appearance": "Personnalisez l'apparence de l'application",
       "extraction": "Seuils de confiance et personnalisation des prompts pour l'extraction IA (administrateurs uniquement)",
-      "scoring": "Mode de calcul de « À risque » et « Conformité », par organisation ou unité opérationnelle (administrateurs uniquement)"
+      "scoring": "Mode de calcul de « À risque » et « Conformité », par organisation ou unité opérationnelle (administrateurs uniquement)",
+      "ai": "Utilisez votre propre ressource Azure OpenAI pour cette organisation (administrateurs uniquement)"
+    },
+    "azure": {
+      "intro": "Par défaut, cette organisation utilise l'IA partagée de la plateforme. Activez Azure OpenAI pour exécuter les appels IA de cette organisation sur votre propre ressource Azure (votre quota et votre facturation).",
+      "enable": "Utiliser notre propre ressource Azure OpenAI",
+      "endpoint": "Point de terminaison Azure",
+      "apiKey": "Clé API",
+      "keyPlaceholder": "Collez votre clé Azure OpenAI",
+      "keyKept": "laisser vide pour conserver",
+      "keyHint": "Utilisée uniquement pour les appels IA de cette organisation. Laissez vide lors de la modification pour conserver la clé existante.",
+      "apiVersion": "Version de l'API",
+      "deploymentNote": "Important : nommez vos déploiements Azure exactement gpt-4o et gpt-4o-mini — l'application appelle les modèles par ces identifiants.",
+      "test": "Tester la connexion",
+      "testing": "Test en cours…",
+      "testHint": "Exécute une petite complétion réelle sur votre déploiement gpt-4o-mini."
     },
     "scoring": {
       "scope": "S'applique à",

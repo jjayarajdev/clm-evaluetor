@@ -502,6 +502,29 @@ export async function updateTenantOverrides(overrides: Record<string, any>): Pro
   return response.data
 }
 
+export interface AzureOpenAIConfig {
+  enabled: boolean
+  endpoint: string
+  api_version: string
+  api_key_set?: boolean
+  api_key_masked?: string
+}
+
+export async function getAzureOpenAI(): Promise<AzureOpenAIConfig> {
+  const response = await client.get('/tenants/current/azure-openai')
+  return response.data
+}
+
+export async function setAzureOpenAI(data: { enabled: boolean; endpoint: string; api_version: string; api_key: string }): Promise<{ ok: boolean }> {
+  const response = await client.put('/tenants/current/azure-openai', data)
+  return response.data
+}
+
+export async function testAzureOpenAI(): Promise<{ ok: boolean; message: string }> {
+  const response = await client.post('/tenants/current/azure-openai/test')
+  return response.data
+}
+
 // ============================================================================
 // Taxonomy Suggestions
 // ============================================================================

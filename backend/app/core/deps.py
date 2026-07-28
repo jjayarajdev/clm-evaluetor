@@ -71,9 +71,12 @@ async def get_current_user(
     # Set user context for logging
     user_id_var.set(str(user.id))
 
-    # Set tenant context
+    # Set tenant context (incl. the LLM factory's context, so per-tenant Azure
+    # OpenAI is resolved for any AI call made during this request).
     if user.tenant_id:
         tenant_id_var.set(user.tenant_id)
+        from app.core.llm import current_tenant_id
+        current_tenant_id.set(str(user.tenant_id))
 
     return user
 

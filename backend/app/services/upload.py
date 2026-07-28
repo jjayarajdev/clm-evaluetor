@@ -127,6 +127,11 @@ class UploadService:
         """
         self.db = db
         self.tenant_id = tenant_id
+        # Bind the LLM tenant context so extraction (incl. background tasks that
+        # copy this context on creation) uses this tenant's Azure OpenAI, if set.
+        if tenant_id:
+            from app.core.llm import current_tenant_id
+            current_tenant_id.set(str(tenant_id))
         self.business_unit_id = business_unit_id
         self.upload_dir = Path(settings.upload_dir)
         self.processed_dir = Path(settings.processed_dir)

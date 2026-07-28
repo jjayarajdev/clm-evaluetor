@@ -80,6 +80,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Auto-seed master data skipped: {e}")
 
+    # Load per-tenant Azure OpenAI configs into the LLM factory cache.
+    try:
+        from app.core.llm import refresh_azure_cache
+        async with async_session_maker() as db:
+            await refresh_azure_cache(db)
+    except Exception as e:
+        logger.warning(f"Azure OpenAI cache load skipped: {e}")
+
     # Start the scheduler on only one worker (file lock prevents duplicates)
     try:
         _scheduler_lock = open("/tmp/clm_scheduler.lock", "w")

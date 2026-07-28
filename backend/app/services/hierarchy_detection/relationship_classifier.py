@@ -10,7 +10,8 @@ import asyncio
 import logging
 import uuid
 
-from app.agents.base import openai_client, extract_json_from_response
+from app.agents.base import extract_json_from_response
+from app.core.llm import get_async_openai
 from app.config import settings
 
 from .models import (
@@ -110,7 +111,7 @@ class RelationshipClassifier:
             b_date=card_b.effective_date or "N/A",
         )
 
-        response = await openai_client.chat.completions.create(
+        response = await get_async_openai(trace=True).chat.completions.create(
             model=CLASSIFICATION_MODEL,
             messages=[
                 {"role": "system", "content": CLASSIFICATION_SYSTEM_PROMPT},
@@ -171,7 +172,7 @@ class RelationshipClassifier:
             pairs_section=pairs_section,
         )
 
-        response = await openai_client.chat.completions.create(
+        response = await get_async_openai(trace=True).chat.completions.create(
             model=CLASSIFICATION_MODEL,
             messages=[
                 {"role": "system", "content": CLASSIFICATION_SYSTEM_PROMPT},

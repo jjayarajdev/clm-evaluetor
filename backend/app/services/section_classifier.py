@@ -19,15 +19,10 @@ from app.services.vector_store import SectionType
 logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client
-_client: AsyncOpenAI | None = None
-
-
 def get_openai_client() -> AsyncOpenAI:
-    """Get or create OpenAI client."""
-    global _client
-    if _client is None:
-        _client = AsyncOpenAI(api_key=settings.openai_api_key)
-    return _client
+    """Per-tenant OpenAI/Azure client (resolved from the current tenant)."""
+    from app.core.llm import get_async_openai
+    return get_async_openai()
 
 
 class SectionClassification(BaseModel):

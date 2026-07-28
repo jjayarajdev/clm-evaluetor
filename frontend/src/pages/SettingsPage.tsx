@@ -25,10 +25,11 @@ import {
   getExtractionThresholds, updateExtractionThresholds,
   getPromptAddenda, updatePromptAddenda,
   getBusinessUnits, getBusinessUnit, updateBusinessUnit,
+  getAzureOpenAI, setAzureOpenAI, testAzureOpenAI,
 } from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
-type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance' | 'extraction' | 'scoring'
+type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance' | 'extraction' | 'scoring' | 'ai'
 
 interface SettingsSection {
   id: SettingsTab
@@ -80,6 +81,12 @@ const sections: SettingsSection[] = [
     icon: ScaleIcon,
     description: 'How "At Risk" and "Compliance" are calculated, per tenant or business unit (admin only)',
   },
+  {
+    id: 'ai',
+    name: 'AI Provider',
+    icon: SparklesIcon,
+    description: 'Use your own Azure OpenAI resource for this organization (admin only)',
+  },
 ]
 
 export default function SettingsPage() {
@@ -87,7 +94,7 @@ export default function SettingsPage() {
   const { isAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
 
-  const adminOnly: SettingsTab[] = ['extraction', 'scoring']
+  const adminOnly: SettingsTab[] = ['extraction', 'scoring', 'ai']
   const visibleSections = useMemo(
     () => sections.filter((s) => !adminOnly.includes(s.id) || isAdmin),
     [isAdmin]
@@ -151,6 +158,7 @@ export default function SettingsPage() {
                 </div>
               )}
               {activeTab === 'scoring' && isAdmin && <ScoringRulesSection />}
+              {activeTab === 'ai' && isAdmin && <AzureOpenAISection />}
             </div>
           </div>
         </div>
@@ -705,6 +713,92 @@ function ScoringRulesSection() {
             {t('common.saved', { defaultValue: 'Saved' })}
           </span>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// Azure OpenAI — per-tenant AI provider. When enabled, this organization's AI
+// calls run against its own Azure OpenAI resource (its own quota/billing).
+// ============================================================================
+function AzureOpenAISection() {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [enabled, setEnabled] = useState(false)
+  const [endpoint, setEndpoint] = useState('')
+  const [apiVersion, setApiVersion] = useState('2024-08-01-preview')
+  const [apiKey, setApiKey] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+
+  const { data, isLoading } = useQuery({ queryKey: ['azure-openai'], queryFn: getAzureOpenAI })
+
+  useEffect(() => {
+    if (data) {
+      setEnabled(data.enabled)
+      setEndpoint(data.endpoint || '')
+      setApiVersion(data.api_version || '2024-08-01-preview')
+    }
+  }, [data])
+
+  const saveMutation = useMutation({
+    mutationFn: () => setAzureOpenAI({ enabled, endpoint, api_version: apiVersion, api_key: apiKey }),
+    onSuccess: () => {
+      setSaved(true); setApiKey('')
+      queryClient.invalidateQueries({ queryKey: ['azure-openai'] })
+    },
+  })
+  const testMutation = useMutation({
+    mutationFn: testAzureOpenAI,
+    onSuccess: (r) => setTestResult(r),
+    onError: (e: unknown) => setTestResult({ ok: false, message: e instanceof Error ? e.message : 'Test failed' }),
+  })
+
+  if (isLoading) return <LoadingSpinner size="sm" />
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      <p className="text-sm text-gray-500">{t('settings.azure.intro')}</p>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={enabled} onChange={(e) => { setEnabled(e.target.checked); setSaved(false) }} />
+        <span className="font-medium text-gray-900">{t('settings.azure.enable')}</span>
+      </label>
+
+      <div className={cn('space-y-4', !enabled && 'opacity-50')}>
+        <div>
+          <label className="label">{t('settings.azure.endpoint')}</label>
+          <input className="input w-full" placeholder="https://your-resource.openai.azure.com" value={endpoint} onChange={(e) => { setEndpoint(e.target.value); setSaved(false) }} disabled={!enabled} />
+        </div>
+        <div>
+          <label className="label">{t('settings.azure.apiKey')}</label>
+          <input className="input w-full" type="password" placeholder={data?.api_key_set ? `${data.api_key_masked} — ${t('settings.azure.keyKept')}` : t('settings.azure.keyPlaceholder')} value={apiKey} onChange={(e) => { setApiKey(e.target.value); setSaved(false) }} disabled={!enabled} />
+          <p className="mt-1 text-xs text-gray-400">{t('settings.azure.keyHint')}</p>
+        </div>
+        <div>
+          <label className="label">{t('settings.azure.apiVersion')}</label>
+          <input className="input max-w-xs" value={apiVersion} onChange={(e) => { setApiVersion(e.target.value); setSaved(false) }} disabled={!enabled} />
+        </div>
+        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+          {t('settings.azure.deploymentNote')}
+        </div>
+      </div>
+
+      {testResult && (
+        <div className={cn('text-sm rounded-lg p-2', testResult.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700')}>
+          {testResult.ok ? '✓ ' : '✕ '}{testResult.message}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 pt-1">
+        <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="btn-primary disabled:opacity-50">
+          {saveMutation.isPending ? t('common.saving') : t('common.save')}
+        </button>
+        <button onClick={() => { setTestResult(null); testMutation.mutate() }} disabled={testMutation.isPending || !data?.api_key_set} className="btn-secondary disabled:opacity-50" title={t('settings.azure.testHint')}>
+          {testMutation.isPending ? t('settings.azure.testing') : t('settings.azure.test')}
+        </button>
+        {saved && <span className="inline-flex items-center gap-1 text-sm text-green-600"><CheckCircleIcon className="h-4 w-4" />{t('common.saved')}</span>}
       </div>
     </div>
   )

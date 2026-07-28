@@ -11,7 +11,8 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.base import openai_client, extract_json_from_response
+from app.agents.base import extract_json_from_response
+from app.core.llm import get_async_openai
 from app.config import settings
 from app.models.contract import Contract
 
@@ -77,7 +78,7 @@ class SmartDocumentExtractor:
             targeted_text=targeted_text,
         )
 
-        response = await openai_client.chat.completions.create(
+        response = await get_async_openai(trace=True).chat.completions.create(
             model=EXTRACTION_MODEL,
             messages=[
                 {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
