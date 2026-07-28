@@ -36,8 +36,20 @@ current_tenant_id: ContextVar[str | None] = ContextVar("llm_current_tenant_id", 
 DEFAULT_AZURE_API_VERSION = "2024-08-01-preview"
 
 # tenant_id(str) -> azure config dict {endpoint, api_key, api_version}. In-memory,
-# refreshed at startup and on save so the (sync) factory needs no DB access.
+# refreshed at startup and on save. NOTE: per-process — with multiple workers a
+# save only updates one worker, so it's a best-effort fallback. The authoritative
+# source is the per-request config loaded into _ctx_azure (below) from the DB.
 _azure_cache: dict[str, dict] = {}
+
+# Request/task-scoped provider config, loaded fresh from the DB where we have a
+# session (get_current_user, upload pipeline). Correct across all workers.
+_UNSET = object()
+_ctx_azure: ContextVar = ContextVar("llm_ctx_azure", default=_UNSET)
+
+
+def set_request_azure(cfg: dict | None) -> None:
+    """Bind the current tenant's provider config for this request/task."""
+    _ctx_azure.set(cfg if _valid(cfg) else None)
 
 
 def _valid(cfg: dict | None) -> bool:
@@ -73,6 +85,12 @@ async def refresh_azure_cache(db) -> int:
 
 
 def _azure_for(tenant_id) -> dict | None:
+    # Prefer the per-request config loaded from the DB (authoritative, multi-worker
+    # safe). It's set (possibly to None) whenever we had a session; only fall back
+    # to the process cache when it was never loaded for this request/task.
+    ctx = _ctx_azure.get()
+    if ctx is not _UNSET:
+        return ctx
     tid = tenant_id if tenant_id is not None else current_tenant_id.get()
     return _azure_cache.get(str(tid)) if tid is not None else None
 

@@ -71,12 +71,22 @@ async def get_current_user(
     # Set user context for logging
     user_id_var.set(str(user.id))
 
-    # Set tenant context (incl. the LLM factory's context, so per-tenant Azure
-    # OpenAI is resolved for any AI call made during this request).
+    # Set tenant context (incl. the LLM factory's context, so per-tenant AI
+    # provider is resolved for any AI call made during this request).
     if user.tenant_id:
         tenant_id_var.set(user.tenant_id)
-        from app.core.llm import current_tenant_id
+        from app.core.llm import current_tenant_id, set_request_azure
         current_tenant_id.set(str(user.tenant_id))
+        # Load this tenant's AI-provider config fresh from the DB — authoritative
+        # across all workers (the in-memory cache only updates the worker that saved).
+        try:
+            from app.models.tenant import Tenant
+            co = (await db.execute(
+                select(Tenant.config_overrides).where(Tenant.id == user.tenant_id)
+            )).scalar_one_or_none() or {}
+            set_request_azure(co.get("azure_openai"))
+        except Exception:  # noqa: BLE001 — never block auth on this
+            pass
 
     return user
 
