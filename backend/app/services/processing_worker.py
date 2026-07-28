@@ -82,6 +82,21 @@ async def _process_one_job(job, session: AsyncSession) -> None:
         contract.status = ContractStatus.PROCESSING
         await session.commit()
 
+        # Bind this contract's tenant AI-provider config so the extraction
+        # pipeline uses the tenant's own OpenAI/Azure key (this worker runs
+        # outside any request, so it must resolve the config itself).
+        if contract.tenant_id:
+            try:
+                from app.core.llm import current_tenant_id, set_request_azure
+                from app.models.tenant import Tenant
+                current_tenant_id.set(str(contract.tenant_id))
+                co = (await session.execute(
+                    select(Tenant.config_overrides).where(Tenant.id == contract.tenant_id)
+                )).scalar_one_or_none() or {}
+                set_request_azure(co.get("azure_openai"))
+            except Exception:  # noqa: BLE001
+                pass
+
         # Update job progress
         await queue.update_progress(job.id, "parsing", 10, f"Parsing {contract.filename}")
 
