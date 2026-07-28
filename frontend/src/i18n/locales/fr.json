@@ -2681,7 +2681,8 @@
       "keyKept": "laisser vide pour conserver",
       "keyHint": "Utilisée uniquement pour les appels IA de cette organisation. Laissez vide lors de la modification pour conserver la clé existante.",
       "apiVersion": "Version de l'API",
-      "deploymentNote": "Important : nommez vos déploiements Azure exactement gpt-4o et gpt-4o-mini — l'application appelle les modèles par ces identifiants.",
+      "apiVersionHint": "Version de l'API REST Azure (une date) — pas un modèle ni un nom de déploiement.",
+      "deploymentNote": "Important : nommez vos déploiements Azure exactement gpt-4o et gpt-4o-mini — l'application appelle les modèles par ces identifiants. Le nom d'un déploiement est indépendant de son modèle, vous pouvez donc l'associer à n'importe quel modèle de chat.",
       "test": "Tester la connexion",
       "testing": "Test en cours…",
       "testHint": "Exécute une petite complétion réelle sur votre déploiement gpt-4o-mini."

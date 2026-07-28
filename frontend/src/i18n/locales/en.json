@@ -2681,7 +2681,8 @@
       "keyKept": "leave blank to keep",
       "keyHint": "Stored for this organization's AI calls only. Leave blank when editing to keep the existing key.",
       "apiVersion": "API version",
-      "deploymentNote": "Important: name your Azure deployments exactly gpt-4o and gpt-4o-mini — the app calls models by those ids.",
+      "apiVersionHint": "Azure REST API version (a date) — not a model or deployment name.",
+      "deploymentNote": "Important: name your Azure deployments exactly gpt-4o and gpt-4o-mini — the app calls models by those ids. A deployment name is independent of its model, so you can back it with any chat model you have.",
       "test": "Test connection",
       "testing": "Testing…",
       "testHint": "Runs a tiny live completion against your gpt-4o-mini deployment."
