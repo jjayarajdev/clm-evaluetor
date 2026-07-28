@@ -504,6 +504,7 @@ export async function updateTenantOverrides(overrides: Record<string, any>): Pro
 
 export interface AzureOpenAIConfig {
   enabled: boolean
+  provider: 'azure' | 'openai'
   endpoint: string
   api_version: string
   deployment: string
@@ -516,7 +517,7 @@ export async function getAzureOpenAI(): Promise<AzureOpenAIConfig> {
   return response.data
 }
 
-export async function setAzureOpenAI(data: { enabled: boolean; endpoint: string; api_version: string; deployment: string; api_key: string }): Promise<{ ok: boolean }> {
+export async function setAzureOpenAI(data: { enabled: boolean; provider: 'azure' | 'openai'; endpoint: string; api_version: string; deployment: string; api_key: string }): Promise<{ ok: boolean }> {
   const response = await client.put('/tenants/current/azure-openai', data)
   return response.data
 }

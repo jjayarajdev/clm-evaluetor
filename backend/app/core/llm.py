@@ -41,7 +41,12 @@ _azure_cache: dict[str, dict] = {}
 
 
 def _valid(cfg: dict | None) -> bool:
-    return bool(cfg and cfg.get("enabled") and cfg.get("endpoint") and cfg.get("api_key"))
+    if not (cfg and cfg.get("enabled") and cfg.get("api_key")):
+        return False
+    # OpenAI provider needs only a key; Azure also needs an endpoint.
+    if cfg.get("provider") == "openai":
+        return True
+    return bool(cfg.get("endpoint"))
 
 
 def set_tenant_azure(tenant_id, cfg: dict | None) -> None:
@@ -119,14 +124,17 @@ def get_async_openai(tenant_id=None, trace: bool = False) -> AsyncOpenAI:
     az = _azure_for(tenant_id)
     if az:
         try:
+            if az.get("provider") == "openai":
+                # Tenant's own OpenAI key (models called by id — no remapping).
+                return AsyncOpenAI(api_key=az["api_key"])
             client = AsyncAzureOpenAI(
                 api_key=az["api_key"],
                 azure_endpoint=az["endpoint"],
                 api_version=az.get("api_version") or DEFAULT_AZURE_API_VERSION,
             )
             return _apply_async_deployment(client, (az.get("deployment") or "").strip() or None)
-        except Exception:  # noqa: BLE001 — never let Azure config break AI; fall back
-            logger.warning("Azure OpenAI client build failed; using global OpenAI", exc_info=True)
+        except Exception:  # noqa: BLE001 — never let a tenant's AI config break AI; fall back
+            logger.warning("Tenant AI client build failed; using global OpenAI", exc_info=True)
     if trace and _langfuse_on():
         try:
             from langfuse.openai import AsyncOpenAI as LangfuseAsyncOpenAI
@@ -141,6 +149,8 @@ def get_sync_openai(tenant_id=None) -> OpenAI:
     az = _azure_for(tenant_id)
     if az:
         try:
+            if az.get("provider") == "openai":
+                return OpenAI(api_key=az["api_key"])
             client = AzureOpenAI(
                 api_key=az["api_key"],
                 azure_endpoint=az["endpoint"],
