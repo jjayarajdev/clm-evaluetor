@@ -723,7 +723,7 @@ function ScoringRulesSection() {
 // calls run against its own Azure OpenAI resource (its own quota/billing).
 // ============================================================================
 // Azure REST api-version values (date-based). NOT model names.
-const AZURE_API_VERSIONS = ['2024-08-01-preview', '2024-10-21', '2025-01-01-preview', '2024-06-01', '2024-02-01']
+const AZURE_API_VERSIONS = ['2024-12-01-preview', '2025-01-01-preview', '2024-08-01-preview', '2024-10-21', '2024-06-01']
 
 function AzureOpenAISection() {
   const { t } = useTranslation()
