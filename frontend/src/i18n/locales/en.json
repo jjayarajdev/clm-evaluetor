@@ -2673,8 +2673,14 @@
       "ai": "Use your own Azure OpenAI resource for this organization (admin only)"
     },
     "azure": {
-      "intro": "By default this organization uses the platform's shared AI. Enable Azure OpenAI to run this organization's AI calls on your own Azure resource (your own quota and billing).",
-      "enable": "Use our own Azure OpenAI resource",
+      "intro": "By default this organization uses the platform's shared AI. Enable this to run its AI calls on your own Azure OpenAI resource or your own OpenAI key (your own quota and billing).",
+      "enable": "Use our own AI provider",
+      "provider": "Provider",
+      "providerAzure": "Azure OpenAI",
+      "providerOpenAI": "OpenAI (own key)",
+      "openaiKey": "OpenAI API key",
+      "openaiKeyPlaceholder": "sk-...",
+      "openaiNote": "Uses the OpenAI API directly with this key — the app's models (gpt-4o, gpt-4o-mini) work as-is. No endpoint or deployment needed.",
       "endpoint": "Azure endpoint",
       "apiKey": "API key",
       "keyPlaceholder": "Paste your Azure OpenAI key",

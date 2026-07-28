@@ -729,6 +729,7 @@ function AzureOpenAISection() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [enabled, setEnabled] = useState(false)
+  const [provider, setProvider] = useState<'azure' | 'openai'>('azure')
   const [endpoint, setEndpoint] = useState('')
   const [apiVersion, setApiVersion] = useState('2024-08-01-preview')
   const [deployment, setDeployment] = useState('')
@@ -741,6 +742,7 @@ function AzureOpenAISection() {
   useEffect(() => {
     if (data) {
       setEnabled(data.enabled)
+      setProvider(data.provider === 'openai' ? 'openai' : 'azure')
       setEndpoint(data.endpoint || '')
       // Coerce any non-date value (e.g. a model name mistakenly saved here) to the default.
       const v = data.api_version || ''
@@ -750,7 +752,7 @@ function AzureOpenAISection() {
   }, [data])
 
   const saveMutation = useMutation({
-    mutationFn: () => setAzureOpenAI({ enabled, endpoint, api_version: apiVersion, deployment, api_key: apiKey }),
+    mutationFn: () => setAzureOpenAI({ enabled, provider, endpoint, api_version: apiVersion, deployment, api_key: apiKey }),
     onSuccess: () => {
       setSaved(true); setApiKey('')
       queryClient.invalidateQueries({ queryKey: ['azure-openai'] })
@@ -775,26 +777,51 @@ function AzureOpenAISection() {
 
       <div className={cn('space-y-4', !enabled && 'opacity-50')}>
         <div>
-          <label className="label">{t('settings.azure.endpoint')}</label>
-          <input className="input w-full" placeholder="https://your-resource.openai.azure.com" value={endpoint} onChange={(e) => { setEndpoint(e.target.value); setSaved(false) }} disabled={!enabled} />
+          <label className="label">{t('settings.azure.provider')}</label>
+          <div className="flex gap-4">
+            <label className="inline-flex items-center gap-1.5 text-sm">
+              <input type="radio" checked={provider === 'azure'} onChange={() => { setProvider('azure'); setSaved(false) }} disabled={!enabled} />
+              {t('settings.azure.providerAzure')}
+            </label>
+            <label className="inline-flex items-center gap-1.5 text-sm">
+              <input type="radio" checked={provider === 'openai'} onChange={() => { setProvider('openai'); setSaved(false) }} disabled={!enabled} />
+              {t('settings.azure.providerOpenAI')}
+            </label>
+          </div>
         </div>
+
+        {provider === 'azure' && (
+          <div>
+            <label className="label">{t('settings.azure.endpoint')}</label>
+            <input className="input w-full" placeholder="https://your-resource.openai.azure.com" value={endpoint} onChange={(e) => { setEndpoint(e.target.value); setSaved(false) }} disabled={!enabled} />
+          </div>
+        )}
         <div>
-          <label className="label">{t('settings.azure.apiKey')}</label>
-          <input className="input w-full" type="password" placeholder={data?.api_key_set ? `${data.api_key_masked} — ${t('settings.azure.keyKept')}` : t('settings.azure.keyPlaceholder')} value={apiKey} onChange={(e) => { setApiKey(e.target.value); setSaved(false) }} disabled={!enabled} />
+          <label className="label">{provider === 'openai' ? t('settings.azure.openaiKey') : t('settings.azure.apiKey')}</label>
+          <input className="input w-full" type="password" placeholder={data?.api_key_set ? `${data.api_key_masked} — ${t('settings.azure.keyKept')}` : (provider === 'openai' ? t('settings.azure.openaiKeyPlaceholder') : t('settings.azure.keyPlaceholder'))} value={apiKey} onChange={(e) => { setApiKey(e.target.value); setSaved(false) }} disabled={!enabled} />
           <p className="mt-1 text-xs text-gray-400">{t('settings.azure.keyHint')}</p>
         </div>
-        <div>
-          <label className="label">{t('settings.azure.deployment')}</label>
-          <input className="input max-w-md" placeholder="e.g. gpt-4o-mini, gpt-5.1, my-deployment" value={deployment} onChange={(e) => { setDeployment(e.target.value); setSaved(false) }} disabled={!enabled} />
-          <p className="mt-1 text-xs text-gray-400">{t('settings.azure.deploymentHint')}</p>
-        </div>
-        <div>
-          <label className="label">{t('settings.azure.apiVersion')}</label>
-          <select className="input max-w-xs" value={apiVersion} onChange={(e) => { setApiVersion(e.target.value); setSaved(false) }} disabled={!enabled}>
-            {AZURE_API_VERSIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-          </select>
-          <p className="mt-1 text-xs text-gray-400">{t('settings.azure.apiVersionHint')}</p>
-        </div>
+        {provider === 'azure' && (
+          <>
+            <div>
+              <label className="label">{t('settings.azure.deployment')}</label>
+              <input className="input max-w-md" placeholder="e.g. gpt-4o-mini, gpt-5, my-deployment" value={deployment} onChange={(e) => { setDeployment(e.target.value); setSaved(false) }} disabled={!enabled} />
+              <p className="mt-1 text-xs text-gray-400">{t('settings.azure.deploymentHint')}</p>
+            </div>
+            <div>
+              <label className="label">{t('settings.azure.apiVersion')}</label>
+              <select className="input max-w-xs" value={apiVersion} onChange={(e) => { setApiVersion(e.target.value); setSaved(false) }} disabled={!enabled}>
+                {AZURE_API_VERSIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <p className="mt-1 text-xs text-gray-400">{t('settings.azure.apiVersionHint')}</p>
+            </div>
+          </>
+        )}
+        {provider === 'openai' && (
+          <div className="rounded-lg bg-sky-50 border border-sky-200 p-3 text-xs text-sky-800">
+            {t('settings.azure.openaiNote')}
+          </div>
+        )}
       </div>
 
       {testResult && (

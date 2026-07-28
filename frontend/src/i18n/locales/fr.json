@@ -2673,8 +2673,14 @@
       "ai": "Utilisez votre propre ressource Azure OpenAI pour cette organisation (administrateurs uniquement)"
     },
     "azure": {
-      "intro": "Par défaut, cette organisation utilise l'IA partagée de la plateforme. Activez Azure OpenAI pour exécuter les appels IA de cette organisation sur votre propre ressource Azure (votre quota et votre facturation).",
-      "enable": "Utiliser notre propre ressource Azure OpenAI",
+      "intro": "Par défaut, cette organisation utilise l'IA partagée de la plateforme. Activez cette option pour exécuter ses appels IA sur votre propre ressource Azure OpenAI ou votre propre clé OpenAI (votre quota et votre facturation).",
+      "enable": "Utiliser notre propre fournisseur IA",
+      "provider": "Fournisseur",
+      "providerAzure": "Azure OpenAI",
+      "providerOpenAI": "OpenAI (clé propre)",
+      "openaiKey": "Clé API OpenAI",
+      "openaiKeyPlaceholder": "sk-...",
+      "openaiNote": "Utilise l'API OpenAI directement avec cette clé — les modèles de l'application (gpt-4o, gpt-4o-mini) fonctionnent tels quels. Aucun point de terminaison ni déploiement requis.",
       "endpoint": "Point de terminaison Azure",
       "apiKey": "Clé API",
       "keyPlaceholder": "Collez votre clé Azure OpenAI",

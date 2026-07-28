@@ -364,6 +364,7 @@ async def update_current_tenant_overrides(
 
 class AzureOpenAIConfigIn(BaseModel):
     enabled: bool = False
+    provider: str = "azure"  # "azure" | "openai"
     endpoint: str = ""
     api_version: str = "2024-08-01-preview"
     deployment: str = ""  # Azure deployment name; all model calls route to it
@@ -388,6 +389,7 @@ async def get_azure_openai(
     az = (tenant.config_overrides or {}).get("azure_openai") or {}
     return {
         "enabled": az.get("enabled", False),
+        "provider": az.get("provider", "azure"),
         "endpoint": az.get("endpoint", ""),
         "api_version": az.get("api_version", "2024-08-01-preview"),
         "deployment": az.get("deployment", ""),
@@ -410,6 +412,7 @@ async def set_azure_openai(
     existing = co.get("azure_openai") or {}
     az = {
         "enabled": body.enabled,
+        "provider": body.provider if body.provider in ("azure", "openai") else "azure",
         "endpoint": (body.endpoint or "").strip().rstrip("/"),
         "api_version": (body.api_version or "").strip() or "2024-08-01-preview",
         "deployment": (body.deployment or "").strip(),
@@ -436,8 +439,24 @@ async def test_azure_openai(
         raise HTTPException(status_code=400, detail="No tenant context")
     tenant = await tenant_service.get_tenant_by_id(db, current_user.tenant_id)
     az = (tenant.config_overrides or {}).get("azure_openai") or {}
-    if not (az.get("endpoint") and az.get("api_key")):
-        return {"ok": False, "message": "Endpoint and API key are required."}
+    if not az.get("api_key"):
+        return {"ok": False, "message": "API key is required."}
+
+    # Plain OpenAI provider — validate the key with a tiny call to the model id.
+    if az.get("provider") == "openai":
+        try:
+            from openai import AsyncOpenAI
+            client = AsyncOpenAI(api_key=az["api_key"])
+            await client.chat.completions.create(
+                model="gpt-4o-mini", max_tokens=1,
+                messages=[{"role": "user", "content": "ping"}],
+            )
+            return {"ok": True, "message": "Success — OpenAI key works (gpt-4o-mini)."}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "message": str(e)[:300]}
+
+    if not az.get("endpoint"):
+        return {"ok": False, "message": "Endpoint is required for Azure."}
     deployment = (az.get("deployment") or "").strip() or "gpt-4o-mini"
     try:
         from openai import AsyncAzureOpenAI
