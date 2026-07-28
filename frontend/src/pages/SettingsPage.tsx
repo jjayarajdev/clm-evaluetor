@@ -722,6 +722,9 @@ function ScoringRulesSection() {
 // Azure OpenAI — per-tenant AI provider. When enabled, this organization's AI
 // calls run against its own Azure OpenAI resource (its own quota/billing).
 // ============================================================================
+// Azure REST api-version values (date-based). NOT model names.
+const AZURE_API_VERSIONS = ['2024-08-01-preview', '2024-10-21', '2025-01-01-preview', '2024-06-01', '2024-02-01']
+
 function AzureOpenAISection() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -738,7 +741,9 @@ function AzureOpenAISection() {
     if (data) {
       setEnabled(data.enabled)
       setEndpoint(data.endpoint || '')
-      setApiVersion(data.api_version || '2024-08-01-preview')
+      // Coerce any non-date value (e.g. a model name mistakenly saved here) to the default.
+      const v = data.api_version || ''
+      setApiVersion(AZURE_API_VERSIONS.includes(v) ? v : '2024-08-01-preview')
     }
   }, [data])
 
@@ -778,7 +783,10 @@ function AzureOpenAISection() {
         </div>
         <div>
           <label className="label">{t('settings.azure.apiVersion')}</label>
-          <input className="input max-w-xs" value={apiVersion} onChange={(e) => { setApiVersion(e.target.value); setSaved(false) }} disabled={!enabled} />
+          <select className="input max-w-xs" value={apiVersion} onChange={(e) => { setApiVersion(e.target.value); setSaved(false) }} disabled={!enabled}>
+            {AZURE_API_VERSIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+          <p className="mt-1 text-xs text-gray-400">{t('settings.azure.apiVersionHint')}</p>
         </div>
         <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
           {t('settings.azure.deploymentNote')}
