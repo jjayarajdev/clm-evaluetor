@@ -506,6 +506,7 @@ export interface AzureOpenAIConfig {
   enabled: boolean
   endpoint: string
   api_version: string
+  deployment: string
   api_key_set?: boolean
   api_key_masked?: string
 }
@@ -515,7 +516,7 @@ export async function getAzureOpenAI(): Promise<AzureOpenAIConfig> {
   return response.data
 }
 
-export async function setAzureOpenAI(data: { enabled: boolean; endpoint: string; api_version: string; api_key: string }): Promise<{ ok: boolean }> {
+export async function setAzureOpenAI(data: { enabled: boolean; endpoint: string; api_version: string; deployment: string; api_key: string }): Promise<{ ok: boolean }> {
   const response = await client.put('/tenants/current/azure-openai', data)
   return response.data
 }

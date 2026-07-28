@@ -366,6 +366,7 @@ class AzureOpenAIConfigIn(BaseModel):
     enabled: bool = False
     endpoint: str = ""
     api_version: str = "2024-08-01-preview"
+    deployment: str = ""  # Azure deployment name; all model calls route to it
     api_key: str = ""  # blank on update = keep the stored key
 
 
@@ -389,6 +390,7 @@ async def get_azure_openai(
         "enabled": az.get("enabled", False),
         "endpoint": az.get("endpoint", ""),
         "api_version": az.get("api_version", "2024-08-01-preview"),
+        "deployment": az.get("deployment", ""),
         "api_key_set": bool(az.get("api_key")),
         "api_key_masked": _mask(az.get("api_key", "")),
     }
@@ -410,6 +412,7 @@ async def set_azure_openai(
         "enabled": body.enabled,
         "endpoint": (body.endpoint or "").strip().rstrip("/"),
         "api_version": (body.api_version or "").strip() or "2024-08-01-preview",
+        "deployment": (body.deployment or "").strip(),
         # keep the stored key when the field is left blank on update
         "api_key": body.api_key.strip() or existing.get("api_key", ""),
     }
@@ -426,15 +429,16 @@ async def set_azure_openai(
 async def test_azure_openai(
     current_user: AdminUser,
     db: Annotated[AsyncSession, Depends(get_db)],
-    model: str = "gpt-4o-mini",
 ) -> dict:
-    """Validate the stored Azure config with a tiny live completion."""
+    """Validate the stored Azure config with a tiny live completion against the
+    tenant's own deployment name."""
     if not current_user.tenant_id:
         raise HTTPException(status_code=400, detail="No tenant context")
     tenant = await tenant_service.get_tenant_by_id(db, current_user.tenant_id)
     az = (tenant.config_overrides or {}).get("azure_openai") or {}
     if not (az.get("endpoint") and az.get("api_key")):
         return {"ok": False, "message": "Endpoint and API key are required."}
+    deployment = (az.get("deployment") or "").strip() or "gpt-4o-mini"
     try:
         from openai import AsyncAzureOpenAI
         client = AsyncAzureOpenAI(
@@ -442,10 +446,10 @@ async def test_azure_openai(
             api_version=az.get("api_version") or "2024-08-01-preview",
         )
         await client.chat.completions.create(
-            model=model, max_tokens=1,
+            model=deployment, max_tokens=1,
             messages=[{"role": "user", "content": "ping"}],
         )
-        return {"ok": True, "message": f"Success — reached deployment '{model}'."}
+        return {"ok": True, "message": f"Success — reached deployment '{deployment}'."}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "message": str(e)[:300]}
 
