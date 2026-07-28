@@ -2680,6 +2680,8 @@
       "keyPlaceholder": "Paste your Azure OpenAI key",
       "keyKept": "leave blank to keep",
       "keyHint": "Stored for this organization's AI calls only. Leave blank when editing to keep the existing key.",
+      "deployment": "Deployment / model name",
+      "deploymentHint": "Your Azure deployment name — the app routes all its model calls (and the Test) to this. Leave blank to use the ids gpt-4o / gpt-4o-mini as the deployment names.",
       "apiVersion": "API version",
       "apiVersionHint": "Azure REST API version (a date) — not a model or deployment name.",
       "deploymentNote": "Important: name your Azure deployments exactly gpt-4o and gpt-4o-mini — the app calls models by those ids. A deployment name is independent of its model, so you can back it with any chat model you have.",

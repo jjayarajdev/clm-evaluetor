@@ -731,6 +731,7 @@ function AzureOpenAISection() {
   const [enabled, setEnabled] = useState(false)
   const [endpoint, setEndpoint] = useState('')
   const [apiVersion, setApiVersion] = useState('2024-08-01-preview')
+  const [deployment, setDeployment] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [saved, setSaved] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
@@ -744,11 +745,12 @@ function AzureOpenAISection() {
       // Coerce any non-date value (e.g. a model name mistakenly saved here) to the default.
       const v = data.api_version || ''
       setApiVersion(AZURE_API_VERSIONS.includes(v) ? v : '2024-08-01-preview')
+      setDeployment(data.deployment || '')
     }
   }, [data])
 
   const saveMutation = useMutation({
-    mutationFn: () => setAzureOpenAI({ enabled, endpoint, api_version: apiVersion, api_key: apiKey }),
+    mutationFn: () => setAzureOpenAI({ enabled, endpoint, api_version: apiVersion, deployment, api_key: apiKey }),
     onSuccess: () => {
       setSaved(true); setApiKey('')
       queryClient.invalidateQueries({ queryKey: ['azure-openai'] })
@@ -782,14 +784,16 @@ function AzureOpenAISection() {
           <p className="mt-1 text-xs text-gray-400">{t('settings.azure.keyHint')}</p>
         </div>
         <div>
+          <label className="label">{t('settings.azure.deployment')}</label>
+          <input className="input max-w-md" placeholder="e.g. gpt-4o-mini, gpt-5.1, my-deployment" value={deployment} onChange={(e) => { setDeployment(e.target.value); setSaved(false) }} disabled={!enabled} />
+          <p className="mt-1 text-xs text-gray-400">{t('settings.azure.deploymentHint')}</p>
+        </div>
+        <div>
           <label className="label">{t('settings.azure.apiVersion')}</label>
           <select className="input max-w-xs" value={apiVersion} onChange={(e) => { setApiVersion(e.target.value); setSaved(false) }} disabled={!enabled}>
             {AZURE_API_VERSIONS.map((v) => <option key={v} value={v}>{v}</option>)}
           </select>
           <p className="mt-1 text-xs text-gray-400">{t('settings.azure.apiVersionHint')}</p>
-        </div>
-        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
-          {t('settings.azure.deploymentNote')}
         </div>
       </div>
 

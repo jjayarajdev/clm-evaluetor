@@ -76,16 +76,36 @@ def _langfuse_on() -> bool:
     return bool(settings.langfuse_public_key and settings.langfuse_secret_key)
 
 
+def _apply_async_deployment(client, deployment: str | None):
+    """If a single deployment name is set, route every model id to it (Azure
+    addresses models by deployment). Leaves the client untouched when unset."""
+    if not deployment:
+        return client
+    try:
+        comp = client.chat.completions
+        _orig = comp.create
+
+        async def _create(*args, _orig=_orig, _dep=deployment, **kwargs):
+            kwargs["model"] = _dep
+            return await _orig(*args, **kwargs)
+
+        comp.create = _create
+    except Exception:  # noqa: BLE001
+        logger.warning("Could not apply Azure deployment override", exc_info=True)
+    return client
+
+
 def get_async_openai(tenant_id=None, trace: bool = False) -> AsyncOpenAI:
     """Async OpenAI/Azure client for the current (or given) tenant."""
     az = _azure_for(tenant_id)
     if az:
         try:
-            return AsyncAzureOpenAI(
+            client = AsyncAzureOpenAI(
                 api_key=az["api_key"],
                 azure_endpoint=az["endpoint"],
                 api_version=az.get("api_version") or DEFAULT_AZURE_API_VERSION,
             )
+            return _apply_async_deployment(client, (az.get("deployment") or "").strip() or None)
         except Exception:  # noqa: BLE001 — never let Azure config break AI; fall back
             logger.warning("Azure OpenAI client build failed; using global OpenAI", exc_info=True)
     if trace and _langfuse_on():
@@ -102,11 +122,25 @@ def get_sync_openai(tenant_id=None) -> OpenAI:
     az = _azure_for(tenant_id)
     if az:
         try:
-            return AzureOpenAI(
+            client = AzureOpenAI(
                 api_key=az["api_key"],
                 azure_endpoint=az["endpoint"],
                 api_version=az.get("api_version") or DEFAULT_AZURE_API_VERSION,
             )
+            deployment = (az.get("deployment") or "").strip() or None
+            if deployment:
+                try:
+                    comp = client.chat.completions
+                    _orig = comp.create
+
+                    def _create(*args, _orig=_orig, _dep=deployment, **kwargs):
+                        kwargs["model"] = _dep
+                        return _orig(*args, **kwargs)
+
+                    comp.create = _create
+                except Exception:  # noqa: BLE001
+                    logger.warning("Could not apply Azure deployment override (sync)", exc_info=True)
+            return client
         except Exception:  # noqa: BLE001
             logger.warning("Azure OpenAI (sync) build failed; using global OpenAI", exc_info=True)
     return OpenAI(api_key=settings.openai_api_key)
