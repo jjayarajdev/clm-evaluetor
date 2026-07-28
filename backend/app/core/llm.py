@@ -76,6 +76,26 @@ def _langfuse_on() -> bool:
     return bool(settings.langfuse_public_key and settings.langfuse_secret_key)
 
 
+# Reasoning models (gpt-5 / o-series) reject max_tokens + non-default temperature.
+_REASONING_HINTS = ("gpt-5", "o1", "o3", "o4")
+
+
+def _is_reasoning(deployment: str) -> bool:
+    d = deployment.lower()
+    return any(h in d for h in _REASONING_HINTS)
+
+
+def _normalize_kwargs(deployment: str, kwargs: dict) -> dict:
+    """Route the call to the tenant's deployment and translate params for
+    reasoning models (max_tokens -> max_completion_tokens, drop temperature)."""
+    kwargs["model"] = deployment
+    if _is_reasoning(deployment):
+        if "max_tokens" in kwargs:
+            kwargs["max_completion_tokens"] = kwargs.pop("max_tokens")
+        kwargs.pop("temperature", None)  # only the default (1) is allowed
+    return kwargs
+
+
 def _apply_async_deployment(client, deployment: str | None):
     """If a single deployment name is set, route every model id to it (Azure
     addresses models by deployment). Leaves the client untouched when unset."""
@@ -86,8 +106,7 @@ def _apply_async_deployment(client, deployment: str | None):
         _orig = comp.create
 
         async def _create(*args, _orig=_orig, _dep=deployment, **kwargs):
-            kwargs["model"] = _dep
-            return await _orig(*args, **kwargs)
+            return await _orig(*args, **_normalize_kwargs(_dep, kwargs))
 
         comp.create = _create
     except Exception:  # noqa: BLE001
@@ -134,8 +153,7 @@ def get_sync_openai(tenant_id=None) -> OpenAI:
                     _orig = comp.create
 
                     def _create(*args, _orig=_orig, _dep=deployment, **kwargs):
-                        kwargs["model"] = _dep
-                        return _orig(*args, **kwargs)
+                        return _orig(*args, **_normalize_kwargs(_dep, kwargs))
 
                     comp.create = _create
                 except Exception:  # noqa: BLE001

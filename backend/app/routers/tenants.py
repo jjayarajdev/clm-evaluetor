@@ -445,10 +445,14 @@ async def test_azure_openai(
             api_key=az["api_key"], azure_endpoint=az["endpoint"],
             api_version=az.get("api_version") or "2024-08-01-preview",
         )
-        await client.chat.completions.create(
-            model=deployment, max_tokens=1,
-            messages=[{"role": "user", "content": "ping"}],
-        )
+        # gpt-5 / o-series reject max_tokens + custom temperature.
+        d = deployment.lower()
+        kwargs = {"messages": [{"role": "user", "content": "ping"}]}
+        if any(h in d for h in ("gpt-5", "o1", "o3", "o4")):
+            kwargs["max_completion_tokens"] = 16
+        else:
+            kwargs["max_tokens"] = 1
+        await client.chat.completions.create(model=deployment, **kwargs)
         return {"ok": True, "message": f"Success — reached deployment '{deployment}'."}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "message": str(e)[:300]}
