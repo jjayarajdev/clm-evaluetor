@@ -96,7 +96,8 @@ async def generate_profile_draft(
     Returns the raw config dict (without name/slug). Raises ValueError if
     the model response cannot be parsed as JSON.
     """
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    from app.core.llm import get_async_openai
+    client = get_async_openai()
 
     user_parts = [
         f"Target industry: {name}",

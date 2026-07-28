@@ -257,7 +257,8 @@ async def _enhance_with_llm(
     user's language), or None to keep the template answer.
     """
     try:
-        client = AsyncOpenAI(api_key=settings.openai_api_key)
+        from app.core.llm import get_async_openai
+        client = get_async_openai()
 
         system_prompt = _ENHANCE_PROMPT
         answer_budget = 500

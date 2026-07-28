@@ -421,11 +421,10 @@ async def _clean_counterparty_with_llm(value: str, excluded_parties: list[str] |
     if len(value) < 80 and re.search(r'\b(Inc\.?|LLC|Ltd\.?|Limited|Corp\.?|Corporation|GmbH|BV|B\.V\.?|LP|LLP|PLC|AG|SA|NV|N\.V\.?|Pty|Pvt)\b', value, re.IGNORECASE):
         return value
 
-    # Use LLM to extract clean name
-    from openai import AsyncOpenAI
-    from app.config import settings
+    # Use LLM to extract clean name (per-tenant client)
+    from app.core.llm import get_async_openai
 
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    client = get_async_openai()
 
     try:
         response = await client.chat.completions.create(

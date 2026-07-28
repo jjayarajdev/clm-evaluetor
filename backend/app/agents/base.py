@@ -302,7 +302,8 @@ async def run_agent(
     else:
         messages.append({"role": "user", "content": user_message})
 
-    response = await openai_client.chat.completions.create(
+    from app.core.llm import get_async_openai
+    response = await get_async_openai(trace=True).chat.completions.create(
         model=config.model_id,
         messages=messages,
         temperature=config.temperature,

@@ -630,7 +630,8 @@ class GovernanceBridgeService:
             return None
 
         try:
-            client = AsyncOpenAI(api_key=settings.openai_api_key)
+            from app.core.llm import get_async_openai
+    client = get_async_openai()
 
             prompt = f"""Analyze this contract text and determine the following about the counterparty "{counterparty}":
 

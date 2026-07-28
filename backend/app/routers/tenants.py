@@ -360,6 +360,96 @@ async def update_current_tenant_overrides(
     return tenant.get_industry_config()
 
 
+# ── Per-tenant Azure OpenAI ────────────────────────────────────────────────
+
+class AzureOpenAIConfigIn(BaseModel):
+    enabled: bool = False
+    endpoint: str = ""
+    api_version: str = "2024-08-01-preview"
+    api_key: str = ""  # blank on update = keep the stored key
+
+
+def _mask(key: str) -> str:
+    if not key:
+        return ""
+    return f"{key[:4]}…{key[-4:]}" if len(key) > 8 else "••••"
+
+
+@router.get("/current/azure-openai")
+async def get_azure_openai(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Current tenant's Azure OpenAI config (API key masked)."""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="No tenant context")
+    tenant = await tenant_service.get_tenant_by_id(db, current_user.tenant_id)
+    az = (tenant.config_overrides or {}).get("azure_openai") or {}
+    return {
+        "enabled": az.get("enabled", False),
+        "endpoint": az.get("endpoint", ""),
+        "api_version": az.get("api_version", "2024-08-01-preview"),
+        "api_key_set": bool(az.get("api_key")),
+        "api_key_masked": _mask(az.get("api_key", "")),
+    }
+
+
+@router.put("/current/azure-openai")
+async def set_azure_openai(
+    body: AzureOpenAIConfigIn,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Save the current tenant's Azure OpenAI config and refresh the LLM cache."""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="No tenant context")
+    tenant = await tenant_service.get_tenant_by_id(db, current_user.tenant_id)
+    co = dict(tenant.config_overrides or {})
+    existing = co.get("azure_openai") or {}
+    az = {
+        "enabled": body.enabled,
+        "endpoint": (body.endpoint or "").strip().rstrip("/"),
+        "api_version": (body.api_version or "").strip() or "2024-08-01-preview",
+        # keep the stored key when the field is left blank on update
+        "api_key": body.api_key.strip() or existing.get("api_key", ""),
+    }
+    co["azure_openai"] = az
+    tenant.config_overrides = co
+    await db.commit()
+    from app.core.llm import set_tenant_azure
+    set_tenant_azure(current_user.tenant_id, az)
+    logger.info(f"Tenant {tenant.name} updated Azure OpenAI config (enabled={az['enabled']})")
+    return {"ok": True, "enabled": az["enabled"]}
+
+
+@router.post("/current/azure-openai/test")
+async def test_azure_openai(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    model: str = "gpt-4o-mini",
+) -> dict:
+    """Validate the stored Azure config with a tiny live completion."""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="No tenant context")
+    tenant = await tenant_service.get_tenant_by_id(db, current_user.tenant_id)
+    az = (tenant.config_overrides or {}).get("azure_openai") or {}
+    if not (az.get("endpoint") and az.get("api_key")):
+        return {"ok": False, "message": "Endpoint and API key are required."}
+    try:
+        from openai import AsyncAzureOpenAI
+        client = AsyncAzureOpenAI(
+            api_key=az["api_key"], azure_endpoint=az["endpoint"],
+            api_version=az.get("api_version") or "2024-08-01-preview",
+        )
+        await client.chat.completions.create(
+            model=model, max_tokens=1,
+            messages=[{"role": "user", "content": "ping"}],
+        )
+        return {"ok": True, "message": f"Success — reached deployment '{model}'."}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "message": str(e)[:300]}
+
+
 @router.get("/{tenant_id}", response_model=TenantResponse)
 async def get_tenant(
     tenant_id: uuid.UUID,

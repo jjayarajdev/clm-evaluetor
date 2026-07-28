@@ -2659,7 +2659,8 @@
       "integrations": "Integrations",
       "appearance": "Appearance",
       "extraction": "AI Extraction",
-      "scoring": "Scoring Rules"
+      "scoring": "Scoring Rules",
+      "ai": "AI Provider"
     },
     "tabDescriptions": {
       "general": "Basic application settings",
@@ -2668,7 +2669,22 @@
       "integrations": "Third-party integrations and APIs",
       "appearance": "Customize the look and feel",
       "extraction": "Confidence thresholds and prompt customization for AI extraction (admin only)",
-      "scoring": "How \"At Risk\" and \"Compliance\" are calculated, per organization or business unit (admin only)"
+      "scoring": "How \"At Risk\" and \"Compliance\" are calculated, per organization or business unit (admin only)",
+      "ai": "Use your own Azure OpenAI resource for this organization (admin only)"
+    },
+    "azure": {
+      "intro": "By default this organization uses the platform's shared AI. Enable Azure OpenAI to run this organization's AI calls on your own Azure resource (your own quota and billing).",
+      "enable": "Use our own Azure OpenAI resource",
+      "endpoint": "Azure endpoint",
+      "apiKey": "API key",
+      "keyPlaceholder": "Paste your Azure OpenAI key",
+      "keyKept": "leave blank to keep",
+      "keyHint": "Stored for this organization's AI calls only. Leave blank when editing to keep the existing key.",
+      "apiVersion": "API version",
+      "deploymentNote": "Important: name your Azure deployments exactly gpt-4o and gpt-4o-mini — the app calls models by those ids.",
+      "test": "Test connection",
+      "testing": "Testing…",
+      "testHint": "Runs a tiny live completion against your gpt-4o-mini deployment."
     },
     "scoring": {
       "scope": "Applies to",
