@@ -1073,7 +1073,6 @@ function NotificationSettings() {
 
 function SecuritySettings() {
   const { t } = useTranslation()
-  const { user } = useAuth()
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' })
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState(false)
@@ -1084,7 +1083,7 @@ function SecuritySettings() {
       setPasswordError(t('settings.security.allFieldsRequired'))
       return
     }
-    if (passwords.newPass.length < 6) {
+    if (passwords.newPass.length < 8) {
       setPasswordError(t('settings.security.passwordTooShort'))
       return
     }
@@ -1093,7 +1092,7 @@ function SecuritySettings() {
       return
     }
     try {
-      await api.updateUserPassword(user!.id, passwords.newPass)
+      await api.changeMyPassword(passwords.current, passwords.newPass)
       setPasswords({ current: '', newPass: '', confirm: '' })
       setPasswordSuccess(true)
       setTimeout(() => setPasswordSuccess(false), 3000)

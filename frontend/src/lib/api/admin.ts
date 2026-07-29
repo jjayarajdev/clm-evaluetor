@@ -156,6 +156,12 @@ export async function updateUserPassword(id: string, newPassword: string): Promi
   return response.data
 }
 
+// Self-service: change your OWN password (verifies the current one). Works for
+// any authenticated user — unlike updateUserPassword, which is admin-only.
+export async function changeMyPassword(currentPassword: string, newPassword: string): Promise<void> {
+  await client.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword })
+}
+
 export async function deleteUser(id: string): Promise<void> {
   await client.delete(`/users/${id}`)
 }

@@ -9,11 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.audit import get_client_ip, get_user_agent, log_audit
 from app.core.deps import CurrentUser
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token, hash_password, verify_password
 from app.database import get_db
 from app.models.audit import AuditAction
 from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse, UserInfo
+from app.schemas.auth import (
+    LoginRequest,
+    PasswordChangeRequest,
+    TokenResponse,
+    UserInfo,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -182,3 +187,50 @@ async def logout(
     await db.commit()
 
     return {"message": "Successfully logged out"}
+
+
+@router.post("/change-password")
+async def change_password(
+    data: PasswordChangeRequest,
+    current_user: CurrentUser,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Change the authenticated user's own password.
+
+    Self-service: any authenticated user can change their own password after
+    proving they know the current one. (Admins changing *other* users' passwords
+    use PUT /users/{id}/password instead.)
+
+    Args:
+        data: Current and new password.
+        current_user: Authenticated user (the one being changed).
+        request: FastAPI request for audit logging.
+        db: Database session.
+
+    Returns:
+        Success message.
+
+    Raises:
+        HTTPException: 400 if the current password is incorrect.
+    """
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+
+    current_user.password_hash = hash_password(data.new_password)
+
+    await log_audit(
+        db=db,
+        action=AuditAction.USER_UPDATE,
+        user_id=str(current_user.id),
+        resource_type="user",
+        resource_id=str(current_user.id),
+        request=request,
+        details={"action": "self_password_change"},
+    )
+    await db.commit()
+
+    return {"message": "Password changed successfully"}

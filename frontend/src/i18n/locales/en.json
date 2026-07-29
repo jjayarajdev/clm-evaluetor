@@ -2795,7 +2795,7 @@
     },
     "security": {
       "allFieldsRequired": "All fields are required",
-      "passwordTooShort": "New password must be at least 6 characters",
+      "passwordTooShort": "New password must be at least 8 characters",
       "passwordsDoNotMatch": "Passwords do not match",
       "updateFailed": "Failed to update password",
       "changePassword": "Change Password",
