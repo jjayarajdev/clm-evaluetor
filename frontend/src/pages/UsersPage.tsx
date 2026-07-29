@@ -109,8 +109,15 @@ export default function UsersPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
-      api.updateUser(id, data),
+    mutationFn: async ({ id, data, password }: { id: string; data: Record<string, unknown>; password?: string }) => {
+      const updated = await api.updateUser(id, data)
+      // Password is NOT part of the user-update payload — it must go through the
+      // dedicated endpoint, otherwise the backend silently ignores it.
+      if (password) {
+        await api.updateUserPassword(id, password)
+      }
+      return updated
+    },
     onSuccess: () => {
       setFormError(null)
       queryClient.invalidateQueries({ queryKey: ['users'] })
@@ -175,11 +182,13 @@ export default function UsersPage() {
         role: formData.role,
         business_unit_id: formData.business_unit_id || null,
       }
-      if (formData.password) {
-        // Password is updated separately but we include it for convenience
-        updateData.password = formData.password
-      }
-      updateMutation.mutate({ id: editingUser.id, data: updateData })
+      // Password goes through the dedicated /password endpoint (below), not the
+      // user-update payload — the UserUpdate schema has no password field.
+      updateMutation.mutate({
+        id: editingUser.id,
+        data: updateData,
+        password: formData.password || undefined,
+      })
     } else {
       createMutation.mutate(formData)
     }
