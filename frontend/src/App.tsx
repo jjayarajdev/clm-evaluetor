@@ -19,6 +19,7 @@ import UploadPage from './pages/UploadPage'
 import QueryPage from './pages/QueryPage'
 import UsersPage from './pages/UsersPage'
 import SettingsPage from './pages/SettingsPage'
+import UsagePage from './pages/UsagePage'
 import PostSigningPage from './pages/PostSigningPage'
 import MasterDataPage from './pages/admin/MasterDataPage'
 import SchedulerPage from './pages/admin/SchedulerPage'
@@ -119,6 +120,7 @@ function App() {
         <Route path="query" element={<QueryPage />} />
         <Route path="users" element={<RequirePermission perm="admin"><UsersPage /></RequirePermission>} />
         <Route path="settings" element={<RequirePermission perm="settings"><SettingsPage /></RequirePermission>} />
+        <Route path="usage" element={<RequirePermission perm="usage"><UsagePage /></RequirePermission>} />
         <Route path="admin/master-data" element={<RequirePermission perm="admin"><MasterDataPage /></RequirePermission>} />
         {/* Redirects for old routes */}
         <Route path="admin/sla-config" element={<Navigate to="/admin/master-data" replace />} />

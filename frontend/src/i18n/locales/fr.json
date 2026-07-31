@@ -319,7 +319,8 @@
     "viewNotifications": "Voir les notifications",
     "profile": "Profil",
     "signOut": "Se déconnecter",
-    "groups": "Groupes"
+    "groups": "Groupes",
+    "usage": "Consommation"
   },
   "dashboard": {
     "goodMorning": "Bonjour",
@@ -3145,5 +3146,20 @@
     "unit_analytics": "Analytique de l'unité",
     "all_contracts": "Tous les contrats",
     "view_analytics": "Voir l'analytique"
+  },
+  "usage": {
+    "title": "Consommation",
+    "subtitle": "Volume traité sur les 6 derniers mois",
+    "pagesProcessed": "Pages traitées",
+    "documentsIngested": "Documents ingérés",
+    "aiActions": "Actions IA",
+    "tokens": "Tokens",
+    "tokensIn": "Tokens entrants",
+    "tokensOut": "Tokens sortants",
+    "tokensSplit": "{{prompt}} entrants · {{completion}} sortants",
+    "estimatedCost": "Coût IA estimé",
+    "estimatedCostNote": "Estimation aux prix catalogue",
+    "thisMonthCount": "{{count}} ce mois-ci",
+    "month": "Mois"
   }
 }

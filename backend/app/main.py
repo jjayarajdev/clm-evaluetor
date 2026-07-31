@@ -11,7 +11,7 @@ from app.routers import (
     admin_settings, alerts, amendments, auth, audit, clients, compliance, connectors, contracts,
     custom_fields, dashboard, knowledge_graph, master_data_admin, metrics, milestones, monitor,
     notifications, notification_feed, notification_rules, obligations, postsigning, query, renewals, reports,
-    scheduler_admin, schemas, sla, suggested_links, tenants, users, vendors, workflow_admin,
+    scheduler_admin, schemas, sla, suggested_links, tenants, usage, users, vendors, workflow_admin,
     # Relationship Governance (Evaluetor features)
     organizations, relationships, kpis, improvements, surveys, service_portfolio,
     # Business Unit & External Access
@@ -319,6 +319,7 @@ app.include_router(reports.router)
 app.include_router(postsigning.router)
 app.include_router(query.router)
 app.include_router(dashboard.router)
+app.include_router(usage.router)
 app.include_router(schemas.router)
 app.include_router(admin_settings.router)
 app.include_router(custom_fields.router)

@@ -12,6 +12,7 @@ import {
   ClipboardDocumentCheckIcon,
   CalendarDaysIcon,
   BuildingOffice2Icon,
+  ChartBarIcon,
   DocumentChartBarIcon,
   CircleStackIcon,
   ClockIcon,
@@ -68,6 +69,7 @@ const mainSection: NavItem[] = [
 const managementSection: NavItem[] = [
   { name: 'nav.vendors', href: '/vendors', icon: BuildingOffice2Icon, permission: 'vendors' },
   { name: 'nav.reports', href: '/reports', icon: DocumentChartBarIcon, permission: 'reports' },
+  { name: 'nav.usage', href: '/usage', icon: ChartBarIcon, permission: 'usage' },
   { name: 'nav.upload', href: '/upload', icon: CloudArrowUpIcon, permission: 'upload' },
 ]
 

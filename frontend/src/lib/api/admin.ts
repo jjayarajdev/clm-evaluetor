@@ -1233,3 +1233,32 @@ export async function updatePromptAddenda(addenda: Record<string, string>): Prom
   const response = await client.put<PromptAddenda>('/settings/prompt-addenda', { addenda })
   return response.data
 }
+
+// ── Usage meters ─────────────────────────────────────────────────────
+// Pages/documents come back for every role; token, AI-action and cost
+// fields are present only for tenant admins (enforced by the API).
+
+export interface UsageTotals {
+  pages_processed: number
+  documents_ingested: number
+  tokens_prompt?: number
+  tokens_completion?: number
+  tokens_embedding?: number
+  ai_actions?: number
+  estimated_cost_usd?: number
+}
+
+export interface UsageMonth extends UsageTotals {
+  month: string // "2026-07"
+}
+
+export interface UsageSummary {
+  months: UsageMonth[]
+  totals: UsageTotals
+  can_view_ai_usage: boolean
+}
+
+export async function getUsageSummary(months = 6): Promise<UsageSummary> {
+  const response = await client.get<UsageSummary>('/usage/summary', { params: { months } })
+  return response.data
+}

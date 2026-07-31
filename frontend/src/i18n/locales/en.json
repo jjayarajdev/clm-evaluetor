@@ -319,7 +319,8 @@
     "viewNotifications": "View notifications",
     "profile": "Profile",
     "signOut": "Sign out",
-    "groups": "Groups"
+    "groups": "Groups",
+    "usage": "Usage"
   },
   "dashboard": {
     "goodMorning": "Good morning",
@@ -3145,5 +3146,20 @@
     "unit_analytics": "Unit analytics",
     "all_contracts": "All contracts",
     "view_analytics": "View analytics"
+  },
+  "usage": {
+    "title": "Usage",
+    "subtitle": "Processing volume for the last 6 months",
+    "pagesProcessed": "Pages processed",
+    "documentsIngested": "Documents ingested",
+    "aiActions": "AI actions",
+    "tokens": "Tokens",
+    "tokensIn": "Tokens in",
+    "tokensOut": "Tokens out",
+    "tokensSplit": "{{prompt}} in · {{completion}} out",
+    "estimatedCost": "Est. AI cost",
+    "estimatedCostNote": "Estimate at list prices",
+    "thisMonthCount": "{{count}} this month",
+    "month": "Month"
   }
 }

@@ -22,6 +22,7 @@ export type Permission =
   | 'kpiApprovals'
   | 'surveys'
   | 'askAi'
+  | 'usage' // usage meters page; pages for everyone, tokens+cost admin-only (API-enforced)
   | 'settings'
   | 'admin' // tenant-admin section + routes (/users, /admin/*, /kpi-approvals)
   | 'superadmin' // platform super-admin routes (/super-admin/*)
@@ -45,30 +46,30 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'dashboard', 'contracts', 'groups', 'postSigning', 'renewals',
     'vendors', 'reports', 'upload',
     'organizations', 'relationships', 'kpiApprovals', 'surveys',
-    'askAi', 'settings', 'admin',
+    'askAi', 'usage', 'settings', 'admin',
     'contract.edit', 'contract.editFields', 'sla.edit', 'extraction.configure',
   ],
   legal: [
     'dashboard', 'contracts', 'groups', 'postSigning', 'renewals',
     'reports', 'upload',
-    'organizations', 'relationships', 'surveys', 'askAi',
+    'organizations', 'relationships', 'surveys', 'askAi', 'usage',
     'contract.edit', 'contract.editFields', 'sla.edit',
   ],
   procurement: [
     'dashboard', 'contracts', 'groups', 'postSigning', 'renewals',
     'vendors', 'upload',
-    'organizations', 'relationships', 'askAi',
+    'organizations', 'relationships', 'askAi', 'usage',
     // procurement can set custom fields but not core contract metadata
     'contract.editFields',
   ],
   bu_head: [
     'dashboard', 'contracts', 'groups', 'postSigning', 'renewals',
-    'vendors', 'reports',
+    'vendors', 'reports', 'usage',
   ],
   // Read-only role — was previously locked out of the entire UI. Sees the
   // portfolio, no create/edit/upload/admin.
   viewer: [
-    'dashboard', 'contracts', 'groups', 'postSigning', 'renewals', 'reports',
+    'dashboard', 'contracts', 'groups', 'postSigning', 'renewals', 'reports', 'usage',
   ],
 }
 
