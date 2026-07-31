@@ -25,6 +25,8 @@ from app.services.progress_tracker import (
     new_health_recorder,
 )
 from app.models.tenant import Tenant
+from app.models.usage_event import UsageMetric
+from app.services import usage_metering
 
 logger = logging.getLogger(__name__)
 
@@ -329,6 +331,18 @@ class IndexingService:
 
             # Update contract with parsed metadata
             await self._update_contract_metadata(contract, parsed)
+
+            # Meter ingestion (re-processing counts again: it re-consumes
+            # parse/embed/extract capacity; "active contracts" billing is
+            # queried live from the contracts table, not from these events)
+            usage_metering.record(
+                UsageMetric.DOCUMENTS_INGESTED, 1,
+                tenant_id=contract.tenant_id, ref_type="contract", ref_id=contract.id,
+            )
+            usage_metering.record(
+                UsageMetric.PAGES_PROCESSED, parsed.page_count,
+                tenant_id=contract.tenant_id, ref_type="contract", ref_id=contract.id,
+            )
 
             # Store extracted text immediately so it's available for
             # AI reference extraction, auto-link detection, and re-analysis
@@ -773,6 +787,8 @@ class IndexingService:
         """
         if parsed.metadata.title and not contract.filename:
             contract.filename = parsed.metadata.title
+
+        contract.page_count = parsed.page_count or None
 
         # Store raw text size for reference
         # Additional metadata extraction will be done by the metadata agent

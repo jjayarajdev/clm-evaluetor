@@ -27,6 +27,7 @@ from contextvars import ContextVar
 from openai import AsyncOpenAI, AsyncAzureOpenAI, OpenAI, AzureOpenAI
 
 from app.config import settings
+from app.services.usage_metering import record_llm_response
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +138,67 @@ def _apply_async_deployment(client, deployment: str | None):
     return client
 
 
+def _meter_async_client(client):
+    """Attach usage metering to a client's chat + embeddings calls.
+
+    Applied to every client the factory hands out (global, tenant Azure, tenant
+    OpenAI), so all consumption is metered per tenant regardless of whose key
+    the call runs on. Metering reads response.usage after the call and buffers
+    a usage event (app.services.usage_metering) — it never raises and adds no
+    I/O to the call path.
+    """
+    try:
+        comp = client.chat.completions
+        _orig_chat = comp.create
+
+        async def _chat_create(*args, _orig=_orig_chat, **kwargs):
+            resp = await _orig(*args, **kwargs)
+            record_llm_response(resp, kwargs.get("model"), kind="chat")
+            return resp
+
+        comp.create = _chat_create
+
+        emb = client.embeddings
+        _orig_emb = emb.create
+
+        async def _emb_create(*args, _orig=_orig_emb, **kwargs):
+            resp = await _orig(*args, **kwargs)
+            record_llm_response(resp, kwargs.get("model"), kind="embedding")
+            return resp
+
+        emb.create = _emb_create
+    except Exception:  # noqa: BLE001 — never let metering break client construction
+        logger.warning("Could not attach usage metering (async)", exc_info=True)
+    return client
+
+
+def _meter_sync_client(client):
+    """Sync twin of _meter_async_client."""
+    try:
+        comp = client.chat.completions
+        _orig_chat = comp.create
+
+        def _chat_create(*args, _orig=_orig_chat, **kwargs):
+            resp = _orig(*args, **kwargs)
+            record_llm_response(resp, kwargs.get("model"), kind="chat")
+            return resp
+
+        comp.create = _chat_create
+
+        emb = client.embeddings
+        _orig_emb = emb.create
+
+        def _emb_create(*args, _orig=_orig_emb, **kwargs):
+            resp = _orig(*args, **kwargs)
+            record_llm_response(resp, kwargs.get("model"), kind="embedding")
+            return resp
+
+        emb.create = _emb_create
+    except Exception:  # noqa: BLE001
+        logger.warning("Could not attach usage metering (sync)", exc_info=True)
+    return client
+
+
 def get_async_openai(tenant_id=None, trace: bool = False) -> AsyncOpenAI:
     """Async OpenAI/Azure client for the current (or given) tenant."""
     az = _azure_for(tenant_id)
@@ -144,22 +206,23 @@ def get_async_openai(tenant_id=None, trace: bool = False) -> AsyncOpenAI:
         try:
             if az.get("provider") == "openai":
                 # Tenant's own OpenAI key (models called by id — no remapping).
-                return AsyncOpenAI(api_key=az["api_key"])
+                return _meter_async_client(AsyncOpenAI(api_key=az["api_key"]))
             client = AsyncAzureOpenAI(
                 api_key=az["api_key"],
                 azure_endpoint=az["endpoint"],
                 api_version=az.get("api_version") or DEFAULT_AZURE_API_VERSION,
             )
-            return _apply_async_deployment(client, (az.get("deployment") or "").strip() or None)
+            client = _apply_async_deployment(client, (az.get("deployment") or "").strip() or None)
+            return _meter_async_client(client)
         except Exception:  # noqa: BLE001 — never let a tenant's AI config break AI; fall back
             logger.warning("Tenant AI client build failed; using global OpenAI", exc_info=True)
     if trace and _langfuse_on():
         try:
             from langfuse.openai import AsyncOpenAI as LangfuseAsyncOpenAI
-            return LangfuseAsyncOpenAI(api_key=settings.openai_api_key)
+            return _meter_async_client(LangfuseAsyncOpenAI(api_key=settings.openai_api_key))
         except Exception:  # noqa: BLE001
             pass
-    return AsyncOpenAI(api_key=settings.openai_api_key)
+    return _meter_async_client(AsyncOpenAI(api_key=settings.openai_api_key))
 
 
 def get_sync_openai(tenant_id=None) -> OpenAI:
@@ -168,7 +231,7 @@ def get_sync_openai(tenant_id=None) -> OpenAI:
     if az:
         try:
             if az.get("provider") == "openai":
-                return OpenAI(api_key=az["api_key"])
+                return _meter_sync_client(OpenAI(api_key=az["api_key"]))
             client = AzureOpenAI(
                 api_key=az["api_key"],
                 azure_endpoint=az["endpoint"],
@@ -186,7 +249,7 @@ def get_sync_openai(tenant_id=None) -> OpenAI:
                     comp.create = _create
                 except Exception:  # noqa: BLE001
                     logger.warning("Could not apply Azure deployment override (sync)", exc_info=True)
-            return client
+            return _meter_sync_client(client)
         except Exception:  # noqa: BLE001
             logger.warning("Azure OpenAI (sync) build failed; using global OpenAI", exc_info=True)
-    return OpenAI(api_key=settings.openai_api_key)
+    return _meter_sync_client(OpenAI(api_key=settings.openai_api_key))

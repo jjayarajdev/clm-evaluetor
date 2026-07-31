@@ -75,6 +75,10 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         nullable=True,
         index=True,
     )
+    # Set at parse time; billing/usage meter (DOCX parses as 1 logical page)
+    page_count: Mapped[int | None] = mapped_column(
+        nullable=True,
+    )
 
     # Extracted metadata — now VARCHAR, not PG enum; accepts any industry profile type
     contract_type: Mapped[str | None] = mapped_column(

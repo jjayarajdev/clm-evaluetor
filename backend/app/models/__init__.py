@@ -1,5 +1,6 @@
 # SQLAlchemy Models
 from app.models.audit import AuditAction, AuditLog
+from app.models.usage_event import UsageEvent, UsageMetric
 from app.models.base import TenantMixin, TimestampMixin, UUIDMixin
 from app.models.tenant import Tenant, TenantPlan, PLAN_CONTRACT_LIMITS
 from app.models.clause import Clause, ClauseType
@@ -282,6 +283,9 @@ __all__ = [
     # Audit
     "AuditLog",
     "AuditAction",
+    # Usage metering
+    "UsageEvent",
+    "UsageMetric",
     # Event
     "Event",
     "EventType",

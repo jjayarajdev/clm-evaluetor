@@ -88,6 +88,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Azure OpenAI cache load skipped: {e}")
 
+    # Start the usage-metering flusher on EVERY worker — the event buffer is
+    # per-process, so each worker must write out its own events.
+    try:
+        from app.services.usage_metering import start_flusher
+        start_flusher()
+    except Exception as e:
+        logger.warning(f"Usage metering flusher not started: {e}")
+
     # Start the scheduler on only one worker (file lock prevents duplicates)
     try:
         _scheduler_lock = open("/tmp/clm_scheduler.lock", "w")
@@ -117,6 +125,13 @@ async def lifespan(app: FastAPI):
         logger.info("Scheduler and processing worker stopped")
     except Exception as e:
         logger.error(f"Error stopping scheduler/worker: {e}")
+
+    # Final usage-metering flush so buffered events survive the shutdown
+    try:
+        from app.services.usage_metering import stop_flusher
+        await stop_flusher()
+    except Exception as e:
+        logger.warning(f"Usage metering final flush failed: {e}")
 
     flush_langfuse()
     orchestrator = get_orchestrator()
