@@ -2086,7 +2086,16 @@
     "approveConfirm": "Approuver {{name}} ?",
     "rejectConfirm": "Rejeter {{name}} ?",
     "reasonPlaceholder": "Motif...",
-    "commentsOptional": "Commentaires (facultatif)"
+    "commentsOptional": "Commentaires (facultatif)",
+    "deleteFailed": "Échec de la suppression",
+    "deleteOrg": "Supprimer l'organisation",
+    "deleteOrgPrompt": "Que faire de « {{name}} » ?",
+    "deleteOrgHint": "La désactivation la masque des listes actives et est réversible. La suppression définitive est bloquée tant que des relations, contrats ou filiales y font référence.",
+    "deactivate": "Désactiver",
+    "deletePermanently": "Supprimer définitivement",
+    "deleteRelationship": "Supprimer la relation",
+    "deleteRelationshipPrompt": "Supprimer la relation avec « {{name}} » ?",
+    "deleteRelationshipWarning": "Cette action supprime définitivement ses KPI et scores, enquêtes et réponses, points d'amélioration, équipe et historique. Les contrats sont détachés mais jamais supprimés. Action irréversible."
   },
   "reviewPane": {
     "unknown": "Inconnu",

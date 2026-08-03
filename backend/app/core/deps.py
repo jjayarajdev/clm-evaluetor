@@ -202,6 +202,16 @@ def require_role(*allowed_roles: Role):
         ):
             ...
     """
+    # Accept both calling conventions — require_role(Role.ADMIN, Role.LEGAL)
+    # and require_role(["admin", "legal"]) — and normalize to role values.
+    # Many routers use the list form; with strict varargs it made every
+    # membership check fail, so non-super-admins got a 500 on those endpoints.
+    role_values: list[str] = []
+    for entry in allowed_roles:
+        items = entry if isinstance(entry, (list, tuple, set)) else [entry]
+        for item in items:
+            role_values.append(item.value if isinstance(item, Role) else str(item))
+
     async def role_checker(
         current_user: Annotated[User, Depends(get_current_active_user)],
     ) -> User:
@@ -209,10 +219,10 @@ def require_role(*allowed_roles: Role):
         if current_user.is_super_admin:
             return current_user
 
-        if current_user.role not in allowed_roles:
+        if current_user.role.value not in role_values:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied. Required roles: {[r.value for r in allowed_roles]}",
+                detail=f"Access denied. Required roles: {role_values}",
             )
         return current_user
 

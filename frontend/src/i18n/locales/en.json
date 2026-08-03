@@ -2086,7 +2086,16 @@
     "approveConfirm": "Approve {{name}}?",
     "rejectConfirm": "Reject {{name}}?",
     "reasonPlaceholder": "Reason...",
-    "commentsOptional": "Comments (optional)"
+    "commentsOptional": "Comments (optional)",
+    "deleteFailed": "Delete failed",
+    "deleteOrg": "Delete organization",
+    "deleteOrgPrompt": "What should happen to “{{name}}”?",
+    "deleteOrgHint": "Deactivate hides it from active lists and is reversible. Permanent deletion is blocked while relationships, contracts or subsidiaries still reference it.",
+    "deactivate": "Deactivate",
+    "deletePermanently": "Delete permanently",
+    "deleteRelationship": "Delete relationship",
+    "deleteRelationshipPrompt": "Delete the relationship with “{{name}}”?",
+    "deleteRelationshipWarning": "This permanently removes its KPIs and scores, surveys and responses, improvement points, team and history. Contracts are detached but never deleted. This cannot be undone."
   },
   "reviewPane": {
     "unknown": "Unknown",

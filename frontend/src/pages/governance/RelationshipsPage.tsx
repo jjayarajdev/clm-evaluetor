@@ -12,8 +12,10 @@ import {
   ShieldCheckIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn } from '@/lib/utils'
 import type {
@@ -230,6 +232,10 @@ function HealthModal({ relationship, onClose }: {
 
 export default function RelationshipsPage() {
   const { t } = useTranslation()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [selectedRelationship, setSelectedRelationship] = useState<BusinessRelationship | null>(null)
@@ -291,6 +297,19 @@ export default function RelationshipsPage() {
     : relationships
 
   // Sort by health score (worst first for attention)
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.deleteRelationship(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['relationships'] })
+      setDeleteTarget(null)
+      setDeleteError(null)
+    },
+    onError: (err: Error) => {
+      setDeleteTarget(null)
+      setDeleteError(err.message || t('governance.deleteFailed'))
+    },
+  })
+
   const sorted = [...filtered].sort((a, b) => a.health_score - b.health_score)
 
   return (
@@ -369,6 +388,41 @@ export default function RelationshipsPage() {
         ))}
       </div>
 
+      {deleteError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {deleteError}
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 className="mb-3 text-lg font-semibold">{t('governance.deleteRelationship')}</h2>
+            <p className="mb-2 text-sm text-gray-600">
+              {t('governance.deleteRelationshipPrompt', { name: deleteTarget.name })}
+            </p>
+            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {t('governance.deleteRelationshipWarning')}
+            </p>
+            <div className="flex justify-end gap-3 border-t pt-4">
+              <button
+                className="rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
+                onClick={() => setDeleteTarget(null)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                className="rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(deleteTarget.id)}
+              >
+                {deleteMutation.isPending ? t('common.deleting') : t('common.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Relationship Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sorted.map((rel) => {
@@ -396,8 +450,23 @@ export default function RelationshipsPage() {
                       {t(`governance.relationshipTypes.${rel.relationship_type}`, { defaultValue: rel.relationship_type.replace('_', ' ') })}
                     </span>
                   </div>
-                  <span className={cn('text-xs', TIER_COLORS[rel.governance_tier] || 'text-gray-400')}>
-                    {rel.governance_tier ? t(`governance.tiers.${rel.governance_tier}`, { defaultValue: rel.governance_tier.charAt(0).toUpperCase() + rel.governance_tier.slice(1) }) : ''}
+                  <span className="flex items-center gap-1.5">
+                    <span className={cn('text-xs', TIER_COLORS[rel.governance_tier] || 'text-gray-400')}>
+                      {rel.governance_tier ? t(`governance.tiers.${rel.governance_tier}`, { defaultValue: rel.governance_tier.charAt(0).toUpperCase() + rel.governance_tier.slice(1) }) : ''}
+                    </span>
+                    {isAdmin && (
+                      <button
+                        className="rounded p-1 text-gray-300 hover:bg-red-50 hover:text-red-600"
+                        title={t('governance.deleteRelationship')}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setDeleteTarget({ id: rel.id, name: counterparty })
+                        }}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    )}
                   </span>
                 </div>
 

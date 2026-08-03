@@ -281,6 +281,90 @@ async def update_relationship(
     return _to_response(relationship)
 
 
+@router.delete("/{rel_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_relationship(
+    rel_id: UUID,
+    tenant_id: CurrentTenantId,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(["admin"])),
+):
+    """Delete a relationship and its governance data.
+
+    Cascades (no DB-level cascades exist, so the order matters):
+    KPI scores/gaps -> KPIs, survey responses -> instances, improvement
+    actions -> points, service links, team, history. Contracts and external
+    access tokens are detached (relationship_id set NULL), never deleted.
+    Organizations are untouched.
+    """
+    from sqlalchemy import delete as sa_delete, update as sa_update
+
+    from app.models.contract import Contract
+    from app.models.external_access import ExternalAccessToken
+    from app.models.improvement import ImprovementAction, ImprovementPoint
+    from app.models.kpi import KPI, PerceptionGap, PerceptionScore
+    from app.models.relationship import RelationshipTeam
+    from app.models.relationship_history import RelationshipStatusHistory
+    from app.models.service_portfolio import RelationshipService
+    from app.models.survey import SurveyInstance, SurveyQuestion, SurveyResponse
+
+    query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
+    query = apply_tenant_filter(query, tenant_id, BusinessRelationship)
+    relationship = (await db.execute(query)).scalar_one_or_none()
+    if not relationship:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Relationship not found",
+        )
+
+    kpi_ids = select(KPI.id).where(KPI.relationship_id == rel_id)
+    instance_ids = select(SurveyInstance.id).where(SurveyInstance.relationship_id == rel_id)
+    point_ids = select(ImprovementPoint.id).where(ImprovementPoint.relationship_id == rel_id)
+
+    # KPI children
+    await db.execute(sa_delete(PerceptionScore).where(PerceptionScore.kpi_id.in_(kpi_ids)))
+    await db.execute(sa_delete(PerceptionGap).where(PerceptionGap.kpi_id.in_(kpi_ids)))
+    # Survey template questions may reference these KPIs (templates are
+    # tenant-level and survive) — detach, don't delete.
+    await db.execute(
+        sa_update(SurveyQuestion).where(SurveyQuestion.kpi_id.in_(kpi_ids)).values(kpi_id=None)
+    )
+    # Improvement points from other relationships may reference these KPIs
+    await db.execute(
+        sa_update(ImprovementPoint)
+        .where(ImprovementPoint.kpi_id.in_(kpi_ids), ImprovementPoint.relationship_id != rel_id)
+        .values(kpi_id=None)
+    )
+
+    # Surveys and improvements of this relationship
+    await db.execute(sa_delete(SurveyResponse).where(SurveyResponse.survey_instance_id.in_(instance_ids)))
+    await db.execute(sa_delete(ImprovementAction).where(ImprovementAction.improvement_id.in_(point_ids)))
+    await db.execute(sa_delete(SurveyInstance).where(SurveyInstance.relationship_id == rel_id))
+    await db.execute(sa_delete(ImprovementPoint).where(ImprovementPoint.relationship_id == rel_id))
+    await db.execute(sa_delete(KPI).where(KPI.relationship_id == rel_id))
+
+    # Structure around the relationship
+    await db.execute(sa_delete(RelationshipService).where(RelationshipService.relationship_id == rel_id))
+    await db.execute(sa_delete(RelationshipTeam).where(RelationshipTeam.relationship_id == rel_id))
+    await db.execute(
+        sa_delete(RelationshipStatusHistory).where(RelationshipStatusHistory.relationship_id == rel_id)
+    )
+
+    # Detach, never delete: contracts and external access tokens
+    await db.execute(
+        sa_update(Contract)
+        .where(Contract.business_relationship_id == rel_id)
+        .values(business_relationship_id=None)
+    )
+    await db.execute(
+        sa_update(ExternalAccessToken)
+        .where(ExternalAccessToken.relationship_id == rel_id)
+        .values(relationship_id=None)
+    )
+
+    await db.delete(relationship)
+    await db.commit()
+
+
 # ===== Team Management =====
 
 @router.get("/{rel_id}/team", response_model=List[TeamMemberResponse])

@@ -7,8 +7,10 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn } from '@/lib/utils'
 import type { OrganizationCreate, OrgType } from '@/types/governance'
@@ -36,6 +38,10 @@ export default function OrganizationsPage() {
   const [formData, setFormData] = useState<Partial<OrganizationCreate>>({
     org_type: 'vendor',
   })
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const { data: organizations = [], isLoading } = useQuery({
     queryKey: ['organizations', typeFilter],
@@ -51,6 +57,19 @@ export default function OrganizationsPage() {
       queryClient.invalidateQueries({ queryKey: ['organizations'] })
       setShowCreate(false)
       setFormData({ org_type: 'vendor' })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: ({ id, hard }: { id: string; hard: boolean }) => api.deleteOrganization(id, hard),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] })
+      setDeleteTarget(null)
+      setActionError(null)
+    },
+    onError: (err: Error) => {
+      setDeleteTarget(null)
+      setActionError(err.message || t('governance.deleteFailed'))
     },
   })
 
@@ -126,6 +145,7 @@ export default function OrganizationsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.industry')}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.region')}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.primaryContact')}</th>
+                {isAdmin && <th className="px-4 py-3" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -154,6 +174,17 @@ export default function OrganizationsPage() {
                       <span className="text-xs text-gray-400 ml-1">({org.primary_contact_email})</span>
                     )}
                   </td>
+                  {isAdmin && (
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                        title={t('governance.deleteOrg')}
+                        onClick={() => setDeleteTarget({ id: org.id, name: org.name })}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filtered.length === 0 && (
@@ -169,6 +200,46 @@ export default function OrganizationsPage() {
       </div>
 
       {/* Create Modal */}
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 className="mb-3 text-lg font-semibold">{t('governance.deleteOrg')}</h2>
+            <p className="mb-2 text-sm text-gray-600">
+              {t('governance.deleteOrgPrompt', { name: deleteTarget.name })}
+            </p>
+            <p className="mb-4 text-xs text-gray-500">{t('governance.deleteOrgHint')}</p>
+            <div className="flex justify-end gap-3 border-t pt-4">
+              <button
+                className="rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
+                onClick={() => setDeleteTarget(null)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate({ id: deleteTarget.id, hard: false })}
+              >
+                {t('governance.deactivate')}
+              </button>
+              <button
+                className="rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate({ id: deleteTarget.id, hard: true })}
+              >
+                {t('governance.deletePermanently')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCreate && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">

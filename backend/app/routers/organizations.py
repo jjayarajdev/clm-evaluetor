@@ -264,8 +264,59 @@ async def delete_organization(
         )
 
     if hard_delete:
-        # Check for linked relationships
-        # TODO: Add check for business relationships
+        # An organization referenced by relationships, contracts or child
+        # organizations cannot be hard-deleted — those must be handled first.
+        # (Soft delete / deactivate is always available.)
+        from sqlalchemy import delete as sa_delete, func, or_
+
+        from app.models.contract import Contract
+        from app.models.organization_officer import OrganizationOfficer
+        from app.models.relationship import BusinessRelationship
+
+        rel_count = (
+            await db.execute(
+                select(func.count(BusinessRelationship.id)).where(
+                    or_(
+                        BusinessRelationship.org_a_id == org_id,
+                        BusinessRelationship.org_b_id == org_id,
+                    )
+                )
+            )
+        ).scalar_one()
+        contract_count = (
+            await db.execute(
+                select(func.count(Contract.id)).where(Contract.organization_id == org_id)
+            )
+        ).scalar_one()
+        subsidiary_count = (
+            await db.execute(
+                select(func.count(Organization.id)).where(
+                    Organization.parent_organization_id == org_id
+                )
+            )
+        ).scalar_one()
+
+        blockers = []
+        if rel_count:
+            blockers.append(f"{rel_count} business relationship(s)")
+        if contract_count:
+            blockers.append(f"{contract_count} contract(s)")
+        if subsidiary_count:
+            blockers.append(f"{subsidiary_count} subsidiary organization(s)")
+        if blockers:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Cannot delete this organization: {', '.join(blockers)} "
+                    "still reference it. Remove or reassign them first, or "
+                    "deactivate the organization instead."
+                ),
+            )
+
+        # Officers are pure children — delete them with the org
+        await db.execute(
+            sa_delete(OrganizationOfficer).where(OrganizationOfficer.organization_id == org_id)
+        )
         await db.delete(org)
     else:
         org.is_active = False
