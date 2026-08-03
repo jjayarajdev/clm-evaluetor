@@ -8,7 +8,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role, CurrentTenantId, RequiredTenantId
+from app.core.deps import get_current_user, require_permission, CurrentTenantId, RequiredTenantId
 from app.core.tenant import apply_tenant_filter
 from app.models import User, Organization, BusinessRelationship
 from app.models.service_portfolio import ServicePortfolio, RelationshipService, ServiceType, ServiceStatus
@@ -85,7 +85,7 @@ async def create_service_portfolio(
     data: ServicePortfolioCreate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("services.write")),
 ):
     """Create a new service portfolio entry."""
     # Verify organization exists and belongs to tenant
@@ -201,7 +201,7 @@ async def update_service_portfolio(
     data: ServicePortfolioUpdate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("services.write")),
 ):
     """Update a service portfolio entry."""
     query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
@@ -257,7 +257,7 @@ async def delete_service_portfolio(
     service_id: UUID,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: User = Depends(require_permission("services.delete")),
 ):
     """Soft delete a service portfolio entry (sets status to deprecated)."""
     query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
@@ -314,7 +314,7 @@ async def link_service_to_relationship(
     data: RelationshipServiceCreate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("services.write")),
 ):
     """Link a service portfolio entry to a business relationship."""
     # Verify service exists and belongs to tenant
@@ -372,7 +372,7 @@ async def unlink_service_from_relationship(
     rel_service_id: UUID,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("services.write")),
 ):
     """Unlink a service from a business relationship."""
     # Verify service exists and belongs to tenant

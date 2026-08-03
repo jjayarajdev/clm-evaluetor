@@ -32,6 +32,9 @@ class UserInfo(BaseModel):
     tenant_name: str | None = None
     business_unit_id: str | None = None
     business_unit_name: str | None = None
+    # Effective permissions from the DB role-permission matrix — drives the
+    # frontend (permissionsForUser prefers this over its static fallback map).
+    permissions: list[str] = []
 
 
 class RefreshTokenRequest(BaseModel):

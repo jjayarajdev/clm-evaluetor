@@ -1,6 +1,7 @@
 # SQLAlchemy Models
 from app.models.audit import AuditAction, AuditLog
 from app.models.usage_event import UsageEvent, UsageMetric
+from app.models.role_permission import RoleDef, RolePermission
 from app.models.base import TenantMixin, TimestampMixin, UUIDMixin
 from app.models.tenant import Tenant, TenantPlan, PLAN_CONTRACT_LIMITS
 from app.models.clause import Clause, ClauseType
@@ -286,6 +287,9 @@ __all__ = [
     # Usage metering
     "UsageEvent",
     "UsageMetric",
+    # DB-driven RBAC
+    "RoleDef",
+    "RolePermission",
     # Event
     "Event",
     "EventType",

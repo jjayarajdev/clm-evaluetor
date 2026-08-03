@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select, Integer, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import CurrentUser, CurrentTenantId, require_role
+from app.core.deps import CurrentUser, CurrentTenantId, require_permission
 from app.database import get_db
 from app.models.clause import Clause, ClauseType, RiskLevel
 from app.models.contract import Contract, ContractStatus
@@ -160,7 +160,7 @@ async def get_contracts_summary(
 
 @router.get("/admin", response_model=AdminDashboardResponse)
 async def get_admin_dashboard(
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("dashboard.admin"))],
     tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AdminDashboardResponse:
@@ -171,7 +171,7 @@ async def get_admin_dashboard(
 
 @router.get("/legal", response_model=LegalDashboardResponse)
 async def get_legal_dashboard(
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN, Role.LEGAL))],
+    current_user: Annotated[User, Depends(require_permission("dashboard.legal"))],
     tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LegalDashboardResponse:
@@ -182,7 +182,7 @@ async def get_legal_dashboard(
 
 @router.get("/procurement", response_model=ProcurementDashboardResponse)
 async def get_procurement_dashboard(
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN, Role.PROCUREMENT))],
+    current_user: Annotated[User, Depends(require_permission("dashboard.procurement"))],
     tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ProcurementDashboardResponse:

@@ -123,6 +123,7 @@ const superAdminNav: NavItem[] = [
   { name: 'nav.extractionQuality', href: '/admin/extraction-quality', icon: BeakerIcon, permission: 'superadmin' },
   { name: 'nav.industryProfiles', href: '/admin/industry-profiles', icon: SwatchIcon, permission: 'superadmin' },
   { name: 'nav.customFields', href: '/super-admin/custom-fields', icon: AdjustmentsHorizontalIcon, permission: 'superadmin' },
+  { name: 'nav.rolePermissions', href: '/super-admin/role-permissions', icon: ShieldCheckIcon, permission: 'superadmin' },
   { name: 'nav.integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, permission: 'superadmin' },
 ]
 

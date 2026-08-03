@@ -40,6 +40,7 @@ import TenantManagementPage from './pages/super-admin/TenantManagementPage'
 import TenantDetailPage from './pages/super-admin/TenantDetailPage'
 import GlobalUsersPage from './pages/super-admin/GlobalUsersPage'
 import CustomFieldsPage from './pages/super-admin/CustomFieldsPage'
+import RolePermissionsPage from './pages/super-admin/RolePermissionsPage'
 import SnowAdminPage from './pages/super-admin/SnowAdminPage'
 import OrganizationsPage from './pages/governance/OrganizationsPage'
 import RelationshipsPage from './pages/governance/RelationshipsPage'
@@ -147,6 +148,7 @@ function App() {
         <Route path="admin/industry-profiles" element={<RequirePermission perm="extraction.configure"><IndustryProfilesPage /></RequirePermission>} />
         {/* Super Admin Routes */}
         <Route path="super-admin" element={<RequirePermission perm="superadmin"><SuperAdminDashboardPage /></RequirePermission>} />
+        <Route path="super-admin/role-permissions" element={<RequirePermission perm="superadmin"><RolePermissionsPage /></RequirePermission>} />
         <Route path="super-admin/tenants" element={<RequirePermission perm="superadmin"><TenantManagementPage /></RequirePermission>} />
         <Route path="super-admin/tenants/:id" element={<RequirePermission perm="superadmin"><TenantDetailPage /></RequirePermission>} />
         <Route path="super-admin/users" element={<RequirePermission perm="superadmin"><GlobalUsersPage /></RequirePermission>} />

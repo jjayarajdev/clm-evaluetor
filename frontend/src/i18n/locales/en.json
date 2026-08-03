@@ -321,7 +321,8 @@
     "profile": "Profile",
     "signOut": "Sign out",
     "groups": "Groups",
-    "usage": "Usage"
+    "usage": "Usage",
+    "rolePermissions": "Roles & Permissions"
   },
   "dashboard": {
     "goodMorning": "Good morning",
@@ -3181,5 +3182,15 @@
     "estimatedCostNote": "Estimate at list prices",
     "thisMonthCount": "{{count}} this month",
     "month": "Month"
+  },
+  "rbac": {
+    "title": "Roles & Permissions",
+    "subtitle": "Platform-wide matrix driving both API access and what each role sees in the app. Changes take effect within 1 minute.",
+    "permission": "Permission",
+    "immutable": "immutable",
+    "saved": "Saved ✓",
+    "reset": "Reset",
+    "saveFailed": "Save failed",
+    "footerNote": "super_admin always passes all checks"
   }
 }

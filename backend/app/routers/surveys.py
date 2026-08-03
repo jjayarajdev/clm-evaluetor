@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role, CurrentTenantId
+from app.core.deps import get_current_user, require_permission, CurrentTenantId
 from app.core.tenant import apply_tenant_filter
 from app.models import (
     User,
@@ -135,7 +135,7 @@ async def create_template(
     data: TemplateCreate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: User = Depends(require_permission("surveys.manageTemplates")),
 ):
     """Create a new survey template (owned by the caller's tenant)."""
     template = SurveyTemplate(
@@ -219,7 +219,7 @@ async def update_template(
     data: TemplateUpdate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: User = Depends(require_permission("surveys.manageTemplates")),
 ):
     """Update a template (own-tenant only)."""
     template = await _get_template_scoped(db, template_id, tenant_id)
@@ -245,7 +245,7 @@ async def delete_template(
     template_id: UUID,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: User = Depends(require_permission("surveys.manageTemplates")),
 ):
     """Soft delete a template (own-tenant only)."""
     template = await _get_template_scoped(db, template_id, tenant_id)
@@ -267,7 +267,7 @@ async def add_question(
     data: QuestionCreate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: User = Depends(require_permission("surveys.manageTemplates")),
 ):
     """Add a question to a template (own-tenant only)."""
     template = await _get_template_scoped(db, template_id, tenant_id)
@@ -311,7 +311,7 @@ async def update_question(
     data: QuestionUpdate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: User = Depends(require_permission("surveys.manageTemplates")),
 ):
     """Update a question (own-tenant template only)."""
     if not await _get_template_scoped(db, template_id, tenant_id):
@@ -346,7 +346,7 @@ async def delete_question(
     question_id: UUID,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: User = Depends(require_permission("surveys.manageTemplates")),
 ):
     """Soft delete a question (own-tenant template only)."""
     if not await _get_template_scoped(db, template_id, tenant_id):
@@ -432,7 +432,7 @@ async def create_instance(
     data: InstanceCreate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("surveys.manageInstances")),
 ):
     """Create a new survey instance."""
     # Validate template exists
@@ -506,7 +506,7 @@ async def update_instance(
     data: InstanceUpdate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("surveys.manageInstances")),
 ):
     """Update a survey instance."""
     instance = await _verify_instance_tenant(db, instance_id, tenant_id)
@@ -541,7 +541,7 @@ async def send_survey(
     instance_id: UUID,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("surveys.manageInstances")),
 ):
     """Send a survey (transition from DRAFT to IN_PROGRESS)."""
     instance = await _verify_instance_tenant(db, instance_id, tenant_id)
@@ -571,7 +571,7 @@ async def close_survey(
     instance_id: UUID,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("surveys.manageInstances")),
 ):
     """Close a survey (transition from IN_PROGRESS to CLOSED)."""
     instance = await _verify_instance_tenant(db, instance_id, tenant_id)
@@ -663,7 +663,7 @@ async def generate_survey_token(
     org_id: UUID,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("surveys.manageInstances")),
 ):
     """Generate an external access token for survey completion."""
     instance = await _verify_instance_tenant(db, instance_id, tenant_id)

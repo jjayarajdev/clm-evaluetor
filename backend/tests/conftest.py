@@ -26,6 +26,16 @@ from app.models.obligation import Obligation, ObligationStatus
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 
+# RBAC matrix cache is per-process — reset between tests so a matrix loaded
+# from one test's SQLite DB never leaks into another.
+@pytest.fixture(autouse=True)
+def _reset_permissions_cache():
+    from app.core.permissions import reset_permissions_cache
+    reset_permissions_cache()
+    yield
+    reset_permissions_cache()
+
+
 # Event loop fixture for async tests
 @pytest.fixture(scope="session")
 def event_loop():

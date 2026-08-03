@@ -136,8 +136,8 @@ async def list_pending_approvals(
     Available to admin and legal roles who can act as approvers.
     """
     # Check that user has approval permission (admin or legal role)
-    from app.models.user import Role
-    if not current_user.is_super_admin and current_user.role not in [Role.ADMIN, Role.LEGAL]:
+    from app.core.permissions import user_has_permission
+    if not await user_has_permission(db, current_user, "kpi.approve"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin and legal users can view pending approvals",
@@ -392,8 +392,8 @@ async def approve_perception_score(
     Only admin and legal roles can approve scores.
     After approval, the gap for this KPI/period is recalculated.
     """
-    from app.models.user import Role
-    if not current_user.is_super_admin and current_user.role not in [Role.ADMIN, Role.LEGAL]:
+    from app.core.permissions import user_has_permission
+    if not await user_has_permission(db, current_user, "kpi.approve"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin and legal users can approve scores",
@@ -471,8 +471,8 @@ async def reject_perception_score(
     Only admin and legal roles can reject scores.
     Rejected scores are excluded from gap calculations.
     """
-    from app.models.user import Role
-    if not current_user.is_super_admin and current_user.role not in [Role.ADMIN, Role.LEGAL]:
+    from app.core.permissions import user_has_permission
+    if not await user_has_permission(db, current_user, "kpi.approve"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin and legal users can reject scores",
@@ -543,8 +543,8 @@ async def update_perception_score(
     tenant_id: CurrentTenantId = None,
 ):
     """Update a perception score value or comments."""
-    from app.models.user import Role
-    if not current_user.is_super_admin and current_user.role not in [Role.ADMIN, Role.LEGAL]:
+    from app.core.permissions import user_has_permission
+    if not await user_has_permission(db, current_user, "kpi.approve"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin and legal users can update scores",
@@ -610,8 +610,8 @@ async def delete_perception_score(
     tenant_id: CurrentTenantId = None,
 ):
     """Delete a perception score."""
-    from app.models.user import Role
-    if not current_user.is_super_admin and current_user.role not in [Role.ADMIN, Role.LEGAL]:
+    from app.core.permissions import user_has_permission
+    if not await user_has_permission(db, current_user, "kpi.approve"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin and legal users can delete scores",

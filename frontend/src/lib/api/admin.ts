@@ -1262,3 +1262,32 @@ export async function getUsageSummary(months = 6): Promise<UsageSummary> {
   const response = await client.get<UsageSummary>('/usage/summary', { params: { months } })
   return response.data
 }
+
+// ── DB-driven RBAC (super admin) ─────────────────────────────────────
+// The platform role→permission matrix — source of truth for both backend
+// guards and the frontend permission list served on /auth/me.
+
+export interface RolePermissionRow {
+  name: string
+  description: string | null
+  is_system: boolean
+  permissions: string[]
+}
+
+export interface RolePermissionsMatrix {
+  catalog: string[]
+  roles: RolePermissionRow[]
+}
+
+export async function getRolePermissions(): Promise<RolePermissionsMatrix> {
+  const response = await client.get<RolePermissionsMatrix>('/admin/role-permissions')
+  return response.data
+}
+
+export async function updateRolePermissions(
+  roleName: string,
+  permissions: string[],
+): Promise<{ name: string; permissions: string[] }> {
+  const response = await client.put(`/admin/role-permissions/${roleName}`, { permissions })
+  return response.data
+}

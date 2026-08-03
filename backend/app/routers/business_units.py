@@ -8,7 +8,7 @@ from sqlalchemy import select, func, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role, RequiredTenantId
+from app.core.deps import get_current_user, require_permission, RequiredTenantId
 from app.models import User, Role
 from app.models.business_unit import BusinessUnit
 from app.schemas.business_unit import (
@@ -143,7 +143,7 @@ async def create_business_unit(
     data: BusinessUnitCreate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission("businessUnits.manage")),
 ):
     """Create a new business unit. Requires ADMIN role."""
     # Check for duplicate code within tenant
@@ -240,7 +240,7 @@ async def update_business_unit(
     data: BusinessUnitUpdate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission("businessUnits.manage")),
 ):
     """Update a business unit. Requires ADMIN role."""
     query = select(BusinessUnit).where(
@@ -336,7 +336,7 @@ async def delete_business_unit(
     bu_id: UUID,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission("businessUnits.manage")),
 ):
     """Deactivate a business unit. Requires ADMIN role."""
     query = select(BusinessUnit).where(
@@ -460,7 +460,7 @@ async def assign_bu_profile(
     bu_id: UUID,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission("businessUnits.manage")),
     profile_id: Optional[UUID] = Query(None, description="Industry profile ID, or null to inherit from tenant"),
 ):
     """Assign an industry profile to a business unit.

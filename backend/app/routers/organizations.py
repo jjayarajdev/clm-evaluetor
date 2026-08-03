@@ -8,7 +8,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role, CurrentTenantId, RequiredTenantId
+from app.core.deps import get_current_user, require_permission, CurrentTenantId, RequiredTenantId
 from app.core.tenant import apply_tenant_filter
 from app.models import User, Organization, OrganizationType, OrganizationSize
 from app.models.organization_officer import OrganizationOfficer, GovernanceRole, OfficerSide
@@ -94,7 +94,7 @@ async def create_organization(
     data: OrganizationCreate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("organizations.write")),
 ):
     """Create a new organization."""
     # Check for duplicate code within tenant
@@ -204,7 +204,7 @@ async def update_organization(
     data: OrganizationUpdate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("organizations.write")),
 ):
     """Update an organization."""
     query = select(Organization).where(Organization.id == org_id)
@@ -249,7 +249,7 @@ async def delete_organization(
     tenant_id: CurrentTenantId,
     hard_delete: bool = Query(False),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: User = Depends(require_permission("organizations.delete")),
 ):
     """Delete or deactivate an organization."""
     query = select(Organization).where(Organization.id == org_id)
@@ -538,7 +538,7 @@ async def create_officer(
     data: OfficerCreate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("organizations.write")),
 ):
     """Create a new officer / contact for an organization."""
     # Verify org exists and belongs to tenant
@@ -572,7 +572,7 @@ async def update_officer(
     data: OfficerUpdate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("organizations.write")),
 ):
     """Update an existing officer / contact."""
     query = select(OrganizationOfficer).where(
@@ -605,7 +605,7 @@ async def delete_officer(
     officer_id: UUID,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("organizations.write")),
 ):
     """Deactivate an officer (soft delete)."""
     query = select(OrganizationOfficer).where(

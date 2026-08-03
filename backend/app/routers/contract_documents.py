@@ -17,7 +17,7 @@ from app.core.deps import (
     CurrentTenantId,
     RequiredTenantId,
     get_current_user,
-    require_role,
+    require_permission,
 )
 from app.models import User, Role
 from app.models.contract import Contract
@@ -182,7 +182,7 @@ async def create_document(
     data: ContractDocumentCreate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
+    current_user: User = Depends(require_permission("contractDocuments.write")),
 ):
     """Add a document to a contract. Requires ADMIN or LEGAL role."""
     # Verify contract exists and belongs to tenant
@@ -223,7 +223,7 @@ async def update_document(
     data: ContractDocumentUpdate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
+    current_user: User = Depends(require_permission("contractDocuments.write")),
 ):
     """Update a document. Requires ADMIN or LEGAL role."""
     doc = await _get_document_or_404(doc_id, contract_id, tenant_id, db)
@@ -249,7 +249,7 @@ async def delete_document(
     doc_id: UUID,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
+    current_user: User = Depends(require_permission("contractDocuments.write")),
 ):
     """Soft-delete a document (sets is_active = False). Requires ADMIN or LEGAL role."""
     doc = await _get_document_or_404(doc_id, contract_id, tenant_id, db)
@@ -291,7 +291,7 @@ async def create_signature(
     data: DocumentSignatureCreate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
+    current_user: User = Depends(require_permission("contractDocuments.write")),
 ):
     """Add a signature record to a document. Requires ADMIN or LEGAL role."""
     doc = await _get_document_or_404(doc_id, contract_id, tenant_id, db)
@@ -321,7 +321,7 @@ async def update_signature(
     data: DocumentSignatureUpdate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
+    current_user: User = Depends(require_permission("contractDocuments.write")),
 ):
     """Update a signature record (e.g., mark as signed). Requires ADMIN or LEGAL role."""
     # Verify document chain
@@ -396,7 +396,7 @@ async def create_section(
     data: DocumentSectionCreate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
+    current_user: User = Depends(require_permission("contractDocuments.write")),
 ):
     """Add a section to a document. Requires ADMIN or LEGAL role."""
     doc = await _get_document_or_404(doc_id, contract_id, tenant_id, db)

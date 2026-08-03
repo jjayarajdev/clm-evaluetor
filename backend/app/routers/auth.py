@@ -107,6 +107,10 @@ async def login(
     if user.tenant_id and user.tenant:
         tenant_name = user.tenant.name
 
+    from app.core.permissions import get_matrix
+
+    matrix = await get_matrix(db, force=True)
+
     return TokenResponse(
         access_token=access_token,
         token_type="bearer",
@@ -122,6 +126,7 @@ async def login(
             tenant_name=tenant_name,
             business_unit_id=str(user.business_unit_id) if user.business_unit_id else None,
             business_unit_name=user.business_unit.name if user.business_unit else None,
+            permissions=sorted(matrix.get(user.role.value, frozenset())),
         ),
     )
 
@@ -129,6 +134,7 @@ async def login(
 @router.get("/me", response_model=UserInfo)
 async def get_current_user_info(
     current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserInfo:
     """Get current authenticated user's information.
 
@@ -138,6 +144,10 @@ async def get_current_user_info(
     Returns:
         UserInfo with user details.
     """
+    from app.core.permissions import get_matrix
+
+    matrix = await get_matrix(db, force=True)
+
     tenant_name = None
     if current_user.tenant_id and current_user.tenant:
         tenant_name = current_user.tenant.name
@@ -153,6 +163,7 @@ async def get_current_user_info(
         tenant_name=tenant_name,
         business_unit_id=str(current_user.business_unit_id) if current_user.business_unit_id else None,
         business_unit_name=current_user.business_unit.name if current_user.business_unit else None,
+        permissions=sorted(matrix.get(current_user.role.value, frozenset())),
     )
 
 

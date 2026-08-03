@@ -189,8 +189,11 @@ async def get_user(
         - Admin can view any user in their tenant
         - Non-admin can only view themselves
     """
-    # Non-admin can only view themselves
-    if current_user.role != Role.ADMIN and str(current_user.id) != user_id:
+    # Non-admin can only view themselves. (has_permission lets super_admin
+    # through too — previously they got a 403 here; deliberate fix.)
+    from app.core.permissions import has_permission
+
+    if not has_permission(current_user, "admin") and str(current_user.id) != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",

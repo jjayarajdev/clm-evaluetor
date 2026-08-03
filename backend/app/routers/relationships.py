@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role, CurrentTenantId, RequiredTenantId
+from app.core.deps import get_current_user, require_permission, CurrentTenantId, RequiredTenantId
 from app.core.tenant import apply_tenant_filter
 from app.models import (
     User,
@@ -152,7 +152,7 @@ async def create_relationship(
     data: RelationshipCreate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("relationships.write")),
 ):
     """Create a new business relationship."""
     # Validate organizations exist and belong to tenant
@@ -250,7 +250,7 @@ async def update_relationship(
     data: RelationshipUpdate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("relationships.write")),
 ):
     """Update a relationship."""
     query = (
@@ -286,7 +286,7 @@ async def delete_relationship(
     rel_id: UUID,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin"])),
+    current_user: User = Depends(require_permission("relationships.delete")),
 ):
     """Delete a relationship and its governance data.
 
@@ -402,7 +402,7 @@ async def add_team_member(
     data: TeamMemberCreate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("relationships.write")),
 ):
     """Add a team member to a relationship."""
     # Verify relationship exists and belongs to tenant
@@ -464,7 +464,7 @@ async def update_team_member(
     data: TeamMemberUpdate,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("relationships.write")),
 ):
     """Update a team member."""
     # Verify relationship belongs to tenant
@@ -511,7 +511,7 @@ async def remove_team_member(
     member_id: UUID,
     tenant_id: CurrentTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "legal"])),
+    current_user: User = Depends(require_permission("relationships.write")),
 ):
     """Remove a team member (soft delete)."""
     # Verify relationship belongs to tenant

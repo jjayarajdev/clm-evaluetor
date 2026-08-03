@@ -1,8 +1,9 @@
-// Central role-based access control config — the single source of truth for
-// what each role can see/do in the UI. Consumed by the sidebar, route guards,
-// and component gates via `can()` / usePermissions().
-//
-// To change what a role can access, edit ROLE_PERMISSIONS below — nothing else.
+// Role-based access control — FALLBACK ONLY. The source of truth is the
+// DB-backed matrix served by the backend on /auth/login and /auth/me
+// (user.permissions), edited by super admins at /super-admin/role-permissions.
+// permissionsForUser() below prefers that list; this static map applies only
+// when the backend didn't provide one (stale session, older backend).
+// Keep it mirroring backend DEFAULT_ROLE_PERMISSIONS (app/core/permissions.py).
 import type { Role, User } from '@/types'
 
 // A capability. Nav/route permissions gate navigation + routes; action

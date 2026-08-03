@@ -11,7 +11,7 @@ from app.routers import (
     admin_settings, alerts, amendments, auth, audit, clients, compliance, connectors, contracts,
     custom_fields, dashboard, knowledge_graph, master_data_admin, metrics, milestones, monitor,
     notifications, notification_feed, notification_rules, obligations, postsigning, query, renewals, reports,
-    scheduler_admin, schemas, sla, suggested_links, tenants, usage, users, vendors, workflow_admin,
+    role_permissions, scheduler_admin, schemas, sla, suggested_links, tenants, usage, users, vendors, workflow_admin,
     # Relationship Governance (Evaluetor features)
     organizations, relationships, kpis, improvements, surveys, service_portfolio,
     # Business Unit & External Access
@@ -87,6 +87,15 @@ async def lifespan(app: FastAPI):
             await refresh_azure_cache(db)
     except Exception as e:
         logger.warning(f"Azure OpenAI cache load skipped: {e}")
+
+    # Seed the RBAC matrix (only when empty) and warm the per-worker cache.
+    try:
+        from app.core.permissions import get_matrix, seed_default_role_permissions
+        async with async_session_maker() as db:
+            await seed_default_role_permissions(db)
+            await get_matrix(db, force=True)
+    except Exception as e:
+        logger.warning(f"Role-permission matrix load skipped: {e}")
 
     # Start the usage-metering flusher on EVERY worker — the event buffer is
     # per-process, so each worker must write out its own events.
@@ -320,6 +329,7 @@ app.include_router(postsigning.router)
 app.include_router(query.router)
 app.include_router(dashboard.router)
 app.include_router(usage.router)
+app.include_router(role_permissions.router)
 app.include_router(schemas.router)
 app.include_router(admin_settings.router)
 app.include_router(custom_fields.router)

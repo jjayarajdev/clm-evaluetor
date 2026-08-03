@@ -278,17 +278,19 @@ async def require_admin_if_enterprise(
     return user
 
 
-# Pre-configured role dependencies
-require_admin = require_role(Role.ADMIN)
+# Permission-based guards — the role→permission grants live in the DB matrix
+# (app/core/permissions.py; defaults mirror today's role lists exactly).
+from app.core.permissions import has_permission, require_permission, user_has_permission  # noqa: E402
+
+require_admin = require_permission("admin")
+
+# Any role that may modify contract data — by default everyone except
+# read-only VIEWER (super_admin passes the has_permission floor).
+require_write = require_permission("contracts.write")
+
+# Deprecated aliases — zero call sites; kept for backward compatibility.
 require_legal = require_role(Role.ADMIN, Role.LEGAL)
 require_procurement = require_role(Role.ADMIN, Role.PROCUREMENT)
-
-# Any role that may modify contract data — everyone except read-only VIEWER
-# (super_admin passes require_role automatically)
-require_write = require_role(Role.ADMIN, Role.LEGAL, Role.PROCUREMENT, Role.BU_HEAD)
-
-
-# Pre-configured role dependencies for BU_HEAD
 require_bu_head = require_role(Role.ADMIN, Role.BU_HEAD)
 
 

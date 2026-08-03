@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.core.deps import CurrentTenantId, require_role
+from app.core.deps import CurrentTenantId, require_permission
 from app.database import get_db
 from app.models.tenant import Tenant
 from app.models.user import Role, User
@@ -51,7 +51,7 @@ class PromptResponse(BaseModel):
 
 @router.get("/langfuse/status", response_model=LangfuseStatusResponse)
 async def get_langfuse_status(
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
 ) -> LangfuseStatusResponse:
     """Get Langfuse integration status.
 
@@ -94,7 +94,7 @@ async def get_langfuse_status(
 
 @router.post("/langfuse/sync-prompts", response_model=PromptSyncResponse)
 async def sync_prompts_to_langfuse(
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
 ) -> PromptSyncResponse:
     """Sync local prompts to Langfuse.
 
@@ -117,7 +117,7 @@ async def sync_prompts_to_langfuse(
 
 @router.get("/langfuse/prompts", response_model=list[PromptResponse])
 async def list_prompts(
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
 ) -> list[PromptResponse]:
     """List all available prompts.
 
@@ -156,7 +156,7 @@ async def list_prompts(
 @router.get("/langfuse/prompts/{name}", response_model=PromptResponse)
 async def get_prompt(
     name: str,
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
     version: str | None = None,
 ) -> PromptResponse:
     """Get a specific prompt by name.
@@ -197,7 +197,7 @@ async def get_prompt(
 
 @router.post("/langfuse/flush")
 async def flush_langfuse_events(
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
 ) -> dict[str, str]:
     """Flush pending Langfuse events.
 
@@ -209,7 +209,7 @@ async def flush_langfuse_events(
 
 @router.delete("/langfuse/prompts/cache")
 async def clear_prompt_cache(
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
 ) -> dict[str, str]:
     """Clear the prompt cache.
 
@@ -287,7 +287,7 @@ def _validate_field_thresholds(fields: dict[str, float] | None) -> dict[str, flo
 @router.get("/extraction-thresholds", response_model=ExtractionThresholdsResponse)
 async def get_extraction_thresholds(
     tenant_id: CurrentTenantId,
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ExtractionThresholdsResponse:
     """Get the per-field confidence thresholds for the current tenant.
@@ -322,7 +322,7 @@ async def get_extraction_thresholds(
 async def update_extraction_thresholds(
     payload: ExtractionThresholdsUpdate,
     tenant_id: CurrentTenantId,
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ExtractionThresholdsResponse:
     """Update per-field confidence thresholds for the current tenant.
@@ -404,7 +404,7 @@ class DspyAutoRecompileUpdate(BaseModel):
 @router.get("/dspy-auto-recompile", response_model=DspyAutoRecompileResponse)
 async def get_dspy_auto_recompile(
     tenant_id: CurrentTenantId,
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> DspyAutoRecompileResponse:
     """Get the current tenant's DSPy auto-recompile config.
@@ -431,7 +431,7 @@ async def get_dspy_auto_recompile(
 async def update_dspy_auto_recompile(
     payload: DspyAutoRecompileUpdate,
     tenant_id: CurrentTenantId,
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> DspyAutoRecompileResponse:
     """Update the current tenant's DSPy auto-recompile config.
@@ -543,7 +543,7 @@ def _validate_addenda(payload: dict[str, str] | None) -> dict[str, str]:
 @router.get("/prompt-addenda", response_model=PromptAddendaResponse)
 async def get_prompt_addenda(
     tenant_id: CurrentTenantId,
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PromptAddendaResponse:
     """Get the current tenant's prompt addenda (extra instructions appended to AI prompts)."""
@@ -572,7 +572,7 @@ async def get_prompt_addenda(
 async def update_prompt_addenda(
     payload: PromptAddendaUpdate,
     tenant_id: CurrentTenantId,
-    current_user: Annotated[User, Depends(require_role(Role.ADMIN))],
+    current_user: Annotated[User, Depends(require_permission("admin.aiSettings"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PromptAddendaResponse:
     """Replace the current tenant's prompt addenda.

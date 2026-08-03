@@ -86,7 +86,11 @@ def _month_windows(months: int) -> list[tuple[datetime, datetime | None]]:
 
 
 def _full_visibility(user) -> bool:
-    return user.role in (Role.ADMIN, Role.SUPER_ADMIN)
+    # Token/cost visibility is the 'usage.viewCost' permission (super_admin
+    # passes via the has_permission floor). Endpoints warm the matrix first.
+    from app.core.permissions import has_permission
+
+    return has_permission(user, "usage.viewCost")
 
 
 async def _aggregate(
@@ -134,6 +138,9 @@ async def usage_summary(
     db: AsyncSession = Depends(get_db),
 ):
     """Monthly usage for the caller's tenant (or platform-wide for super admin)."""
+    from app.core.permissions import get_matrix
+
+    await get_matrix(db)
     full = _full_visibility(current_user)
     # Non-super-admins are always scoped to their own tenant; the tenant_id
     # query param is honored only for super admin.

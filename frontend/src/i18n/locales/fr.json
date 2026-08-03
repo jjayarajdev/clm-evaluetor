@@ -321,7 +321,8 @@
     "profile": "Profil",
     "signOut": "Se déconnecter",
     "groups": "Groupes",
-    "usage": "Consommation"
+    "usage": "Consommation",
+    "rolePermissions": "Rôles et permissions"
   },
   "dashboard": {
     "goodMorning": "Bonjour",
@@ -3181,5 +3182,15 @@
     "estimatedCostNote": "Estimation aux prix catalogue",
     "thisMonthCount": "{{count}} ce mois-ci",
     "month": "Mois"
+  },
+  "rbac": {
+    "title": "Rôles et permissions",
+    "subtitle": "Matrice globale de la plateforme régissant l'accès API et ce que chaque rôle voit dans l'application. Prise d'effet sous 1 minute.",
+    "permission": "Permission",
+    "immutable": "non modifiable",
+    "saved": "Enregistré ✓",
+    "reset": "Réinitialiser",
+    "saveFailed": "Échec de l'enregistrement",
+    "footerNote": "super_admin passe toujours tous les contrôles"
   }
 }

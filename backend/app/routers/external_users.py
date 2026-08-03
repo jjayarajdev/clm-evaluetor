@@ -10,7 +10,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.deps import get_current_user, require_role, RequiredTenantId
+from app.core.deps import get_current_user, require_permission, RequiredTenantId
 from app.models import User, Role, Organization
 from app.models.external_user import ExternalUser
 from app.models.contract_share import ContractShare
@@ -86,7 +86,7 @@ async def create_external_user(
     data: ExternalUserCreate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
+    current_user: User = Depends(require_permission("externalUsers.manage")),
 ):
     """Create/invite a new external user."""
     # Check for existing user with same email in tenant
@@ -133,7 +133,7 @@ async def invite_external_user(
     request: Request,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
+    current_user: User = Depends(require_permission("externalUsers.manage")),
 ):
     """Invite an external user, share contracts, and send invitation email."""
     # Check for existing user or create new one
@@ -315,7 +315,7 @@ async def update_external_user(
     data: ExternalUserUpdate,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
+    current_user: User = Depends(require_permission("externalUsers.manage")),
 ):
     """Update an external user."""
     query = select(ExternalUser).where(
@@ -374,7 +374,7 @@ async def revoke_external_user(
     external_user_id: UUID,
     tenant_id: RequiredTenantId,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
+    current_user: User = Depends(require_permission("externalUsers.manage")),
 ):
     """Revoke an external user's access (deactivate)."""
     query = select(ExternalUser).where(
@@ -421,7 +421,7 @@ async def resend_invite(
     tenant_id: RequiredTenantId,
     expires_in_days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN, Role.LEGAL)),
+    current_user: User = Depends(require_permission("externalUsers.manage")),
 ):
     """Resend invitation to an external user with a new token and email."""
     query = select(ExternalUser).where(
