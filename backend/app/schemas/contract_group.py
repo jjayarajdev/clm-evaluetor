@@ -19,6 +19,13 @@ class GroupCreate(BaseModel):
     owner_user_id: Optional[UUID] = None
 
 
+class GroupBulkDeleteRequest(BaseModel):
+    group_ids: List[UUID] = Field(..., min_length=1, max_length=200)
+    # Required to delete auto_family groups: also removes the contract links
+    # they are derived from (otherwise the sync would re-create them).
+    dissolve_links: bool = False
+
+
 class GroupUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None

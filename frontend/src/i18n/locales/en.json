@@ -21,7 +21,8 @@
     "no": "No",
     "create": "Create",
     "saving": "Saving...",
-    "saved": "Saved"
+    "saved": "Saved",
+    "deleting": "Deleting…"
   },
   "roles": {
     "admin": "Admin",
@@ -3107,7 +3108,15 @@
     "reopen": "Re-open",
     "findingUpdateFailed": "Failed to update finding",
     "findingSources_one": "Referenced by {{count}} document:",
-    "findingSources_other": "Referenced by {{count}} documents:"
+    "findingSources_other": "Referenced by {{count}} documents:",
+    "selectedCount": "{{count}} selected",
+    "deleteSelected": "Delete selected",
+    "clearSelection": "Clear",
+    "deleteGroupTitle": "Delete group",
+    "deleteConfirmSimple": "Delete “{{name}}”? Contracts are not affected — only the grouping is removed.",
+    "deleteConfirmFamily": "Delete family “{{name}}”? The contract links between its members will also be removed so the family isn't re-created. Contracts themselves are not affected.",
+    "bulkDeleteConfirm": "Delete {{count}} groups? Contracts are not affected.",
+    "bulkDeleteFamilyNote": "Your selection includes auto-family groups — the contract links between their members will also be removed."
   },
   "notifFeed": {
     "title": "Notifications",

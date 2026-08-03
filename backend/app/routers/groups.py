@@ -17,6 +17,7 @@ from app.models.contract_group import (
 )
 from app.schemas.contract_group import (
     FindingStatusUpdate,
+    GroupBulkDeleteRequest,
     GroupCreate,
     GroupDetailResponse,
     GroupFindingResponse,
@@ -359,6 +360,55 @@ async def update_group(
     return _group_to_response(group, member_count=counts.get(group.id, 0))
 
 
+async def _dissolve_family_links(
+    db: AsyncSession, group_id: uuid.UUID
+) -> tuple[int, int]:
+    """Remove the ContractLinks between a group's members and reject their
+    pending suggestions, so the auto-family sync won't re-create the group.
+
+    Contracts themselves are never touched. Returns
+    (links_removed, suggestions_rejected).
+    """
+    from sqlalchemy import delete as sa_delete, update as sa_update
+
+    from app.models.contract_link import ContractLink
+    from app.models.suggested_link import SuggestedContractLink
+
+    member_ids = (
+        await db.execute(
+            select(ContractGroupMember.contract_id).where(
+                ContractGroupMember.group_id == group_id
+            )
+        )
+    ).scalars().all()
+    if not member_ids:
+        return 0, 0
+
+    links_result = await db.execute(
+        sa_delete(ContractLink).where(
+            ContractLink.parent_contract_id.in_(member_ids),
+            ContractLink.child_contract_id.in_(member_ids),
+        )
+    )
+    suggestions_result = await db.execute(
+        sa_update(SuggestedContractLink)
+        .where(
+            SuggestedContractLink.source_contract_id.in_(member_ids),
+            SuggestedContractLink.target_contract_id.in_(member_ids),
+            SuggestedContractLink.status == "pending",
+        )
+        .values(status="rejected")
+    )
+    return links_result.rowcount or 0, suggestions_result.rowcount or 0
+
+
+AUTO_FAMILY_DELETE_HINT = (
+    "Auto-family groups are derived from contract links and would be "
+    "re-created by the sync. Pass dissolve_links=true to remove the "
+    "underlying links (contracts are unaffected) and delete the group."
+)
+
+
 @router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT,
                dependencies=[Depends(require_write)])
 async def delete_group(
@@ -366,11 +416,65 @@ async def delete_group(
     tenant_id: RequiredTenantId,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
+    dissolve_links: bool = Query(
+        False,
+        description="Required for auto_family groups: also remove the "
+                    "contract links the group is derived from.",
+    ),
 ) -> None:
-    """Delete a group. Members cascade; contracts are unaffected."""
+    """Delete a group. Members cascade; contracts are unaffected.
+
+    auto_family groups additionally require dissolve_links=true, since they
+    are materialized from the link graph and would otherwise be re-created.
+    """
     group = await _get_group_or_404(db, group_id, tenant_id)
+    if group.group_type == "auto_family":
+        if not dissolve_links:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=AUTO_FAMILY_DELETE_HINT,
+            )
+        await _dissolve_family_links(db, group.id)
     await db.delete(group)
     await db.commit()
+
+
+@router.post("/bulk-delete", dependencies=[Depends(require_write)])
+async def bulk_delete_groups(
+    body: GroupBulkDeleteRequest,
+    tenant_id: RequiredTenantId,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Delete several groups at once. auto_family groups are skipped unless
+    dissolve_links is set (same rule as single delete). Contracts are never
+    affected."""
+    deleted = 0
+    links_removed = 0
+    skipped: list[dict] = []
+
+    for gid in body.group_ids:
+        result = await db.execute(
+            select(ContractGroup).where(
+                ContractGroup.id == gid,
+                ContractGroup.tenant_id == tenant_id,
+            )
+        )
+        group = result.scalar_one_or_none()
+        if not group:
+            skipped.append({"group_id": str(gid), "reason": "not_found"})
+            continue
+        if group.group_type == "auto_family":
+            if not body.dissolve_links:
+                skipped.append({"group_id": str(gid), "reason": "auto_family_requires_dissolve"})
+                continue
+            links, _ = await _dissolve_family_links(db, group.id)
+            links_removed += links
+        await db.delete(group)
+        deleted += 1
+
+    await db.commit()
+    return {"deleted": deleted, "links_removed": links_removed, "skipped": skipped}
 
 
 @router.post("/{group_id}/members", response_model=GroupDetailResponse,

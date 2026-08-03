@@ -21,7 +21,8 @@
     "no": "Non",
     "create": "Créer",
     "saving": "Enregistrement...",
-    "saved": "Enregistré"
+    "saved": "Enregistré",
+    "deleting": "Suppression…"
   },
   "roles": {
     "admin": "Administrateur",
@@ -3107,7 +3108,15 @@
     "reopen": "Rouvrir",
     "findingUpdateFailed": "Échec de la mise à jour du constat",
     "findingSources_one": "Mentionné par {{count}} document :",
-    "findingSources_other": "Mentionné par {{count}} documents :"
+    "findingSources_other": "Mentionné par {{count}} documents :",
+    "selectedCount": "{{count}} sélectionné(s)",
+    "deleteSelected": "Supprimer la sélection",
+    "clearSelection": "Effacer",
+    "deleteGroupTitle": "Supprimer le groupe",
+    "deleteConfirmSimple": "Supprimer « {{name}} » ? Les contrats ne sont pas affectés — seul le regroupement est supprimé.",
+    "deleteConfirmFamily": "Supprimer la famille « {{name}} » ? Les liens entre ses contrats seront également supprimés afin que la famille ne soit pas recréée. Les contrats eux-mêmes ne sont pas affectés.",
+    "bulkDeleteConfirm": "Supprimer {{count}} groupes ? Les contrats ne sont pas affectés.",
+    "bulkDeleteFamilyNote": "Votre sélection contient des familles automatiques — les liens entre leurs contrats seront également supprimés."
   },
   "notifFeed": {
     "title": "Notifications",

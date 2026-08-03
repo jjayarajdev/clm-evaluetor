@@ -9,6 +9,7 @@ import {
   SparklesIcon,
   ArrowUpTrayIcon,
   ExclamationTriangleIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
@@ -45,6 +46,10 @@ export default function GroupsPage() {
   const [newName, setNewName] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget] = useState<ContractGroupResponse | null>(null)
+  const [isBulkConfirmOpen, setIsBulkConfirmOpen] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const canWrite = user?.role !== 'viewer'
 
@@ -72,6 +77,63 @@ export default function GroupsPage() {
   })
 
   const groups = data?.items ?? []
+
+  // Deleting a group never touches contracts. auto_family groups are derived
+  // from contract links, so deleting them also dissolves those links (the
+  // confirm dialogs say so) — hence the extra invalidations below.
+  const invalidateAfterDelete = () => {
+    queryClient.invalidateQueries({ queryKey: ['contract-groups'] })
+    queryClient.invalidateQueries({ queryKey: ['contract-hierarchy'] })
+    queryClient.invalidateQueries({ queryKey: ['contract-links'] })
+    queryClient.invalidateQueries({ queryKey: ['suggested-links'] })
+  }
+
+  const deleteMutation = useMutation({
+    mutationFn: (group: ContractGroupResponse) =>
+      api.deleteGroup(group.id, group.group_type === 'auto_family'),
+    onSuccess: (_data, group) => {
+      invalidateAfterDelete()
+      setSelected((prev) => {
+        const next = new Set(prev)
+        next.delete(group.id)
+        return next
+      })
+      setDeleteTarget(null)
+      setActionError(null)
+    },
+    onError: (err: Error) => {
+      setDeleteTarget(null)
+      setActionError(err.message || t('groups.deleteFailed'))
+    },
+  })
+
+  const selectedGroups = groups.filter((g: ContractGroupResponse) => selected.has(g.id))
+  const selectionHasFamily = selectedGroups.some(
+    (g: ContractGroupResponse) => g.group_type === 'auto_family'
+  )
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: () => api.bulkDeleteGroups([...selected], selectionHasFamily),
+    onSuccess: () => {
+      invalidateAfterDelete()
+      setSelected(new Set())
+      setIsBulkConfirmOpen(false)
+      setActionError(null)
+    },
+    onError: (err: Error) => {
+      setIsBulkConfirmOpen(false)
+      setActionError(err.message || t('groups.deleteFailed'))
+    },
+  })
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -110,6 +172,35 @@ export default function GroupsPage() {
         </select>
       </div>
 
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
+
+      {canWrite && selected.size > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-primary-200 bg-primary-50 px-4 py-2.5">
+          <span className="text-sm font-medium text-primary-700">
+            {t('groups.selectedCount', { count: selected.size })}
+          </span>
+          <div className="flex items-center gap-3">
+            <button
+              className="text-sm text-gray-600 hover:underline"
+              onClick={() => setSelected(new Set())}
+            >
+              {t('groups.clearSelection')}
+            </button>
+            <button
+              className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+              onClick={() => setIsBulkConfirmOpen(true)}
+            >
+              <TrashIcon className="h-4 w-4" />
+              {t('groups.deleteSelected')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <LoadingSpinner size="lg" />
       ) : groups.length === 0 ? (
@@ -123,11 +214,44 @@ export default function GroupsPage() {
             <Link
               key={group.id}
               to={`/groups/${group.id}`}
-              className="card block p-5 transition-shadow hover:shadow-md"
+              className={cn(
+                'card block p-5 transition-shadow hover:shadow-md',
+                selected.has(group.id) && 'ring-2 ring-primary-500'
+              )}
             >
               <div className="mb-2 flex items-start justify-between gap-2">
-                <h3 className="font-semibold text-gray-900">{group.name}</h3>
-                <GroupTypeBadge groupType={group.group_type} />
+                <div className="flex min-w-0 items-start gap-2.5">
+                  {canWrite && (
+                    <input
+                      type="checkbox"
+                      readOnly
+                      checked={selected.has(group.id)}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        toggleSelect(group.id)
+                      }}
+                      className="mt-1 h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600"
+                    />
+                  )}
+                  <h3 className="font-semibold text-gray-900">{group.name}</h3>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <GroupTypeBadge groupType={group.group_type} />
+                  {canWrite && (
+                    <button
+                      className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                      title={t('groups.deleteGroupTitle')}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setDeleteTarget(group)
+                      }}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
               {group.description && (
                 <p className="mb-3 line-clamp-2 text-sm text-gray-500">{group.description}</p>
@@ -146,6 +270,65 @@ export default function GroupsPage() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 className="mb-3 text-lg font-semibold">{t('groups.deleteGroupTitle')}</h2>
+            <p className="mb-5 text-sm text-gray-600">
+              {deleteTarget.group_type === 'auto_family'
+                ? t('groups.deleteConfirmFamily', { name: deleteTarget.name })
+                : t('groups.deleteConfirmSimple', { name: deleteTarget.name })}
+            </p>
+            <div className="flex justify-end gap-3 border-t pt-4">
+              <button
+                className="rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
+                onClick={() => setDeleteTarget(null)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                className="rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(deleteTarget)}
+              >
+                {deleteMutation.isPending ? t('common.deleting') : t('common.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isBulkConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 className="mb-3 text-lg font-semibold">{t('groups.deleteSelected')}</h2>
+            <p className="mb-2 text-sm text-gray-600">
+              {t('groups.bulkDeleteConfirm', { count: selected.size })}
+            </p>
+            {selectionHasFamily && (
+              <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                {t('groups.bulkDeleteFamilyNote')}
+              </p>
+            )}
+            <div className="flex justify-end gap-3 border-t pt-4">
+              <button
+                className="rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
+                onClick={() => setIsBulkConfirmOpen(false)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                className="rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                disabled={bulkDeleteMutation.isPending}
+                onClick={() => bulkDeleteMutation.mutate()}
+              >
+                {bulkDeleteMutation.isPending ? t('common.deleting') : t('common.delete')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -76,9 +76,14 @@ export default function GroupDetailPage() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => api.deleteGroup(groupId!),
+    // auto_family groups are derived from contract links: deleting them also
+    // dissolves those links (confirm dialog says so), else the sync re-creates them
+    mutationFn: () => api.deleteGroup(groupId!, group?.group_type === 'auto_family'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract-groups'] })
+      queryClient.invalidateQueries({ queryKey: ['contract-hierarchy'] })
+      queryClient.invalidateQueries({ queryKey: ['contract-links'] })
+      queryClient.invalidateQueries({ queryKey: ['suggested-links'] })
       navigate('/groups')
     },
     onError: (err: Error) => setActionError(err.message || t('groups.deleteFailed')),
@@ -126,16 +131,18 @@ export default function GroupDetailPage() {
                 <PlusIcon className="mr-1 h-5 w-5" />
                 {t('groups.addContracts')}
               </button>
-              {group.group_type !== 'auto_family' && (
-                <button
-                  className="rounded-lg border border-red-200 px-3 py-2 text-red-600 hover:bg-red-50"
-                  onClick={() => {
-                    if (window.confirm(t('groups.deleteConfirm'))) deleteMutation.mutate()
-                  }}
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
-              )}
+              <button
+                className="rounded-lg border border-red-200 px-3 py-2 text-red-600 hover:bg-red-50"
+                onClick={() => {
+                  const message =
+                    group.group_type === 'auto_family'
+                      ? t('groups.deleteConfirmFamily', { name: group.name })
+                      : t('groups.deleteConfirm')
+                  if (window.confirm(message)) deleteMutation.mutate()
+                }}
+              >
+                <TrashIcon className="h-5 w-5" />
+              </button>
             </div>
           )}
         </div>

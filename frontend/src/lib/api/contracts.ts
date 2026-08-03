@@ -224,8 +224,27 @@ export async function updateGroup(
   return response.data
 }
 
-export async function deleteGroup(groupId: string): Promise<void> {
-  await client.delete(`/groups/${groupId}`)
+// dissolveLinks is required for auto_family groups: also removes the contract
+// links the group is derived from (contracts themselves are never touched).
+export async function deleteGroup(groupId: string, dissolveLinks = false): Promise<void> {
+  await client.delete(`/groups/${groupId}`, { params: { dissolve_links: dissolveLinks } })
+}
+
+export interface BulkDeleteGroupsResult {
+  deleted: number
+  links_removed: number
+  skipped: { group_id: string; reason: string }[]
+}
+
+export async function bulkDeleteGroups(
+  groupIds: string[],
+  dissolveLinks = false,
+): Promise<BulkDeleteGroupsResult> {
+  const response = await client.post<BulkDeleteGroupsResult>('/groups/bulk-delete', {
+    group_ids: groupIds,
+    dissolve_links: dissolveLinks,
+  })
+  return response.data
 }
 
 export async function addGroupMembers(
