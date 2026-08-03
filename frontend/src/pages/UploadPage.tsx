@@ -377,7 +377,7 @@ export default function UploadPage() {
                 ...f,
                 status: 'error' as const,
                 progress: 0,
-                error: error.response?.data?.detail || t('upload.uploadFailed'),
+                error: error?.message || t('upload.uploadFailed'),
               }
             : f
         )
@@ -459,7 +459,7 @@ export default function UploadPage() {
                 ...f,
                 status: 'error' as const,
                 progress: 0,
-                error: error.response?.data?.detail || t('upload.batchUploadFailed'),
+                error: error?.message || t('upload.batchUploadFailed'),
               }
             : f
         )

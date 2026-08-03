@@ -461,9 +461,11 @@ export default function ContractTreeView({ roots, totalContracts, totalLinks }: 
       {(moveMutation.isError || unlinkMutation.isError) && (
         <div className="px-4 py-2 border-t bg-red-50 text-sm text-red-700 flex items-center justify-between">
           <span>
+            {/* The axios interceptor rejects with Error(detail) — the API's
+                message is in .message, not .response.data.detail */}
             {moveMutation.isError
-              ? t('treeView.failed', { error: (moveMutation.error as any)?.response?.data?.detail || t('treeView.unknownError') })
-              : t('treeView.failed', { error: (unlinkMutation.error as any)?.response?.data?.detail || t('treeView.unknownError') })
+              ? t('treeView.failed', { error: (moveMutation.error as Error)?.message || t('treeView.unknownError') })
+              : t('treeView.failed', { error: (unlinkMutation.error as Error)?.message || t('treeView.unknownError') })
             }
           </span>
           <button onClick={() => { moveMutation.reset(); unlinkMutation.reset() }} className="p-1 hover:bg-red-100 rounded">

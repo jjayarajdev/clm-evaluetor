@@ -198,8 +198,8 @@ function EstablishedLinkCard({ link, contractId, onRemoved }: { link: ContractLi
         </button>
         {(swapMutation.isError || removeMutation.isError) && (
           <span className="text-xs text-red-600">
-            {(swapMutation.error as any)?.response?.data?.detail ||
-             (removeMutation.error as any)?.response?.data?.detail ||
+            {(swapMutation.error as Error)?.message ||
+             (removeMutation.error as Error)?.message ||
              t('suggestedLinks.actionFailed')}
           </span>
         )}
