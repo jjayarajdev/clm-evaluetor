@@ -107,9 +107,9 @@ async def login(
     if user.tenant_id and user.tenant:
         tenant_name = user.tenant.name
 
-    from app.core.permissions import get_matrix
+    from app.core.permissions import get_effective_permissions
 
-    matrix = await get_matrix(db, force=True)
+    effective_permissions = await get_effective_permissions(db, user)
 
     return TokenResponse(
         access_token=access_token,
@@ -126,7 +126,7 @@ async def login(
             tenant_name=tenant_name,
             business_unit_id=str(user.business_unit_id) if user.business_unit_id else None,
             business_unit_name=user.business_unit.name if user.business_unit else None,
-            permissions=sorted(matrix.get(user.role.value, frozenset())),
+            permissions=effective_permissions,
         ),
     )
 
@@ -144,9 +144,9 @@ async def get_current_user_info(
     Returns:
         UserInfo with user details.
     """
-    from app.core.permissions import get_matrix
+    from app.core.permissions import get_effective_permissions
 
-    matrix = await get_matrix(db, force=True)
+    effective_permissions = await get_effective_permissions(db, current_user)
 
     tenant_name = None
     if current_user.tenant_id and current_user.tenant:
@@ -163,7 +163,7 @@ async def get_current_user_info(
         tenant_name=tenant_name,
         business_unit_id=str(current_user.business_unit_id) if current_user.business_unit_id else None,
         business_unit_name=current_user.business_unit.name if current_user.business_unit else None,
-        permissions=sorted(matrix.get(current_user.role.value, frozenset())),
+        permissions=effective_permissions,
     )
 
 

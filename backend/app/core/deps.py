@@ -85,6 +85,10 @@ async def get_current_user(
                 select(Tenant.config_overrides).where(Tenant.id == user.tenant_id)
             )).scalar_one_or_none() or {}
             set_request_azure(co.get("azure_openai"))
+            # Same fetch also carries the tenant's RBAC overrides — bind them
+            # so has_permission() resolves tenant-adjusted grants this request.
+            from app.core.permissions import set_request_role_overrides
+            set_request_role_overrides(co.get("role_permissions"))
         except Exception:  # noqa: BLE001 — never block auth on this
             pass
 

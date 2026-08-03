@@ -271,3 +271,151 @@ class TestEditorEndpoints:
             select(RolePermission.permission).where(RolePermission.role_name == "bu_head")
         )).scalars().all()
         assert rows == ["dashboard"]
+
+
+class TestTenantOverrides:
+    """Per-tenant overrides layered on the platform matrix."""
+
+    def test_context_override_wins_for_present_role(self):
+        from app.core.permissions import set_request_role_overrides
+
+        set_request_role_overrides({"viewer": ["contracts.write"]})
+        try:
+            viewer = _user(Role.VIEWER)
+            assert has_permission(viewer, "contracts.write") is True   # granted by override
+            assert has_permission(viewer, "dashboard") is False        # override replaces fully
+            legal = _user(Role.LEGAL)
+            assert has_permission(legal, "contracts.write") is True    # untouched role -> platform
+        finally:
+            set_request_role_overrides(None)
+
+    def test_empty_override_locks_role_down(self):
+        from app.core.permissions import set_request_role_overrides
+
+        set_request_role_overrides({"viewer": []})
+        try:
+            assert has_permission(_user(Role.VIEWER), "dashboard") is False
+        finally:
+            set_request_role_overrides(None)
+
+    def test_super_admin_floor_ignores_overrides(self):
+        from app.core.permissions import set_request_role_overrides
+
+        set_request_role_overrides({"super_admin": []})
+        try:
+            assert has_permission(_user(Role.SUPER_ADMIN), "anything") is True
+        finally:
+            set_request_role_overrides(None)
+
+    def test_validate_tenant_override_guardrails(self):
+        from app.core.permissions import validate_tenant_override
+
+        assert validate_tenant_override("super_admin", set()) is not None
+        assert validate_tenant_override("viewer", {"superadmin"}) is not None
+        assert validate_tenant_override("viewer", {"not.a.key"}) is not None
+        assert validate_tenant_override("admin", {"dashboard"}) is not None  # missing floor
+        assert validate_tenant_override("admin", {"admin", "settings"}) is None
+        assert validate_tenant_override("viewer", {"dashboard", "upload"}) is None
+
+    @pytest.mark.asyncio
+    async def test_effective_permissions_overlay_and_isolation(self, db):
+        other_tenant = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
+        db.add(Tenant(
+            id=TENANT_ID, name="A", slug="a", is_active=True,
+            config_overrides={"role_permissions": {"viewer": ["dashboard", "upload"]}},
+        ))
+        db.add(Tenant(id=other_tenant, name="B", slug="b", is_active=True))
+        await db.commit()
+
+        from app.core.permissions import get_effective_permissions
+
+        viewer_a = _user(Role.VIEWER)
+        assert await get_effective_permissions(db, viewer_a) == ["dashboard", "upload"]
+
+        viewer_b = _user(Role.VIEWER)
+        viewer_b.tenant_id = other_tenant
+        assert await get_effective_permissions(db, viewer_b) == sorted(
+            DEFAULT_ROLE_PERMISSIONS["viewer"]
+        )
+
+    @pytest.mark.asyncio
+    async def test_tenant_editor_endpoints(self, db):
+        db.add(Tenant(id=TENANT_ID, name="A", slug="a", is_active=True, config_overrides={}))
+        await db.commit()
+        admin = _user(Role.ADMIN)
+
+        async with _client(db, admin) as c:
+            # Baseline: viewer not overridden
+            r = await c.get("/api/admin/tenant-role-permissions")
+            assert r.status_code == 200
+            data = r.json()
+            assert "superadmin" not in data["catalog"]
+            viewer_row = next(x for x in data["roles"] if x["name"] == "viewer")
+            assert viewer_row["overridden"] is False
+
+            # Guardrails
+            assert (await c.put("/api/admin/tenant-role-permissions/super_admin",
+                                json={"permissions": []})).status_code == 404
+            assert (await c.put("/api/admin/tenant-role-permissions/viewer",
+                                json={"permissions": ["superadmin"]})).status_code == 422
+            assert (await c.put("/api/admin/tenant-role-permissions/admin",
+                                json={"permissions": ["dashboard"]})).status_code == 422
+
+            # Set override, read back, reset
+            r = await c.put("/api/admin/tenant-role-permissions/viewer",
+                            json={"permissions": ["dashboard", "upload"]})
+            assert r.status_code == 200 and r.json()["overridden"] is True
+
+            r = await c.get("/api/admin/tenant-role-permissions")
+            viewer_row = next(x for x in r.json()["roles"] if x["name"] == "viewer")
+            assert viewer_row["overridden"] is True
+            assert viewer_row["permissions"] == ["dashboard", "upload"]
+            assert viewer_row["platform_permissions"] == sorted(DEFAULT_ROLE_PERMISSIONS["viewer"])
+
+            r = await c.delete("/api/admin/tenant-role-permissions/viewer")
+            assert r.status_code == 200 and r.json()["overridden"] is False
+
+        # Persisted state is clean after reset
+        tenant = (await db.execute(select(Tenant).where(Tenant.id == TENANT_ID))).scalar_one()
+        assert "role_permissions" not in (tenant.config_overrides or {})
+
+    @pytest.mark.asyncio
+    async def test_tenant_editor_requires_admin(self, db):
+        db.add(Tenant(id=TENANT_ID, name="A", slug="a", is_active=True))
+        await db.commit()
+        async with _client(db, _user(Role.LEGAL)) as c:
+            r = await c.get("/api/admin/tenant-role-permissions")
+        assert r.status_code in (401, 403)
+
+    @pytest.mark.asyncio
+    async def test_override_enforced_on_endpoints(self, db):
+        """Viewer granted organizations.write via tenant override passes the
+        real endpoint guard (403 -> 404 flip), simulating get_current_user's
+        per-request override binding."""
+        from app.core.permissions import set_request_role_overrides
+
+        db.add(Tenant(id=TENANT_ID, name="A", slug="a", is_active=True))
+        await db.commit()
+        viewer = _user(Role.VIEWER)
+
+        # Async, like the real get_current_user — sync overrides run in a
+        # threadpool where ContextVar writes don't reach the request context.
+        async def with_override():
+            set_request_role_overrides({"viewer": ["organizations.write"]})
+            return viewer
+
+        async def override_db():
+            yield db
+        app.dependency_overrides[get_db] = override_db
+        app.dependency_overrides[get_current_user] = with_override
+        app.dependency_overrides[get_current_tenant_id] = lambda: TENANT_ID
+
+        ghost = uuid.uuid4()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            r = await c.put(f"/api/organizations/{ghost}", json={"name": "x"})
+        assert r.status_code == 404  # permitted by override; org just missing
+
+        app.dependency_overrides[get_current_user] = lambda: viewer
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            r = await c.put(f"/api/organizations/{ghost}", json={"name": "x"})
+        assert r.status_code == 403  # without override: platform viewer denied

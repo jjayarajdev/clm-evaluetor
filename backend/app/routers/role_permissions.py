@@ -14,8 +14,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete as sa_delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import SuperAdminUser
-from app.core.permissions import PERMISSIONS, get_matrix
+from app.core.deps import AdminUser, RequiredTenantId, SuperAdminUser
+from app.core.permissions import (
+    ADMIN_LOCKOUT_FLOOR,
+    PERMISSIONS,
+    TENANT_EDITABLE_ROLES,
+    get_matrix,
+    validate_tenant_override,
+)
 from app.database import get_db
 from app.models.audit import AuditAction
 from app.models.role_permission import RoleDef, RolePermission
@@ -23,7 +29,10 @@ from app.core.audit import log_audit
 
 router = APIRouter(prefix="/api/admin/role-permissions", tags=["Role Permissions"])
 
-ADMIN_LOCKOUT_FLOOR = {"admin", "settings"}
+# Tenant-admin variant: per-tenant overrides layered on the platform matrix.
+tenant_router = APIRouter(
+    prefix="/api/admin/tenant-role-permissions", tags=["Role Permissions"]
+)
 
 
 class RolePermissionsUpdate(BaseModel):
@@ -120,4 +129,126 @@ async def update_role_permissions(
     return {
         "name": role_name,
         "permissions": sorted(matrix.get(role_name, frozenset())),
+    }
+
+
+# ═════ Tenant-admin overrides ════════════════════════════════════════
+# A tenant admin can tailor role permissions for THEIR tenant only. An
+# override fully replaces that role's platform grants for the tenant;
+# removing the override restores platform defaults. Stored in
+# tenant.config_overrides["role_permissions"] and applied per request by
+# get_current_user → set_request_role_overrides.
+
+
+async def _get_tenant(db: AsyncSession, tenant_id):
+    from app.models.tenant import Tenant
+
+    tenant = (await db.execute(select(Tenant).where(Tenant.id == tenant_id))).scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+    return tenant
+
+
+@tenant_router.get("")
+async def get_tenant_role_permissions(
+    current_user: AdminUser,
+    tenant_id: RequiredTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """The tenant's effective matrix: platform defaults + this tenant's overrides."""
+    matrix = await get_matrix(db, force=True)
+    tenant = await _get_tenant(db, tenant_id)
+    overrides = (tenant.config_overrides or {}).get("role_permissions") or {}
+
+    roles = []
+    for role_name in TENANT_EDITABLE_ROLES:
+        platform = sorted(matrix.get(role_name, frozenset()))
+        overridden = role_name in overrides
+        roles.append({
+            "name": role_name,
+            "platform_permissions": platform,
+            "permissions": sorted(overrides[role_name]) if overridden else platform,
+            "overridden": overridden,
+        })
+    # Tenant admins may grant anything in the catalog except forbidden keys.
+    catalog = sorted(PERMISSIONS - {"superadmin"})
+    return {"catalog": catalog, "roles": roles}
+
+
+@tenant_router.put("/{role_name}")
+async def set_tenant_role_override(
+    role_name: str,
+    body: RolePermissionsUpdate,
+    request: Request,
+    current_user: AdminUser,
+    tenant_id: RequiredTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Create/replace this tenant's override for one role."""
+    requested = set(body.permissions)
+    error = validate_tenant_override(role_name, requested)
+    if error:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if role_name not in TENANT_EDITABLE_ROLES
+            else status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
+        raise HTTPException(status_code=code, detail=error)
+
+    tenant = await _get_tenant(db, tenant_id)
+    overrides = dict((tenant.config_overrides or {}).get("role_permissions") or {})
+    overrides[role_name] = sorted(requested)
+    tenant.config_overrides = {**(tenant.config_overrides or {}), "role_permissions": overrides}
+
+    await log_audit(
+        db=db,
+        action=AuditAction.SETTINGS_UPDATE,
+        user_id=str(current_user.id),
+        resource_type="tenant_role_permissions",
+        resource_id=role_name,
+        details={"permissions": sorted(requested)},
+        request=request,
+    )
+    await db.commit()
+    return {"name": role_name, "permissions": sorted(requested), "overridden": True}
+
+
+@tenant_router.delete("/{role_name}")
+async def reset_tenant_role_override(
+    role_name: str,
+    request: Request,
+    current_user: AdminUser,
+    tenant_id: RequiredTenantId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Remove this tenant's override for one role (back to platform defaults)."""
+    if role_name not in TENANT_EDITABLE_ROLES:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+
+    tenant = await _get_tenant(db, tenant_id)
+    overrides = dict((tenant.config_overrides or {}).get("role_permissions") or {})
+    overrides.pop(role_name, None)
+    new_config = {**(tenant.config_overrides or {})}
+    if overrides:
+        new_config["role_permissions"] = overrides
+    else:
+        new_config.pop("role_permissions", None)
+    tenant.config_overrides = new_config
+
+    await log_audit(
+        db=db,
+        action=AuditAction.SETTINGS_UPDATE,
+        user_id=str(current_user.id),
+        resource_type="tenant_role_permissions",
+        resource_id=role_name,
+        details={"reset": True},
+        request=request,
+    )
+    await db.commit()
+
+    matrix = await get_matrix(db, force=True)
+    return {
+        "name": role_name,
+        "permissions": sorted(matrix.get(role_name, frozenset())),
+        "overridden": False,
     }

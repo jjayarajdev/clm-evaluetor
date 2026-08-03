@@ -22,6 +22,7 @@ an edit is therefore bounded at ~60s.
 
 import logging
 import time
+from contextvars import ContextVar
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -31,6 +32,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import Role, User
 
 logger = logging.getLogger(__name__)
+
+# Per-request tenant override of the platform matrix, loaded by
+# get_current_user from tenant.config_overrides["role_permissions"]
+# (shape: {role_name: [permission, ...]}; a present role key fully replaces
+# that role's platform grants for this tenant — an empty list locks the role
+# down). None => no override, use the platform matrix.
+_ctx_role_overrides: ContextVar[dict | None] = ContextVar("rbac_tenant_overrides", default=None)
+
+
+def set_request_role_overrides(cfg: dict | None) -> None:
+    """Bind the current tenant's role-permission overrides for this request."""
+    _ctx_role_overrides.set(cfg if isinstance(cfg, dict) and cfg else None)
 
 MATRIX_TTL_SECONDS = 60
 
@@ -177,13 +190,18 @@ def effective_matrix() -> dict[str, frozenset[str]]:
 def has_permission(user: User, *permissions: str) -> bool:
     """Whether the user holds ANY of the given permissions.
 
-    super_admin always passes — a hard security floor, not DB-configurable.
-    Reads the cached matrix (no I/O); callers on cold paths should have
-    awaited get_matrix() first (require_permission does).
+    Resolution order: super_admin floor (always passes, not configurable) →
+    the request's tenant override for this role, when present → the platform
+    matrix. Reads cached/context state only (no I/O); callers on cold paths
+    should have awaited get_matrix() first (require_permission does).
     """
     if user.role == Role.SUPER_ADMIN:
         return True
-    granted = effective_matrix().get(user.role.value, frozenset())
+    overrides = _ctx_role_overrides.get()
+    if overrides is not None and user.role.value in overrides:
+        granted = set(overrides.get(user.role.value) or [])
+    else:
+        granted = effective_matrix().get(user.role.value, frozenset())
     return any(p in granted for p in permissions)
 
 
@@ -215,6 +233,51 @@ def require_permission(*permissions: str):
         return current_user
 
     return permission_checker
+
+
+async def get_effective_permissions(db: AsyncSession, user: User) -> list[str]:
+    """The permission list a user actually holds: platform matrix overlaid
+    with their tenant's overrides. Used by /auth/login and /auth/me (the list
+    the frontend consumes)."""
+    matrix = await get_matrix(db, force=True)
+    base = matrix.get(user.role.value, frozenset())
+    if user.tenant_id and user.role != Role.SUPER_ADMIN:
+        try:
+            from app.models.tenant import Tenant
+
+            co = (
+                await db.execute(
+                    select(Tenant.config_overrides).where(Tenant.id == user.tenant_id)
+                )
+            ).scalar_one_or_none() or {}
+            overrides = co.get("role_permissions") or {}
+            if user.role.value in overrides:
+                return sorted(set(overrides[user.role.value] or []))
+        except Exception:  # noqa: BLE001 — never block auth on the overlay
+            logger.warning("Tenant role-override load failed; using platform matrix", exc_info=True)
+    return sorted(base)
+
+
+# Roles a tenant admin may override (never super_admin), and keys they may
+# never grant. The admin role keeps its floor tenant-side too.
+TENANT_EDITABLE_ROLES = ("admin", "legal", "procurement", "bu_head", "viewer")
+TENANT_FORBIDDEN_GRANTS = frozenset({"superadmin"})
+ADMIN_LOCKOUT_FLOOR = frozenset({"admin", "settings"})
+
+
+def validate_tenant_override(role_name: str, permissions: set[str]) -> str | None:
+    """Guardrails for a tenant-level override. Returns an error string or None."""
+    if role_name not in TENANT_EDITABLE_ROLES:
+        return f"Role '{role_name}' cannot be overridden per tenant."
+    unknown = permissions - PERMISSIONS
+    if unknown:
+        return f"Unknown permission keys: {sorted(unknown)}"
+    forbidden = permissions & TENANT_FORBIDDEN_GRANTS
+    if forbidden:
+        return f"Tenant overrides may not grant: {sorted(forbidden)}"
+    if role_name == "admin" and not ADMIN_LOCKOUT_FLOOR.issubset(permissions):
+        return "The admin role must keep 'admin' and 'settings' (lockout prevention)."
+    return None
 
 
 async def seed_default_role_permissions(db: AsyncSession) -> int:

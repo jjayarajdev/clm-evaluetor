@@ -28,8 +28,9 @@ import {
   getAzureOpenAI, setAzureOpenAI, testAzureOpenAI,
 } from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import TenantRolePermissionsSection from '@/components/settings/TenantRolePermissionsSection'
 
-type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance' | 'extraction' | 'scoring' | 'ai'
+type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance' | 'extraction' | 'scoring' | 'ai' | 'permissions'
 
 interface SettingsSection {
   id: SettingsTab
@@ -87,6 +88,12 @@ const sections: SettingsSection[] = [
     icon: SparklesIcon,
     description: 'Use your own Azure OpenAI resource for this organization (admin only)',
   },
+  {
+    id: 'permissions',
+    name: 'Roles & Permissions',
+    icon: ShieldCheckIcon,
+    description: 'Tailor what each role can do in your organization (admin only)',
+  },
 ]
 
 export default function SettingsPage() {
@@ -94,7 +101,7 @@ export default function SettingsPage() {
   const { isAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
 
-  const adminOnly: SettingsTab[] = ['extraction', 'scoring', 'ai']
+  const adminOnly: SettingsTab[] = ['extraction', 'scoring', 'ai', 'permissions']
   const visibleSections = useMemo(
     () => sections.filter((s) => !adminOnly.includes(s.id) || isAdmin),
     [isAdmin]
@@ -159,6 +166,7 @@ export default function SettingsPage() {
               )}
               {activeTab === 'scoring' && isAdmin && <ScoringRulesSection />}
               {activeTab === 'ai' && isAdmin && <AzureOpenAISection />}
+              {activeTab === 'permissions' && isAdmin && <TenantRolePermissionsSection />}
             </div>
           </div>
         </div>

@@ -2674,7 +2674,8 @@
       "appearance": "Appearance",
       "extraction": "AI Extraction",
       "scoring": "Scoring Rules",
-      "ai": "AI Provider"
+      "ai": "AI Provider",
+      "permissions": "Roles & Permissions"
     },
     "tabDescriptions": {
       "general": "Basic application settings",
@@ -3191,6 +3192,10 @@
     "saved": "Saved ✓",
     "reset": "Reset",
     "saveFailed": "Save failed",
-    "footerNote": "super_admin always passes all checks"
+    "footerNote": "super_admin always passes all checks",
+    "tenantSubtitle": "Tailor what each role can do in YOUR organization. Roles without an override follow the platform defaults. Changes apply to users on their next action.",
+    "overridden": "customized",
+    "resetToPlatform": "Use platform defaults",
+    "tenantFooterNote": "Overrides apply to this organization only"
   }
 }

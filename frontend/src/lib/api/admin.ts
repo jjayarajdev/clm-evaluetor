@@ -1291,3 +1291,29 @@ export async function updateRolePermissions(
   const response = await client.put(`/admin/role-permissions/${roleName}`, { permissions })
   return response.data
 }
+
+// Tenant-admin overrides layered on the platform matrix (this tenant only).
+export interface TenantRoleRow {
+  name: string
+  platform_permissions: string[]
+  permissions: string[]
+  overridden: boolean
+}
+
+export async function getTenantRolePermissions(): Promise<{ catalog: string[]; roles: TenantRoleRow[] }> {
+  const response = await client.get('/admin/tenant-role-permissions')
+  return response.data
+}
+
+export async function updateTenantRolePermissions(
+  roleName: string,
+  permissions: string[],
+): Promise<TenantRoleRow> {
+  const response = await client.put(`/admin/tenant-role-permissions/${roleName}`, { permissions })
+  return response.data
+}
+
+export async function resetTenantRolePermissions(roleName: string): Promise<TenantRoleRow> {
+  const response = await client.delete(`/admin/tenant-role-permissions/${roleName}`)
+  return response.data
+}

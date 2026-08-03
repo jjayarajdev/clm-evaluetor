@@ -2674,7 +2674,8 @@
       "appearance": "Apparence",
       "extraction": "Extraction IA",
       "scoring": "Règles de notation",
-      "ai": "Fournisseur IA"
+      "ai": "Fournisseur IA",
+      "permissions": "Rôles et permissions"
     },
     "tabDescriptions": {
       "general": "Paramètres de base de l'application",
@@ -3191,6 +3192,10 @@
     "saved": "Enregistré ✓",
     "reset": "Réinitialiser",
     "saveFailed": "Échec de l'enregistrement",
-    "footerNote": "super_admin passe toujours tous les contrôles"
+    "footerNote": "super_admin passe toujours tous les contrôles",
+    "tenantSubtitle": "Ajustez ce que chaque rôle peut faire dans VOTRE organisation. Les rôles sans personnalisation suivent les valeurs par défaut de la plateforme. Prise d'effet à la prochaine action des utilisateurs.",
+    "overridden": "personnalisé",
+    "resetToPlatform": "Valeurs par défaut de la plateforme",
+    "tenantFooterNote": "Les personnalisations s'appliquent uniquement à cette organisation"
   }
 }
