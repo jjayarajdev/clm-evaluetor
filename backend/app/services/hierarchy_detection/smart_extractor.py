@@ -44,25 +44,58 @@ class SmartDocumentExtractor:
         )
         contracts = result.scalars().all()
 
-        # Extract in parallel with concurrency limit
-        semaphore = asyncio.Semaphore(MAX_CONCURRENT)
+        # Cards derive only from extracted_text (immutable once parsed), so a
+        # stored card whose content_hash matches the current text is reusable
+        # forever — no LLM call. Misses are extracted and written back below.
         cards: dict[uuid.UUID, DocumentCard] = {}
+        misses: list[Contract] = []
+        for contract in contracts:
+            cached = contract.hierarchy_card
+            if cached and cached.get("content_hash") == self._content_hash(contract):
+                try:
+                    cards[contract.id] = DocumentCard.from_dict(cached)
+                    continue
+                except Exception:  # noqa: BLE001 — corrupt cache entry: re-extract
+                    logger.warning(f"Unreadable cached card for {contract.filename}; re-extracting")
+            misses.append(contract)
+        cache_hits = len(cards)
+
+        # Extract misses in parallel with concurrency limit. LLM-only inside
+        # the gathered tasks — the shared AsyncSession is not concurrency-safe,
+        # so all ORM writes happen after the gather in this coroutine.
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT)
+        extracted: dict[uuid.UUID, DocumentCard] = {}
 
         async def _extract_one(contract: Contract) -> None:
             async with semaphore:
                 try:
-                    card = await self._extract_single(contract)
-                    cards[contract.id] = card
+                    extracted[contract.id] = await self._extract_single(contract)
                 except Exception as e:
                     logger.warning(
                         f"Extraction failed for {contract.filename}: {e}"
                     )
                     # Return a minimal card from existing data
-                    cards[contract.id] = self._fallback_card(contract)
+                    extracted[contract.id] = self._fallback_card(contract)
 
-        await asyncio.gather(*[_extract_one(c) for c in contracts])
-        logger.info(f"Extracted {len(cards)} document cards")
+        await asyncio.gather(*[_extract_one(c) for c in misses])
+
+        for contract in misses:
+            card = extracted.get(contract.id)
+            if card is None:
+                continue
+            cards[contract.id] = card
+            # Don't cache fallback cards (no/failed extraction) — a later fix
+            # to the text should trigger a real extraction, not a cache hit.
+            if card.content_hash and (contract.extracted_text or "").strip():
+                contract.hierarchy_card = card.to_dict()  # caller commits
+
+        logger.info(
+            f"Extracted {len(cards)} document cards ({cache_hits} from cache)"
+        )
         return cards
+
+    def _content_hash(self, contract: Contract) -> str:
+        return hashlib.md5(((contract.extracted_text or "")[:5000]).encode()).hexdigest()
 
     async def _extract_single(self, contract: Contract) -> DocumentCard:
         """Extract a DocumentCard from a single contract."""

@@ -626,80 +626,13 @@ class IndexingService:
             except Exception as e:
                 logger.warning(f"Dashboard cache invalidation failed: {e}")
 
-            # Run hierarchy detection to suggest related contracts.
-            # Skip when this contract already has links or suggestions —
-            # re-analysis would just re-derive them with expensive LLM
-            # pairwise comparisons and flood the suggestion queue.
-            try:
-                from sqlalchemy import or_
-
-                from app.models.contract_link import ContractLink
-                from app.models.suggested_link import SuggestedContractLink
-                from app.services.hierarchy_detection import detect_hierarchy
-
-                has_links = (
-                    await self.db.execute(
-                        select(ContractLink.id)
-                        .where(
-                            or_(
-                                ContractLink.parent_contract_id == contract.id,
-                                ContractLink.child_contract_id == contract.id,
-                            )
-                        )
-                        .limit(1)
-                    )
-                ).scalar_one_or_none()
-                has_suggestions = None
-                if not has_links:
-                    # Only live suggestions count — expired/rejected ones
-                    # must not block re-detection forever
-                    has_suggestions = (
-                        await self.db.execute(
-                            select(SuggestedContractLink.id)
-                            .where(
-                                or_(
-                                    SuggestedContractLink.source_contract_id == contract.id,
-                                    SuggestedContractLink.target_contract_id == contract.id,
-                                ),
-                                SuggestedContractLink.status.in_(["pending", "approved"]),
-                            )
-                            .limit(1)
-                        )
-                    ).scalar_one_or_none()
-                if has_links or has_suggestions:
-                    recorder.skipped(
-                        "hierarchy_detection",
-                        reason="links or suggestions already exist for this contract",
-                    )
-                else:
-                    # Gather tenant's completed contracts for pairwise analysis
-                    tenant_contracts = await self.db.execute(
-                        select(Contract.id).where(
-                            Contract.tenant_id == contract.tenant_id,
-                            Contract.status == ContractStatus.COMPLETED,
-                        ).order_by(Contract.created_at.desc()).limit(50)
-                    )
-                    contract_ids_for_hierarchy = list(tenant_contracts.scalars().all())
-
-                    if len(contract_ids_for_hierarchy) >= 2:
-                        num_suggestions = await detect_hierarchy(
-                            db=self.db,
-                            contract_ids=contract_ids_for_hierarchy,
-                            tenant_id=contract.tenant_id,
-                            batch_id=f"indexer_{contract.id}",
-                        )
-                        if num_suggestions:
-                            await self.db.flush()
-                            logger.info(f"Hierarchy detection created {num_suggestions} suggestions for {contract.id}")
-                        recorder.success("hierarchy_detection", details={"suggestions": num_suggestions or 0})
-                    else:
-                        recorder.skipped(
-                            "hierarchy_detection",
-                            reason="fewer than 2 completed contracts to compare",
-                        )
-            except Exception as e:
-                logger.warning(f"Hierarchy detection failed for {contract.id}: {e}")
-                recorder.failed("hierarchy_detection", error=str(e))
+            # Hierarchy detection is deliberately NOT run here. It used to run
+            # per-contract at index time AND again in deep analysis / batch
+            # completion — 5 full LLM portfolio scans for a 2-doc batch, plus
+            # duplicate suggestions. It now runs exactly once per processed
+            # unit: in _run_deep_analysis for single uploads, or at batch
+            # completion in the processing worker for batch uploads.
+            recorder.skipped("hierarchy_detection", reason="deferred to deep analysis")
 
             # Persist per-stage outcomes so silent failures are visible to tenants.
             # Deep analysis will augment this dict with its own stages later.

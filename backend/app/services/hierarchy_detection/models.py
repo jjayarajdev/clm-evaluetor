@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import enum
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 
 
 class RelationshipType(str, enum.Enum):
@@ -61,6 +61,49 @@ class DocumentCard:
     # Metadata
     extraction_confidence: float = 0.0
     content_hash: str | None = None
+
+    def to_dict(self) -> dict:
+        """JSON-serializable form for the contracts.hierarchy_card cache."""
+        d = asdict(self)
+        d["contract_id"] = str(self.contract_id)
+        return d
+
+    @classmethod
+    def from_dict(cls, data: dict) -> DocumentCard:
+        """Rebuild a card from its cached JSON form (tolerant of missing keys)."""
+        return cls(
+            contract_id=uuid.UUID(str(data["contract_id"])),
+            filename=data.get("filename") or "",
+            title=data.get("title"),
+            doc_type=data.get("doc_type"),
+            doc_identifier=data.get("doc_identifier"),
+            doc_number=data.get("doc_number"),
+            parties=[
+                PartyInfo(name=p["name"], role=p.get("role"))
+                for p in data.get("parties") or []
+                if isinstance(p, dict) and p.get("name")
+            ],
+            parent_references=[
+                ParentReference(
+                    referenced_type=pr.get("referenced_type"),
+                    referenced_title=pr.get("referenced_title"),
+                    relationship=pr.get("relationship"),
+                    party_names=pr.get("party_names") or [],
+                    referenced_date=pr.get("referenced_date"),
+                    reference_text=pr.get("reference_text"),
+                )
+                for pr in data.get("parent_references") or []
+                if isinstance(pr, dict)
+            ],
+            child_references=[str(c) for c in data.get("child_references") or [] if c],
+            subject_summary=data.get("subject_summary"),
+            effective_date=data.get("effective_date"),
+            term=data.get("term"),
+            governing_law=data.get("governing_law"),
+            financial_summary=data.get("financial_summary"),
+            extraction_confidence=float(data.get("extraction_confidence") or 0.0),
+            content_hash=data.get("content_hash"),
+        )
 
 
 @dataclass

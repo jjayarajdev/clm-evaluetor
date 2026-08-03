@@ -235,6 +235,14 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         nullable=True,
     )
 
+    # Cached hierarchy-detection DocumentCard (derived from extracted_text by
+    # an LLM). Valid while its embedded content_hash matches the text; written
+    # only by hierarchy_detection.smart_extractor.
+    hierarchy_card: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
     # Client association
     client_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("clients.id"),

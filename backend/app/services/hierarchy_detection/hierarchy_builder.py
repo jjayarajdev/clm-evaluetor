@@ -49,8 +49,12 @@ class HierarchyBuilder:
         cards: dict[uuid.UUID, DocumentCard],
         tenant_id: uuid.UUID,
         batch_id: str | None = None,
+        existing_pairs: set[tuple[uuid.UUID, uuid.UUID]] | None = None,
     ) -> list[SuggestedContractLink]:
         """Build hierarchy from classified pairs and create suggestions.
+
+        existing_pairs: normalized (min, max) contract-id pairs that already
+        have a link or live suggestion — never re-suggested.
 
         Returns the list of created SuggestedContractLink records.
         """
@@ -63,6 +67,19 @@ class HierarchyBuilder:
 
         # Resolve conflicts (same pair classified differently)
         resolved = self._resolve_conflicts(actionable)
+
+        # Cross-run dedupe: pairs classified upstream should already be
+        # filtered, but never persist a duplicate of an existing pair.
+        if existing_pairs:
+            resolved = [
+                p
+                for p in resolved
+                if (min(p.contract_a_id, p.contract_b_id),
+                    max(p.contract_a_id, p.contract_b_id)) not in existing_pairs
+            ]
+            if not resolved:
+                logger.info("All resolved pairs already linked or suggested")
+                return []
 
         # Generate SuggestedContractLink records
         suggestions = self._generate_suggestions(

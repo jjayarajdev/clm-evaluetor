@@ -118,7 +118,12 @@ async def _process_one_job(job, session: AsyncSession) -> None:
             # Run deep analysis (clauses, obligations, SLAs, etc.)
             try:
                 from app.routers.contracts import _run_deep_analysis
-                await _run_deep_analysis(contract_id, user_id, file_path)
+                # Batch jobs defer hierarchy detection to _check_batch_completion
+                # (one run per batch); single uploads keep per-contract detection.
+                await _run_deep_analysis(
+                    contract_id, user_id, file_path,
+                    run_hierarchy=(job.batch_id is None),
+                )
             except Exception as e:
                 logger.warning(f"Deep analysis failed for {contract_id}: {e}")
                 # Deep analysis failure is non-fatal
@@ -175,7 +180,9 @@ async def _check_batch_completion(batch_id: str, session: AsyncSession) -> None:
         if j["status"] == ProcessingJobStatus.COMPLETED.value
     ]
 
-    if len(completed_ids) < 2:
+    # A 1-doc batch still gets hierarchy detection: the scope below unions the
+    # batch with the tenant's recent portfolio, so there is plenty to compare.
+    if len(completed_ids) < 1:
         return
 
     # Stage 0: Deterministic framework-set linking from filename structure
@@ -208,9 +215,12 @@ async def _check_batch_completion(batch_id: str, session: AsyncSession) -> None:
     except Exception as e:
         logger.warning(f"Framework linking failed for batch {batch_id}: {e}")
 
-    # Stage 1: Run hierarchy detection (new pairwise system)
+    # Stage 1: Run hierarchy detection (new pairwise system). This is the ONE
+    # hierarchy run for a batch upload (indexer and deep analysis defer to it):
+    # scope = batch members ∪ recent portfolio, so new docs link to existing
+    # masters, not just to each other.
     try:
-        from app.services.hierarchy_detection import detect_hierarchy
+        from app.services.hierarchy_detection import detect_hierarchy, get_hierarchy_scope
 
         # Get tenant_id from first contract
         result = await session.execute(
@@ -225,11 +235,16 @@ async def _check_batch_completion(batch_id: str, session: AsyncSession) -> None:
                 cid if isinstance(cid, _uuid.UUID) else _uuid.UUID(str(cid))
                 for cid in completed_ids
             ]
-            num_suggestions = await detect_hierarchy(
-                session, contract_uuids, tenant_id, batch_id
-            )
+            scope = await get_hierarchy_scope(session, tenant_id, contract_uuids)
+            num_suggestions = 0
+            if len(scope) >= 2:
+                num_suggestions = await detect_hierarchy(
+                    session, scope, tenant_id, batch_id
+                )
+            # Unconditional commit — a 0-suggestion run must still persist the
+            # document cards cached on contract rows during the run.
+            await session.commit()
             if num_suggestions:
-                await session.commit()
                 logger.info(
                     f"Batch {batch_id}: hierarchy detection created "
                     f"{num_suggestions} suggestions"

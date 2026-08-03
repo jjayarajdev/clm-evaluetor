@@ -364,11 +364,16 @@ async def upload_single_file(
         )
 
 
-async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
+async def _run_deep_analysis(
+    contract_id: str, user_id: str, file_path: str, run_hierarchy: bool = True
+):
     """Run deep AI analysis on a contract.
 
     Uses separate sessions for each major stage to ensure fault isolation —
     a failure in one stage doesn't roll back earlier successful stages.
+
+    run_hierarchy=False defers hierarchy detection to the processing worker's
+    batch-completion hook (one run per batch instead of one per contract).
     """
     from app.services.parser import get_parser
     from app.agents.clause_extraction import extract_clauses, store_extracted_clauses, reclassify_sla_chunks
@@ -879,41 +884,55 @@ async def _run_deep_analysis(contract_id: str, user_id: str, file_path: str):
         # --- Hierarchy detection ---
         tracker.update_progress(contract_id, ProcessingStage.LINK_DETECTION, "Finding related contracts...")
         try:
-            from app.services.hierarchy_detection import detect_hierarchy
+            from app.services.hierarchy_detection import (
+                detect_hierarchy,
+                get_hierarchy_scope,
+                should_detect,
+            )
 
-            async with async_session_maker() as session:
-                result = await session.execute(
-                    select(Contract).where(Contract.id == cid_uuid)
+            if not run_hierarchy:
+                recorder.skipped(
+                    ProcessingStage.LINK_DETECTION,
+                    reason="deferred to batch completion",
                 )
-                contract = result.scalar_one_or_none()
-
-                if contract and contract.tenant_id:
-                    tenant_contracts = await session.execute(
-                        select(Contract.id).where(
-                            Contract.tenant_id == contract.tenant_id,
-                            Contract.status == ContractStatus.COMPLETED,
-                        ).order_by(Contract.created_at.desc()).limit(50)
+            else:
+                async with async_session_maker() as session:
+                    result = await session.execute(
+                        select(Contract).where(Contract.id == cid_uuid)
                     )
-                    contract_ids_for_hierarchy = list(tenant_contracts.scalars().all())
+                    contract = result.scalar_one_or_none()
 
-                    if len(contract_ids_for_hierarchy) >= 2:
-                        num_suggestions = await detect_hierarchy(
-                            db=session,
-                            contract_ids=contract_ids_for_hierarchy,
-                            tenant_id=contract.tenant_id,
-                            batch_id=f"deep_analysis_{contract_id}",
-                        )
-                        await session.commit()
-                        logger.info(f"[DEEP ANALYSIS] Hierarchy detection created {num_suggestions} suggestions")
-                        recorder.success(
-                            ProcessingStage.LINK_DETECTION,
-                            details={"suggestions": num_suggestions or 0},
-                        )
-                    else:
-                        recorder.skipped(
-                            ProcessingStage.LINK_DETECTION,
-                            reason="fewer than 2 completed contracts to compare",
-                        )
+                    if contract and contract.tenant_id:
+                        if not await should_detect(session, cid_uuid):
+                            recorder.skipped(
+                                ProcessingStage.LINK_DETECTION,
+                                reason="links or suggestions already exist for this contract",
+                            )
+                        else:
+                            contract_ids_for_hierarchy = await get_hierarchy_scope(
+                                session, contract.tenant_id, [cid_uuid]
+                            )
+
+                            if len(contract_ids_for_hierarchy) >= 2:
+                                num_suggestions = await detect_hierarchy(
+                                    db=session,
+                                    contract_ids=contract_ids_for_hierarchy,
+                                    tenant_id=contract.tenant_id,
+                                    batch_id=f"deep_analysis_{contract_id}",
+                                )
+                                # Unconditional commit — also persists document
+                                # cards cached on contract rows during the run.
+                                await session.commit()
+                                logger.info(f"[DEEP ANALYSIS] Hierarchy detection created {num_suggestions} suggestions")
+                                recorder.success(
+                                    ProcessingStage.LINK_DETECTION,
+                                    details={"suggestions": num_suggestions or 0},
+                                )
+                            else:
+                                recorder.skipped(
+                                    ProcessingStage.LINK_DETECTION,
+                                    reason="fewer than 2 completed contracts to compare",
+                                )
         except Exception as e:
             logger.warning(f"[DEEP ANALYSIS] Hierarchy detection failed for {contract_id}: {e}")
             recorder.failed(ProcessingStage.LINK_DETECTION, error=str(e))
