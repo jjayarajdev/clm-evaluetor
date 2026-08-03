@@ -1206,10 +1206,22 @@ export default function PostSigningPage() {
 
       {activeTab === 'renewals' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <StatCard title={t('renewals.days30')} value={dashboard.renewals.expiring_30_days} icon={ClockIcon} color="danger" variant="filled" />
             <StatCard title={t('renewals.days60')} value={dashboard.renewals.expiring_60_days} icon={ClockIcon} color="warning" variant="filled" />
             <StatCard title={t('renewals.days90')} value={dashboard.renewals.expiring_90_days} icon={ClockIcon} color="blue" variant="filled" />
+            <StatCard
+              title={t('renewals.expiredNeedsAction')}
+              value={dashboard.renewals.expired_recent_count ?? 0}
+              subtitle={
+                dashboard.renewals.expired_value
+                  ? t('renewals.lapsedValue', { value: `$${(dashboard.renewals.expired_value / 1000000).toFixed(1)}M` })
+                  : undefined
+              }
+              icon={ExclamationTriangleIcon}
+              color="danger"
+              variant="filled"
+            />
             <StatCard
               title={t('renewals.valueAtRisk')}
               value={dashboard.renewals.total_value_at_risk ? `$${(dashboard.renewals.total_value_at_risk / 1000000).toFixed(1)}M` : '$0'}

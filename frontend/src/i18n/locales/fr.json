@@ -517,7 +517,9 @@
     "totalExpiring": "Total arrivant à expiration",
     "valueAtRisk": "Valeur à risque",
     "noContractsInWindow": "Aucun contrat dans cette fenêtre de renouvellement",
-    "expiredValueNote": "+ {{value}} dans les contrats expirés"
+    "expiredValueNote": "+ {{value}} dans les contrats expirés",
+    "expiredNeedsAction": "Expirés — Action requise",
+    "lapsedValue": "{{value}} échus"
   },
   "reports": {
     "title": "Rapports de conformité",

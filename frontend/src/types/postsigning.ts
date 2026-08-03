@@ -99,6 +99,8 @@ export interface RenewalWidget {
   expired_count?: number
   no_date_count?: number
   total_contracts?: number
+  expired_recent_count?: number
+  expired_value?: number
   upcoming_renewals: UpcomingRenewal[]
 }
 

@@ -517,7 +517,9 @@
     "totalExpiring": "Total Expiring",
     "valueAtRisk": "Value at Risk",
     "noContractsInWindow": "No contracts in this renewal window",
-    "expiredValueNote": "+ {{value}} in expired contracts"
+    "expiredValueNote": "+ {{value}} in expired contracts",
+    "expiredNeedsAction": "Expired — Needs Action",
+    "lapsedValue": "{{value}} lapsed"
   },
   "reports": {
     "title": "Compliance Reports",

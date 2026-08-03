@@ -289,9 +289,12 @@ class PostSigningService:
 
     def _build_renewal_widget(self, contracts, today):
         """Build the renewal widget from contract data."""
+        from app.routers.renewals import EXPIRED_LOOKBACK_DAYS
+
         expiring_30, expiring_60, expiring_90, past_notice = [], [], [], []
         expired_count = 0
         no_date_count = 0
+        expired_recent = []
 
         for c in contracts:
             if not c.expiration_date:
@@ -300,6 +303,8 @@ class PostSigningService:
             days_until = (c.expiration_date - today).days
             if days_until < 0:
                 expired_count += 1
+                if days_until >= -EXPIRED_LOOKBACK_DAYS:
+                    expired_recent.append(c)
                 continue
             if days_until <= 30:
                 expiring_30.append(c)
@@ -313,6 +318,7 @@ class PostSigningService:
                     past_notice.append(c)
 
         value_at_risk = sum(float(c.contract_value) for c in expiring_90 if c.contract_value)
+        expired_value = sum(float(c.contract_value) for c in expired_recent if c.contract_value)
 
         upcoming = sorted(expiring_90, key=lambda c: c.expiration_date or date.max)[:5]
         upcoming_renewals = [
@@ -336,6 +342,8 @@ class PostSigningService:
             expired_count=expired_count,
             no_date_count=no_date_count,
             total_contracts=len(contracts),
+            expired_recent_count=len(expired_recent),
+            expired_value=expired_value,
             upcoming_renewals=upcoming_renewals,
         )
         return widget, past_notice

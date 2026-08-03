@@ -29,6 +29,12 @@ from app.schemas.renewal import (
 
 router = APIRouter(prefix="/api/renewals", tags=["renewals"])
 
+# How far back the renewal radar keeps showing lapsed contracts. Recently
+# expired contracts are the ones most needing action (renegotiate, extend,
+# close out) — dropping them the day after expiry made the page go blind on
+# a fully-lapsed portfolio.
+EXPIRED_LOOKBACK_DAYS = 180
+
 
 def calculate_notice_deadline(expiration_date: date | None, notice_period_days: int | None) -> date | None:
     """Calculate the notice deadline based on expiration and notice period."""
@@ -164,8 +170,8 @@ async def get_renewal_calendar(
     today = date.today()
     cutoff_90 = today + timedelta(days=90)
 
-    # Get all contracts with expiration dates within 90 days or already expired (within last 30 days)
-    past_cutoff = today - timedelta(days=30)
+    # All contracts expiring within 90 days, plus recently lapsed ones
+    past_cutoff = today - timedelta(days=EXPIRED_LOOKBACK_DAYS)
 
     query = select(Contract).where(
         and_(

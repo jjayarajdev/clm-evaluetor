@@ -55,6 +55,11 @@ class RenewalWidget(BaseModel):
     no_date_count: int = 0          # no expiration_date on file at all
     total_contracts: int = 0
 
+    # Recently lapsed contracts (expired within the renewal lookback window) —
+    # these need action (renegotiate/extend/close out), unlike long-dead ones.
+    expired_recent_count: int = 0
+    expired_value: float = 0.0      # summed value of recently lapsed contracts
+
     # Upcoming renewals
     upcoming_renewals: list[dict]  # Top 5
 
