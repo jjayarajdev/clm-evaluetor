@@ -1,18 +1,42 @@
+/* Cross-tenant user administration — Direction B restyle.
+   Header + tenant filter → sortable Table (Avatar rows, role Pills, tenant
+   Tags) → create/edit in Drawers, deactivate via ConfirmDialog.
+   Queries, mutations, username no-space validation, BU scoping rules and the
+   tenant querystring filter are unchanged from the pre-redesign page. */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import {
-  PlusIcon,
-  PencilSquareIcon,
-  TrashIcon,
-  UserCircleIcon,
-  ShieldCheckIcon,
+  BuildingOffice2Icon,
+  ExclamationCircleIcon,
   FunnelIcon,
+  PencilSquareIcon,
+  PlusIcon,
+  RectangleGroupIcon,
+  ShieldCheckIcon,
+  TrashIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn, formatDate } from '@/lib/utils'
+import {
+  Avatar,
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Select,
+  Table,
+  Tag,
+  useToast,
+} from '@/components/ui'
+import type { PillTone, TableColumn } from '@/components/ui'
+import { formatDate } from '@/lib/utils'
 import type { Tenant, Role, UserWithTenant } from '@/types'
 import type { BusinessUnit } from '@/types/business-unit'
 
@@ -25,13 +49,14 @@ const ROLE_LABELS: Record<Role, string> = {
   bu_head: 'BU Head',
 }
 
-const ROLE_COLORS: Record<Role, string> = {
-  admin: 'bg-purple-100 text-purple-700',
-  legal: 'bg-blue-100 text-blue-700',
-  procurement: 'bg-green-100 text-green-700',
-  viewer: 'bg-gray-100 text-gray-700',
-  super_admin: 'bg-rose-100 text-rose-700',
-  bu_head: 'bg-amber-100 text-amber-700',
+/* Same hue mapping as the legacy badge colors: purple/blue/green/gray/rose/amber. */
+const ROLE_TONES: Record<Role, PillTone> = {
+  admin: 'p',
+  legal: 'in',
+  procurement: 'ok',
+  viewer: 'n',
+  super_admin: 'da',
+  bu_head: 'wa',
 }
 
 interface ProfileFields {
@@ -67,9 +92,13 @@ const EMPTY_PROFILE: ProfileFields = {
   department: '',
 }
 
+const CREATE_FORM_ID = 'global-user-create-form'
+const EDIT_FORM_ID = 'global-user-edit-form'
+
 export default function GlobalUsersPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const tenantFilter = searchParams.get('tenant') || ''
 
@@ -104,7 +133,7 @@ export default function GlobalUsersPage() {
     queryFn: () => api.getTenants(false),
   })
 
-  // Fetch BUs for the selected tenant (used in create modal) or editing user's tenant
+  // Fetch BUs for the selected tenant (used in create drawer) or editing user's tenant
   const buTenantId = formData.tenant_id || editingUser?.tenant_id || ''
   const { data: businessUnitsData } = useQuery({
     queryKey: ['business-units', buTenantId],
@@ -155,6 +184,9 @@ export default function GlobalUsersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-users'] })
       setDeleteConfirmUser(null)
+    },
+    onError: () => {
+      toast({ text: t('superadmin.users.deactivateFailed'), error: true })
     },
   })
 
@@ -223,612 +255,479 @@ export default function GlobalUsersPage() {
     return tenants?.find(t => t.id === tenantId)?.name || tenantId
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+  const roleLabel = (role: Role) => t(`roles.${role}`, { defaultValue: ROLE_LABELS[role] })
+
+  const roleOptions = Object.entries(ROLE_LABELS)
+    .filter(([value]) => value !== 'super_admin')
+    .map(([value, label]) => ({ value, label: t(`roles.${value}`, { defaultValue: label }) }))
+
+  /* BU picker — shared between create and edit drawers (same markup, different state). */
+  const renderBuSelect = (
+    role: Role,
+    value: string,
+    onChange: (id: string) => void,
+  ) => {
+    if (activeBusinessUnits.length === 0) {
+      return (
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('nav.allUsers')}</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <label className="lbl">{t('superadmin.users.businessUnit')}</label>
+          <div className="banner banner-wa" style={{ padding: '10px 12px', fontSize: 'var(--fs-sm)' }}>
+            <ExclamationCircleIcon style={{ width: 15, height: 15, flexShrink: 0, marginTop: 1 }} aria-hidden />
+            <span>
+              {t('users.buNoneYet', { defaultValue: 'No business units in this tenant yet. Without one, this user will see all contracts.' })}
+            </span>
+          </div>
+        </div>
+      )
+    }
+    return (
+      <Select
+        label={`${t('superadmin.users.businessUnit')}${role !== 'admin' ? ' *' : ''}`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={role !== 'admin'}
+        hint={
+          role === 'admin'
+            ? t('users.buAdminScopeHint', { defaultValue: 'Leave unassigned for full tenant access, or pick a unit to restrict this admin to it.' })
+            : t('users.buScopeHint', { defaultValue: 'Controls which contracts this user can see (their unit + unassigned).' })
+        }
+        options={[
+          {
+            value: '',
+            disabled: role !== 'admin',
+            label:
+              role === 'admin'
+                ? t('users.buFullAccess', { defaultValue: '— Unassigned (full tenant access) —' })
+                : t('users.buSelectPlaceholder', { defaultValue: 'Select a business unit…' }),
+          },
+          ...activeBusinessUnits.map((bu) => ({ value: bu.id, label: bu.name })),
+        ]}
+      />
+    )
+  }
+
+  const columns: TableColumn<UserWithTenant>[] = [
+    {
+      key: 'user',
+      header: t('superadmin.user'),
+      sortable: true,
+      sortValue: (u) => u.full_name || u.username,
+      render: (u) => (
+        <span className="row" style={{ gap: 10 }}>
+          <Avatar name={u.full_name || u.username} size={28} />
+          <span style={{ minWidth: 0 }}>
+            <span className="trunc" style={{ display: 'block', fontWeight: 500 }}>
+              {u.full_name || u.username}
+            </span>
+            <span className="faint trunc" style={{ display: 'block', fontSize: 'var(--fs-sm)' }}>
+              {u.full_name ? `${u.username} · ${u.email}` : u.email}
+            </span>
+            {u.job_title && (
+              <span className="faint trunc" style={{ display: 'block', fontSize: 'var(--fs-xs)' }}>
+                {u.job_title}
+                {u.department ? ` · ${u.department}` : ''}
+              </span>
+            )}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'tenant',
+      header: t('superadmin.tenant'),
+      width: 150,
+      sortable: true,
+      sortValue: (u) => u.tenant_name || getTenantName(u.tenant_id),
+      render: (u) => (
+        <Tag icon={BuildingOffice2Icon}>{u.tenant_name || getTenantName(u.tenant_id)}</Tag>
+      ),
+    },
+    {
+      key: 'role',
+      header: t('superadmin.role'),
+      width: 140,
+      sortable: true,
+      sortValue: (u) => u.role,
+      render: (u) => (
+        <Pill tone={ROLE_TONES[u.role]} dot={false}>
+          {u.role === 'admin' && (
+            <ShieldCheckIcon style={{ width: 12, height: 12, flexShrink: 0 }} aria-hidden />
+          )}
+          {roleLabel(u.role)}
+        </Pill>
+      ),
+    },
+    {
+      key: 'bu',
+      header: t('superadmin.users.businessUnit'),
+      width: 150,
+      sortable: true,
+      sortValue: (u) => u.business_unit_name,
+      render: (u) =>
+        u.business_unit_name ? (
+          <Tag icon={RectangleGroupIcon}>{u.business_unit_name}</Tag>
+        ) : (
+          <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>--</span>
+        ),
+    },
+    {
+      key: 'status',
+      header: t('common.status'),
+      width: 104,
+      sortable: true,
+      sortValue: (u) => (u.is_active ? 0 : 1),
+      render: (u) => (
+        <Pill tone={u.is_active ? 'ok' : 'da'}>
+          {u.is_active ? t('status.active') : t('status.inactive')}
+        </Pill>
+      ),
+    },
+    {
+      key: 'created',
+      header: t('superadmin.created'),
+      width: 130,
+      nowrap: true,
+      sortable: true,
+      sortValue: (u) => u.created_at,
+      render: (u) => (
+        <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>{formatDate(u.created_at)}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: 80,
+      align: 'right',
+      render: (u) => (
+        <span className="row" style={{ gap: 4, justifyContent: 'flex-end' }}>
+          <IconButton
+            icon={PencilSquareIcon}
+            size="sm"
+            label={t('superadmin.users.editUser')}
+            onClick={() => openEditModal(u)}
+          />
+          <IconButton
+            icon={TrashIcon}
+            size="sm"
+            label={t('superadmin.users.deactivateUser')}
+            disabled={deleteMutation.isPending}
+            onClick={() => setDeleteConfirmUser(u)}
+          />
+        </span>
+      ),
+    },
+  ]
+
+  return (
+    <div className="col" style={{ gap: 18 }}>
+      {/* Header */}
+      <div className="row" style={{ alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>
+            {t('nav.allUsers')}
+          </h1>
+          <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>
             {t('superadmin.users.subtitle')}
           </p>
         </div>
-        <button onClick={openCreateModal} className="btn-primary">
-          <PlusIcon className="h-4 w-4 mr-2" />
+        <Button variant="primary" icon={PlusIcon} onClick={openCreateModal}>
           {t('superadmin.users.addUser')}
-        </button>
+        </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <FunnelIcon className="h-4 w-4 text-gray-400" />
-          <span className="text-sm text-gray-500">{t('superadmin.users.filterByTenant')}</span>
-        </div>
-        <select
+      {/* Tenant filter */}
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+        <span className="row muted" style={{ gap: 6, fontSize: 'var(--fs-sm)' }}>
+          <FunnelIcon style={{ width: 15, height: 15, color: 'var(--f)' }} aria-hidden />
+          {t('superadmin.users.filterByTenant')}
+        </span>
+        <Select
           value={tenantFilter}
           onChange={(e) => handleTenantFilterChange(e.target.value)}
-          className="input max-w-xs"
-        >
-          <option value="">{t('superadmin.users.allTenants')}</option>
-          {tenants?.map((tenant) => (
-            <option key={tenant.id} value={tenant.id}>
-              {tenant.name}
-            </option>
-          ))}
-        </select>
+          containerStyle={{ width: 240 }}
+          options={[
+            { value: '', label: t('superadmin.users.allTenants') },
+            ...(tenants?.map((tenant) => ({ value: tenant.id, label: tenant.name })) ?? []),
+          ]}
+        />
         {tenantFilter && (
-          <button
-            onClick={() => handleTenantFilterChange('')}
-            className="text-sm text-primary-600 hover:text-primary-700"
-          >
+          <Button variant="ghost" size="sm" onClick={() => handleTenantFilterChange('')}>
             {t('superadmin.users.clearFilter')}
-          </button>
+          </Button>
         )}
       </div>
 
       {/* Error state */}
       {error && (
-        <div className="rounded-lg bg-red-50 p-4 text-red-700">
-          {t('superadmin.users.loadError')}
+        <div className="banner banner-da">
+          <ExclamationCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+          <span>{t('superadmin.users.loadError')}</span>
         </div>
       )}
 
       {/* Table */}
       {usersLoading ? (
-        <div className="flex items-center justify-center h-64">
+        <div className="row" style={{ justifyContent: 'center', height: 256 }}>
           <LoadingSpinner size="lg" />
         </div>
       ) : (
-        <div className="card overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('superadmin.user')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('superadmin.tenant')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('superadmin.role')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('superadmin.users.businessUnit')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('common.status')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('superadmin.created')}
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('common.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {users?.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        <UserCircleIcon className="h-6 w-6 text-gray-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {user.full_name || user.username}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {user.full_name ? `${user.username} · ${user.email}` : user.email}
-                        </p>
-                        {user.job_title && (
-                          <p className="text-xs text-gray-400">
-                            {user.job_title}{user.department ? ` · ${user.department}` : ''}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900">
-                      {user.tenant_name || getTenantName(user.tenant_id)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-                      ROLE_COLORS[user.role]
-                    )}>
-                      {user.role === 'admin' && <ShieldCheckIcon className="h-3 w-3 mr-1" />}
-                      {t(`roles.${user.role}`, { defaultValue: ROLE_LABELS[user.role] })}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {user.business_unit_name || '--'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-                      user.is_active
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                    )}>
-                      {user.is_active ? t('status.active') : t('status.inactive')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {formatDate(user.created_at)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => openEditModal(user)}
-                        className="p-1 text-gray-400 hover:text-gray-600"
-                        title={t('superadmin.users.editUser')}
-                      >
-                        <PencilSquareIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirmUser(user)}
-                        className="p-1 text-gray-400 hover:text-red-600"
-                        title={t('superadmin.users.deactivateUser')}
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {users?.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              {t('superadmin.users.noUsers')}
+        <Table
+          columns={columns}
+          rows={users ?? []}
+          rowKey={(u) => u.id}
+          minWidth={860}
+          empty={
+            <EmptyState
+              icon={UserGroupIcon}
+              title={t('superadmin.users.noUsers')}
+              action={
+                <Button variant="primary" size="sm" icon={PlusIcon} onClick={openCreateModal}>
+                  {t('superadmin.users.addUser')}
+                </Button>
+              }
+            />
+          }
+        />
+      )}
+
+      {/* Create user drawer */}
+      <Drawer
+        open={isCreateModalOpen}
+        title={t('superadmin.users.createUserTitle')}
+        onClose={closeCreateModal}
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeCreateModal}>
+              {t('common.cancel')}
+            </Button>
+            <span className="grow" />
+            <Button variant="primary" type="submit" form={CREATE_FORM_ID} disabled={createMutation.isPending}>
+              {createMutation.isPending ? t('common.saving') : t('superadmin.create')}
+            </Button>
+          </>
+        }
+      >
+        <form id={CREATE_FORM_ID} onSubmit={handleCreateSubmit} className="col" style={{ gap: 14 }}>
+          {createMutation.isError && (
+            <div className="banner banner-da">
+              <ExclamationCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+              <span>
+                {createMutation.error instanceof Error
+                  ? createMutation.error.message
+                  : t('superadmin.users.createFailed')}
+              </span>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Create User Modal */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={closeCreateModal} />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {t('superadmin.users.createUserTitle')}
-              </h2>
-              {createMutation.isError && (
-                <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                  {createMutation.error instanceof Error ? createMutation.error.message : t('superadmin.users.createFailed')}
-                </div>
-              )}
-              <form onSubmit={handleCreateSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.tenant')} *
-                  </label>
-                  <select
-                    value={formData.tenant_id}
-                    onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                    className="input"
-                    required
-                  >
-                    <option value="">{t('superadmin.users.selectTenant')}</option>
-                    {tenants?.map((tenant) => (
-                      <option key={tenant.id} value={tenant.id}>
-                        {tenant.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.username')} *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value.replace(/\s/g, '') })}
-                    className="input"
-                    required
-                    pattern="^\S+$"
-                    title={t('superadmin.users.usernameNoSpaces')}
-                    placeholder={t('superadmin.users.usernamePlaceholder')}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">{t('superadmin.users.usernameHint')}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.email')} *
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="input"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('superadmin.users.firstName', { defaultValue: 'First name' })}
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.first_name}
-                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('superadmin.users.lastName', { defaultValue: 'Last name' })}
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.last_name}
-                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('superadmin.users.jobTitle', { defaultValue: 'Job title' })}
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.job_title}
-                      onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('superadmin.users.department', { defaultValue: 'Department' })}
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.department}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.phone', { defaultValue: 'Phone' })}
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="input"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.role')} *
-                  </label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
-                    className="input"
-                  >
-                    {Object.entries(ROLE_LABELS)
-                      .filter(([value]) => value !== 'super_admin')
-                      .map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {t(`roles.${value}`, { defaultValue: label })}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.businessUnit')}{formData.role !== 'admin' && activeBusinessUnits.length > 0 ? ' *' : ''}
-                  </label>
-                  {!formData.tenant_id ? (
-                    <p className="text-xs text-gray-400">{t('superadmin.users.selectTenantFirst')}</p>
-                  ) : activeBusinessUnits.length === 0 ? (
-                    <p className="text-xs text-amber-600">
-                      {t('users.buNoneYet', { defaultValue: 'No business units in this tenant yet. Without one, this user will see all contracts.' })}
-                    </p>
-                  ) : (
-                    <>
-                      <select
-                        value={formData.business_unit_id}
-                        onChange={(e) => setFormData({ ...formData, business_unit_id: e.target.value })}
-                        className="input"
-                        required={formData.role !== 'admin'}
-                      >
-                        <option value="" disabled={formData.role !== 'admin'}>
-                          {formData.role === 'admin'
-                            ? t('users.buFullAccess', { defaultValue: '— Unassigned (full tenant access) —' })
-                            : t('users.buSelectPlaceholder', { defaultValue: 'Select a business unit…' })}
-                        </option>
-                        {activeBusinessUnits.map((bu) => (
-                          <option key={bu.id} value={bu.id}>{bu.name}</option>
-                        ))}
-                      </select>
-                      <p className="mt-1 text-xs text-gray-500">
-                        {formData.role === 'admin'
-                          ? t('users.buAdminScopeHint', { defaultValue: 'Leave unassigned for full tenant access, or pick a unit to restrict this admin to it.' })
-                          : t('users.buScopeHint', { defaultValue: 'Controls which contracts this user can see (their unit + unassigned).' })}
-                      </p>
-                    </>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.password')} *
-                  </label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="input"
-                    required
-                    minLength={8}
-                  />
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <button type="button" onClick={closeCreateModal} className="btn-secondary">
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={createMutation.isPending}
-                    className="btn-primary"
-                  >
-                    {createMutation.isPending ? (
-                      <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                    ) : (
-                      t('superadmin.create')
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
+          <Select
+            label={`${t('superadmin.tenant')} *`}
+            value={formData.tenant_id}
+            onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
+            required
+            options={[
+              { value: '', label: t('superadmin.users.selectTenant') },
+              ...(tenants?.map((tenant) => ({ value: tenant.id, label: tenant.name })) ?? []),
+            ]}
+          />
+          <Field
+            label={`${t('superadmin.users.username')} *`}
+            type="text"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value.replace(/\s/g, '') })}
+            required
+            pattern="^\S+$"
+            title={t('superadmin.users.usernameNoSpaces')}
+            placeholder={t('superadmin.users.usernamePlaceholder')}
+            hint={t('superadmin.users.usernameHint')}
+          />
+          <Field
+            label={`${t('superadmin.users.email')} *`}
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            required
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label={t('superadmin.users.firstName', { defaultValue: 'First name' })}
+              type="text"
+              value={formData.first_name}
+              onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+            />
+            <Field
+              label={t('superadmin.users.lastName', { defaultValue: 'Last name' })}
+              type="text"
+              value={formData.last_name}
+              onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+            />
           </div>
-        </div>
-      )}
-
-      {/* Edit User Modal */}
-      {editingUser && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={() => setEditingUser(null)} />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-1">
-                {t('superadmin.users.editUserTitle')}
-              </h2>
-              <p className="text-sm text-gray-500 mb-4">
-                {editingUser.tenant_name || getTenantName(editingUser.tenant_id)}
-              </p>
-              {updateMutation.isError && (
-                <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                  {updateMutation.error instanceof Error ? updateMutation.error.message : t('superadmin.users.updateFailed')}
-                </div>
-              )}
-              <form onSubmit={handleEditSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.email')}
-                  </label>
-                  <p className="text-sm text-gray-500">{editingUser.email}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.username')}
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.username}
-                    onChange={(e) => setEditFormData({ ...editFormData, username: e.target.value.replace(/\s/g, '') })}
-                    className="input"
-                    required
-                    pattern="^\S+$"
-                    title={t('superadmin.users.usernameNoSpaces')}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('superadmin.users.firstName', { defaultValue: 'First name' })}
-                    </label>
-                    <input
-                      type="text"
-                      value={editFormData.first_name}
-                      onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('superadmin.users.lastName', { defaultValue: 'Last name' })}
-                    </label>
-                    <input
-                      type="text"
-                      value={editFormData.last_name}
-                      onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('superadmin.users.jobTitle', { defaultValue: 'Job title' })}
-                    </label>
-                    <input
-                      type="text"
-                      value={editFormData.job_title}
-                      onChange={(e) => setEditFormData({ ...editFormData, job_title: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('superadmin.users.department', { defaultValue: 'Department' })}
-                    </label>
-                    <input
-                      type="text"
-                      value={editFormData.department}
-                      onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.phone', { defaultValue: 'Phone' })}
-                  </label>
-                  <input
-                    type="tel"
-                    value={editFormData.phone}
-                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                    className="input"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.newPassword')}
-                  </label>
-                  <input
-                    type="password"
-                    value={editFormData.new_password}
-                    onChange={(e) => setEditFormData({ ...editFormData, new_password: e.target.value })}
-                    className="input"
-                    placeholder={t('superadmin.users.keepCurrentPlaceholder')}
-                    minLength={8}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.role')}
-                  </label>
-                  <select
-                    value={editFormData.role}
-                    onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as Role })}
-                    className="input"
-                  >
-                    {Object.entries(ROLE_LABELS)
-                      .filter(([value]) => value !== 'super_admin')
-                      .map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {t(`roles.${value}`, { defaultValue: label })}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.users.businessUnit')}{editFormData.role !== 'admin' && activeBusinessUnits.length > 0 ? ' *' : ''}
-                  </label>
-                  {activeBusinessUnits.length === 0 ? (
-                    <p className="text-xs text-amber-600">
-                      {t('users.buNoneYet', { defaultValue: 'No business units in this tenant yet. Without one, this user will see all contracts.' })}
-                    </p>
-                  ) : (
-                    <>
-                      <select
-                        value={editFormData.business_unit_id}
-                        onChange={(e) => setEditFormData({ ...editFormData, business_unit_id: e.target.value })}
-                        className="input"
-                        required={editFormData.role !== 'admin'}
-                      >
-                        <option value="" disabled={editFormData.role !== 'admin'}>
-                          {editFormData.role === 'admin'
-                            ? t('users.buFullAccess', { defaultValue: '— Unassigned (full tenant access) —' })
-                            : t('users.buSelectPlaceholder', { defaultValue: 'Select a business unit…' })}
-                        </option>
-                        {activeBusinessUnits.map((bu) => (
-                          <option key={bu.id} value={bu.id}>{bu.name}</option>
-                        ))}
-                      </select>
-                      <p className="mt-1 text-xs text-gray-500">
-                        {editFormData.role === 'admin'
-                          ? t('users.buAdminScopeHint', { defaultValue: 'Leave unassigned for full tenant access, or pick a unit to restrict this admin to it.' })
-                          : t('users.buScopeHint', { defaultValue: 'Controls which contracts this user can see (their unit + unassigned).' })}
-                      </p>
-                    </>
-                  )}
-                </div>
-                <div>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editFormData.is_active}
-                      onChange={(e) => setEditFormData({ ...editFormData, is_active: e.target.checked })}
-                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">{t('status.active')}</span>
-                  </label>
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <button type="button" onClick={() => setEditingUser(null)} className="btn-secondary">
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={updateMutation.isPending}
-                    className="btn-primary"
-                  >
-                    {updateMutation.isPending ? (
-                      <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                    ) : (
-                      t('superadmin.saveChanges')
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label={t('superadmin.users.jobTitle', { defaultValue: 'Job title' })}
+              type="text"
+              value={formData.job_title}
+              onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
+            />
+            <Field
+              label={t('superadmin.users.department', { defaultValue: 'Department' })}
+              type="text"
+              value={formData.department}
+              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+            />
           </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmUser && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={() => setDeleteConfirmUser(null)} />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                {t('superadmin.users.deactivateUserTitle')}
-              </h2>
-              <p className="text-sm text-gray-600 mb-4">
-                {t('superadmin.users.deactivateConfirmPrefix')} <strong>{deleteConfirmUser.username}</strong>{t('superadmin.users.deactivateConfirmSuffix')}
+          <Field
+            label={t('superadmin.users.phone', { defaultValue: 'Phone' })}
+            type="tel"
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          />
+          <Select
+            label={`${t('superadmin.role')} *`}
+            value={formData.role}
+            onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
+            options={roleOptions}
+          />
+          {!formData.tenant_id ? (
+            <div>
+              <label className="lbl">{t('superadmin.users.businessUnit')}</label>
+              <p className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
+                {t('superadmin.users.selectTenantFirst')}
               </p>
-              {deleteMutation.isError && (
-                <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                  {t('superadmin.users.deactivateFailed')}
-                </div>
-              )}
-              <div className="flex justify-end gap-3">
-                <button onClick={() => setDeleteConfirmUser(null)} className="btn-secondary">
-                  {t('common.cancel')}
-                </button>
-                <button
-                  onClick={() => deleteMutation.mutate(deleteConfirmUser.id)}
-                  disabled={deleteMutation.isPending}
-                  className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
-                >
-                  {deleteMutation.isPending ? (
-                    <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                  ) : (
-                    t('superadmin.users.deactivate')
-                  )}
-                </button>
+            </div>
+          ) : (
+            renderBuSelect(formData.role, formData.business_unit_id, (id) =>
+              setFormData({ ...formData, business_unit_id: id }),
+            )
+          )}
+          <Field
+            label={`${t('superadmin.users.password')} *`}
+            type="password"
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            required
+            minLength={8}
+          />
+        </form>
+      </Drawer>
+
+      {/* Edit user drawer */}
+      <Drawer
+        open={editingUser != null}
+        title={t('superadmin.users.editUserTitle')}
+        sub={editingUser ? editingUser.tenant_name || getTenantName(editingUser.tenant_id) : undefined}
+        onClose={() => setEditingUser(null)}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setEditingUser(null)}>
+              {t('common.cancel')}
+            </Button>
+            <span className="grow" />
+            <Button variant="primary" type="submit" form={EDIT_FORM_ID} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? t('common.saving') : t('superadmin.saveChanges')}
+            </Button>
+          </>
+        }
+      >
+        {editingUser && (
+          <form id={EDIT_FORM_ID} onSubmit={handleEditSubmit} className="col" style={{ gap: 14 }}>
+            {updateMutation.isError && (
+              <div className="banner banner-da">
+                <ExclamationCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+                <span>
+                  {updateMutation.error instanceof Error
+                    ? updateMutation.error.message
+                    : t('superadmin.users.updateFailed')}
+                </span>
               </div>
+            )}
+            <div>
+              <label className="lbl">{t('superadmin.users.email')}</label>
+              <p className="muted" style={{ fontSize: 'var(--fs-md)' }}>{editingUser.email}</p>
             </div>
-          </div>
-        </div>
-      )}
+            <Field
+              label={t('superadmin.users.username')}
+              type="text"
+              value={editFormData.username}
+              onChange={(e) => setEditFormData({ ...editFormData, username: e.target.value.replace(/\s/g, '') })}
+              required
+              pattern="^\S+$"
+              title={t('superadmin.users.usernameNoSpaces')}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Field
+                label={t('superadmin.users.firstName', { defaultValue: 'First name' })}
+                type="text"
+                value={editFormData.first_name}
+                onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
+              />
+              <Field
+                label={t('superadmin.users.lastName', { defaultValue: 'Last name' })}
+                type="text"
+                value={editFormData.last_name}
+                onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field
+                label={t('superadmin.users.jobTitle', { defaultValue: 'Job title' })}
+                type="text"
+                value={editFormData.job_title}
+                onChange={(e) => setEditFormData({ ...editFormData, job_title: e.target.value })}
+              />
+              <Field
+                label={t('superadmin.users.department', { defaultValue: 'Department' })}
+                type="text"
+                value={editFormData.department}
+                onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
+              />
+            </div>
+            <Field
+              label={t('superadmin.users.phone', { defaultValue: 'Phone' })}
+              type="tel"
+              value={editFormData.phone}
+              onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+            />
+            <Field
+              label={t('superadmin.users.newPassword')}
+              type="password"
+              value={editFormData.new_password}
+              onChange={(e) => setEditFormData({ ...editFormData, new_password: e.target.value })}
+              placeholder={t('superadmin.users.keepCurrentPlaceholder')}
+              minLength={8}
+            />
+            <Select
+              label={t('superadmin.role')}
+              value={editFormData.role}
+              onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as Role })}
+              options={roleOptions}
+            />
+            {renderBuSelect(editFormData.role, editFormData.business_unit_id, (id) =>
+              setEditFormData({ ...editFormData, business_unit_id: id }),
+            )}
+            <Checkbox
+              checked={editFormData.is_active}
+              onChange={(checked) => setEditFormData({ ...editFormData, is_active: checked })}
+              label={t('status.active')}
+            />
+          </form>
+        )}
+      </Drawer>
+
+      {/* Deactivate confirmation */}
+      <ConfirmDialog
+        open={deleteConfirmUser != null}
+        title={t('superadmin.users.deactivateUserTitle')}
+        body={
+          <>
+            {t('superadmin.users.deactivateConfirmPrefix')}{' '}
+            <strong>{deleteConfirmUser?.username}</strong>
+            {t('superadmin.users.deactivateConfirmSuffix')}
+          </>
+        }
+        confirmLabel={t('superadmin.users.deactivate')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => deleteConfirmUser && deleteMutation.mutate(deleteConfirmUser.id)}
+        onCancel={() => setDeleteConfirmUser(null)}
+      />
     </div>
   )
 }

@@ -1,21 +1,40 @@
+/* Tenant management — Direction B redesign.
+   Header + show-inactive toggle → sortable Table (plan/status Pills) →
+   create/edit in a Drawer, activate/deactivate via ConfirmDialog with
+   affected/safe lists, permanent purge keeps its type-the-slug gate in a
+   token-styled modal. Queries, mutations and the provisioning flow are
+   unchanged from the pre-redesign page; restyle only. */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   PlusIcon,
   PencilSquareIcon,
   EyeIcon,
   CheckCircleIcon,
-  XCircleIcon,
   BuildingOffice2Icon,
   TrashIcon,
   ExclamationTriangleIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn, formatDate } from '@/lib/utils'
+import {
+  Avatar,
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Select,
+  Table,
+  useToast,
+} from '@/components/ui'
+import type { PillTone, TableColumn } from '@/components/ui'
+import { formatDate } from '@/lib/utils'
 import type { Tenant, TenantCreate, TenantUpdate, TenantPlan } from '@/types'
 
 const PLAN_LABELS: Record<TenantPlan, string> = {
@@ -24,10 +43,10 @@ const PLAN_LABELS: Record<TenantPlan, string> = {
   enterprise: 'Enterprise',
 }
 
-const PLAN_COLORS: Record<TenantPlan, string> = {
-  starter: 'bg-gray-100 text-gray-700',
-  professional: 'bg-blue-100 text-blue-700',
-  enterprise: 'bg-purple-100 text-purple-700',
+const PLAN_TONES: Record<TenantPlan, PillTone> = {
+  starter: 'n',
+  professional: 'in',
+  enterprise: 'p',
 }
 
 interface TenantFormData {
@@ -46,13 +65,18 @@ const emptyFormData: TenantFormData = {
   contact_email: '',
 }
 
+const FORM_ID = 'tenant-form'
+
 export default function TenantManagementPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const navigate = useNavigate()
+  const { toast } = useToast()
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
   const [formData, setFormData] = useState<TenantFormData>(emptyFormData)
   const [showInactive, setShowInactive] = useState(false)
+  const [toggleTarget, setToggleTarget] = useState<Tenant | null>(null)
 
   const { data: tenants, isLoading, error } = useQuery({
     queryKey: ['tenants', showInactive],
@@ -80,9 +104,13 @@ export default function TenantManagementPage() {
 
   const createMutation = useMutation({
     mutationFn: (data: TenantCreate) => api.createTenant(data),
-    onSuccess: () => {
+    onSuccess: (_res, variables) => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
-      closeModal()
+      closeDrawer()
+      toast({ text: t('superadmin.tenants.createdToast', { defaultValue: '{{name}} created', name: variables.name }) })
+    },
+    onError: (err: any) => {
+      toast({ text: err?.response?.data?.detail || err?.message || t('superadmin.tenants.loadError'), error: true })
     },
   })
 
@@ -91,7 +119,11 @@ export default function TenantManagementPage() {
       api.updateTenant(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
-      closeModal()
+      closeDrawer()
+      toast({ text: t('superadmin.tenants.updatedToast', { defaultValue: 'Tenant updated' }) })
+    },
+    onError: (err: any) => {
+      toast({ text: err?.response?.data?.detail || err?.message || t('superadmin.tenants.loadError'), error: true })
     },
   })
 
@@ -99,6 +131,10 @@ export default function TenantManagementPage() {
     mutationFn: (id: string) => api.activateTenant(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
+      toast({ text: t('superadmin.tenants.activatedToast', { defaultValue: 'Tenant activated' }) })
+    },
+    onError: (err: any) => {
+      toast({ text: err?.response?.data?.detail || err?.message || t('superadmin.tenants.loadError'), error: true })
     },
   })
 
@@ -106,6 +142,10 @@ export default function TenantManagementPage() {
     mutationFn: (id: string) => api.deactivateTenant(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
+      toast({ text: t('superadmin.tenants.deactivatedToast', { defaultValue: 'Tenant deactivated' }) })
+    },
+    onError: (err: any) => {
+      toast({ text: err?.response?.data?.detail || err?.message || t('superadmin.tenants.loadError'), error: true })
     },
   })
 
@@ -124,13 +164,13 @@ export default function TenantManagementPage() {
     },
   })
 
-  const openCreateModal = () => {
+  const openCreateDrawer = () => {
     setEditingTenant(null)
     setFormData(emptyFormData)
-    setIsModalOpen(true)
+    setIsDrawerOpen(true)
   }
 
-  const openEditModal = (tenant: Tenant) => {
+  const openEditDrawer = (tenant: Tenant) => {
     setEditingTenant(tenant)
     setFormData({
       name: tenant.name,
@@ -139,11 +179,11 @@ export default function TenantManagementPage() {
       contract_limit: tenant.contract_limit?.toString() || '',
       contact_email: tenant.contact_email || '',
     })
-    setIsModalOpen(true)
+    setIsDrawerOpen(true)
   }
 
-  const closeModal = () => {
-    setIsModalOpen(false)
+  const closeDrawer = () => {
+    setIsDrawerOpen(false)
     setEditingTenant(null)
     setFormData(emptyFormData)
   }
@@ -165,18 +205,14 @@ export default function TenantManagementPage() {
     }
   }
 
-  const handleToggleActive = (tenant: Tenant) => {
-    const message = tenant.is_active
-      ? t('superadmin.tenants.deactivateConfirm', { name: tenant.name })
-      : t('superadmin.tenants.activateConfirm', { name: tenant.name })
-
-    if (window.confirm(message)) {
-      if (tenant.is_active) {
-        deactivateMutation.mutate(tenant.id)
-      } else {
-        activateMutation.mutate(tenant.id)
-      }
+  const confirmToggleActive = () => {
+    if (!toggleTarget) return
+    if (toggleTarget.is_active) {
+      deactivateMutation.mutate(toggleTarget.id)
+    } else {
+      activateMutation.mutate(toggleTarget.id)
     }
+    setToggleTarget(null)
   }
 
   const generateSlug = (name: string) => {
@@ -186,401 +222,401 @@ export default function TenantManagementPage() {
       .replace(/^-|-$/g, '')
   }
 
+  const isSaving = createMutation.isPending || updateMutation.isPending
+  const toggleBusy = activateMutation.isPending || deactivateMutation.isPending
+
+  const columns: TableColumn<Tenant>[] = [
+    {
+      key: 'tenant',
+      header: t('superadmin.tenant'),
+      sortable: true,
+      sortValue: (tn) => tn.name,
+      render: (tn) => (
+        <span className="row" style={{ gap: 10 }}>
+          <Avatar name={tn.name} size={28} />
+          <span style={{ minWidth: 0 }}>
+            <span className="trunc" style={{ display: 'block', fontWeight: 500 }}>{tn.name}</span>
+            <span className="faint mono trunc" style={{ display: 'block', fontSize: 'var(--fs-xs)' }}>{tn.slug}</span>
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'plan',
+      header: t('superadmin.plan'),
+      width: 130,
+      sortable: true,
+      sortValue: (tn) => tn.plan,
+      render: (tn) => (
+        <Pill tone={PLAN_TONES[tn.plan]} dot={false}>
+          {t(`superadmin.plans.${tn.plan}`, { defaultValue: PLAN_LABELS[tn.plan] })}
+        </Pill>
+      ),
+    },
+    {
+      key: 'contracts',
+      header: t('superadmin.tenants.contracts'),
+      width: 110,
+      sortable: true,
+      sortValue: (tn) => tenantStatsMap?.[tn.id]?.contract_count ?? -1,
+      render: (tn) => (
+        <span className="num" style={{ fontSize: 'var(--fs-md)' }}>
+          <span style={{ fontWeight: 500 }}>{tenantStatsMap?.[tn.id]?.contract_count ?? '—'}</span>
+          <span className="faint"> / {tn.contract_limit || '∞'}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: t('common.status'),
+      width: 110,
+      sortable: true,
+      sortValue: (tn) => (tn.is_active ? 0 : 1),
+      render: (tn) => (
+        <button
+          type="button"
+          onClick={() => setToggleTarget(tn)}
+          disabled={toggleBusy}
+          style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer' }}
+          title={tn.is_active ? t('superadmin.tenants.deactivateAction', { defaultValue: 'Deactivate' }) : t('superadmin.tenants.activateAction', { defaultValue: 'Activate' })}
+        >
+          <Pill tone={tn.is_active ? 'ok' : 'da'}>
+            {tn.is_active ? t('status.active') : t('status.inactive')}
+          </Pill>
+        </button>
+      ),
+    },
+    {
+      key: 'created',
+      header: t('superadmin.created'),
+      width: 130,
+      nowrap: true,
+      sortable: true,
+      sortValue: (tn) => tn.created_at,
+      render: (tn) => <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>{formatDate(tn.created_at)}</span>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: 110,
+      align: 'right',
+      render: (tn) => (
+        <span className="row" style={{ gap: 4, justifyContent: 'flex-end' }}>
+          <IconButton
+            icon={EyeIcon}
+            size="sm"
+            label={t('superadmin.tenants.viewDetails')}
+            onClick={() => navigate(`/super-admin/tenants/${tn.id}`)}
+          />
+          <IconButton
+            icon={PencilSquareIcon}
+            size="sm"
+            label={t('superadmin.tenants.editTenant')}
+            onClick={() => openEditDrawer(tn)}
+          />
+          <IconButton
+            icon={TrashIcon}
+            size="sm"
+            label={t('superadmin.tenants.deleteTenantPermanently')}
+            onClick={() => { setPurgingTenant(tn); setPurgeConfirmText(''); setPurgeResult(null) }}
+          />
+        </span>
+      ),
+    },
+  ]
+
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 18 }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('superadmin.tenants.title')}</h1>
-          <p className="mt-1 text-sm text-gray-500">
+      <div className="row" style={{ alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>
+            {t('superadmin.tenants.title')}
+          </h1>
+          <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>
             {t('superadmin.tenants.subtitle')}
           </p>
         </div>
-        <button onClick={openCreateModal} className="btn-primary">
-          <PlusIcon className="h-4 w-4 mr-2" />
+        <Button variant="primary" icon={PlusIcon} onClick={openCreateDrawer}>
           {t('superadmin.tenants.addTenant')}
-        </button>
+        </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={showInactive}
-            onChange={(e) => setShowInactive(e.target.checked)}
-            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-          />
-          <span className="text-gray-600">{t('superadmin.tenants.showInactive')}</span>
-        </label>
-      </div>
+      <Checkbox
+        checked={showInactive}
+        onChange={setShowInactive}
+        label={t('superadmin.tenants.showInactive')}
+      />
 
       {/* Error state */}
       {error && (
-        <div className="rounded-lg bg-red-50 p-4 text-red-700">
-          {t('superadmin.tenants.loadError')}
+        <div className="banner banner-da">
+          <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+          <span>{t('superadmin.tenants.loadError')}</span>
         </div>
       )}
 
       {/* Table */}
       {isLoading ? (
-        <div className="flex items-center justify-center h-64">
+        <div className="row" style={{ justifyContent: 'center', height: 256 }}>
           <LoadingSpinner size="lg" />
         </div>
       ) : (
-        <div className="card overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('superadmin.tenant')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('superadmin.plan')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('superadmin.tenants.contracts')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('common.status')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('superadmin.created')}
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('common.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {tenants?.map((tenant) => (
-                <tr key={tenant.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                        <BuildingOffice2Icon className="h-5 w-5 text-primary-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{tenant.name}</p>
-                        <p className="text-xs text-gray-500">{tenant.slug}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-                      PLAN_COLORS[tenant.plan]
-                    )}>
-                      {t(`superadmin.plans.${tenant.plan}`, { defaultValue: PLAN_LABELS[tenant.plan] })}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className="font-medium text-gray-900">
-                      {tenantStatsMap?.[tenant.id]?.contract_count ?? '—'}
-                    </span>
-                    <span className="text-gray-400"> / {tenant.contract_limit || '∞'}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleToggleActive(tenant)}
-                      disabled={activateMutation.isPending || deactivateMutation.isPending}
-                      className="focus:outline-none"
-                    >
-                      {tenant.is_active ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
-                          <CheckCircleIcon className="h-3 w-3" />
-                          {t('status.active')}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
-                          <XCircleIcon className="h-3 w-3" />
-                          {t('status.inactive')}
-                        </span>
-                      )}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {formatDate(tenant.created_at)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Link
-                        to={`/super-admin/tenants/${tenant.id}`}
-                        className="p-1 text-gray-400 hover:text-primary-600"
-                        title={t('superadmin.tenants.viewDetails')}
-                      >
-                        <EyeIcon className="h-5 w-5" />
-                      </Link>
-                      <button
-                        onClick={() => openEditModal(tenant)}
-                        className="p-1 text-gray-400 hover:text-gray-600"
-                        title={t('superadmin.tenants.editTenant')}
-                      >
-                        <PencilSquareIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => { setPurgingTenant(tenant); setPurgeConfirmText(''); setPurgeResult(null) }}
-                        className="p-1 text-gray-400 hover:text-red-600"
-                        title={t('superadmin.tenants.deleteTenantPermanently')}
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {tenants?.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              {t('superadmin.tenants.noTenants')}
-            </div>
-          )}
-        </div>
+        <Table
+          columns={columns}
+          rows={tenants ?? []}
+          rowKey={(tn) => tn.id}
+          minWidth={720}
+          empty={
+            <EmptyState
+              icon={BuildingOffice2Icon}
+              title={t('superadmin.tenants.noTenants')}
+              action={
+                <Button variant="primary" size="sm" icon={PlusIcon} onClick={openCreateDrawer}>
+                  {t('superadmin.tenants.addTenant')}
+                </Button>
+              }
+            />
+          }
+        />
       )}
 
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={closeModal} />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingTenant ? t('superadmin.tenants.editTenantTitle') : t('superadmin.tenants.createTenantTitle')}
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.tenants.organizationName')} *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => {
-                      const name = e.target.value
-                      setFormData({
-                        ...formData,
-                        name,
-                        slug: editingTenant ? formData.slug : generateSlug(name),
-                      })
-                    }}
-                    className="input"
-                    required
-                    placeholder="Acme Corporation"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.tenants.slug')} *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.slug}
-                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                    className="input font-mono"
-                    required
-                    placeholder="acme-corp"
-                    pattern="[a-z0-9-]+"
-                    title={t('superadmin.tenants.slugPattern')}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    {t('superadmin.tenants.slugHint')}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.plan')} *
-                  </label>
-                  <select
-                    value={formData.plan}
-                    onChange={(e) => setFormData({ ...formData, plan: e.target.value as TenantPlan })}
-                    className="input"
-                  >
-                    {Object.entries(PLAN_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {t(`superadmin.plans.${value}`, { defaultValue: label })}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.contractLimit')}
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.contract_limit}
-                    onChange={(e) => setFormData({ ...formData, contract_limit: e.target.value })}
-                    className="input"
-                    placeholder={t('superadmin.unlimitedPlaceholder')}
-                    min="1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.contactEmail')}
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.contact_email}
-                    onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                    className="input"
-                    placeholder="admin@example.com"
-                  />
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <button type="button" onClick={closeModal} className="btn-secondary">
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                    className="btn-primary"
-                  >
-                    {createMutation.isPending || updateMutation.isPending ? (
-                      <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                    ) : editingTenant ? (
-                      t('superadmin.update')
-                    ) : (
-                      t('superadmin.create')
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Create / edit drawer */}
+      <Drawer
+        open={isDrawerOpen}
+        title={editingTenant ? t('superadmin.tenants.editTenantTitle') : t('superadmin.tenants.createTenantTitle')}
+        sub={editingTenant?.slug}
+        onClose={closeDrawer}
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeDrawer}>
+              {t('common.cancel')}
+            </Button>
+            <span className="grow" />
+            <Button variant="primary" type="submit" form={FORM_ID} disabled={isSaving}>
+              {isSaving
+                ? t('common.saving')
+                : editingTenant
+                  ? t('superadmin.update')
+                  : t('superadmin.create')}
+            </Button>
+          </>
+        }
+      >
+        <form id={FORM_ID} onSubmit={handleSubmit} className="col" style={{ gap: 14 }}>
+          <Field
+            label={`${t('superadmin.tenants.organizationName')} *`}
+            type="text"
+            value={formData.name}
+            onChange={(e) => {
+              const name = e.target.value
+              setFormData({
+                ...formData,
+                name,
+                slug: editingTenant ? formData.slug : generateSlug(name),
+              })
+            }}
+            required
+            placeholder="Acme Corporation"
+          />
+          <Field
+            label={`${t('superadmin.tenants.slug')} *`}
+            type="text"
+            className="mono"
+            value={formData.slug}
+            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+            required
+            placeholder="acme-corp"
+            pattern="[a-z0-9-]+"
+            title={t('superadmin.tenants.slugPattern')}
+            hint={t('superadmin.tenants.slugHint')}
+          />
+          <Select
+            label={`${t('superadmin.plan')} *`}
+            value={formData.plan}
+            onChange={(e) => setFormData({ ...formData, plan: e.target.value as TenantPlan })}
+            options={Object.entries(PLAN_LABELS).map(([value, label]) => ({
+              value,
+              label: t(`superadmin.plans.${value}`, { defaultValue: label }),
+            }))}
+          />
+          <Field
+            label={t('superadmin.contractLimit')}
+            type="number"
+            value={formData.contract_limit}
+            onChange={(e) => setFormData({ ...formData, contract_limit: e.target.value })}
+            placeholder={t('superadmin.unlimitedPlaceholder')}
+            min="1"
+          />
+          <Field
+            label={t('superadmin.contactEmail')}
+            type="email"
+            value={formData.contact_email}
+            onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+            placeholder="admin@example.com"
+          />
+        </form>
+      </Drawer>
 
-      {/* Purge Confirmation Modal */}
+      {/* Activate / deactivate confirmation — replaces the old window.confirm */}
+      <ConfirmDialog
+        open={toggleTarget != null}
+        tone={toggleTarget?.is_active ? 'danger' : 'warn'}
+        title={
+          toggleTarget?.is_active
+            ? t('superadmin.tenants.deactivateTitle', { defaultValue: 'Deactivate tenant?' })
+            : t('superadmin.tenants.activateTitle', { defaultValue: 'Activate tenant?' })
+        }
+        body={
+          toggleTarget?.is_active
+            ? t('superadmin.tenants.deactivateConfirm', { name: toggleTarget?.name ?? '' })
+            : t('superadmin.tenants.activateConfirm', { name: toggleTarget?.name ?? '' })
+        }
+        affected={
+          toggleTarget?.is_active
+            ? [t('superadmin.tenants.deactivateAffectedLogins', { defaultValue: 'Sign-in for every user of this tenant' })]
+            : undefined
+        }
+        safe={
+          toggleTarget?.is_active
+            ? [
+                t('superadmin.tenants.deactivateSafeData', { defaultValue: 'Contracts, users and settings — everything is kept and restored on reactivation' }),
+              ]
+            : undefined
+        }
+        confirmLabel={
+          toggleTarget?.is_active
+            ? t('superadmin.tenants.deactivateAction', { defaultValue: 'Deactivate' })
+            : t('superadmin.tenants.activateAction', { defaultValue: 'Activate' })
+        }
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmToggleActive}
+        onCancel={() => setToggleTarget(null)}
+      />
+
+      {/* Purge confirmation — keeps the type-the-slug gate, token-styled modal */}
       {purgingTenant && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={() => setPurgingTenant(null)} />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-                    <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">{t('superadmin.tenants.deleteTenantTitle')}</h2>
-                    <p className="text-sm text-gray-500">{t('superadmin.tenants.cannotBeUndone')}</p>
-                  </div>
-                </div>
-
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-red-800">
-                    {t('superadmin.tenants.purgeWarningPrefix')} <strong>{purgingTenant.name}</strong> {t('superadmin.tenants.purgeWarningSuffix')}
-                  </p>
-                  <ul className="mt-2 text-sm text-red-700 space-y-1 list-disc list-inside">
-                    <li>{t('superadmin.tenants.purgeItemContracts')}</li>
-                    <li>{t('superadmin.tenants.purgeItemUsers')}</li>
-                    <li>{t('superadmin.tenants.purgeItemOrgs')}</li>
-                    <li>{t('superadmin.tenants.purgeItemVectors')}</li>
-                    <li>{t('superadmin.tenants.purgeItemSettings')}</li>
-                  </ul>
-                </div>
-
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-2">
-                    {tenantStatsMap?.[purgingTenant.id] && (
-                      <span className="font-medium">
-                        {t('superadmin.tenants.purgeStats', { contracts: tenantStatsMap[purgingTenant.id].contract_count, users: tenantStatsMap[purgingTenant.id].user_count })}
-                      </span>
-                    )}
-                  </p>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.tenants.typeToConfirmPrefix')} <span className="font-mono text-red-600">{purgingTenant.slug}</span> {t('superadmin.tenants.typeToConfirmSuffix')}
-                  </label>
-                  <input
-                    type="text"
-                    value={purgeConfirmText}
-                    onChange={(e) => setPurgeConfirmText(e.target.value)}
-                    className="input font-mono"
-                    placeholder={purgingTenant.slug}
-                    autoFocus
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setPurgingTenant(null)}
-                    className="btn-secondary"
-                  >
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    onClick={() => purgeMutation.mutate(purgingTenant.id)}
-                    disabled={purgeConfirmText !== purgingTenant.slug || purgeMutation.isPending}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {purgeMutation.isPending ? (
-                      <div className="flex items-center gap-2">
-                        <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                        <span>{t('superadmin.tenants.deleting')}</span>
-                      </div>
-                    ) : (
-                      t('superadmin.tenants.deletePermanently')
-                    )}
-                  </button>
-                </div>
-
-                {purgeMutation.isError && (
-                  <div className="mt-3 p-3 bg-red-50 rounded-lg text-sm text-red-700">
-                    {(purgeMutation.error as Error)?.message || t('superadmin.tenants.purgeFailed')}
-                  </div>
-                )}
+        <div className="scrim" onClick={() => setPurgingTenant(null)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={t('superadmin.tenants.deleteTenantTitle')} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-h">
+              <span
+                style={{
+                  width: 34, height: 34, borderRadius: 'var(--r-md)', display: 'grid', placeItems: 'center',
+                  background: 'var(--da-f)', color: 'var(--da)', flexShrink: 0,
+                }}
+              >
+                <ExclamationTriangleIcon style={{ width: 18, height: 18 }} aria-hidden />
+              </span>
+              <div style={{ paddingTop: 3 }}>
+                <h3 style={{ fontSize: 'var(--fs-xl)', fontWeight: 600, letterSpacing: '-.3px' }}>
+                  {t('superadmin.tenants.deleteTenantTitle')}
+                </h3>
+                <p className="faint" style={{ fontSize: 'var(--fs-sm)', marginTop: 2 }}>
+                  {t('superadmin.tenants.cannotBeUndone')}
+                </p>
               </div>
+            </div>
+            <div className="modal-b col" style={{ gap: 12, paddingTop: 14 }}>
+              <div className="banner banner-da" style={{ flexDirection: 'column', gap: 6 }}>
+                <span>
+                  {t('superadmin.tenants.purgeWarningPrefix')} <b>{purgingTenant.name}</b> {t('superadmin.tenants.purgeWarningSuffix')}
+                </span>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  <li>{t('superadmin.tenants.purgeItemContracts')}</li>
+                  <li>{t('superadmin.tenants.purgeItemUsers')}</li>
+                  <li>{t('superadmin.tenants.purgeItemOrgs')}</li>
+                  <li>{t('superadmin.tenants.purgeItemVectors')}</li>
+                  <li>{t('superadmin.tenants.purgeItemSettings')}</li>
+                </ul>
+              </div>
+              {tenantStatsMap?.[purgingTenant.id] && (
+                <p className="muted" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                  {t('superadmin.tenants.purgeStats', {
+                    contracts: tenantStatsMap[purgingTenant.id].contract_count,
+                    users: tenantStatsMap[purgingTenant.id].user_count,
+                  })}
+                </p>
+              )}
+              <div>
+                <label className="lbl">
+                  {t('superadmin.tenants.typeToConfirmPrefix')}{' '}
+                  <span className="mono" style={{ color: 'var(--da)' }}>{purgingTenant.slug}</span>{' '}
+                  {t('superadmin.tenants.typeToConfirmSuffix')}
+                </label>
+                <Field
+                  type="text"
+                  className="mono"
+                  value={purgeConfirmText}
+                  onChange={(e) => setPurgeConfirmText(e.target.value)}
+                  placeholder={purgingTenant.slug}
+                  autoFocus
+                />
+              </div>
+              {purgeMutation.isError && (
+                <div className="banner banner-da">
+                  <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+                  <span>{(purgeMutation.error as Error)?.message || t('superadmin.tenants.purgeFailed')}</span>
+                </div>
+              )}
+            </div>
+            <div className="modal-f">
+              <Button variant="ghost" onClick={() => setPurgingTenant(null)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => purgeMutation.mutate(purgingTenant.id)}
+                disabled={purgeConfirmText !== purgingTenant.slug || purgeMutation.isPending}
+              >
+                {purgeMutation.isPending ? t('superadmin.tenants.deleting') : t('superadmin.tenants.deletePermanently')}
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Purge Result Modal */}
+      {/* Purge result — deletion summary */}
       {purgeResult && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={() => setPurgeResult(null)} />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                      <CheckCircleIcon className="h-6 w-6 text-green-600" />
-                    </div>
-                    <h2 className="text-lg font-semibold text-gray-900">{t('superadmin.tenants.tenantDeleted')}</h2>
-                  </div>
-                  <button onClick={() => setPurgeResult(null)} className="p-1 hover:bg-gray-100 rounded">
-                    <XMarkIcon className="h-5 w-5 text-gray-500" />
-                  </button>
-                </div>
-
-                <p className="text-sm text-gray-600 mb-3">
-                  <strong>{purgeResult.tenant}</strong> {t('superadmin.tenants.deletedSuffix')}
-                </p>
-
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs font-medium text-gray-500 uppercase mb-2">{t('superadmin.tenants.deletionSummary')}</p>
-                  <div className="space-y-1 text-sm">
-                    {Object.entries(purgeResult.deleted)
-                      .filter(([, count]) => count > 0)
-                      .map(([table, count]) => (
-                        <div key={table} className="flex justify-between">
-                          <span className="text-gray-600">{table.replace(/_/g, ' ')}</span>
-                          <span className="font-mono text-gray-900">{count}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-
-                <div className="flex justify-end mt-4">
-                  <button onClick={() => setPurgeResult(null)} className="btn-primary">
-                    {t('superadmin.tenants.done')}
-                  </button>
+        <div className="scrim" onClick={() => setPurgeResult(null)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={t('superadmin.tenants.tenantDeleted')} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-h">
+              <span
+                style={{
+                  width: 34, height: 34, borderRadius: 'var(--r-md)', display: 'grid', placeItems: 'center',
+                  background: 'var(--ok-f)', color: 'var(--ok)', flexShrink: 0,
+                }}
+              >
+                <CheckCircleIcon style={{ width: 18, height: 18 }} aria-hidden />
+              </span>
+              <div style={{ paddingTop: 3 }}>
+                <h3 style={{ fontSize: 'var(--fs-xl)', fontWeight: 600, letterSpacing: '-.3px' }}>
+                  {t('superadmin.tenants.tenantDeleted')}
+                </h3>
+              </div>
+            </div>
+            <div className="modal-b col" style={{ gap: 12, paddingTop: 14 }}>
+              <p className="muted" style={{ fontSize: 'var(--fs-md)' }}>
+                <b>{purgeResult.tenant}</b> {t('superadmin.tenants.deletedSuffix')}
+              </p>
+              <div className="card card-p" style={{ background: 'var(--s2)' }}>
+                <div className="sec-t" style={{ marginBottom: 8 }}>{t('superadmin.tenants.deletionSummary')}</div>
+                <div className="col" style={{ gap: 4 }}>
+                  {Object.entries(purgeResult.deleted)
+                    .filter(([, count]) => count > 0)
+                    .map(([table, count]) => (
+                      <div key={table} className="row" style={{ justifyContent: 'space-between' }}>
+                        <span className="muted" style={{ fontSize: 'var(--fs-md)' }}>{table.replace(/_/g, ' ')}</span>
+                        <span className="mono num" style={{ fontSize: 'var(--fs-md)' }}>{count}</span>
+                      </div>
+                    ))}
                 </div>
               </div>
+            </div>
+            <div className="modal-f">
+              <Button variant="primary" onClick={() => setPurgeResult(null)}>
+                {t('superadmin.tenants.done')}
+              </Button>
             </div>
           </div>
         </div>

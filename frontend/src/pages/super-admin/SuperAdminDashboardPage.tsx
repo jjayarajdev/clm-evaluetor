@@ -1,3 +1,7 @@
+/* Super-admin platform overview — Direction B redesign.
+   Stat summary row → plan distribution (Bars) / platform value / quick actions
+   → recent tenants Table. Queries and routes unchanged from the pre-redesign
+   page; restyle only. */
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
@@ -8,18 +12,45 @@ import {
   CurrencyDollarIcon,
   ArrowRightIcon,
   CheckCircleIcon,
-  XCircleIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import StatCard from '@/components/ui/StatCard'
-import { cn, formatCurrency } from '@/lib/utils'
+import { Bar, EmptyState, Pill, Stat, Table } from '@/components/ui'
+import type { PillTone, TableColumn } from '@/components/ui'
+import { formatCurrency } from '@/lib/utils'
 import type { Tenant, PlatformStats, TenantPlan } from '@/types'
 
-const PLAN_COLORS: Record<TenantPlan, string> = {
-  starter: 'bg-gray-100 text-gray-700',
-  professional: 'bg-blue-100 text-blue-700',
-  enterprise: 'bg-purple-100 text-purple-700',
+const PLAN_TONES: Record<TenantPlan, PillTone> = {
+  starter: 'n',
+  professional: 'in',
+  enterprise: 'p',
+}
+
+const PLAN_BAR_TONES: Record<TenantPlan, string> = {
+  starter: 'var(--f)',
+  professional: 'var(--in)',
+  enterprise: 'var(--p)',
+}
+
+function QuickAction({ to, label }: { to: string; label: string }) {
+  return (
+    <Link
+      to={to}
+      className="row"
+      style={{
+        justifyContent: 'space-between',
+        padding: '10px 12px',
+        borderRadius: 'var(--r-md)',
+        background: 'var(--s2)',
+        color: 'inherit',
+        fontSize: 'var(--fs-md)',
+        fontWeight: 500,
+      }}
+    >
+      <span className="trunc">{label}</span>
+      <ArrowRightIcon style={{ width: 14, height: 14, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
+    </Link>
+  )
 }
 
 export default function SuperAdminDashboardPage() {
@@ -38,7 +69,7 @@ export default function SuperAdminDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
         <LoadingSpinner size="lg" />
       </div>
     )
@@ -46,192 +77,179 @@ export default function SuperAdminDashboardPage() {
 
   const recentTenants = tenants?.slice(0, 5) || []
 
+  const columns: TableColumn<Tenant>[] = [
+    {
+      key: 'tenant',
+      header: t('superadmin.tenant'),
+      sortable: true,
+      sortValue: (tn) => tn.name,
+      render: (tn) => (
+        <span style={{ minWidth: 0, display: 'block' }}>
+          <span className="trunc" style={{ display: 'block', fontWeight: 500 }}>{tn.name}</span>
+          <span className="faint mono trunc" style={{ display: 'block', fontSize: 'var(--fs-xs)' }}>{tn.slug}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'plan',
+      header: t('superadmin.plan'),
+      width: 130,
+      sortable: true,
+      sortValue: (tn) => tn.plan,
+      render: (tn) => (
+        <Pill tone={PLAN_TONES[tn.plan]} dot={false}>
+          {t(`superadmin.plans.${tn.plan}`, { defaultValue: tn.plan })}
+        </Pill>
+      ),
+    },
+    {
+      key: 'status',
+      header: t('common.status'),
+      width: 110,
+      sortable: true,
+      sortValue: (tn) => (tn.is_active ? 0 : 1),
+      render: (tn) => (
+        <Pill tone={tn.is_active ? 'ok' : 'da'}>
+          {tn.is_active ? t('status.active') : t('status.inactive')}
+        </Pill>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: 80,
+      align: 'right',
+      render: (tn) => (
+        <Link
+          to={`/super-admin/tenants/${tn.id}`}
+          style={{ color: 'var(--p)', fontWeight: 500, fontSize: 'var(--fs-sm)' }}
+        >
+          {t('superadmin.dashboard.view')}
+        </Link>
+      ),
+    },
+  ]
+
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 18 }}>
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">{t('nav.platformOverview')}</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>
+          {t('nav.platformOverview')}
+        </h1>
+        <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>
           {t('superadmin.dashboard.subtitle')}
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title={t('superadmin.dashboard.totalTenants')}
-          value={stats?.total_tenants || 0}
+      {/* Stats grid */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <Stat
           icon={BuildingOffice2Icon}
-          color="primary"
-          variant="filled"
+          label={t('superadmin.dashboard.totalTenants')}
+          value={stats?.total_tenants || 0}
         />
-        <StatCard
-          title={t('superadmin.dashboard.activeTenants')}
-          value={stats?.active_tenants || 0}
+        <Stat
           icon={CheckCircleIcon}
-          color="success"
-          variant="filled"
+          label={t('superadmin.dashboard.activeTenants')}
+          value={stats?.active_tenants || 0}
         />
-        <StatCard
-          title={t('superadmin.dashboard.totalUsers')}
-          value={stats?.total_users || 0}
+        <Stat
           icon={UserGroupIcon}
-          color="blue"
-          variant="filled"
+          label={t('superadmin.dashboard.totalUsers')}
+          value={stats?.total_users || 0}
         />
-        <StatCard
-          title={t('superadmin.dashboard.totalContracts')}
-          value={stats?.total_contracts || 0}
+        <Stat
           icon={DocumentTextIcon}
-          color="warning"
-          variant="filled"
+          label={t('superadmin.dashboard.totalContracts')}
+          value={stats?.total_contracts || 0}
         />
       </div>
 
-      {/* Secondary Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Plan Distribution */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">{t('superadmin.dashboard.planDistribution')}</h3>
-          <div className="space-y-3">
+      {/* Secondary panels */}
+      <div className="grid gap-3 grid-cols-1 lg:grid-cols-3">
+        {/* Plan distribution */}
+        <div className="card card-p">
+          <div className="sec-t" style={{ marginBottom: 12 }}>{t('superadmin.dashboard.planDistribution')}</div>
+          <div className="col" style={{ gap: 12 }}>
             {(['starter', 'professional', 'enterprise'] as TenantPlan[]).map((plan) => {
               const count = stats?.plan_distribution?.[plan] || 0
               const total = stats?.total_tenants || 1
               const percentage = Math.round((count / total) * 100)
               return (
                 <div key={plan}>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="capitalize font-medium text-gray-700">{t(`superadmin.plans.${plan}`, { defaultValue: plan })}</span>
-                    <span className="text-gray-500">{t('superadmin.dashboard.tenantsCount', { count })}</span>
+                  <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                      {t(`superadmin.plans.${plan}`, { defaultValue: plan })}
+                    </span>
+                    <span className="muted num" style={{ fontSize: 'var(--fs-sm)' }}>
+                      {t('superadmin.dashboard.tenantsCount', { count })}
+                    </span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div
-                      className={cn(
-                        'h-2 rounded-full',
-                        plan === 'starter' ? 'bg-gray-400' :
-                        plan === 'professional' ? 'bg-blue-500' : 'bg-purple-500'
-                      )}
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
+                  <Bar value={percentage} width="100%" tone={PLAN_BAR_TONES[plan]} />
                 </div>
               )
             })}
           </div>
         </div>
 
-        {/* Total Value */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">{t('superadmin.dashboard.platformValue')}</h3>
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-lg bg-emerald-100">
-              <CurrencyDollarIcon className="w-6 h-6 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
+        {/* Platform value */}
+        <div className="card card-p">
+          <div className="sec-t" style={{ marginBottom: 12 }}>{t('superadmin.dashboard.platformValue')}</div>
+          <div className="row" style={{ gap: 12 }}>
+            <span
+              style={{
+                width: 38, height: 38, borderRadius: 'var(--r-md)', display: 'grid', placeItems: 'center',
+                background: 'var(--ok-f)', color: 'var(--ok)', flexShrink: 0,
+              }}
+            >
+              <CurrencyDollarIcon style={{ width: 19, height: 19 }} aria-hidden />
+            </span>
+            <span style={{ minWidth: 0 }}>
+              <span className="num" style={{ display: 'block', fontSize: 'var(--fs-2xl)', fontWeight: 600, letterSpacing: '-.5px' }}>
                 {formatCurrency(stats?.total_value || 0)}
-              </p>
-              <p className="text-sm text-gray-500">{t('superadmin.dashboard.totalValueDesc')}</p>
-            </div>
+              </span>
+              <span className="faint" style={{ display: 'block', fontSize: 'var(--fs-sm)' }}>
+                {t('superadmin.dashboard.totalValueDesc')}
+              </span>
+            </span>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">{t('superadmin.quickActions')}</h3>
-          <div className="space-y-2">
-            <Link
-              to="/super-admin/tenants"
-              className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors group"
-            >
-              <span className="text-sm font-medium text-gray-700">{t('superadmin.dashboard.manageTenants')}</span>
-              <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-primary-500" />
-            </Link>
-            <Link
-              to="/super-admin/users"
-              className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors group"
-            >
-              <span className="text-sm font-medium text-gray-700">{t('superadmin.dashboard.viewAllUsers')}</span>
-              <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-primary-500" />
-            </Link>
-            <Link
-              to="/super-admin/custom-fields"
-              className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors group"
-            >
-              <span className="text-sm font-medium text-gray-700">{t('superadmin.configureCustomFields')}</span>
-              <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-primary-500" />
-            </Link>
+        {/* Quick actions */}
+        <div className="card card-p">
+          <div className="sec-t" style={{ marginBottom: 12 }}>{t('superadmin.quickActions')}</div>
+          <div className="col" style={{ gap: 8 }}>
+            <QuickAction to="/super-admin/tenants" label={t('superadmin.dashboard.manageTenants')} />
+            <QuickAction to="/super-admin/users" label={t('superadmin.dashboard.viewAllUsers')} />
+            <QuickAction to="/super-admin/custom-fields" label={t('superadmin.configureCustomFields')} />
           </div>
         </div>
       </div>
 
-      {/* Recent Tenants */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">{t('superadmin.dashboard.recentTenants')}</h2>
-          <Link to="/super-admin/tenants" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+      {/* Recent tenants */}
+      <div className="col" style={{ gap: 10 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span className="sec-t">{t('superadmin.dashboard.recentTenants')}</span>
+          <Link
+            to="/super-admin/tenants"
+            style={{ color: 'var(--p)', fontWeight: 500, fontSize: 'var(--fs-sm)' }}
+          >
             {t('superadmin.dashboard.viewAll')}
           </Link>
         </div>
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {t('superadmin.tenant')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {t('superadmin.plan')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {t('common.status')}
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {t('common.actions')}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {recentTenants.map((tenant) => (
-              <tr key={tenant.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{tenant.name}</p>
-                    <p className="text-xs text-gray-500">{tenant.slug}</p>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={cn(
-                    'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize',
-                    PLAN_COLORS[tenant.plan]
-                  )}>
-                    {t(`superadmin.plans.${tenant.plan}`, { defaultValue: tenant.plan })}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {tenant.is_active ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
-                      <CheckCircleIcon className="h-3 w-3" />
-                      {t('status.active')}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                      <XCircleIcon className="h-3 w-3" />
-                      {t('status.inactive')}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <Link
-                    to={`/super-admin/tenants/${tenant.id}`}
-                    className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                  >
-                    {t('superadmin.dashboard.view')}
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Table
+          columns={columns}
+          rows={recentTenants}
+          rowKey={(tn) => tn.id}
+          minWidth={560}
+          empty={
+            <EmptyState
+              icon={BuildingOffice2Icon}
+              title={t('superadmin.tenants.noTenants')}
+            />
+          }
+        />
       </div>
     </div>
   )

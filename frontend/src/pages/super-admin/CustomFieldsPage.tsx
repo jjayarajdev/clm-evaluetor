@@ -1,3 +1,8 @@
+/* Per-tenant custom field schema editor — Direction B restyle.
+   Header + tenant Select → entity-type Tabs → sortable field Table (type
+   Pills, visibility toggle) → create/edit in a Drawer, archive/delete via
+   ConfirmDialog (replacing window.confirm). Queries, mutations, the field
+   name normalization and the tenant querystring are unchanged. */
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -10,10 +15,25 @@ import {
   EyeIcon,
   EyeSlashIcon,
   Bars3Icon,
+  ExclamationCircleIcon,
+  RectangleStackIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn } from '@/lib/utils'
+import {
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Select,
+  Table,
+  Tabs,
+} from '@/components/ui'
+import type { PillTone, TableColumn } from '@/components/ui'
 import type { Tenant, CustomField, CustomFieldCreate, CustomFieldUpdate, EntityType, FieldType } from '@/types'
 
 const ENTITY_TYPES: { id: EntityType; label: string }[] = [
@@ -35,16 +55,17 @@ const FIELD_TYPES: { id: FieldType; label: string; description: string }[] = [
   { id: 'currency', label: 'Currency', description: 'Monetary value' },
 ]
 
-const FIELD_TYPE_COLORS: Record<FieldType, string> = {
-  text: 'bg-gray-100 text-gray-700',
-  number: 'bg-blue-100 text-blue-700',
-  date: 'bg-purple-100 text-purple-700',
-  dropdown: 'bg-green-100 text-green-700',
-  multi_select: 'bg-teal-100 text-teal-700',
-  checkbox: 'bg-amber-100 text-amber-700',
-  url: 'bg-cyan-100 text-cyan-700',
-  email: 'bg-rose-100 text-rose-700',
-  currency: 'bg-emerald-100 text-emerald-700',
+/* Same hue families as the legacy badge colors, mapped onto Pill tones. */
+const FIELD_TYPE_TONES: Record<FieldType, PillTone> = {
+  text: 'n',
+  number: 'in',
+  date: 'p',
+  dropdown: 'ok',
+  multi_select: 'in',
+  checkbox: 'wa',
+  url: 'in',
+  email: 'da',
+  currency: 'ok',
 }
 
 interface FieldFormData {
@@ -69,6 +90,40 @@ const emptyFormData: FieldFormData = {
   extraction_examples: '',
 }
 
+const FORM_ID = 'custom-field-form'
+
+/* Labeled multi-line control in the Field frame (SettingsPage textarea pattern). */
+function TextareaField({
+  label, value, onChange, rows, placeholder, required, hint, mono,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  rows: number
+  placeholder?: string
+  required?: boolean
+  hint?: string
+  mono?: boolean
+}) {
+  return (
+    <div>
+      <label className="lbl">{label}</label>
+      <div className="inp" style={{ height: 'auto', alignItems: 'stretch' }}>
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={rows}
+          placeholder={placeholder}
+          required={required}
+          className={mono ? 'mono' : undefined}
+          style={{ resize: 'vertical', padding: '8px 0' }}
+        />
+      </div>
+      {hint && <div className="hint">{hint}</div>}
+    </div>
+  )
+}
+
 export default function CustomFieldsPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -78,6 +133,8 @@ export default function CustomFieldsPage() {
   const [selectedEntityType, setSelectedEntityType] = useState<EntityType>('contract')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingField, setEditingField] = useState<CustomField | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CustomField | null>(null)
+  const [archiveTarget, setArchiveTarget] = useState<CustomField | null>(null)
   const [formData, setFormData] = useState<FieldFormData>(emptyFormData)
 
   const { data: tenants } = useQuery<Tenant[]>({
@@ -192,21 +249,6 @@ export default function CustomFieldsPage() {
     }
   }
 
-  const handleDelete = (field: CustomField) => {
-    if (window.confirm(t('superadmin.customFields.deleteConfirm', { label: field.label }))) {
-      deleteMutation.mutate(field.name)
-    }
-  }
-
-  const handleArchive = (field: CustomField) => {
-    if (window.confirm(t('superadmin.customFields.archiveConfirm', { label: field.label }))) {
-      updateMutation.mutate({
-        fieldName: field.name,
-        data: { is_archived: true },
-      })
-    }
-  }
-
   const handleToggleVisibility = (field: CustomField) => {
     updateMutation.mutate({
       fieldName: field.name,
@@ -217,442 +259,421 @@ export default function CustomFieldsPage() {
   const showOptionsField = formData.field_type === 'dropdown' || formData.field_type === 'multi_select'
 
   const selectedTenant = tenants?.find((t) => t.id === tenantId)
+  const activeFields = fields?.filter((f) => !f.is_archived) ?? []
+  const previewFields = fields
+    ?.filter((f) => !f.is_archived && f.is_visible)
+    .sort((a, b) => a.display_order - b.display_order) ?? []
+  const isSaving = createMutation.isPending || updateMutation.isPending
+
+  const columns: TableColumn<CustomField>[] = [
+    {
+      key: 'drag',
+      header: '',
+      width: 34,
+      render: () => (
+        <Bars3Icon
+          className="cursor-grab"
+          style={{ width: 15, height: 15, color: 'var(--f)' }}
+          title={t('superadmin.customFields.dragToReorder')}
+          aria-hidden
+        />
+      ),
+    },
+    {
+      key: 'field',
+      header: t('superadmin.customFields.field'),
+      sortable: true,
+      sortValue: (f) => f.label,
+      render: (f) => (
+        <span style={{ minWidth: 0, display: 'block' }}>
+          <span className="trunc" style={{ display: 'block', fontWeight: 500 }}>{f.label}</span>
+          <span className="faint mono trunc" style={{ display: 'block', fontSize: 'var(--fs-xs)' }}>
+            {f.name}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'type',
+      header: t('superadmin.customFields.type'),
+      width: 130,
+      sortable: true,
+      sortValue: (f) => f.field_type,
+      render: (f) => (
+        <Pill tone={FIELD_TYPE_TONES[f.field_type]} dot={false}>
+          {t(`superadmin.customFields.fieldTypes.${f.field_type}`, {
+            defaultValue: f.field_type.replace('_', ' '),
+          })}
+        </Pill>
+      ),
+    },
+    {
+      key: 'required',
+      header: t('superadmin.customFields.required'),
+      width: 100,
+      sortable: true,
+      sortValue: (f) => (f.required ? 0 : 1),
+      render: (f) => (
+        <Pill tone={f.required ? 'wa' : 'n'} dot={false}>
+          {f.required ? t('common.yes') : t('common.no')}
+        </Pill>
+      ),
+    },
+    {
+      key: 'visible',
+      header: t('superadmin.customFields.visible'),
+      width: 90,
+      sortable: true,
+      sortValue: (f) => (f.is_visible ? 0 : 1),
+      render: (f) => (
+        <IconButton
+          icon={f.is_visible ? EyeIcon : EyeSlashIcon}
+          size="sm"
+          active={f.is_visible}
+          label={f.is_visible ? t('superadmin.customFields.visible') : t('superadmin.customFields.hidden')}
+          onClick={() => handleToggleVisibility(f)}
+        />
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: 110,
+      align: 'right',
+      render: (f) => (
+        <span className="row" style={{ gap: 4, justifyContent: 'flex-end' }}>
+          <IconButton
+            icon={PencilSquareIcon}
+            size="sm"
+            label={t('superadmin.customFields.editField')}
+            onClick={() => openEditModal(f)}
+          />
+          <IconButton
+            icon={ArchiveBoxIcon}
+            size="sm"
+            label={t('superadmin.customFields.archiveField')}
+            onClick={() => setArchiveTarget(f)}
+          />
+          <IconButton
+            icon={TrashIcon}
+            size="sm"
+            label={t('superadmin.customFields.deleteField')}
+            disabled={deleteMutation.isPending}
+            onClick={() => setDeleteTarget(f)}
+          />
+        </span>
+      ),
+    },
+  ]
+
+  /* Disabled control mirroring the tenant-facing form — presentation only. */
+  const renderPreviewControl = (field: CustomField) => {
+    switch (field.field_type) {
+      case 'text':
+        return <Field type="text" placeholder={field.help_text || ''} disabled />
+      case 'number':
+        return <Field type="number" disabled />
+      case 'date':
+        return <Field type="date" disabled />
+      case 'dropdown':
+        return (
+          <Select
+            disabled
+            options={[
+              { value: '', label: t('superadmin.customFields.selectOptionPlaceholder', { label: field.label }) },
+              ...(field.options?.map((opt) => ({ value: opt, label: opt })) ?? []),
+            ]}
+          />
+        )
+      case 'multi_select':
+        return (
+          <div className="inp" style={{ height: 'auto', alignItems: 'stretch' }}>
+            <select multiple disabled style={{ padding: '6px 0' }}>
+              {field.options?.map((opt) => (
+                <option key={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
+        )
+      case 'checkbox':
+        return (
+          <Checkbox
+            disabled
+            label={field.help_text || t('superadmin.customFields.enable')}
+          />
+        )
+      case 'url':
+        return <Field type="url" placeholder="https://..." disabled />
+      case 'email':
+        return <Field type="email" placeholder="email@example.com" disabled />
+      case 'currency':
+        return (
+          <div className="inp">
+            <span className="faint" style={{ fontSize: 'var(--fs-md)' }}>$</span>
+            <input type="number" disabled />
+          </div>
+        )
+    }
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 18 }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('nav.customFields')}</h1>
-          <p className="mt-1 text-sm text-gray-500">
+      <div className="row" style={{ alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>
+            {t('nav.customFields')}
+          </h1>
+          <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>
             {t('superadmin.customFields.subtitle')}
           </p>
         </div>
         {tenantId && (
-          <button onClick={openCreateModal} className="btn-primary">
-            <PlusIcon className="h-4 w-4 mr-2" />
+          <Button variant="primary" icon={PlusIcon} onClick={openCreateModal}>
             {t('superadmin.customFields.addField')}
-          </button>
+          </Button>
         )}
       </div>
 
-      {/* Tenant Selector */}
-      <div className="flex items-center gap-4">
-        <label className="text-sm font-medium text-gray-700">{t('superadmin.tenant')}:</label>
-        <select
+      {/* Tenant selector */}
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+        <span className="lbl" style={{ marginBottom: 0 }}>{t('superadmin.tenant')}:</span>
+        <Select
           value={tenantId}
           onChange={(e) => handleTenantChange(e.target.value)}
-          className="input max-w-xs"
-        >
-          <option value="">{t('superadmin.users.selectTenant')}</option>
-          {tenants?.map((tenant) => (
-            <option key={tenant.id} value={tenant.id}>
-              {tenant.name}
-            </option>
-          ))}
-        </select>
+          containerStyle={{ width: 240 }}
+          options={[
+            { value: '', label: t('superadmin.users.selectTenant') },
+            ...(tenants?.map((tenant) => ({ value: tenant.id, label: tenant.name })) ?? []),
+          ]}
+        />
         {selectedTenant && (
-          <span className="text-sm text-gray-500">
+          <span className="faint mono" style={{ fontSize: 'var(--fs-sm)' }}>
             ({selectedTenant.slug})
           </span>
         )}
       </div>
 
       {!tenantId ? (
-        <div className="text-center py-12 text-gray-500">
-          {t('superadmin.customFields.selectTenantPrompt')}
-        </div>
+        <EmptyState
+          icon={RectangleStackIcon}
+          title={t('superadmin.customFields.selectTenantPrompt')}
+        />
       ) : (
         <>
-          {/* Entity Type Tabs */}
-          <div className="border-b border-gray-200">
-            <nav className="flex gap-6">
-              {ENTITY_TYPES.map((entityType) => (
-                <button
-                  key={entityType.id}
-                  onClick={() => setSelectedEntityType(entityType.id)}
-                  className={cn(
-                    'py-3 text-sm font-medium border-b-2 transition-colors',
-                    selectedEntityType === entityType.id
-                      ? 'border-primary-500 text-primary-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  )}
-                >
-                  {t(`superadmin.customFields.entityTypes.${entityType.id}`, { defaultValue: entityType.label })}
-                </button>
-              ))}
-            </nav>
-          </div>
+          {/* Entity type tabs */}
+          <Tabs
+            tabs={ENTITY_TYPES.map((entityType) => ({
+              value: entityType.id,
+              label: t(`superadmin.customFields.entityTypes.${entityType.id}`, { defaultValue: entityType.label }),
+            }))}
+            value={selectedEntityType}
+            onChange={setSelectedEntityType}
+          />
 
           {/* Error state */}
           {error && (
-            <div className="rounded-lg bg-red-50 p-4 text-red-700">
-              {t('superadmin.customFields.loadError')}
+            <div className="banner banner-da">
+              <ExclamationCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+              <span>{t('superadmin.customFields.loadError')}</span>
             </div>
           )}
 
-          {/* Fields List */}
+          {/* Fields list */}
           {isLoading ? (
-            <div className="flex items-center justify-center h-64">
+            <div className="row" style={{ justifyContent: 'center', height: 256 }}>
               <LoadingSpinner size="lg" />
             </div>
           ) : (
-            <div className="card overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="w-8 px-2 py-3"></th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('superadmin.customFields.field')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('superadmin.customFields.type')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('superadmin.customFields.required')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('superadmin.customFields.visible')}
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('common.actions')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {fields?.filter((f) => !f.is_archived).map((field) => (
-                    <tr key={field.name} className="hover:bg-gray-50">
-                      <td className="px-2 py-3 text-center">
-                        <Bars3Icon className="h-4 w-4 text-gray-300 cursor-grab" title={t('superadmin.customFields.dragToReorder')} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{field.label}</p>
-                          <p className="text-xs text-gray-500 font-mono">{field.name}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={cn(
-                          'inline-flex px-2 py-0.5 rounded text-xs font-medium capitalize',
-                          FIELD_TYPE_COLORS[field.field_type]
-                        )}>
-                          {t(`superadmin.customFields.fieldTypes.${field.field_type}`, { defaultValue: field.field_type.replace('_', ' ') })}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={cn(
-                          'inline-flex px-2 py-0.5 rounded text-xs font-medium',
-                          field.required
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-gray-100 text-gray-500'
-                        )}>
-                          {field.required ? t('common.yes') : t('common.no')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleToggleVisibility(field)}
-                          className={cn(
-                            'p-1 rounded',
-                            field.is_visible
-                              ? 'text-green-600 hover:bg-green-50'
-                              : 'text-gray-400 hover:bg-gray-100'
-                          )}
-                          title={field.is_visible ? t('superadmin.customFields.visible') : t('superadmin.customFields.hidden')}
-                        >
-                          {field.is_visible ? (
-                            <EyeIcon className="h-5 w-5" />
-                          ) : (
-                            <EyeSlashIcon className="h-5 w-5" />
-                          )}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => openEditModal(field)}
-                            className="p-1 text-gray-400 hover:text-gray-600"
-                            title={t('superadmin.customFields.editField')}
-                          >
-                            <PencilSquareIcon className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleArchive(field)}
-                            className="p-1 text-gray-400 hover:text-amber-600"
-                            title={t('superadmin.customFields.archiveField')}
-                          >
-                            <ArchiveBoxIcon className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(field)}
-                            className="p-1 text-gray-400 hover:text-red-600"
-                            title={t('superadmin.customFields.deleteField')}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {fields?.filter((f) => !f.is_archived).length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  {t('superadmin.customFields.noFields', { entityType: t(`superadmin.customFields.entityTypes.${selectedEntityType}`, { defaultValue: selectedEntityType }) })}
-                  <br />
-                  <button
-                    onClick={openCreateModal}
-                    className="mt-2 text-primary-600 hover:text-primary-700 font-medium"
-                  >
-                    {t('superadmin.customFields.addFirstField')}
-                  </button>
-                </div>
-              )}
-            </div>
+            <Table
+              columns={columns}
+              rows={activeFields}
+              rowKey={(f) => f.name}
+              minWidth={720}
+              empty={
+                <EmptyState
+                  icon={RectangleStackIcon}
+                  title={t('superadmin.customFields.noFields', {
+                    entityType: t(`superadmin.customFields.entityTypes.${selectedEntityType}`, {
+                      defaultValue: selectedEntityType,
+                    }),
+                  })}
+                  action={
+                    <Button variant="primary" size="sm" icon={PlusIcon} onClick={openCreateModal}>
+                      {t('superadmin.customFields.addFirstField')}
+                    </Button>
+                  }
+                />
+              }
+            />
           )}
 
-          {/* Preview Section */}
-          {fields && fields.filter((f) => !f.is_archived && f.is_visible).length > 0 && (
-            <div className="card p-5">
-              <h3 className="font-semibold text-gray-900 mb-4">{t('superadmin.customFields.formPreview')}</h3>
-              <p className="text-sm text-gray-500 mb-4">
+          {/* Preview section */}
+          {previewFields.length > 0 && (
+            <div className="card card-p">
+              <h3 style={{ fontSize: 'var(--fs-lg)', fontWeight: 600 }}>
+                {t('superadmin.customFields.formPreview')}
+              </h3>
+              <p className="muted" style={{ marginTop: 2, marginBottom: 14, fontSize: 'var(--fs-sm)' }}>
                 {t('superadmin.customFields.previewDesc')}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
-                {fields
-                  .filter((f) => !f.is_archived && f.is_visible)
-                  .sort((a, b) => a.display_order - b.display_order)
-                  .map((field) => (
-                    <div key={field.name}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {field.label}
-                        {field.required && <span className="text-red-500 ml-1">*</span>}
-                      </label>
-                      {field.field_type === 'text' && (
-                        <input type="text" className="input" placeholder={field.help_text || ''} disabled />
-                      )}
-                      {field.field_type === 'number' && (
-                        <input type="number" className="input" disabled />
-                      )}
-                      {field.field_type === 'date' && (
-                        <input type="date" className="input" disabled />
-                      )}
-                      {field.field_type === 'dropdown' && (
-                        <select className="input" disabled>
-                          <option>{t('superadmin.customFields.selectOptionPlaceholder', { label: field.label })}</option>
-                          {field.options?.map((opt) => (
-                            <option key={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      )}
-                      {field.field_type === 'multi_select' && (
-                        <select className="input" multiple disabled>
-                          {field.options?.map((opt) => (
-                            <option key={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      )}
-                      {field.field_type === 'checkbox' && (
-                        <div className="flex items-center gap-2">
-                          <input type="checkbox" className="rounded border-gray-300" disabled />
-                          <span className="text-sm text-gray-500">{field.help_text || t('superadmin.customFields.enable')}</span>
-                        </div>
-                      )}
-                      {field.field_type === 'url' && (
-                        <input type="url" className="input" placeholder="https://..." disabled />
-                      )}
-                      {field.field_type === 'email' && (
-                        <input type="email" className="input" placeholder="email@example.com" disabled />
-                      )}
-                      {field.field_type === 'currency' && (
-                        <div className="flex">
-                          <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
-                            $
-                          </span>
-                          <input type="number" className="input rounded-l-none" disabled />
-                        </div>
-                      )}
-                      {field.help_text && field.field_type !== 'checkbox' && (
-                        <p className="mt-1 text-xs text-gray-500">{field.help_text}</p>
-                      )}
-                    </div>
-                  ))}
+                {previewFields.map((field) => (
+                  <div key={field.name}>
+                    <label className="lbl">
+                      {field.label}
+                      {field.required && <span style={{ color: 'var(--da)', marginLeft: 4 }}>*</span>}
+                    </label>
+                    {renderPreviewControl(field)}
+                    {field.help_text && field.field_type !== 'checkbox' && (
+                      <div className="hint">{field.help_text}</div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
         </>
       )}
 
-      {/* Create/Edit Field Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={closeModal} />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingField ? t('superadmin.customFields.editFieldTitle') : t('superadmin.customFields.createFieldTitle')}
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {!editingField && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('superadmin.customFields.fieldName')} *
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="input font-mono"
-                        required
-                        placeholder="department"
-                        pattern="[a-z0-9_]+"
-                        title={t('superadmin.customFields.fieldNamePattern')}
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        {t('superadmin.customFields.fieldNameHint')}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('superadmin.customFields.fieldType')} *
-                      </label>
-                      <select
-                        value={formData.field_type}
-                        onChange={(e) => setFormData({ ...formData, field_type: e.target.value as FieldType })}
-                        className="input"
-                      >
-                        {FIELD_TYPES.map((ft) => (
-                          <option key={ft.id} value={ft.id}>
-                            {t(`superadmin.customFields.fieldTypes.${ft.id}`, { defaultValue: ft.label })}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
+      {/* Create / edit field drawer */}
+      <Drawer
+        open={isModalOpen}
+        title={editingField ? t('superadmin.customFields.editFieldTitle') : t('superadmin.customFields.createFieldTitle')}
+        sub={editingField?.name}
+        onClose={closeModal}
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeModal}>
+              {t('common.cancel')}
+            </Button>
+            <span className="grow" />
+            <Button variant="primary" type="submit" form={FORM_ID} disabled={isSaving}>
+              {isSaving
+                ? t('common.saving')
+                : editingField
+                  ? t('superadmin.update')
+                  : t('superadmin.create')}
+            </Button>
+          </>
+        }
+      >
+        <form id={FORM_ID} onSubmit={handleSubmit} className="col" style={{ gap: 14 }}>
+          {!editingField && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field
+                label={`${t('superadmin.customFields.fieldName')} *`}
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+                placeholder="department"
+                pattern="[a-z0-9_]+"
+                title={t('superadmin.customFields.fieldNamePattern')}
+                hint={t('superadmin.customFields.fieldNameHint')}
+                className="mono"
+              />
+              <Select
+                label={`${t('superadmin.customFields.fieldType')} *`}
+                value={formData.field_type}
+                onChange={(e) => setFormData({ ...formData, field_type: e.target.value as FieldType })}
+                options={FIELD_TYPES.map((ft) => ({
+                  value: ft.id,
+                  label: t(`superadmin.customFields.fieldTypes.${ft.id}`, { defaultValue: ft.label }),
+                }))}
+              />
+            </div>
+          )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.customFields.displayLabel')} *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.label}
-                    onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-                    className="input"
-                    required
-                    placeholder={t('superadmin.customFields.displayLabelPlaceholder')}
-                  />
-                </div>
+          <Field
+            label={`${t('superadmin.customFields.displayLabel')} *`}
+            type="text"
+            value={formData.label}
+            onChange={(e) => setFormData({ ...formData, label: e.target.value })}
+            required
+            placeholder={t('superadmin.customFields.displayLabelPlaceholder')}
+          />
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="required"
-                    checked={formData.required}
-                    onChange={(e) => setFormData({ ...formData, required: e.target.checked })}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label htmlFor="required" className="text-sm text-gray-700">
-                    {t('superadmin.customFields.requiredField')}
-                  </label>
-                </div>
+          <Checkbox
+            checked={formData.required}
+            onChange={(checked) => setFormData({ ...formData, required: checked })}
+            label={t('superadmin.customFields.requiredField')}
+          />
 
-                {showOptionsField && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('superadmin.customFields.options')} *
-                    </label>
-                    <textarea
-                      value={formData.options}
-                      onChange={(e) => setFormData({ ...formData, options: e.target.value })}
-                      className="input"
-                      rows={4}
-                      placeholder={t('superadmin.customFields.optionsPlaceholder')}
-                      required={showOptionsField}
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      {t('superadmin.customFields.optionsHint')}
-                    </p>
-                  </div>
-                )}
+          {showOptionsField && (
+            <TextareaField
+              label={`${t('superadmin.customFields.options')} *`}
+              value={formData.options}
+              onChange={(v) => setFormData({ ...formData, options: v })}
+              rows={4}
+              placeholder={t('superadmin.customFields.optionsPlaceholder')}
+              required
+              hint={t('superadmin.customFields.optionsHint')}
+            />
+          )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('superadmin.customFields.helpText')}
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.help_text}
-                    onChange={(e) => setFormData({ ...formData, help_text: e.target.value })}
-                    className="input"
-                    placeholder={t('superadmin.customFields.helpTextPlaceholder')}
-                  />
-                </div>
+          <Field
+            label={t('superadmin.customFields.helpText')}
+            type="text"
+            value={formData.help_text}
+            onChange={(e) => setFormData({ ...formData, help_text: e.target.value })}
+            placeholder={t('superadmin.customFields.helpTextPlaceholder')}
+          />
 
-                <div className="border-t pt-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">{t('superadmin.customFields.aiExtractionSettings')}</h4>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('superadmin.customFields.extractionHints')}
-                      </label>
-                      <textarea
-                        value={formData.extraction_hints}
-                        onChange={(e) => setFormData({ ...formData, extraction_hints: e.target.value })}
-                        className="input"
-                        rows={2}
-                        placeholder={t('superadmin.customFields.extractionHintsPlaceholder')}
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        {t('superadmin.customFields.extractionHintsHelp')}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('superadmin.customFields.extractionExamples')}
-                      </label>
-                      <textarea
-                        value={formData.extraction_examples}
-                        onChange={(e) => setFormData({ ...formData, extraction_examples: e.target.value })}
-                        className="input"
-                        rows={3}
-                        placeholder={t('superadmin.customFields.extractionExamplesPlaceholder')}
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        {t('superadmin.customFields.extractionExamplesHelp')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <button type="button" onClick={closeModal} className="btn-secondary">
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                    className="btn-primary"
-                  >
-                    {createMutation.isPending || updateMutation.isPending ? (
-                      <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                    ) : editingField ? (
-                      t('superadmin.update')
-                    ) : (
-                      t('superadmin.create')
-                    )}
-                  </button>
-                </div>
-              </form>
+          <div style={{ borderTop: '1px solid var(--b)', paddingTop: 14 }} className="col">
+            <span className="sec-t" style={{ marginBottom: 12 }}>
+              {t('superadmin.customFields.aiExtractionSettings')}
+            </span>
+            <div className="col" style={{ gap: 14 }}>
+              <TextareaField
+                label={t('superadmin.customFields.extractionHints')}
+                value={formData.extraction_hints}
+                onChange={(v) => setFormData({ ...formData, extraction_hints: v })}
+                rows={2}
+                placeholder={t('superadmin.customFields.extractionHintsPlaceholder')}
+                hint={t('superadmin.customFields.extractionHintsHelp')}
+              />
+              <TextareaField
+                label={t('superadmin.customFields.extractionExamples')}
+                value={formData.extraction_examples}
+                onChange={(v) => setFormData({ ...formData, extraction_examples: v })}
+                rows={3}
+                placeholder={t('superadmin.customFields.extractionExamplesPlaceholder')}
+                hint={t('superadmin.customFields.extractionExamplesHelp')}
+              />
             </div>
           </div>
-        </div>
-      )}
+        </form>
+      </Drawer>
+
+      {/* Delete confirmation — replaces the old window.confirm */}
+      <ConfirmDialog
+        open={deleteTarget != null}
+        title={t('superadmin.customFields.deleteConfirm', { label: deleteTarget?.label ?? '' })}
+        confirmLabel={t('superadmin.customFields.deleteField')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.name)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Archive confirmation — replaces the old window.confirm */}
+      <ConfirmDialog
+        open={archiveTarget != null}
+        tone="warn"
+        title={t('superadmin.customFields.archiveConfirm', { label: archiveTarget?.label ?? '' })}
+        confirmLabel={t('superadmin.customFields.archiveField')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => {
+          if (archiveTarget) {
+            updateMutation.mutate({ fieldName: archiveTarget.name, data: { is_archived: true } })
+          }
+          setArchiveTarget(null)
+        }}
+        onCancel={() => setArchiveTarget(null)}
+      />
     </div>
   )
 }

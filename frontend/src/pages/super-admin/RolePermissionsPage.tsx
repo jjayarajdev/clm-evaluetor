@@ -2,13 +2,18 @@
 // source of truth for backend endpoint guards AND the permission list every
 // user receives on login (/auth/me). Guardrails mirror the API: super_admin
 // is immutable, and the admin role cannot lose 'admin'/'settings'.
-import { useEffect, useMemo, useState } from 'react'
+// Direction B restyle: token matrix table, Checkbox primitive, toast on save.
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ShieldCheckIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/outline'
+import {
+  ArrowUturnLeftIcon,
+  ExclamationCircleIcon,
+  ShieldCheckIcon,
+} from '@heroicons/react/24/outline'
 import { getRolePermissions, updateRolePermissions } from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn } from '@/lib/utils'
+import { Button, Checkbox, useToast } from '@/components/ui'
 
 const ADMIN_FLOOR = new Set(['admin', 'settings'])
 
@@ -22,8 +27,8 @@ function groupKey(permission: string): string {
 export default function RolePermissionsPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [draft, setDraft] = useState<Record<string, Set<string>>>({})
-  const [savedRole, setSavedRole] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
@@ -53,9 +58,13 @@ export default function RolePermissionsPage() {
       updateRolePermissions(role, permissions),
     onSuccess: (_res, { role }) => {
       queryClient.invalidateQueries({ queryKey: ['role-permissions'] })
-      setSavedRole(role)
       setError(null)
-      setTimeout(() => setSavedRole(null), 2500)
+      toast({
+        text: t('rbac.savedToast', {
+          defaultValue: '{{role}} permissions saved',
+          role: role.replace('_', ' '),
+        }),
+      })
     },
     onError: (err: Error) => setError(err.message || t('rbac.saveFailed')),
   })
@@ -84,40 +93,43 @@ export default function RolePermissionsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-            <ShieldCheckIcon className="h-7 w-7 text-primary-600" />
-            {t('rbac.title', { defaultValue: 'Roles & Permissions' })}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {t('rbac.subtitle', {
-              defaultValue:
-                'Platform-wide matrix driving both API access and what each role sees in the app. Changes take effect within 1 minute.',
-            })}
-          </p>
-        </div>
+    <div className="col" style={{ gap: 18 }}>
+      {/* Header */}
+      <div>
+        <h1 className="row" style={{ gap: 8, fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>
+          <ShieldCheckIcon style={{ width: 26, height: 26, color: 'var(--p)', flexShrink: 0 }} aria-hidden />
+          {t('rbac.title', { defaultValue: 'Roles & Permissions' })}
+        </h1>
+        <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>
+          {t('rbac.subtitle', {
+            defaultValue:
+              'Platform-wide matrix driving both API access and what each role sees in the app. Changes take effect within 1 minute.',
+          })}
+        </p>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+        <div className="banner banner-da">
+          <ExclamationCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+          <span>{error}</span>
         </div>
       )}
 
-      <div className="card overflow-x-auto">
-        <table className="min-w-full">
-          <thead className="bg-gray-50">
+      <div className="tbl-w">
+        <table className="tbl" style={{ minWidth: 640 }}>
+          <thead>
             <tr>
-              <th className="sticky left-0 bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <th style={{ position: 'sticky', left: 0, zIndex: 2, background: 'var(--s3)' }}>
                 {t('rbac.permission', { defaultValue: 'Permission' })}
               </th>
               {roles.map((role) => (
-                <th key={role.name} className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <th key={role.name} style={{ textAlign: 'center' }}>
                   {role.name.replace('_', ' ')}
                   {role.name === 'super_admin' && (
-                    <span className="block text-[10px] font-normal normal-case text-gray-400">
+                    <span
+                      className="faint"
+                      style={{ display: 'block', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}
+                    >
                       {t('rbac.immutable', { defaultValue: 'immutable' })}
                     </span>
                   )}
@@ -127,18 +139,34 @@ export default function RolePermissionsPage() {
           </thead>
           <tbody>
             {groups.map(([group, permissions]) => (
-              <>
-                <tr key={`g-${group}`} className="bg-gray-100/70">
+              <Fragment key={group}>
+                <tr>
                   <td
                     colSpan={roles.length + 1}
-                    className="sticky left-0 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-gray-500"
+                    className="sec-t"
+                    style={{
+                      position: 'sticky',
+                      left: 0,
+                      padding: '6px 14px',
+                      background: 'var(--s2)',
+                    }}
                   >
                     {group}
                   </td>
                 </tr>
                 {permissions.map((permission) => (
-                  <tr key={permission} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="sticky left-0 bg-white px-4 py-2 font-mono text-xs text-gray-700">
+                  <tr key={permission}>
+                    <td
+                      className="mono"
+                      style={{
+                        position: 'sticky',
+                        left: 0,
+                        zIndex: 1,
+                        background: 'var(--s)',
+                        fontSize: 'var(--fs-xs)',
+                        color: 'var(--m)',
+                      }}
+                    >
                       {permission}
                     </td>
                     {roles.map((role) => {
@@ -146,36 +174,41 @@ export default function RolePermissionsPage() {
                         role.name === 'super_admin' ||
                         (role.name === 'admin' && ADMIN_FLOOR.has(permission))
                       return (
-                        <td key={role.name} className="px-3 py-2 text-center">
-                          <input
-                            type="checkbox"
+                        <td key={role.name} style={{ textAlign: 'center' }}>
+                          <Checkbox
                             checked={draft[role.name]?.has(permission) ?? false}
                             disabled={locked}
                             onChange={() => toggle(role.name, permission)}
-                            className={cn(
-                              'h-4 w-4 rounded border-gray-300 text-primary-600',
-                              locked ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
-                            )}
                           />
                         </td>
                       )
                     })}
                   </tr>
                 ))}
-              </>
+              </Fragment>
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t border-gray-200 bg-gray-50">
-              <td className="sticky left-0 bg-gray-50 px-4 py-3 text-xs text-gray-400">
+            <tr style={{ background: 'var(--s3)' }}>
+              <td
+                className="faint"
+                style={{
+                  position: 'sticky',
+                  left: 0,
+                  background: 'var(--s3)',
+                  fontSize: 'var(--fs-xs)',
+                  borderTop: '1px solid var(--b)',
+                }}
+              >
                 {t('rbac.footerNote', { defaultValue: 'super_admin always passes all checks' })}
               </td>
               {roles.map((role) => (
-                <td key={role.name} className="px-3 py-3 text-center">
+                <td key={role.name} style={{ textAlign: 'center', borderTop: '1px solid var(--b)' }}>
                   {role.name !== 'super_admin' && (
-                    <div className="flex flex-col items-center gap-1">
-                      <button
-                        className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-40"
+                    <div className="col" style={{ alignItems: 'center', gap: 4 }}>
+                      <Button
+                        variant="primary"
+                        size="sm"
                         disabled={!isDirty(role.name) || saveMutation.isPending}
                         onClick={() =>
                           saveMutation.mutate({
@@ -184,20 +217,19 @@ export default function RolePermissionsPage() {
                           })
                         }
                       >
-                        {savedRole === role.name
-                          ? t('rbac.saved', { defaultValue: 'Saved ✓' })
-                          : t('common.save')}
-                      </button>
+                        {t('common.save')}
+                      </Button>
                       {isDirty(role.name) && (
-                        <button
-                          className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:underline"
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={ArrowUturnLeftIcon}
                           onClick={() =>
                             setDraft((prev) => ({ ...prev, [role.name]: serverPerms(role.name) }))
                           }
                         >
-                          <ArrowUturnLeftIcon className="h-3 w-3" />
                           {t('rbac.reset', { defaultValue: 'Reset' })}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}

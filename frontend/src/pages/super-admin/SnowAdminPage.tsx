@@ -1,3 +1,7 @@
+/* Platform-wide ServiceNow integration overview — Direction B restyle.
+   Header → Stat summary row → tenant configuration Table (health Pills) →
+   recent integration log Table. Read-only page; both queries and the
+   computed summary stats are unchanged from the pre-redesign page. */
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
@@ -9,17 +13,26 @@ import {
   ServerIcon,
   LinkIcon,
   ArrowPathIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn, formatDateTime } from '@/lib/utils'
+import { EmptyState, Pill, Stat, Table } from '@/components/ui'
+import type { PillTone, TableColumn } from '@/components/ui'
+import { formatDateTime } from '@/lib/utils'
 import type { SnowAdminOverview, SnowIntegrationLog } from '@/types/snow-integration'
 
-const HEALTH_BADGE: Record<string, { color: string; icon: typeof CheckCircleIcon }> = {
-  healthy: { color: 'bg-green-100 text-green-700', icon: CheckCircleIcon },
-  degraded: { color: 'bg-yellow-100 text-yellow-700', icon: ExclamationTriangleIcon },
-  unhealthy: { color: 'bg-red-100 text-red-700', icon: XCircleIcon },
-  unknown: { color: 'bg-gray-100 text-gray-600', icon: SignalIcon },
+const HEALTH_PILL: Record<string, { tone: PillTone; icon: typeof CheckCircleIcon }> = {
+  healthy: { tone: 'ok', icon: CheckCircleIcon },
+  degraded: { tone: 'wa', icon: ExclamationTriangleIcon },
+  unhealthy: { tone: 'da', icon: XCircleIcon },
+  unknown: { tone: 'n', icon: SignalIcon },
+}
+
+const METHOD_TONE: Record<string, PillTone> = {
+  GET: 'in',
+  POST: 'ok',
+  PUT: 'wa',
 }
 
 export default function SnowAdminPage() {
@@ -41,9 +54,187 @@ export default function SnowAdminPage() {
   const unhealthyCount = overview?.filter((t: SnowAdminOverview) => t.config && t.config.health_status !== 'healthy').length ?? 0
   const totalSyncs = overview?.reduce((sum: number, t: SnowAdminOverview) => sum + (t.config?.total_requests ?? 0), 0) ?? 0
 
+  const tenantColumns: TableColumn<SnowAdminOverview>[] = [
+    {
+      key: 'tenant',
+      header: t('superadmin.tenant'),
+      sortable: true,
+      sortValue: (row) => row.tenant_name,
+      nowrap: true,
+      render: (row) => <span style={{ fontWeight: 500 }}>{row.tenant_name}</span>,
+    },
+    {
+      key: 'instance',
+      header: t('integrations.snow.instanceUrl'),
+      render: (row) =>
+        row.config ? (
+          <span className="muted trunc" style={{ display: 'block', maxWidth: 220, fontSize: 'var(--fs-sm)' }}>
+            {row.config.base_url}
+          </span>
+        ) : (
+          <span className="faint" style={{ fontSize: 'var(--fs-sm)', fontStyle: 'italic' }}>
+            {t('integrations.snowAdmin.notConfigured')}
+          </span>
+        ),
+    },
+    {
+      key: 'status',
+      header: t('common.status'),
+      width: 130,
+      sortable: true,
+      sortValue: (row) => row.config?.health_status ?? '',
+      render: (row) => {
+        if (!row.config) {
+          return <Pill tone="n" dot={false}>{t('integrations.snowAdmin.noConfig')}</Pill>
+        }
+        const badge = HEALTH_PILL[row.config.health_status] || HEALTH_PILL.unknown
+        const BadgeIcon = badge.icon
+        return (
+          <Pill tone={badge.tone} dot={false}>
+            <BadgeIcon style={{ width: 12, height: 12, flexShrink: 0 }} aria-hidden />
+            {t(`integrations.health.${row.config.health_status}`, { defaultValue: row.config.health_status })}
+          </Pill>
+        )
+      },
+    },
+    {
+      key: 'lastSync',
+      header: t('integrations.snowAdmin.lastSync'),
+      width: 160,
+      nowrap: true,
+      sortable: true,
+      sortValue: (row) => row.last_sync,
+      render: (row) => (
+        <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
+          {row.last_sync ? formatDateTime(row.last_sync) : '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'mappings',
+      header: t('integrations.snowAdmin.mappings'),
+      width: 110,
+      sortable: true,
+      sortValue: (row) => (row.config ? row.mapping_count : null),
+      render: (row) =>
+        row.config ? (
+          <span className="row num" style={{ gap: 4, fontSize: 'var(--fs-md)' }}>
+            <LinkIcon style={{ width: 13, height: 13, color: 'var(--f)', flexShrink: 0 }} aria-hidden />
+            {row.mapping_count}
+          </span>
+        ) : (
+          <span className="faint">-</span>
+        ),
+    },
+    {
+      key: 'requests',
+      header: t('integrations.snowAdmin.requests'),
+      width: 130,
+      sortable: true,
+      sortValue: (row) => row.config?.total_requests ?? null,
+      render: (row) =>
+        row.config ? (
+          <span className="num" style={{ fontSize: 'var(--fs-md)' }}>
+            {row.config.total_requests}
+            {row.config.failed_requests > 0 && (
+              <span style={{ color: 'var(--da)', marginLeft: 4 }}>
+                ({t('integrations.snowAdmin.failedCount', { count: row.config.failed_requests })})
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="faint">-</span>
+        ),
+    },
+  ]
+
+  const logColumns: TableColumn<SnowIntegrationLog>[] = [
+    {
+      key: 'time',
+      header: t('integrations.snowAdmin.time'),
+      width: 160,
+      nowrap: true,
+      sortable: true,
+      sortValue: (log) => log.started_at,
+      render: (log) => (
+        <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
+          {formatDateTime(log.started_at)}
+        </span>
+      ),
+    },
+    {
+      key: 'operation',
+      header: t('integrations.snowAdmin.operation'),
+      nowrap: true,
+      sortable: true,
+      sortValue: (log) => log.operation,
+      render: (log) => <span style={{ fontSize: 'var(--fs-md)' }}>{log.operation}</span>,
+    },
+    {
+      key: 'method',
+      header: t('integrations.snowAdmin.method'),
+      width: 90,
+      render: (log) => (
+        <Pill tone={METHOD_TONE[log.method] ?? 'n'} dot={false} className="mono">
+          {log.method}
+        </Pill>
+      ),
+    },
+    {
+      key: 'endpoint',
+      header: t('integrations.snowAdmin.endpoint'),
+      render: (log) => (
+        <span className="faint mono trunc" style={{ display: 'block', maxWidth: 220, fontSize: 'var(--fs-xs)' }}>
+          {log.endpoint}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: t('common.status'),
+      width: 100,
+      sortable: true,
+      sortValue: (log) => (log.is_success ? 0 : 1),
+      render: (log) =>
+        log.is_success ? (
+          <Pill tone="ok" dot={false}>
+            <CheckCircleIcon style={{ width: 12, height: 12, flexShrink: 0 }} aria-hidden />
+            {log.status_code || 'OK'}
+          </Pill>
+        ) : (
+          <Pill tone="da" dot={false}>
+            <XCircleIcon style={{ width: 12, height: 12, flexShrink: 0 }} aria-hidden />
+            {log.status_code || t('integrations.snowAdmin.error')}
+          </Pill>
+        ),
+    },
+    {
+      key: 'duration',
+      header: t('integrations.snowAdmin.duration'),
+      width: 100,
+      nowrap: true,
+      sortable: true,
+      sortValue: (log) => log.duration_ms,
+      render: (log) => (
+        <span className="faint num" style={{ fontSize: 'var(--fs-sm)' }}>
+          {log.duration_ms !== null ? `${log.duration_ms}ms` : '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'error',
+      header: t('integrations.snowAdmin.error'),
+      render: (log) => (
+        <span className="trunc" style={{ display: 'block', maxWidth: 220, fontSize: 'var(--fs-xs)', color: log.error_message ? 'var(--da)' : 'var(--f)' }}>
+          {log.error_message || '-'}
+        </span>
+      ),
+    },
+  ]
+
   if (overviewLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
         <LoadingSpinner size="lg" />
       </div>
     )
@@ -51,270 +242,82 @@ export default function SnowAdminPage() {
 
   if (overviewError) {
     return (
-      <div className="rounded-lg bg-red-50 p-4 text-red-700">
-        {t('integrations.snowAdmin.loadError')}
+      <div className="banner banner-da">
+        <XCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+        <span>{t('integrations.snowAdmin.loadError')}</span>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 18 }}>
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">{t('integrations.snowAdmin.title')}</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>
+          {t('integrations.snowAdmin.title')}
+        </h1>
+        <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>
           {t('integrations.snowAdmin.subtitle')}
         </p>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary-100 flex items-center justify-center">
-              <ServerIcon className="h-5 w-5 text-primary-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">{t('integrations.snowAdmin.totalConfigurations')}</p>
-              <p className="text-xl font-bold text-gray-900">{totalConfigs}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
-              <CheckCircleIcon className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">{t('integrations.health.healthy')}</p>
-              <p className="text-xl font-bold text-gray-900">{healthyCount}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
-              <XCircleIcon className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">{t('integrations.health.unhealthy')}</p>
-              <p className="text-xl font-bold text-gray-900">{unhealthyCount}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <ArrowPathIcon className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">{t('integrations.snowAdmin.totalRequests')}</p>
-              <p className="text-xl font-bold text-gray-900">{totalSyncs}</p>
-            </div>
-          </div>
-        </div>
+        <Stat icon={ServerIcon} label={t('integrations.snowAdmin.totalConfigurations')} value={totalConfigs} />
+        <Stat icon={CheckCircleIcon} label={t('integrations.health.healthy')} value={healthyCount} />
+        <Stat
+          icon={XCircleIcon}
+          label={t('integrations.health.unhealthy')}
+          value={unhealthyCount}
+          sub={unhealthyCount > 0 ? t('integrations.snowAdmin.needsAttention', { defaultValue: 'needs attention' }) : undefined}
+          subTone="var(--da)"
+        />
+        <Stat icon={ArrowPathIcon} label={t('integrations.snowAdmin.totalRequests')} value={totalSyncs} />
       </div>
 
-      {/* Tenant Configurations Table */}
-      <div className="card overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-          <CloudArrowUpIcon className="h-5 w-5 text-primary-600" />
-          <h3 className="text-sm font-medium text-gray-900">{t('integrations.snowAdmin.tenantConfigurations')}</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('superadmin.tenant')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('integrations.snow.instanceUrl')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('common.status')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('integrations.snowAdmin.lastSync')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('integrations.snowAdmin.mappings')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('integrations.snowAdmin.requests')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {overview?.map((tenant: SnowAdminOverview) => {
-                const badge = tenant.config
-                  ? HEALTH_BADGE[tenant.config.health_status] || HEALTH_BADGE.unknown
-                  : null
-                const BadgeIcon = badge?.icon
-
-                return (
-                  <tr key={tenant.tenant_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="text-sm font-medium text-gray-900">{tenant.tenant_name}</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {tenant.config ? (
-                        <span className="text-sm text-gray-600 truncate max-w-[200px] inline-block">
-                          {tenant.config.base_url}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-gray-400 italic">{t('integrations.snowAdmin.notConfigured')}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {tenant.config && badge ? (
-                        <span className={cn(
-                          'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium',
-                          badge.color
-                        )}>
-                          {BadgeIcon && <BadgeIcon className="h-3 w-3" />}
-                          {t(`integrations.health.${tenant.config.health_status}`, { defaultValue: tenant.config.health_status })}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
-                          {t('integrations.snowAdmin.noConfig')}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                      {tenant.last_sync ? formatDateTime(tenant.last_sync) : '-'}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {tenant.config ? (
-                        <div className="flex items-center gap-1 text-sm text-gray-900">
-                          <LinkIcon className="h-3.5 w-3.5 text-gray-400" />
-                          {tenant.mapping_count}
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {tenant.config ? (
-                        <div className="text-sm">
-                          <span className="text-gray-900">{tenant.config.total_requests}</span>
-                          {tenant.config.failed_requests > 0 && (
-                            <span className="text-red-600 ml-1">
-                              ({t('integrations.snowAdmin.failedCount', { count: tenant.config.failed_requests })})
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-        {(!overview || overview.length === 0) && (
-          <div className="text-center py-12 text-gray-500">
-            {t('integrations.snowAdmin.noTenantData')}
-          </div>
-        )}
+      {/* Tenant configurations */}
+      <div className="col" style={{ gap: 8 }}>
+        <span className="sec-t row" style={{ gap: 6 }}>
+          <CloudArrowUpIcon style={{ width: 15, height: 15, color: 'var(--p)', flexShrink: 0 }} aria-hidden />
+          {t('integrations.snowAdmin.tenantConfigurations')}
+        </span>
+        <Table
+          columns={tenantColumns}
+          rows={overview ?? []}
+          rowKey={(row) => row.tenant_id}
+          minWidth={860}
+          empty={
+            <EmptyState
+              icon={ServerIcon}
+              title={t('integrations.snowAdmin.noTenantData')}
+            />
+          }
+        />
       </div>
 
-      {/* Recent Integration Logs */}
-      <div className="card overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-sm font-medium text-gray-900">{t('integrations.snowAdmin.recentLogs')}</h3>
-        </div>
+      {/* Recent integration logs */}
+      <div className="col" style={{ gap: 8 }}>
+        <span className="sec-t row" style={{ gap: 6 }}>
+          <DocumentTextIcon style={{ width: 15, height: 15, color: 'var(--p)', flexShrink: 0 }} aria-hidden />
+          {t('integrations.snowAdmin.recentLogs')}
+        </span>
         {logsLoading ? (
-          <div className="flex items-center justify-center h-32">
+          <div className="row" style={{ justifyContent: 'center', height: 128 }}>
             <LoadingSpinner size="lg" />
           </div>
         ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('integrations.snowAdmin.time')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('integrations.snowAdmin.operation')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('integrations.snowAdmin.method')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('integrations.snowAdmin.endpoint')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('common.status')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('integrations.snowAdmin.duration')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('integrations.snowAdmin.error')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {logs?.map((log: SnowIntegrationLog) => (
-                    <tr key={log.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                        {formatDateTime(log.started_at)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {log.operation}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={cn(
-                          'inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono font-medium',
-                          log.method === 'GET' ? 'bg-blue-100 text-blue-700' :
-                          log.method === 'POST' ? 'bg-green-100 text-green-700' :
-                          log.method === 'PUT' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-gray-100 text-gray-700'
-                        )}>
-                          {log.method}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 font-mono truncate max-w-[200px]">
-                        {log.endpoint}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {log.is_success ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
-                            <CheckCircleIcon className="h-3 w-3" />
-                            {log.status_code || 'OK'}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                            <XCircleIcon className="h-3 w-3" />
-                            {log.status_code || t('integrations.snowAdmin.error')}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                        {log.duration_ms !== null ? `${log.duration_ms}ms` : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-red-600 truncate max-w-[200px]">
-                        {log.error_message || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {(!logs || logs.length === 0) && (
-              <div className="text-center py-12 text-gray-500">
-                {t('integrations.snowAdmin.noLogs')}
-              </div>
-            )}
-          </>
+          <Table
+            columns={logColumns}
+            rows={logs ?? []}
+            rowKey={(log) => log.id}
+            minWidth={960}
+            empty={
+              <EmptyState
+                icon={DocumentTextIcon}
+                title={t('integrations.snowAdmin.noLogs')}
+              />
+            }
+          />
         )}
       </div>
     </div>
