@@ -33,6 +33,28 @@ from app.services.reporting_service import (
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 
+async def _resolve_report_scoring(db: AsyncSession, tenant_id, business_unit_id) -> dict:
+    """At-Risk/Compliance scoring rules: default -> tenant -> BU overrides.
+
+    Same resolution chain as the post-signing dashboard, so a report never
+    disagrees with the dashboard about what the configured weights are.
+    """
+    from app.models.tenant import Tenant
+    from app.models.business_unit import BusinessUnit
+    from app.services.scoring_config import resolve_scoring_config
+
+    sources: list[dict] = []
+    if tenant_id:
+        t = await db.get(Tenant, tenant_id)
+        if t and t.config_overrides:
+            sources.append(t.config_overrides)
+    if business_unit_id:
+        bu = await db.get(BusinessUnit, business_unit_id)
+        if bu and bu.config_overrides:
+            sources.append(bu.config_overrides)
+    return resolve_scoring_config(*sources)
+
+
 @router.get("/compliance", response_model=ComplianceReportResponse)
 async def get_compliance_report(
     start_date: date = Query(..., description="Report start date"),
@@ -177,7 +199,24 @@ async def get_compliance_report(
     total_slas = len(sla_aggregates)
     sla_compliance_rate = (slas_compliant / total_slas * 100) if total_slas > 0 else 100.0
 
-    overall_compliance_rate = (obligation_compliance_rate * 0.6 + sla_compliance_rate * 0.4)
+    # Weighted blend of the MEASURED components only, using the tenant/BU
+    # configured weights (Settings -> Scoring) — the same rule the post-signing
+    # dashboard applies. An unmeasured component is excluded rather than padded
+    # in with a fabricated 100%.
+    comp_cfg = (await _resolve_report_scoring(db, tenant_id, bu_id))["compliance"]
+    _measured = [
+        (v, w)
+        for v, w, n in (
+            (obligation_compliance_rate, comp_cfg["obligation_weight"], total_obligations),
+            (sla_compliance_rate, comp_cfg["sla_weight"], total_slas),
+        )
+        if n > 0
+    ]
+    overall_compliance_rate = (
+        sum(v * w for v, w in _measured) / sum(w for _, w in _measured)
+        if _measured and sum(w for _, w in _measured) > 0
+        else 100.0
+    )
 
     # Count unique contracts and high-risk
     contracts_reviewed = len(by_contract)
