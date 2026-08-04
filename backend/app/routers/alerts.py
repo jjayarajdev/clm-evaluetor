@@ -557,23 +557,30 @@ async def bulk_alert_action(
             alert_id = UUID(alert_id_str)
 
             if request.action == "acknowledge":
-                await alert_service.acknowledge_alert(alert_id, current_user.id)
+                await alert_service.acknowledge_alert(
+                    alert_id, current_user.id, tenant_id=tenant_id
+                )
             elif request.action == "resolve":
                 await alert_service.resolve_alert(
                     alert_id,
                     current_user.id,
-                    request.notes or "Bulk resolved"
+                    request.notes or "Bulk resolved",
+                    tenant_id=tenant_id,
                 )
             elif request.action == "dismiss":
-                result = await db.execute(
-                    select(SLAAlert).where(SLAAlert.id == alert_id)
-                )
+                query = select(SLAAlert).where(SLAAlert.id == alert_id)
+                if tenant_id is not None:
+                    query = query.join(
+                        Contract, SLAAlert.contract_id == Contract.id
+                    ).where(Contract.tenant_id == tenant_id)
+                result = await db.execute(query)
                 alert = result.scalar_one_or_none()
-                if alert:
-                    alert.status = AlertStatus.DISMISSED
-                    alert.resolved_at = datetime.utcnow()
-                    alert.resolved_by = current_user.id
-                    alert.resolution_notes = request.notes or "Bulk dismissed"
+                if not alert:
+                    raise ValueError("Alert not found")
+                alert.status = AlertStatus.DISMISSED
+                alert.resolved_at = datetime.utcnow()
+                alert.resolved_by = current_user.id
+                alert.resolution_notes = request.notes or "Bulk dismissed"
 
             processed.append(alert_id_str)
 

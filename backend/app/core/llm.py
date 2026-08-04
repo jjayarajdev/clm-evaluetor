@@ -36,6 +36,19 @@ current_tenant_id: ContextVar[str | None] = ContextVar("llm_current_tenant_id", 
 
 DEFAULT_AZURE_API_VERSION = "2024-08-01-preview"
 
+
+def _client_hardening() -> dict:
+    """Shared timeout/retry kwargs applied to every OpenAI/Azure client.
+
+    A bounded request timeout stops the extraction pipeline hanging on a
+    stalled connection; max_retries lets the SDK ride out transient blips
+    (network/5xx) before the call surfaces as an error.
+    """
+    return {
+        "timeout": settings.openai_timeout_seconds,
+        "max_retries": settings.openai_max_retries,
+    }
+
 # tenant_id(str) -> azure config dict {endpoint, api_key, api_version}. In-memory,
 # refreshed at startup and on save. NOTE: per-process — with multiple workers a
 # save only updates one worker, so it's a best-effort fallback. The authoritative
@@ -206,11 +219,14 @@ def get_async_openai(tenant_id=None, trace: bool = False) -> AsyncOpenAI:
         try:
             if az.get("provider") == "openai":
                 # Tenant's own OpenAI key (models called by id — no remapping).
-                return _meter_async_client(AsyncOpenAI(api_key=az["api_key"]))
+                return _meter_async_client(
+                    AsyncOpenAI(api_key=az["api_key"], **_client_hardening())
+                )
             client = AsyncAzureOpenAI(
                 api_key=az["api_key"],
                 azure_endpoint=az["endpoint"],
                 api_version=az.get("api_version") or DEFAULT_AZURE_API_VERSION,
+                **_client_hardening(),
             )
             client = _apply_async_deployment(client, (az.get("deployment") or "").strip() or None)
             return _meter_async_client(client)
@@ -219,10 +235,14 @@ def get_async_openai(tenant_id=None, trace: bool = False) -> AsyncOpenAI:
     if trace and _langfuse_on():
         try:
             from langfuse.openai import AsyncOpenAI as LangfuseAsyncOpenAI
-            return _meter_async_client(LangfuseAsyncOpenAI(api_key=settings.openai_api_key))
+            return _meter_async_client(
+                LangfuseAsyncOpenAI(api_key=settings.openai_api_key, **_client_hardening())
+            )
         except Exception:  # noqa: BLE001
             pass
-    return _meter_async_client(AsyncOpenAI(api_key=settings.openai_api_key))
+    return _meter_async_client(
+        AsyncOpenAI(api_key=settings.openai_api_key, **_client_hardening())
+    )
 
 
 def get_sync_openai(tenant_id=None) -> OpenAI:
@@ -231,11 +251,14 @@ def get_sync_openai(tenant_id=None) -> OpenAI:
     if az:
         try:
             if az.get("provider") == "openai":
-                return _meter_sync_client(OpenAI(api_key=az["api_key"]))
+                return _meter_sync_client(
+                    OpenAI(api_key=az["api_key"], **_client_hardening())
+                )
             client = AzureOpenAI(
                 api_key=az["api_key"],
                 azure_endpoint=az["endpoint"],
                 api_version=az.get("api_version") or DEFAULT_AZURE_API_VERSION,
+                **_client_hardening(),
             )
             deployment = (az.get("deployment") or "").strip() or None
             if deployment:
@@ -252,4 +275,6 @@ def get_sync_openai(tenant_id=None) -> OpenAI:
             return _meter_sync_client(client)
         except Exception:  # noqa: BLE001
             logger.warning("Azure OpenAI (sync) build failed; using global OpenAI", exc_info=True)
-    return _meter_sync_client(OpenAI(api_key=settings.openai_api_key))
+    return _meter_sync_client(
+        OpenAI(api_key=settings.openai_api_key, **_client_hardening())
+    )

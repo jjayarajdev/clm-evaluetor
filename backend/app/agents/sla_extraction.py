@@ -16,7 +16,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.base import extract_json_from_response
+from app.agents.base import AgentResponseError, extract_json_from_response
 from app.models.sla import ContractSLA, SLAMetricType, SLAUnit, SLASeverity
 from app.services.orchestrator import get_orchestrator
 
@@ -101,6 +101,10 @@ class SLAExtractionResult(BaseModel):
     has_sla_section: bool = False
     has_penalty_mechanism: bool = False
     overall_confidence: float = 0.0
+    # True when not every SLA-bearing section of the contract could be sent to
+    # the model (e.g. a chunk was truncated or dropped), so callers must not
+    # treat the SLA list as exhaustive.
+    partial: bool = False
 
 
 def clean_sla_value(value: Any, default: float | None = None) -> float | None:
@@ -248,56 +252,127 @@ async def extract_slas(
 
     logger.info(f"Extracting SLAs from contract {contract_id}")
 
-    # Truncate if too long (keep key sections)
-    max_chars = 100000
-    if len(contract_text) > max_chars:
-        # Try to find SLA-related sections
-        text_lower = contract_text.lower()
-        sla_keywords = ["service level", "sla", "availability", "uptime", "response time",
-                       "performance", "penalty", "credit", "measurement"]
-
-        # Find sections with SLA keywords
-        chunks = []
-        chunk_size = 10000
-        for i in range(0, len(contract_text), chunk_size):
-            chunk = contract_text[i:i + chunk_size]
-            if any(kw in chunk.lower() for kw in sla_keywords):
-                chunks.append(chunk)
-
-        if chunks:
-            contract_text = "\n\n[...]\n\n".join(chunks[:10])
-        else:
-            contract_text = contract_text[:max_chars]
-
     orchestrator = get_orchestrator()
 
-    try:
-        response = await orchestrator.invoke_agent(
-            agent_name="sla_extraction",
-            prompt=f"Extract all SLAs from this contract:\n{f'INDUSTRY-SPECIFIC GUIDANCE: {industry_hint}' + chr(10) if industry_hint else ''}{few_shot_context}\n{contract_text}",
-            user_id=user_id,
-            contract_id=contract_id,
+    # Build the list of text segments to send. For short contracts it's the
+    # whole text in one call. For long contracts we previously kept ONLY the
+    # first 10 SLA-keyword windows in a single call and reported the result as
+    # complete — silently dropping SLAs in later sections. Now we iterate over
+    # EVERY SLA-bearing window so nothing is dropped, and flag `partial` if any
+    # window can't be processed.
+    max_chars = 100000
+    segments: list[str]
+    if len(contract_text) <= max_chars:
+        segments = [contract_text]
+    else:
+        sla_keywords = ["service level", "sla", "availability", "uptime", "response time",
+                        "performance", "penalty", "credit", "measurement"]
+        chunk_size = 10000
+        segments = [
+            contract_text[i:i + chunk_size]
+            for i in range(0, len(contract_text), chunk_size)
+            if any(kw in contract_text[i:i + chunk_size].lower() for kw in sla_keywords)
+        ]
+        if not segments:
+            # No keyword hits — fall back to the leading window rather than the
+            # whole (huge) document.
+            segments = [contract_text[:max_chars]]
+
+    logger.info(f"Extracting SLAs from contract {contract_id} across {len(segments)} segment(s)")
+
+    all_slas: list[dict] = []
+    has_sla_section = False
+    has_penalty_mechanism = False
+    confidences: list[float] = []
+    partial = False
+    parsed_ok = 0
+    parse_failures = 0
+
+    for seg_idx, segment in enumerate(segments):
+        seg_label = f" (part {seg_idx + 1}/{len(segments)})" if len(segments) > 1 else ""
+        try:
+            response, finish_reason = await orchestrator.invoke_agent_with_meta(
+                agent_name="sla_extraction",
+                prompt=(
+                    f"Extract all SLAs from this contract{seg_label}:\n"
+                    f"{f'INDUSTRY-SPECIFIC GUIDANCE: {industry_hint}' + chr(10) if industry_hint else ''}"
+                    f"{few_shot_context}\n{segment}"
+                ),
+                user_id=user_id,
+                contract_id=contract_id,
+            )
+
+            json_data = extract_json_from_response(response, finish_reason=finish_reason)
+            if json_data is None:
+                logger.warning(
+                    f"No JSON found in SLA extraction response for {contract_id}{seg_label}"
+                )
+                logger.debug(f"Raw SLA response (first 2000 chars): {response[:2000]}")
+                parsed_ok += 1  # clean empty response, not a failure
+                continue
+
+            if isinstance(json_data, list):
+                # Model returned a bare array of SLAs.
+                json_data = {"slas": json_data}
+
+            json_data = preprocess_sla_data(json_data)
+            seg_result = SLAExtractionResult(**json_data)
+            parsed_ok += 1
+
+            all_slas.extend(sla.model_dump() for sla in seg_result.slas)
+            has_sla_section = has_sla_section or seg_result.has_sla_section
+            has_penalty_mechanism = has_penalty_mechanism or seg_result.has_penalty_mechanism
+            if seg_result.overall_confidence:
+                confidences.append(seg_result.overall_confidence)
+
+        except AgentResponseError as e:
+            # Truncated / unparseable segment. Don't fail the whole contract —
+            # keep whatever other segments produced, but mark the result partial
+            # so completeness isn't overstated.
+            parse_failures += 1
+            partial = True
+            logger.warning(f"SLA segment {seg_idx} truncated/unparseable for {contract_id}: {e}")
+            continue
+        except Exception as e:
+            parse_failures += 1
+            partial = True
+            logger.error(f"SLA extraction failed for {contract_id}{seg_label}: {e}")
+            continue
+
+    # If every segment failed to parse (vs. cleanly finding no SLAs), surface a
+    # failure so the pipeline records SLA_EXTRACTION as failed.
+    if parsed_ok == 0 and parse_failures:
+        raise AgentResponseError(
+            f"SLA extraction could not parse any of {len(segments)} segment(s) "
+            f"({parse_failures} truncated/unparseable) for {contract_id}."
         )
 
-        # Parse JSON response
-        json_data = extract_json_from_response(response)
+    # Deduplicate identical SLAs that appear across overlapping segments.
+    seen: set[tuple] = set()
+    deduped: list[ExtractedSLA] = []
+    for sla_dict in all_slas:
+        key = (
+            (sla_dict.get("sla_name") or "").strip().lower(),
+            sla_dict.get("metric_type"),
+            sla_dict.get("target_value"),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(ExtractedSLA(**sla_dict))
 
-        if not json_data:
-            logger.warning(f"No JSON found in SLA extraction response for {contract_id}")
-            logger.debug(f"Raw SLA extraction response (first 2000 chars): {response[:2000]}")
-            return None
-
-        # Preprocess to handle AI response format issues
-        json_data = preprocess_sla_data(json_data)
-
-        result = SLAExtractionResult(**json_data)
-        logger.info(f"Extracted {len(result.slas)} SLAs from contract {contract_id}")
-
-        return result
-
-    except Exception as e:
-        logger.error(f"SLA extraction failed for {contract_id}: {e}")
-        return None
+    result = SLAExtractionResult(
+        slas=deduped,
+        has_sla_section=has_sla_section,
+        has_penalty_mechanism=has_penalty_mechanism,
+        overall_confidence=(sum(confidences) / len(confidences)) if confidences else 0.0,
+        partial=partial,
+    )
+    logger.info(
+        f"Extracted {len(result.slas)} SLAs from contract {contract_id}"
+        f"{' (partial coverage)' if partial else ''}"
+    )
+    return result
 
 
 async def store_extracted_slas(

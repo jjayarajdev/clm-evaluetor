@@ -38,6 +38,15 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = Field(default="", description="OpenAI API key")
     openai_model: str = "gpt-4o"
+    # Per-request timeout (seconds) and retry budget for every OpenAI/Azure
+    # client the factory builds. Without these the SDK defaults to a very long
+    # timeout and can hang the extraction pipeline on a stalled connection.
+    openai_timeout_seconds: float = Field(
+        default=120.0, description="Per-request timeout for OpenAI/Azure calls"
+    )
+    openai_max_retries: int = Field(
+        default=3, description="SDK-level retry budget for OpenAI/Azure calls"
+    )
 
     # Langfuse
     langfuse_public_key: str = ""

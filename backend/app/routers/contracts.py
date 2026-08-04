@@ -108,21 +108,54 @@ async def _auto_process_contract(contract_id: str, user_id: str, file_path: str)
             await session.commit()
 
             indexer = IndexingService(session)
-            success = await indexer.index_contract(
+            success, index_error = await indexer.index_contract(
                 contract=contract,
                 user_id=user_id,
                 user_role="admin",
             )
 
             if success:
+                # Keep PROCESSING until deep analysis finishes so COMPLETED is
+                # honest. Deep analysis runs on its own sessions, so re-fetch
+                # afterwards before flipping status / recording degradation.
+                deep_analysis_error: str | None = None
+                try:
+                    await _run_deep_analysis(contract_id, user_id, file_path)
+                except Exception as e:
+                    deep_analysis_error = str(e)
+                    logger.warning(f"Deep analysis failed for {contract_id}: {e}")
+
+                refreshed = (await session.execute(
+                    select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+                )).scalar_one_or_none()
+                if refreshed is not None:
+                    contract = refreshed
+
                 contract.status = ContractStatus.COMPLETED
-                logger.info(f"Contract {contract_id} processed successfully")
+                if deep_analysis_error is not None:
+                    health = dict(contract.extraction_health or {})
+                    health["deep_analysis"] = {
+                        "status": "failed",
+                        "error": deep_analysis_error[:500],
+                    }
+                    contract.extraction_health = health
+                    contract.processing_error = (
+                        f"Deep analysis incomplete: {deep_analysis_error}"[:500]
+                    )
+                    logger.warning(
+                        f"Contract {contract_id} indexed but deep analysis incomplete"
+                    )
+                else:
+                    logger.info(f"Contract {contract_id} processed successfully")
                 await session.commit()
-                await _run_deep_analysis(contract_id, user_id, file_path)
             else:
+                # index_contract already marked FAILED + processing_error via
+                # _mark_failed; propagate the REAL error, not a generic string.
                 contract.status = ContractStatus.FAILED
-                contract.processing_error = "Indexing failed"
-                logger.error(f"Contract {contract_id} processing failed")
+                contract.processing_error = (index_error or "Indexing failed")[:500]
+                logger.error(
+                    f"Contract {contract_id} processing failed: {index_error}"
+                )
                 await session.commit()
 
     except Exception as e:
@@ -483,44 +516,73 @@ async def _run_deep_analysis(
         # --- AI extraction stage (no DB needed) ---
         tenant_id_str = str(tenant_id) if tenant_id else None
 
+        # Each heavy extraction is wrapped so a truncated / unparseable LLM
+        # response (AgentResponseError) is recorded as a FAILED stage rather
+        # than silently producing an empty result that looks like a clean
+        # "nothing found". Failed stages leave *_result = None so nothing bogus
+        # is stored downstream.
+        from app.agents.base import AgentResponseError
+
         tracker.update_progress(contract_id, ProcessingStage.CLAUSE_EXTRACTION, "Extracting clauses...")
-        clause_result = await extract_clauses(
-            contract_text=full_text,
-            contract_id=contract_id,
-            user_id=user_id,
-            few_shot_context=clause_few_shot,
-            tenant_id=tenant_id_str,
-            industry_hint=extraction_hints.get("clauses", ""),
-        )
-        clause_count = len(clause_result.extracted_clauses) if clause_result else 0
-        logger.info(f"[DEEP ANALYSIS] Extracted {clause_count} clauses")
-        recorder.success(ProcessingStage.CLAUSE_EXTRACTION, details={"count": clause_count})
+        clause_result = None
+        try:
+            clause_result = await extract_clauses(
+                contract_text=full_text,
+                contract_id=contract_id,
+                user_id=user_id,
+                few_shot_context=clause_few_shot,
+                tenant_id=tenant_id_str,
+                industry_hint=extraction_hints.get("clauses", ""),
+            )
+            clause_count = len(clause_result.extracted_clauses) if clause_result else 0
+            logger.info(f"[DEEP ANALYSIS] Extracted {clause_count} clauses")
+            recorder.success(ProcessingStage.CLAUSE_EXTRACTION, details={"count": clause_count})
+        except AgentResponseError as e:
+            logger.warning(f"[DEEP ANALYSIS] Clause extraction degraded for {contract_id}: {e}")
+            recorder.failed(ProcessingStage.CLAUSE_EXTRACTION, error=str(e))
 
         tracker.update_progress(contract_id, ProcessingStage.OBLIGATION_DETECTION, "Extracting obligations...")
-        obligation_result = await extract_obligations(
-            contract_text=full_text,
-            contract_id=contract_id,
-            user_id=user_id,
-            few_shot_context=obligation_few_shot,
-            tenant_id=tenant_id_str,
-            industry_hint=extraction_hints.get("obligations", ""),
-        )
-        obligation_count = len(obligation_result.obligations) if obligation_result else 0
-        logger.info(f"[DEEP ANALYSIS] Extracted {obligation_count} obligations")
-        recorder.success(ProcessingStage.OBLIGATION_DETECTION, details={"count": obligation_count})
+        obligation_result = None
+        try:
+            obligation_result = await extract_obligations(
+                contract_text=full_text,
+                contract_id=contract_id,
+                user_id=user_id,
+                few_shot_context=obligation_few_shot,
+                tenant_id=tenant_id_str,
+                industry_hint=extraction_hints.get("obligations", ""),
+            )
+            obligation_count = len(obligation_result.obligations) if obligation_result else 0
+            logger.info(f"[DEEP ANALYSIS] Extracted {obligation_count} obligations")
+            recorder.success(ProcessingStage.OBLIGATION_DETECTION, details={"count": obligation_count})
+        except AgentResponseError as e:
+            logger.warning(f"[DEEP ANALYSIS] Obligation extraction degraded for {contract_id}: {e}")
+            recorder.failed(ProcessingStage.OBLIGATION_DETECTION, error=str(e))
 
         tracker.update_progress(contract_id, ProcessingStage.SLA_EXTRACTION, "Extracting SLAs...")
-        sla_result = await extract_slas(
-            contract_text=full_text,
-            contract_id=contract_id,
-            user_id=user_id,
-            few_shot_context=sla_few_shot,
-            tenant_id=tenant_id_str,
-            industry_hint=extraction_hints.get("slas", ""),
-        )
-        sla_count = len(sla_result.slas) if sla_result else 0
-        logger.info(f"[DEEP ANALYSIS] Extracted {sla_count} SLAs")
-        recorder.success(ProcessingStage.SLA_EXTRACTION, details={"count": sla_count})
+        sla_result = None
+        try:
+            sla_result = await extract_slas(
+                contract_text=full_text,
+                contract_id=contract_id,
+                user_id=user_id,
+                few_shot_context=sla_few_shot,
+                tenant_id=tenant_id_str,
+                industry_hint=extraction_hints.get("slas", ""),
+            )
+            sla_count = len(sla_result.slas) if sla_result else 0
+            sla_partial = bool(sla_result and getattr(sla_result, "partial", False))
+            logger.info(
+                f"[DEEP ANALYSIS] Extracted {sla_count} SLAs"
+                f"{' (partial coverage)' if sla_partial else ''}"
+            )
+            recorder.success(
+                ProcessingStage.SLA_EXTRACTION,
+                details={"count": sla_count, "partial": sla_partial},
+            )
+        except AgentResponseError as e:
+            logger.warning(f"[DEEP ANALYSIS] SLA extraction degraded for {contract_id}: {e}")
+            recorder.failed(ProcessingStage.SLA_EXTRACTION, error=str(e))
 
         # --- Store all extraction results in one session ---
         async with async_session_maker() as session:
@@ -2825,6 +2887,14 @@ async def get_contract_clauses(
     """Get clauses for a contract, optionally filtered by type."""
     from app.models.clause import Clause
 
+    service = await _make_contract_service(db, current_user, tenant_id)
+    contract = await service.get_contract(contract_id)
+    if not contract:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract not found: {contract_id}",
+        )
+
     query = select(Clause).where(Clause.contract_id == uuid.UUID(contract_id))
     if clause_type:
         query = query.where(Clause.clause_type == clause_type)
@@ -2851,6 +2921,7 @@ async def get_contract_clauses(
 async def list_contract_files(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     """List all files in a contract's folder.
@@ -2858,21 +2929,18 @@ async def list_contract_files(
     Args:
         contract_id: Contract ID.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID (None for super-admin).
         db: Database session.
 
     Returns:
         List of files in the contract folder.
     """
-    from sqlalchemy import select
-    from app.models.contract import Contract
     from app.services.upload import UploadService
     from pathlib import Path
 
-    # Get contract
-    result = await db.execute(
-        select(Contract).where(Contract.id == contract_id)
-    )
-    contract = result.scalar_one_or_none()
+    # Get contract (tenant-scoped via service; returns None if out-of-tenant)
+    service = await _make_contract_service(db, current_user, tenant_id)
+    contract = await service.get_contract(contract_id)
 
     if not contract:
         raise HTTPException(
@@ -2899,6 +2967,7 @@ async def list_contract_files(
 async def add_file_to_contract(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     file: UploadFile = File(..., description="Additional file to add to contract folder"),
@@ -2908,6 +2977,7 @@ async def add_file_to_contract(
     Args:
         contract_id: Contract ID.
         current_user: Authenticated user.
+        tenant_id: Current tenant ID (None for super-admin).
         request: FastAPI request for audit logging.
         db: Database session.
         file: The file to add.
@@ -2915,16 +2985,12 @@ async def add_file_to_contract(
     Returns:
         Info about the added file.
     """
-    from sqlalchemy import select
-    from app.models.contract import Contract
     from app.services.upload import UploadService
     from pathlib import Path
 
-    # Get contract
-    result = await db.execute(
-        select(Contract).where(Contract.id == contract_id)
-    )
-    contract = result.scalar_one_or_none()
+    # Get contract (tenant-scoped via service; prevents cross-tenant writes)
+    contract_service = await _make_contract_service(db, current_user, tenant_id)
+    contract = await contract_service.get_contract(contract_id)
 
     if not contract:
         raise HTTPException(
@@ -3061,31 +3127,49 @@ async def analyze_contract(
                 except Exception:
                     pass
 
+            # A truncated / unparseable LLM response raises AgentResponseError.
+            # Treat it as "this extractor degraded" (result stays None, nothing
+            # stored) rather than aborting the whole reanalysis or persisting an
+            # empty-looking result.
+            from app.agents.base import AgentResponseError
+
             # Run clause extraction (AI call)
-            clause_result = await extract_clauses(
-                contract_text=full_text,
-                contract_id=contract_id,
-                user_id=str(current_user.id),
-                few_shot_context=c_fs,
-            )
+            clause_result = None
+            try:
+                clause_result = await extract_clauses(
+                    contract_text=full_text,
+                    contract_id=contract_id,
+                    user_id=str(current_user.id),
+                    few_shot_context=c_fs,
+                )
+            except AgentResponseError as e:
+                logging.warning(f"Clause extraction degraded for {contract_id}: {e}")
             logging.info(f"Extracted {len(clause_result.extracted_clauses) if clause_result else 0} clauses")
 
             # Run obligation extraction (AI call)
-            obligation_result = await extract_obligations(
-                contract_text=full_text,
-                contract_id=contract_id,
-                user_id=str(current_user.id),
-                few_shot_context=o_fs,
-            )
+            obligation_result = None
+            try:
+                obligation_result = await extract_obligations(
+                    contract_text=full_text,
+                    contract_id=contract_id,
+                    user_id=str(current_user.id),
+                    few_shot_context=o_fs,
+                )
+            except AgentResponseError as e:
+                logging.warning(f"Obligation extraction degraded for {contract_id}: {e}")
             logging.info(f"Extracted {len(obligation_result.obligations) if obligation_result else 0} obligations")
 
             # Run SLA extraction (AI call)
-            sla_result = await extract_slas(
-                contract_text=full_text,
-                contract_id=contract_id,
-                user_id=str(current_user.id),
-                few_shot_context=s_fs,
-            )
+            sla_result = None
+            try:
+                sla_result = await extract_slas(
+                    contract_text=full_text,
+                    contract_id=contract_id,
+                    user_id=str(current_user.id),
+                    few_shot_context=s_fs,
+                )
+            except AgentResponseError as e:
+                logging.warning(f"SLA extraction degraded for {contract_id}: {e}")
             logging.info(f"Extracted {len(sla_result.slas) if sla_result else 0} SLAs")
 
             # Store results in database (new session for background task)

@@ -5,12 +5,28 @@ import json
 from typing import Any
 
 from langfuse import Langfuse
-from openai import AsyncOpenAI, OpenAI, RateLimitError, APIError
+from openai import (
+    AsyncOpenAI,
+    OpenAI,
+    RateLimitError,
+    APIError,
+    APITimeoutError,
+    APIConnectionError,
+)
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.config import settings
 from app.services.langfuse_service import get_langfuse, get_prompt_manager, set_user_context
+
+# Transient OpenAI errors worth retrying. APITimeoutError and APIConnectionError
+# are NOT subclasses of APIError, so they must be listed explicitly.
+_RETRYABLE_LLM_ERRORS = (
+    RateLimitError,
+    APIError,
+    APITimeoutError,
+    APIConnectionError,
+)
 
 
 class AgentRequest(BaseModel):
@@ -31,6 +47,10 @@ class AgentResponseModel(BaseModel):
     confidence: float | None = None
     sources: list[dict[str, Any]] | None = None
     session_id: str
+    # OpenAI finish_reason for the underlying completion. "length" means the
+    # model hit max_tokens and the output is truncated (extraction callers must
+    # treat this as a degraded/failed result, never a clean "nothing found").
+    finish_reason: str | None = None
 
 
 class AgentConfig(BaseModel):
@@ -168,7 +188,7 @@ If unsure, respond with: {self._default_agent}"""
         return self._default_agent
 
     @retry(
-        retry=retry_if_exception_type((RateLimitError, APIError)),
+        retry=retry_if_exception_type(_RETRYABLE_LLM_ERRORS),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=60),
     )
@@ -234,6 +254,7 @@ If unsure, respond with: {self._default_agent}"""
                 response=response.choices[0].message.content or "",
                 agent_name=agent_name,
                 session_id=request.session_id or request.user_id,
+                finish_reason=response.choices[0].finish_reason,
             )
 
             # Log success to Langfuse
@@ -260,7 +281,12 @@ If unsure, respond with: {self._default_agent}"""
                     pass
             raise
 
-    async def invoke_agent(
+    @retry(
+        retry=retry_if_exception_type(_RETRYABLE_LLM_ERRORS),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=60),
+    )
+    async def invoke_agent_with_meta(
         self,
         agent_name: str,
         prompt: str,
@@ -268,19 +294,13 @@ If unsure, respond with: {self._default_agent}"""
         user_id: str = "system",
         session_id: str | None = None,
         contract_id: str | None = None,
-    ) -> str:
-        """Directly invoke a specific agent.
+    ) -> tuple[str, str | None]:
+        """Invoke a specific agent, returning (response_text, finish_reason).
 
-        Args:
-            agent_name: Name of the agent to invoke.
-            prompt: The prompt to send.
-            context: Optional context dict.
-            user_id: User ID for tracing.
-            session_id: Session ID for conversation grouping.
-            contract_id: Contract ID for metadata.
-
-        Returns:
-            The agent's response text.
+        Same as :meth:`invoke_agent` but also surfaces the OpenAI finish_reason
+        so extraction callers can detect truncation (finish_reason == "length")
+        and avoid reporting a partial answer as complete. Bounded retry covers
+        transient OpenAI errors (rate limit / timeout / connection / 5xx).
         """
         agent = self._agents.get(agent_name)
         if not agent:
@@ -321,17 +341,46 @@ If unsure, respond with: {self._default_agent}"""
         )
 
         result = response.choices[0].message.content or ""
+        finish_reason = response.choices[0].finish_reason
 
         # Update trace with output
         if trace:
             try:
                 trace.update(
                     output=result[:500],
-                    metadata={"agent": agent_name, "success": True},
+                    metadata={
+                        "agent": agent_name,
+                        "success": True,
+                        "finish_reason": finish_reason,
+                    },
                 )
             except Exception:
                 pass
 
+        return result, finish_reason
+
+    async def invoke_agent(
+        self,
+        agent_name: str,
+        prompt: str,
+        context: dict[str, Any] | None = None,
+        user_id: str = "system",
+        session_id: str | None = None,
+        contract_id: str | None = None,
+    ) -> str:
+        """Directly invoke a specific agent and return its response text.
+
+        Thin wrapper over :meth:`invoke_agent_with_meta` for callers that don't
+        need the finish_reason. Retries transient OpenAI errors.
+        """
+        result, _ = await self.invoke_agent_with_meta(
+            agent_name=agent_name,
+            prompt=prompt,
+            context=context,
+            user_id=user_id,
+            session_id=session_id,
+            contract_id=contract_id,
+        )
         return result
 
     async def health_check(self) -> dict[str, Any]:

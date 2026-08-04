@@ -476,31 +476,236 @@ def extract_confidence(response: str) -> float | None:
     return None
 
 
-def extract_json_from_response(response: str) -> dict[str, Any] | None:
-    """Extract JSON data from an agent response.
+class AgentResponseError(Exception):
+    """Raised when an agent response could not be interpreted as a usable
+    result — e.g. the model output was truncated (finish_reason == "length")
+    or the JSON could not be parsed at all.
+
+    Callers on the extraction pipeline MUST let this propagate (or convert it
+    into a recorded *failed* stage) rather than swallowing it into an empty /
+    zero result. A truncated high-risk contract silently reported as LOW/0 is
+    the exact data-loss bug this exception exists to prevent.
+    """
+
+
+class LLMTruncationError(AgentResponseError):
+    """The LLM stopped because it hit max_tokens (finish_reason == "length").
+
+    The response is incomplete, so any parsed result is at best partial and
+    must not be treated as a complete "nothing found" answer.
+    """
+
+
+def _find_balanced_span(text: str, open_ch: str, close_ch: str) -> str | None:
+    """Return the first top-level balanced ``open_ch..close_ch`` span in ``text``.
+
+    Uses a depth scanner that is string-literal aware (so braces/brackets inside
+    JSON string values don't confuse the balance), unlike a greedy regex which
+    mis-captures when there is prose or multiple blocks around the JSON.
+
+    Returns the substring including the delimiters, or None if no opener found.
+    If the span never closes (truncated output), returns from the opener to the
+    end of the string so the caller can attempt a salvage.
+    """
+    start = text.find(open_ch)
+    if start == -1:
+        return None
+
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == open_ch:
+            depth += 1
+        elif ch == close_ch:
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+
+    # Never balanced — truncated. Hand back the tail for salvage.
+    return text[start:]
+
+
+def _salvage_truncated_json(fragment: str) -> Any | None:
+    """Best-effort recovery of a truncated JSON object/array.
+
+    Strategy: walk the fragment tracking bracket depth (string-literal aware),
+    remember the position of the last point where we were back at depth 1 having
+    just completed an element (i.e. a valid place to close the container), trim
+    the fragment there, and append the missing closing brackets.
+
+    For an array this yields the complete prefix of elements. For an object it
+    yields the complete prefix of key/value pairs. Returns the parsed value or
+    None if nothing salvageable.
+    """
+    fragment = fragment.strip()
+    if not fragment or fragment[0] not in "{[":
+        return None
+
+    stack: list[str] = []
+    in_string = False
+    escape = False
+    # Index of the last position, at the OUTER container's inner depth
+    # (len(stack) == 1), that is a valid place to cut so the retained prefix
+    # holds only complete elements/pairs. Two such boundaries exist:
+    #   * a comma at depth 1 — separates complete array elements / object pairs
+    #     (we trim *before* it), and
+    #   * the close of a nested value at depth 1 — a whole element just finished
+    #     (we trim *after* it).
+    # We deliberately do NOT treat bare scalars or lone strings at depth 1 as
+    # boundaries: a depth-1 string may be an object *key* whose value hasn't
+    # arrived yet, and cutting there would leave a dangling key.
+    last_safe = -1
+
+    for i, ch in enumerate(fragment):
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+            if len(stack) == 1:
+                last_safe = i + 1
+        elif ch == "," and len(stack) == 1:
+            last_safe = i  # trim before the dangling comma
+
+    # Try progressively: full fragment closed, then trimmed-to-last-safe closed.
+    candidates: list[str] = []
+    if stack:
+        candidates.append(fragment + "".join(reversed(stack)))
+    if last_safe > 0:
+        head = fragment[:last_safe].rstrip().rstrip(",")
+        # Recompute the closers needed for the trimmed head.
+        depth_stack: list[str] = []
+        s2 = e2 = False
+        for ch in head:
+            if s2:
+                if e2:
+                    e2 = False
+                elif ch == "\\":
+                    e2 = True
+                elif ch == '"':
+                    s2 = False
+                continue
+            if ch == '"':
+                s2 = True
+            elif ch in "{[":
+                depth_stack.append("}" if ch == "{" else "]")
+            elif ch in "}]" and depth_stack:
+                depth_stack.pop()
+        candidates.append(head + "".join(reversed(depth_stack)))
+
+    for candidate in candidates:
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
+def extract_json_from_response(
+    response: str,
+    finish_reason: str | None = None,
+) -> dict[str, Any] | list[Any] | None:
+    """Extract JSON (object OR top-level array) from an agent response.
+
+    Robust parsing strategy, in order:
+      1. Whole-string ``json.loads`` (fast path for clean JSON).
+      2. Markdown code-fence contents (```json ... ```).
+      3. A depth-balanced, string-literal-aware scan for the first top-level
+         ``{...}`` or ``[...]`` — not a greedy regex (which mis-captures when
+         prose or multiple blocks surround the JSON).
+      4. Best-effort salvage of *truncated* JSON (model hit max_tokens): trim to
+         the last complete array element / object pair and balance the brackets.
 
     Args:
         response: Agent response text.
+        finish_reason: OpenAI finish_reason for the call, when available. When
+            it is ``"length"`` the output is truncated; we salvage the complete
+            prefix if we can, otherwise raise :class:`LLMTruncationError` rather
+            than return a None that a caller would misread as "nothing found".
 
     Returns:
-        Parsed JSON dictionary or None if not found.
+        Parsed dict or list, or None ONLY when the text genuinely contains no
+        JSON and the call was not truncated.
+
+    Raises:
+        LLMTruncationError: output was truncated and nothing could be salvaged.
     """
     import re
 
-    # Try to find JSON block in markdown code fence
-    json_match = re.search(r"```(?:json)?\s*\n?([\s\S]*?)\n?```", response)
-    if json_match:
+    if response is None:
+        response = ""
+    text = response.strip()
+
+    # 1. Whole-string parse (handles bare object or bare top-level array).
+    if text:
         try:
-            return json.loads(json_match.group(1))
+            return json.loads(text)
         except json.JSONDecodeError:
             pass
 
-    # Try to find raw JSON object
-    json_match = re.search(r"\{[\s\S]*\}", response)
-    if json_match:
+    # 2. Markdown code fence.
+    fence = re.search(r"```(?:json)?\s*\n?([\s\S]*?)\n?```", response)
+    if fence:
+        inner = fence.group(1).strip()
         try:
-            return json.loads(json_match.group(0))
+            return json.loads(inner)
         except json.JSONDecodeError:
-            pass
+            # Fence may itself be truncated (no closing ```): salvage below on
+            # the inner text if it starts a container.
+            salvaged = _salvage_truncated_json(inner)
+            if salvaged is not None:
+                return salvaged
+
+    # 3. Depth-balanced scan for the first top-level object or array. Prefer
+    #    whichever delimiter appears first in the text.
+    obj_at = response.find("{")
+    arr_at = response.find("[")
+    order: list[tuple[str, str]] = []
+    if arr_at != -1 and (obj_at == -1 or arr_at < obj_at):
+        order = [("[", "]"), ("{", "}")]
+    else:
+        order = [("{", "}"), ("[", "]")]
+
+    for open_ch, close_ch in order:
+        span = _find_balanced_span(response, open_ch, close_ch)
+        if span is None:
+            continue
+        try:
+            return json.loads(span)
+        except json.JSONDecodeError:
+            # 4. Truncation salvage on the (possibly unbalanced) span.
+            salvaged = _salvage_truncated_json(span)
+            if salvaged is not None:
+                return salvaged
+
+    # Nothing parsed. If the model was truncated, this is a FAILURE, not an
+    # empty result — signal it loudly so the pipeline records a failed stage.
+    if finish_reason == "length":
+        raise LLMTruncationError(
+            "LLM response was truncated (finish_reason=length) and no complete "
+            "JSON prefix could be salvaged."
+        )
 
     return None

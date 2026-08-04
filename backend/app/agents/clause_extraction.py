@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.base import (
     AgentConfig,
+    AgentResponseError,
     ContractSearchTool,
     extract_json_from_response,
 )
@@ -188,6 +189,10 @@ async def extract_clauses(
     max_chunk_size = 25000
     all_clauses = []
     missing_clauses_set = set()
+    # Count chunks whose response was truncated/unparseable so we can fail the
+    # stage if none produced usable output (vs. cleanly finding no clauses).
+    parse_failures = 0
+    parsed_ok = 0
 
     logger.info(f"Processing contract for clause extraction (length: {len(contract_text)} chars)")
 
@@ -219,14 +224,33 @@ Identify all clause types present and note any obviously missing standard clause
             )
 
             # Parse the JSON response
-            json_data = extract_json_from_response(response.response)
-            if json_data:
+            json_data = extract_json_from_response(
+                response.response, finish_reason=response.finish_reason
+            )
+            if isinstance(json_data, dict):
+                parsed_ok += 1
                 chunk_result = _parse_clause_response(json_data)
                 all_clauses.extend(chunk_result.extracted_clauses)
                 missing_clauses_set.update(chunk_result.missing_clauses)
+            elif json_data is None:
+                parsed_ok += 1
+                logger.debug(f"Clause chunk {i}: no JSON (treated as empty)")
 
+        except AgentResponseError as e:
+            parse_failures += 1
+            logger.warning(f"Clause chunk {i} truncated/unparseable: {e}")
         except Exception as e:
             logger.exception(f"Error extracting clauses from chunk {i}: {e}")
+
+    # If every chunk failed to parse (vs. cleanly finding no clauses), surface
+    # a failure so the pipeline records CLAUSE_EXTRACTION as failed instead of
+    # silently reporting zero clauses for a dense contract.
+    if not all_clauses and parse_failures and parsed_ok == 0:
+        raise AgentResponseError(
+            f"Clause extraction could not parse any of {len(chunks)} chunk(s) "
+            f"({parse_failures} truncated/unparseable) — refusing to report "
+            "zero clauses."
+        )
 
     # Deduplicate clauses (same type and similar text)
     unique_clauses = _deduplicate_clauses(all_clauses)
@@ -501,7 +525,7 @@ Respond with JSON array:
 
         try:
             logger.info(f"Sending batch {i//batch_size + 1} to LLM for classification")
-            response = await orchestrator.invoke_agent(
+            response, finish_reason = await orchestrator.invoke_agent_with_meta(
                 agent_name="clause_extraction",
                 prompt=prompt,
                 user_id="system",
@@ -509,7 +533,15 @@ Respond with JSON array:
             )
             logger.info(f"LLM response received for batch {i//batch_size + 1}")
 
-            json_data = extract_json_from_response(response)
+            # This is best-effort re-classification of already-stored OTHER
+            # chunks; a truncated batch salvages its complete prefix (and
+            # AgentResponseError, if unrecoverable, is caught below). Unclassified
+            # chunks simply stay OTHER, so there is no silent data loss here.
+            try:
+                json_data = extract_json_from_response(response, finish_reason=finish_reason)
+            except AgentResponseError as e:
+                logger.warning(f"Classification batch {i} truncated/unparseable: {e}")
+                json_data = None
             logger.info(f"Parsed JSON: {json_data}")
             if json_data and isinstance(json_data, list):
                 for item in json_data:

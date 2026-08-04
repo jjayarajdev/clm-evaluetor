@@ -450,8 +450,10 @@ async def create_instance(
     current_user: User = Depends(require_permission("surveys.manageInstances")),
 ):
     """Create a new survey instance."""
-    # Validate template exists
-    template = await db.get(SurveyTemplate, data.template_id)
+    # Validate template exists and belongs to the caller's tenant
+    template_query = select(SurveyTemplate).where(SurveyTemplate.id == data.template_id)
+    template_query = apply_tenant_filter(template_query, tenant_id, SurveyTemplate)
+    template = (await db.execute(template_query)).scalar_one_or_none()
     if not template or not template.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -944,6 +946,11 @@ async def _process_survey_to_perception_scores(
     )
     kpi_questions = result.scalars().all()
 
+    # scorer_org_id is NOT NULL on PerceptionScore; anonymous responses carry no
+    # respondent org, so there is no external org to attribute the score to.
+    if response.respondent_org_id is None:
+        return
+
     for question in kpi_questions:
         question_id_str = str(question.id)
         if question_id_str in response.answers:
@@ -955,15 +962,18 @@ async def _process_survey_to_perception_scores(
             except (ValueError, TypeError):
                 continue
 
-            # Create perception score
+            # Create perception score. External survey responses are the
+            # counterparty's ("their side") view, so is_internal=False and the
+            # scorer org is the respondent. Kwargs must match the model
+            # (scorer_org_id/score/is_internal) — mirrors the manual path in
+            # kpis.py.
             perception_score = PerceptionScore(
                 kpi_id=question.kpi_id,
-                relationship_id=instance.relationship_id,
-                respondent_org_id=response.respondent_org_id,
-                score_value=score_value,
+                scorer_org_id=response.respondent_org_id,
+                score=score_value,
                 period=instance.period,
-                survey_response_id=response.id,
-                is_external=True,
+                is_internal=False,
+                approval_status="pending_approval",
             )
             db.add(perception_score)
 

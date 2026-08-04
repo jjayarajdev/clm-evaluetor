@@ -102,20 +102,21 @@ async def _process_one_job(job, session: AsyncSession) -> None:
 
         # Run indexer pipeline
         indexer = IndexingService(session)
-        success = await indexer.index_contract(
+        success, index_error = await indexer.index_contract(
             contract=contract,
             user_id=user_id,
             user_role="admin",
         )
 
         if success:
-            contract.status = ContractStatus.COMPLETED
-            await session.commit()
-
+            # Keep status PROCESSING until deep analysis finishes so COMPLETED
+            # reflects reality (indexer already flushed FAILED inside itself only
+            # on failure; on success the row is still PROCESSING here).
             await queue.update_progress(job.id, "deep_analysis", 70, "Running deep analysis")
             await session.commit()  # Release locks before long-running deep analysis
 
             # Run deep analysis (clauses, obligations, SLAs, etc.)
+            deep_analysis_error: str | None = None
             try:
                 from app.routers.contracts import _run_deep_analysis
                 # Batch jobs defer hierarchy detection to _check_batch_completion
@@ -125,23 +126,64 @@ async def _process_one_job(job, session: AsyncSession) -> None:
                     run_hierarchy=(job.batch_id is None),
                 )
             except Exception as e:
+                deep_analysis_error = str(e)
                 logger.warning(f"Deep analysis failed for {contract_id}: {e}")
-                # Deep analysis failure is non-fatal
+                # Deep analysis failure is non-fatal to indexing, but must NOT be
+                # hidden: the doc is searchable yet clauses/obligations/SLAs may
+                # be missing. Re-fetch (deep analysis uses its own sessions) and
+                # record the degradation on extraction_health so "indexed but
+                # analysis incomplete" is distinguishable from full completion.
 
-            # Complete the job
+            # Re-fetch the contract: _run_deep_analysis committed on separate
+            # sessions, so our in-session instance may be stale.
+            refreshed = (await session.execute(
+                select(Contract).where(Contract.id == job.contract_id)
+            )).scalar_one_or_none()
+            if refreshed is not None:
+                contract = refreshed
+
+            contract.status = ContractStatus.COMPLETED
+            if deep_analysis_error is not None:
+                health = dict(contract.extraction_health or {})
+                health["deep_analysis"] = {
+                    "status": "failed",
+                    "error": deep_analysis_error[:500],
+                }
+                contract.extraction_health = health
+                contract.processing_error = (
+                    f"Deep analysis incomplete: {deep_analysis_error}"[:500]
+                )
+            await session.commit()
+
+            # Complete the job (still COMPLETED — the doc is indexed/searchable),
+            # but surface the degradation in the job details so the tray can show it.
             await queue.complete_job(job.id, details={
                 "counterparty": contract.counterparty,
                 "contract_type": contract.contract_type or None,
                 "risk_level": contract.risk_level.value if contract.risk_level else None,
+                "deep_analysis_error": deep_analysis_error,
             })
             await session.commit()
             logger.info(f"Job completed: contract {contract_id}")
 
         else:
+            # index_contract already set status=FAILED + processing_error via
+            # _mark_failed, but re-fetch to be safe and propagate the REAL error
+            # (not a generic string) to the job and the progress tracker.
+            error_msg = index_error or "Indexing pipeline returned failure"
             contract.status = ContractStatus.FAILED
-            contract.processing_error = "Indexing failed"
+            contract.processing_error = error_msg[:500]
             await session.commit()
-            await queue.fail_job(job.id, "Indexing pipeline returned failure")
+
+            from app.services.progress_tracker import (
+                ProcessingStage,
+                get_progress_tracker,
+            )
+            get_progress_tracker().update_progress(
+                contract_id, ProcessingStage.FAILED, error=error_msg
+            )
+
+            await queue.fail_job(job.id, error_msg)
             await session.commit()
 
     except Exception as e:

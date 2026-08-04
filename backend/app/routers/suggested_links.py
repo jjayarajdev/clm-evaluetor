@@ -300,6 +300,23 @@ async def review_suggested_link(
             detail=f"Suggestion already {suggestion.status}",
         )
 
+    # ContractLink has no tenant_id column, so re-verify BOTH endpoints belong
+    # to the caller's tenant before creating a cross-contract link. Super admins
+    # (tenant_id is None) bypass the predicate by design.
+    if tenant_id is not None and review.action in ("approve", "modify"):
+        for endpoint_id in (suggestion.source_contract_id, suggestion.target_contract_id):
+            ok = (await db.execute(
+                select(Contract.id).where(
+                    Contract.id == endpoint_id,
+                    Contract.tenant_id == tenant_id,
+                )
+            )).first()
+            if ok is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Linked contract not found in tenant",
+                )
+
     created_link_id = None
     message = ""
 

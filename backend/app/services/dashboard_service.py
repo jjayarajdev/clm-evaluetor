@@ -933,16 +933,17 @@ async def get_portfolio_dashboard(
 
 
 async def get_contract_cockpit(
-    db: AsyncSession, contract_id: str,
+    db: AsyncSession, contract_id: str, tenant_id: UUID | None = None,
 ) -> ContractCockpitResponse:
     """Build comprehensive contract cockpit dashboard."""
     import uuid as uuid_mod
 
     today = date.today()
 
-    result = await db.execute(
-        select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
-    )
+    query = select(Contract).where(Contract.id == uuid_mod.UUID(contract_id))
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    result = await db.execute(query)
     contract = result.scalar_one_or_none()
 
     if not contract:

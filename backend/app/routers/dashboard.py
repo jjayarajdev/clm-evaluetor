@@ -77,6 +77,20 @@ def _bu_args(current_user):
     return bu_id, role
 
 
+async def _require_contract_in_tenant(db, contract_id, tenant_id):
+    """Verify the contract exists and belongs to the caller's tenant.
+
+    Super admins (tenant_id is None) bypass the tenant predicate by design.
+    Raises 404 if the contract is missing or belongs to another tenant.
+    """
+    import uuid as _uuid
+    query = select(Contract.id).where(Contract.id == _uuid.UUID(contract_id))
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    if (await db.execute(query)).first() is None:
+        raise HTTPException(status_code=404, detail="Contract not found")
+
+
 # ============== Contract Summary ==============
 
 
@@ -531,16 +545,20 @@ async def get_clauses_by_type(
 async def get_clause_detail(
     clause_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ClauseFullDetail:
     """Get full details for a specific clause."""
     import uuid as uuid_mod
 
-    result = await db.execute(
+    query = (
         select(Clause, Contract.filename, Contract.counterparty, Contract.contract_type)
         .join(Contract, Clause.contract_id == Contract.id)
         .where(Clause.id == uuid_mod.UUID(clause_id))
     )
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    result = await db.execute(query)
 
     row = result.first()
     if not row:
@@ -655,12 +673,13 @@ async def get_obligations_by_type(
 async def get_obligation_detail(
     obligation_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ObligationFullDetail:
     """Get full details for a single obligation."""
     import uuid as uuid_mod
 
-    result = await db.execute(
+    query = (
         select(
             Obligation, Contract.filename, Contract.counterparty, Contract.contract_type,
             Clause.id.label("clause_id"), Clause.clause_type, Clause.text,
@@ -670,6 +689,9 @@ async def get_obligation_detail(
         .outerjoin(Clause, Obligation.clause_id == Clause.id)
         .where(Obligation.id == uuid_mod.UUID(obligation_id))
     )
+    if tenant_id is not None:
+        query = query.where(Contract.tenant_id == tenant_id)
+    result = await db.execute(query)
 
     row = result.one_or_none()
     if not row:
@@ -717,10 +739,11 @@ async def get_obligation_detail(
 async def get_contract_cockpit(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ContractCockpitResponse:
     """Get comprehensive contract cockpit dashboard."""
-    result = await dashboard_service.get_contract_cockpit(db, contract_id)
+    result = await dashboard_service.get_contract_cockpit(db, contract_id, tenant_id)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Contract not found: {contract_id}")
     return result
@@ -766,14 +789,16 @@ async def get_portfolio_dashboard(
 async def get_contract_definitions(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> DefinitionsSummary:
     """Get all definitions extracted from a specific contract."""
     import uuid as uuid_mod
 
-    contract_result = await db.execute(
-        select(Contract.filename).where(Contract.id == uuid_mod.UUID(contract_id))
-    )
+    contract_query = select(Contract.filename).where(Contract.id == uuid_mod.UUID(contract_id))
+    if tenant_id is not None:
+        contract_query = contract_query.where(Contract.tenant_id == tenant_id)
+    contract_result = await db.execute(contract_query)
     contract_row = contract_result.first()
     if not contract_row:
         raise HTTPException(status_code=404, detail="Contract not found")
@@ -950,11 +975,12 @@ async def compare_definitions(
 @router.get("/definitions/all-terms", response_model=list[dict[str, Any]])
 async def get_all_defined_terms(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
     limit: int = 100,
 ) -> list[dict[str, Any]]:
     """Get all unique terms that have been defined across contracts."""
-    result = await db.execute(
+    query = (
         select(
             ContractDefinition.term_normalized,
             func.min(ContractDefinition.term).label("display_term"),
@@ -965,6 +991,13 @@ async def get_all_defined_terms(
         .order_by(func.count(ContractDefinition.id).desc())
         .limit(limit)
     )
+    if tenant_id is not None:
+        query = query.where(
+            ContractDefinition.contract_id.in_(
+                select(Contract.id).where(Contract.tenant_id == tenant_id)
+            )
+        )
+    result = await db.execute(query)
 
     return [
         {
@@ -985,10 +1018,13 @@ async def get_all_defined_terms(
 async def get_contract_financials(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> FinancialsResponse:
     """Get all financial terms for a specific contract."""
     import uuid as uuid_mod
+
+    await _require_contract_in_tenant(db, contract_id, tenant_id)
 
     result = await db.execute(
         select(ContractFinancial)
@@ -1051,11 +1087,14 @@ async def get_contract_financials(
 async def get_contract_process(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ProcessResponse:
     """Get all process steps for a specific contract."""
     import uuid as uuid_mod
     from app.models.process_step import ContractProcessStep
+
+    await _require_contract_in_tenant(db, contract_id, tenant_id)
 
     result = await db.execute(
         select(ContractProcessStep)
@@ -1107,11 +1146,14 @@ async def get_contract_process(
 async def get_contract_preamble(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PreambleResponse:
     """Get preamble/header data for a specific contract."""
     import uuid as uuid_mod
     from app.models.preamble import ContractPreamble, ContractPartyDetail
+
+    await _require_contract_in_tenant(db, contract_id, tenant_id)
 
     result = await db.execute(
         select(ContractPreamble).where(ContractPreamble.contract_id == uuid_mod.UUID(contract_id))
@@ -1154,10 +1196,13 @@ async def get_contract_preamble(
 async def get_contract_exhibits(
     contract_id: str,
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ExhibitsResponse:
     """Get all exhibits/schedules for a specific contract."""
     import uuid as uuid_mod
+
+    await _require_contract_in_tenant(db, contract_id, tenant_id)
 
     result = await db.execute(
         select(ContractExhibit)
@@ -1215,26 +1260,42 @@ async def get_contract_exhibits(
 @router.get("/exhibits-summary", response_model=dict[str, Any])
 async def get_exhibits_summary(
     current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, Any]:
     """Get summary of all exhibits across contracts."""
-    type_result = await db.execute(
+    tenant_contracts = select(Contract.id)
+    if tenant_id is not None:
+        tenant_contracts = tenant_contracts.where(Contract.tenant_id == tenant_id)
+
+    type_query = (
         select(ContractExhibit.exhibit_type, func.count(ContractExhibit.id))
         .group_by(ContractExhibit.exhibit_type)
     )
+    if tenant_id is not None:
+        type_query = type_query.where(ContractExhibit.contract_id.in_(tenant_contracts))
+    type_result = await db.execute(type_query)
     by_type: dict[str, int] = {}
     total = 0
     for exhibit_type, count in type_result.all():
         by_type[exhibit_type.value if exhibit_type else "other"] = count
         total += count
 
-    contracts_with_exhibits = (await db.execute(
-        select(func.count(func.distinct(ContractExhibit.contract_id)))
-    )).scalar() or 0
+    contracts_query = select(func.count(func.distinct(ContractExhibit.contract_id)))
+    if tenant_id is not None:
+        contracts_query = contracts_query.where(ContractExhibit.contract_id.in_(tenant_contracts))
+    contracts_with_exhibits = (await db.execute(contracts_query)).scalar() or 0
 
-    fee_result = await db.execute(
-        select(func.count(ExhibitFeeItem.id), func.sum(ExhibitFeeItem.total_price))
-    )
+    fee_query = select(func.count(ExhibitFeeItem.id), func.sum(ExhibitFeeItem.total_price))
+    if tenant_id is not None:
+        fee_query = fee_query.where(
+            ExhibitFeeItem.exhibit_id.in_(
+                select(ContractExhibit.id).where(
+                    ContractExhibit.contract_id.in_(tenant_contracts)
+                )
+            )
+        )
+    fee_result = await db.execute(fee_query)
     fee_row = fee_result.one()
 
     return {

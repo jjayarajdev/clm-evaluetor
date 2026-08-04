@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.base import (
     AgentConfig,
+    AgentResponseError,
     extract_json_from_response,
 )
 from app.config import settings
@@ -227,6 +228,10 @@ async def assess_risk(
 
     all_risk_factors: list[RiskFactor] = []
     chunk_scores: list[int] = []
+    # Tracks whether any chunk failed to parse / was truncated. We must never
+    # report a truncated high-risk contract as a clean LOW/0 — if every chunk
+    # was unusable we raise so the pipeline records RISK as failed.
+    parse_failures = 0
 
     for chunk_idx, chunk_text in enumerate(chunks):
         chunk_label = f"[Part {chunk_idx + 1}/{len(chunks)}]" if len(chunks) > 1 else ""
@@ -254,17 +259,38 @@ Identify all risk factors and calculate an overall risk score for this section."
                 )
             )
 
-            json_data = extract_json_from_response(response.response)
-            if json_data:
+            json_data = extract_json_from_response(
+                response.response, finish_reason=response.finish_reason
+            )
+            if isinstance(json_data, dict):
                 chunk_result = _parse_risk_response(json_data)
                 all_risk_factors.extend(chunk_result.risk_factors)
                 chunk_scores.append(chunk_result.overall_score)
+            elif json_data is None:
+                # Genuinely no JSON in a non-truncated response — likely the
+                # model found nothing risk-worthy in this chunk. That's fine.
+                logger.debug(f"Risk chunk {chunk_idx}: no JSON (treated as empty)")
 
+        except AgentResponseError as e:
+            # Truncated / unparseable output. Do NOT swallow into an empty
+            # result — count it so we can fail the stage if nothing survives.
+            parse_failures += 1
+            logger.warning(f"Risk chunk {chunk_idx} truncated/unparseable: {e}")
+            continue
         except Exception as e:
             logger.warning(f"Error processing chunk {chunk_idx} for risk: {e}")
             continue
 
     if not all_risk_factors:
+        # If every chunk failed to parse (vs. cleanly finding nothing), this is
+        # a FAILURE, not a low-risk contract. Raise so the caller records the
+        # RISK stage as failed instead of persisting a misleading score=0/LOW.
+        if parse_failures and not chunk_scores:
+            raise AgentResponseError(
+                f"Risk assessment could not parse any of {len(chunks)} chunk(s) "
+                f"({parse_failures} truncated/unparseable) — refusing to report "
+                "a false LOW/0 risk score."
+            )
         logger.warning("No risk factors found in any chunk")
         return RiskAssessmentResult(overall_score=0, risk_level="LOW")
 

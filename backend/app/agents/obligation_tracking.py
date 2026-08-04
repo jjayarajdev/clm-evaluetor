@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.base import (
     AgentConfig,
+    AgentResponseError,
     extract_json_from_response,
 )
 from app.config import settings
@@ -214,6 +215,10 @@ async def extract_obligations(
 
     all_obligations: list[ExtractedObligation] = []
     all_party_counts: dict[str, int] = {}
+    # Count chunks whose output was truncated/unparseable so we can fail the
+    # stage rather than silently return zero obligations for a dense contract.
+    parse_failures = 0
+    parsed_ok = 0
 
     for chunk_idx, chunk_text in enumerate(chunks):
         chunk_label = f"[Part {chunk_idx + 1}/{len(chunks)}]" if len(chunks) > 1 else ""
@@ -241,19 +246,40 @@ Identify ALL obligations, deadlines, and responsible parties in this section."""
                 )
             )
 
-            json_data = extract_json_from_response(response.response)
-            if json_data:
+            json_data = extract_json_from_response(
+                response.response, finish_reason=response.finish_reason
+            )
+            if isinstance(json_data, dict):
+                parsed_ok += 1
                 chunk_result = _parse_obligation_response(json_data)
                 all_obligations.extend(chunk_result.obligations)
                 # Aggregate party counts
                 for party, count in chunk_result.party_summary.items():
                     all_party_counts[party] = all_party_counts.get(party, 0) + count
+            elif json_data is None:
+                # Non-truncated response with no JSON: treat as "no obligations
+                # in this chunk", but still counts as a clean parse.
+                parsed_ok += 1
+                logger.debug(f"Obligation chunk {chunk_idx}: no JSON (treated as empty)")
 
+        except AgentResponseError as e:
+            parse_failures += 1
+            logger.warning(f"Obligation chunk {chunk_idx} truncated/unparseable: {e}")
+            continue
         except Exception as e:
             logger.warning(f"Error processing chunk {chunk_idx} for obligations: {e}")
             continue
 
     if not all_obligations:
+        # Distinguish "cleanly found nothing" from "every chunk failed to
+        # parse". The latter is a failure that must be surfaced, not a contract
+        # with zero obligations.
+        if parse_failures and parsed_ok == 0:
+            raise AgentResponseError(
+                f"Obligation extraction could not parse any of {len(chunks)} "
+                f"chunk(s) ({parse_failures} truncated/unparseable) — refusing "
+                "to report zero obligations."
+            )
         logger.warning("No obligations found in any chunk")
         return ObligationExtractionResult()
 
