@@ -1,25 +1,49 @@
+/* Contracts register — Direction B redesign.
+   Stat cards (clickable as filters) → search + chips row → table/tree toggle →
+   sortable table with row selection and a bulk-action bar. Data fetching, routes,
+   filters and delete flow are unchanged from the pre-redesign page. */
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import {
-  MagnifyingGlassIcon,
-  XMarkIcon,
-  ChevronDownIcon,
+  ArrowUpTrayIcon,
   BuildingOfficeIcon,
-  TrashIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  DocumentTextIcon,
   ExclamationTriangleIcon,
-  PlusIcon,
-  ListBulletIcon,
-  Squares2X2Icon,
   FunnelIcon,
+  MagnifyingGlassIcon,
+  ShareIcon,
+  TableCellsIcon,
+  TrashIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 import api from '@/lib/api'
 import i18n from '@/i18n'
+import {
+  Button,
+  Checkbox,
+  Chip,
+  ConfirmDialog,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Select,
+  Stat,
+  Table,
+  useToast,
+} from '@/components/ui'
+import type { PillTone, TableColumn } from '@/components/ui'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ContractTreeView from '@/components/contracts/ContractTreeView'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
-import { cn } from '@/lib/utils'
+import type { ContractSummary } from '@/types'
 
 function currentLocale(): string {
   return i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US'
@@ -28,62 +52,90 @@ function currentLocale(): string {
 // ── Helpers ──────────────────────────────────────────────────────
 
 function formatValue(value: number | null, currency: string | null): string {
-  if (value == null) return '\u2014'
+  if (value == null) return '—'
   const c = currency || 'USD'
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
   if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`
   return new Intl.NumberFormat(currentLocale(), { style: 'currency', currency: c, maximumFractionDigits: 0 }).format(value)
 }
 
+function isOngoing(d: Date): boolean {
+  return d.getFullYear() > new Date().getFullYear() + 50
+}
+
 function formatExpiry(dateStr: string | null): string {
-  if (!dateStr) return '\u2014'
+  if (!dateStr) return '—'
   const d = new Date(dateStr)
-  const now = new Date()
-  // Check if ongoing (far future or no real date)
-  if (d.getFullYear() > now.getFullYear() + 50) return i18n.t('contracts.ongoing')
+  if (isOngoing(d)) return i18n.t('contracts.ongoing')
   return d.toLocaleDateString(currentLocale(), { month: 'short', year: 'numeric' })
 }
 
-const statusStyles: Record<string, string> = {
-  completed: 'bg-emerald-100 text-emerald-700',
-  active: 'bg-emerald-100 text-emerald-700',
-  processing: 'bg-blue-100 text-blue-700',
-  pending: 'bg-gray-100 text-gray-600',
-  draft: 'bg-gray-100 text-gray-600',
-  failed: 'bg-red-100 text-red-700',
-  expired: 'bg-red-100 text-red-700',
-  under_review: 'bg-blue-100 text-blue-700',
+function daysUntil(dateStr: string): number {
+  return Math.round((new Date(dateStr).getTime() - Date.now()) / 86_400_000)
 }
 
-const riskStyles: Record<string, string> = {
-  low: 'bg-emerald-100 text-emerald-700',
-  medium: 'bg-amber-100 text-amber-700',
-  high: 'bg-red-100 text-red-700',
-  critical: 'bg-purple-100 text-purple-700',
+function displayName(c: ContractSummary): string {
+  return c.filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ')
 }
 
-function StatusBadge({ status }: { status: string }) {
+const STATUS_TONE: Record<string, PillTone> = {
+  completed: 'ok',
+  active: 'ok',
+  processing: 'in',
+  under_review: 'p',
+  pending: 'n',
+  draft: 'n',
+  failed: 'da',
+  expired: 'da',
+}
+
+const RISK_TONE: Record<string, PillTone> = {
+  low: 'ok',
+  medium: 'wa',
+  high: 'da',
+  critical: 'da',
+}
+
+const RISK_RANK: Record<string, number> = { low: 0, medium: 1, high: 2, critical: 3 }
+
+const STATUS_CHIP_VALUES = ['pending', 'processing', 'completed', 'failed']
+
+function StatusPill({ status }: { status: string }) {
   const { t } = useTranslation()
   const key = status.toLowerCase().replace(/\s+/g, '_')
-  const label = t(`status.${key}`, { defaultValue: status.replace(/_/g, ' ') })
   return (
-    <span className={cn(
-      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize',
-      statusStyles[key] || 'bg-gray-100 text-gray-600'
-    )}>
-      {label}
-    </span>
+    <Pill tone={STATUS_TONE[key] || 'n'}>
+      {t(`status.${key}`, { defaultValue: status.replace(/_/g, ' ') })}
+    </Pill>
   )
 }
 
-function RiskBadge({ level }: { level: string }) {
+function RiskPill({ level }: { level: string }) {
   const { t } = useTranslation()
+  const key = level.toLowerCase()
   return (
-    <span className={cn(
-      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize',
-      riskStyles[level.toLowerCase()] || 'bg-gray-100 text-gray-600'
-    )}>
-      {t(`risk.${level.toLowerCase()}`, { defaultValue: level })}
+    <Pill tone={RISK_TONE[key] || 'n'}>
+      {t(`risk.${key}`, { defaultValue: level })}
+    </Pill>
+  )
+}
+
+/** Expiry date plus a colored "in Nd / Nd ago" hint when within 90 days or past. */
+function ExpiryCell({ dateStr }: { dateStr: string | null }) {
+  const { t } = useTranslation()
+  const hint = (() => {
+    if (!dateStr || isOngoing(new Date(dateStr))) return null
+    const d = daysUntil(dateStr)
+    if (d < 0) return { text: t('contracts.daysAgo', { count: Math.abs(d), defaultValue: '{{count}}d ago' }), color: 'var(--da)' }
+    if (d <= 90) return { text: t('contracts.inDays', { count: d, defaultValue: 'in {{count}}d' }), color: 'var(--wa)' }
+    return null
+  })()
+  return (
+    <span className="num nw" style={{ display: 'inline-block' }}>
+      {formatExpiry(dateStr)}
+      {hint && (
+        <span style={{ display: 'block', fontSize: 'var(--fs-xs)', color: hint.color, fontWeight: 600 }}>{hint.text}</span>
+      )}
     </span>
   )
 }
@@ -94,12 +146,15 @@ export default function ContractsPage() {
   const { t } = useTranslation()
   const { contractTypeLabel, uiLabel } = useTenantConfig()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const { toast } = useToast()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [selectedCounterparty, setSelectedCounterparty] = useState<string | null>(null)
   const [selectedType, setSelectedType] = useState<string | null>(null)
   const [selectedRisk, setSelectedRisk] = useState<string | null>(null)
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [partyDropdownOpen, setPartyDropdownOpen] = useState(false)
@@ -119,9 +174,15 @@ export default function ContractsPage() {
     queryFn: () => api.getContractFilterOptions(),
   })
 
+  // Portfolio summary for the stat cards row
+  const { data: summary } = useQuery({
+    queryKey: ['contracts-summary'],
+    queryFn: () => api.getContractsSummary(),
+  })
+
   // Fetch contracts
   const { data, isLoading } = useQuery({
-    queryKey: ['contracts', page, search, selectedCounterparty, selectedType, selectedRisk, selectedClientId],
+    queryKey: ['contracts', page, search, selectedCounterparty, selectedType, selectedRisk, selectedStatus, selectedClientId],
     queryFn: () => api.getContracts({
       page,
       page_size: pageSize,
@@ -129,6 +190,7 @@ export default function ContractsPage() {
       counterparty: selectedCounterparty || undefined,
       contract_type: selectedType || undefined,
       risk_level: selectedRisk || undefined,
+      status: selectedStatus || undefined,
       client_id: selectedClientId || undefined,
     }),
   })
@@ -143,12 +205,16 @@ export default function ContractsPage() {
   // Batch delete
   const deleteMutation = useMutation({
     mutationFn: (contractIds: string[]) => api.batchDeleteContracts(contractIds),
-    onSuccess: () => {
+    onSuccess: (res) => {
       setSelectedContracts(new Set())
       setShowDeleteConfirm(false)
       queryClient.invalidateQueries({ queryKey: ['contracts'] })
       queryClient.invalidateQueries({ queryKey: ['contract-filter-options'] })
       queryClient.invalidateQueries({ queryKey: ['contracts-summary'] })
+      toast({ text: t('contracts.deleteSuccess', { count: res.total_deleted, defaultValue: '{{count}} contract(s) deleted' }) })
+    },
+    onError: () => {
+      toast({ text: t('contracts.deleteFailed', { defaultValue: 'Delete failed. Please try again.' }), error: true })
     },
   })
 
@@ -164,19 +230,11 @@ export default function ContractsPage() {
   const toggleAllContracts = () => {
     if (!data?.items) return
     const allSelected = data.items.every(c => selectedContracts.has(c.id))
-    if (allSelected) {
-      setSelectedContracts(prev => {
-        const next = new Set(prev)
-        data.items.forEach(c => next.delete(c.id))
-        return next
-      })
-    } else {
-      setSelectedContracts(prev => {
-        const next = new Set(prev)
-        data.items.forEach(c => next.add(c.id))
-        return next
-      })
-    }
+    setSelectedContracts(prev => {
+      const next = new Set(prev)
+      data.items.forEach(c => (allSelected ? next.delete(c.id) : next.add(c.id)))
+      return next
+    })
   }
 
   // Close dropdowns on outside click
@@ -203,19 +261,29 @@ export default function ContractsPage() {
     setSelectedCounterparty(null)
     setSelectedType(null)
     setSelectedRisk(null)
+    setSelectedStatus(null)
     setSelectedClientId(null)
     setPage(1)
   }
 
-  const hasActiveFilters = selectedCounterparty || selectedRisk || selectedClientId
-  const selectedClient = filterOptions?.clients?.find((c: any) => c.id === selectedClientId)
+  const hasActiveFilters = !!(selectedCounterparty || selectedRisk || selectedStatus || selectedClientId)
+  const selectedClient = filterOptions?.clients?.find((c) => c.id === selectedClientId)
   const filteredCounterparties = filterOptions?.counterparties.filter((cp: string) =>
     cp.toLowerCase().includes(partySearch.toLowerCase())
   ) || []
 
+  const toggleStatusFilter = (s: string) => {
+    setSelectedStatus(prev => (prev === s ? null : s))
+    setPage(1)
+  }
+  const toggleRiskFilter = (r: string) => {
+    setSelectedRisk(prev => (prev === r ? null : r))
+    setPage(1)
+  }
+
   // Pagination helpers
   const totalPages = data?.pages || 1
-  const startItem = data ? (data.page - 1) * pageSize + 1 : 0
+  const startItem = data && data.total > 0 ? (data.page - 1) * pageSize + 1 : 0
   const endItem = data ? Math.min(data.page * pageSize, data.total) : 0
 
   function getPageNumbers(): (number | '...')[] {
@@ -230,208 +298,369 @@ export default function ContractsPage() {
     return pages
   }
 
+  // Selection state for the current page
+  const items = data?.items || []
+  const allSelected = items.length > 0 && items.every(c => selectedContracts.has(c.id))
+  const someSelected = !allSelected && items.some(c => selectedContracts.has(c.id))
+
+  const criticalCount = summary?.by_risk?.critical || 0
+
+  const columns: TableColumn<ContractSummary>[] = [
+    {
+      key: 'sel',
+      width: 40,
+      header: <Checkbox checked={allSelected} mixed={someSelected} onChange={toggleAllContracts} />,
+      render: (c) => (
+        <Checkbox checked={selectedContracts.has(c.id)} onChange={() => toggleContractSelection(c.id)} />
+      ),
+    },
+    {
+      key: 'name',
+      header: t('contracts.contractName'),
+      sortable: true,
+      sortValue: (c) => displayName(c).toLowerCase(),
+      render: (c) => (
+        <Link
+          to={`/contracts/${c.id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="trunc"
+          style={{ display: 'block', maxWidth: 320, fontWeight: 500, color: 'inherit' }}
+        >
+          {displayName(c)}
+        </Link>
+      ),
+    },
+    {
+      key: 'type',
+      header: t('contracts.type'),
+      sortable: true,
+      nowrap: true,
+      sortValue: (c) => c.contract_type,
+      render: (c) => (
+        <span className="muted">{c.contract_type ? contractTypeLabel(c.contract_type) : '—'}</span>
+      ),
+    },
+    {
+      key: 'counterparty',
+      header: uiLabel('counterparty', t('contracts.counterparty')),
+      sortable: true,
+      sortValue: (c) => c.counterparty,
+      render: (c) => <span className="trunc" style={{ display: 'block', maxWidth: 200 }}>{c.counterparty || '—'}</span>,
+    },
+    {
+      key: 'status',
+      header: t('common.status'),
+      sortable: true,
+      sortValue: (c) => c.status,
+      render: (c) => <StatusPill status={c.status} />,
+    },
+    {
+      key: 'value',
+      header: uiLabel('contract_value', t('contracts.value')),
+      sortable: true,
+      align: 'right',
+      nowrap: true,
+      sortValue: (c) => c.contract_value,
+      render: (c) => <span className="num" style={{ fontWeight: 500 }}>{formatValue(c.contract_value, c.currency)}</span>,
+    },
+    {
+      key: 'risk',
+      header: t('contracts.risk'),
+      sortable: true,
+      sortValue: (c) => (c.risk_level ? RISK_RANK[c.risk_level.toLowerCase()] ?? null : null),
+      render: (c) => (c.risk_level ? <RiskPill level={c.risk_level} /> : <span className="faint">{'—'}</span>),
+    },
+    {
+      key: 'expiry',
+      header: t('contracts.expiry'),
+      sortable: true,
+      align: 'right',
+      nowrap: true,
+      sortValue: (c) => c.expiration_date,
+      render: (c) => <ExpiryCell dateStr={c.expiration_date} />,
+    },
+  ]
+
+  const emptyState = (
+    <EmptyState
+      icon={hasActiveFilters || search ? FunnelIcon : DocumentTextIcon}
+      title={
+        hasActiveFilters || search
+          ? t('contracts.noContractsFound')
+          : t('contracts.emptyTitle', { defaultValue: 'No contracts yet' })
+      }
+      body={
+        hasActiveFilters || search
+          ? t('contracts.emptyFilteredBody', { defaultValue: 'Loosen or clear a filter to see more of your portfolio.' })
+          : t('contracts.emptyBody', { defaultValue: 'Upload your first contract to start the AI extraction pipeline.' })
+      }
+      action={
+        hasActiveFilters || search ? (
+          <Button variant="secondary" size="sm" onClick={() => { clearFilters(); setSearch(''); setSearchInput('') }}>
+            {t('contracts.clearAllFilters')}
+          </Button>
+        ) : (
+          <Button variant="primary" size="sm" icon={ArrowUpTrayIcon} onClick={() => navigate('/upload')}>
+            {t('nav.upload')}
+          </Button>
+        )
+      }
+    />
+  )
+
   return (
-    <div className="space-y-6">
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-red-100 rounded-full">
-                <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                {t('contracts.deleteConfirmTitle', { count: selectedContracts.size })}
-              </h3>
-            </div>
-            <p className="text-sm text-gray-600 mb-6">
-              {t('contracts.deleteConfirmBody')}
-            </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowDeleteConfirm(false)} disabled={deleteMutation.isPending} className="btn-secondary">
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={() => deleteMutation.mutate(Array.from(selectedContracts))}
-                disabled={deleteMutation.isPending}
-                className="btn-primary bg-red-600 hover:bg-red-700 focus:ring-red-500 flex items-center gap-2"
-              >
-                {deleteMutation.isPending ? <><LoadingSpinner size="sm" /> {t('contracts.deleting')}</> : <><TrashIcon className="h-4 w-4" /> {t('common.delete')}</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="col" style={{ gap: 18 }}>
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title={t('contracts.deleteConfirmTitle', { count: selectedContracts.size })}
+        body={t('contracts.deleteConfirmBody')}
+        confirmLabel={deleteMutation.isPending ? t('contracts.deleting') : t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => { if (!deleteMutation.isPending) setShowDeleteConfirm(false) }}
+        onConfirm={() => { if (!deleteMutation.isPending) deleteMutation.mutate(Array.from(selectedContracts)) }}
+      />
 
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('nav.contracts')}</h1>
-          <p className="mt-1 text-sm text-gray-500">{t('contracts.subtitle')}</p>
+      <div className="row" style={{ alignItems: 'flex-start' }}>
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>{t('nav.contracts')}</h1>
+          <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>{t('contracts.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-3">
-          {selectedContracts.size > 0 && (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-            >
-              <TrashIcon className="h-4 w-4" />
-              {t('common.delete')} ({selectedContracts.size})
-            </button>
-          )}
-          <Link
-            to="/upload"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 transition-colors"
-          >
-            <PlusIcon className="h-4 w-4" />
-            {t('nav.upload')}
-          </Link>
-        </div>
+        <Button variant="primary" icon={ArrowUpTrayIcon} onClick={() => navigate('/upload')}>
+          {t('nav.upload')}
+        </Button>
       </div>
 
-      {/* Search bar - full width */}
-      <form onSubmit={handleSearch}>
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder={t('contracts.searchPlaceholder')}
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition-all"
-          />
-        </div>
-      </form>
+      {/* Stat cards — the two rightmost double as filters */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <Stat
+          icon={DocumentTextIcon}
+          label={t('contracts.statTotal', { defaultValue: 'Contracts' })}
+          value={summary ? summary.total_contracts : '—'}
+          sub={t('contracts.statTotalSub', { defaultValue: 'across your portfolio' })}
+        />
+        <Stat
+          icon={CheckCircleIcon}
+          label={t('contracts.statAnalyzed', { defaultValue: 'Fully analyzed' })}
+          value={summary ? summary.by_status?.completed || 0 : '—'}
+          sub={t('contracts.statAnalyzedSub', {
+            count: summary?.by_status?.processing || 0,
+            defaultValue: '{{count}} still processing',
+          })}
+          active={selectedStatus === 'completed'}
+          onClick={() => toggleStatusFilter('completed')}
+        />
+        <Stat
+          icon={ClockIcon}
+          label={t('contracts.statExpiring', { defaultValue: 'Expiring soon' })}
+          value={summary ? summary.expiring_soon : '—'}
+          sub={t('contracts.statExpiringSub', { defaultValue: 'approaching expiration' })}
+          subTone="var(--wa)"
+        />
+        <Stat
+          icon={ExclamationTriangleIcon}
+          label={t('contracts.statHighRisk', { defaultValue: 'High risk' })}
+          value={summary ? summary.by_risk?.high || 0 : '—'}
+          sub={
+            criticalCount > 0
+              ? t('contracts.statCritical', { count: criticalCount, defaultValue: '+{{count}} critical' })
+              : t('contracts.statHighRiskSub', { defaultValue: 'needing review' })
+          }
+          subTone="var(--da)"
+          active={selectedRisk === 'high'}
+          onClick={() => toggleRiskFilter('high')}
+        />
+      </div>
 
-      {/* Type filter dropdown + advanced filter toggle */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <select
+      {/* Search + controls row */}
+      <div className="col" style={{ gap: 10 }}>
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <form onSubmit={handleSearch} className="grow" style={{ maxWidth: 340, minWidth: 220 }}>
+            <Field
+              icon={MagnifyingGlassIcon}
+              placeholder={t('contracts.searchPlaceholder')}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </form>
+          <Select
             value={selectedType || ''}
             onChange={(e) => { setSelectedType(e.target.value || null); setPage(1) }}
-            className="input py-1.5 text-sm w-auto max-w-xs"
-          >
-            <option value="">{t('contracts.all')}</option>
-            {(filterOptions?.contract_types || []).map((type: string) => (
-              <option key={type} value={type}>{contractTypeLabel(type)}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors',
-              hasActiveFilters
-                ? 'bg-primary-50 border-primary-300 text-primary-700'
-                : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
-            )}
-          >
-            <FunnelIcon className="h-4 w-4" />
+            containerStyle={{ width: 170 }}
+            options={[
+              { value: '', label: t('contracts.all') },
+              ...(filterOptions?.contract_types || []).map((type: string) => ({ value: type, label: contractTypeLabel(type) })),
+            ]}
+          />
+          <Chip on={showFilters || hasActiveFilters} icon={FunnelIcon} onClick={() => setShowFilters(!showFilters)}>
             {t('contracts.filters')}
-          </button>
-          {/* View mode toggle */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-            <button onClick={() => setViewMode('table')} className={cn('p-1.5 rounded-md transition-colors', viewMode === 'table' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700')} title={t('contracts.tableView')}>
-              <ListBulletIcon className="h-4 w-4" />
-            </button>
-            <button onClick={() => setViewMode('tree')} className={cn('p-1.5 rounded-md transition-colors', viewMode === 'tree' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700')} title={t('contracts.treeView')}>
-              <Squares2X2Icon className="h-4 w-4" />
-            </button>
+          </Chip>
+          <span className="grow" />
+          {/* Table / tree segmented toggle */}
+          <div className="row" style={{ gap: 2, padding: 2, background: 'var(--s2)', borderRadius: 'var(--r-sm)' }}>
+            {([
+              ['table', TableCellsIcon, t('contracts.tableView')],
+              ['tree', ShareIcon, t('contracts.treeView')],
+            ] as const).map(([mode, Icon, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                title={label}
+                className="row"
+                style={{
+                  gap: 6, height: 28, padding: '0 10px', border: 0, borderRadius: 'var(--r-xs)', cursor: 'pointer',
+                  background: viewMode === mode ? 'var(--s)' : 'transparent',
+                  boxShadow: viewMode === mode ? 'var(--sh-xs)' : 'none',
+                  color: viewMode === mode ? 'var(--t)' : 'var(--m)',
+                  fontSize: 'var(--fs-sm)', fontWeight: 600,
+                }}
+              >
+                <Icon style={{ width: 14, height: 14 }} aria-hidden />
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
           </div>
+        </div>
+
+        {/* Status filter chips */}
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          {STATUS_CHIP_VALUES.map((s) => (
+            <Chip key={s} on={selectedStatus === s} onClick={() => toggleStatusFilter(s)}>
+              {t(`status.${s}`)}
+            </Chip>
+          ))}
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" icon={XMarkIcon} onClick={clearFilters}>
+              {t('contracts.clearAllFilters')}
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Advanced Filter Panel */}
+      {/* Advanced filter panel */}
       {showFilters && (
-        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+        <div className="card card-p">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Client Filter */}
+            {/* Client filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('contracts.client')}</label>
-              <div className="relative" ref={clientDropdownRef}>
+              <label className="lbl">{t('contracts.client')}</label>
+              <div style={{ position: 'relative' }} ref={clientDropdownRef}>
                 <button
+                  type="button"
+                  className="inp"
                   onClick={() => setClientDropdownOpen(!clientDropdownOpen)}
-                  className={cn(
-                    'w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left text-sm bg-white',
-                    clientDropdownOpen ? 'border-primary-500 ring-2 ring-primary-100' : 'border-gray-300 hover:border-gray-400'
-                  )}
+                  style={{ width: '100%', cursor: 'pointer', textAlign: 'left' }}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <BuildingOfficeIcon className="h-4 w-4 text-gray-400 shrink-0" />
-                    <span className={selectedClient ? 'truncate font-medium text-gray-900' : 'text-gray-500'}>
-                      {selectedClient ? selectedClient.name : t('contracts.allClients')}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {selectedClientId && (
-                      <button onClick={(e) => { e.stopPropagation(); setSelectedClientId(null); setPage(1) }} className="p-0.5 hover:bg-gray-100 rounded">
-                        <XMarkIcon className="h-4 w-4 text-gray-400" />
-                      </button>
-                    )}
-                    <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition-transform', clientDropdownOpen && 'rotate-180')} />
-                  </div>
+                  <BuildingOfficeIcon style={{ width: 15, height: 15, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
+                  <span
+                    className="grow trunc"
+                    style={{ fontSize: 'var(--fs-md)', color: selectedClient ? 'var(--t)' : 'var(--m)', fontWeight: selectedClient ? 500 : 400 }}
+                  >
+                    {selectedClient ? selectedClient.name : t('contracts.allClients')}
+                  </span>
+                  {selectedClientId && (
+                    <IconButton
+                      icon={XMarkIcon}
+                      label={t('contracts.clearAllFilters')}
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); setSelectedClientId(null); setPage(1) }}
+                    />
+                  )}
+                  <ChevronDownIcon
+                    style={{ width: 14, height: 14, flexShrink: 0, color: 'var(--f)', transition: 'transform .12s', transform: clientDropdownOpen ? 'rotate(180deg)' : undefined }}
+                    aria-hidden
+                  />
                 </button>
                 {clientDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg max-h-56 overflow-auto">
-                    <button onClick={() => { setSelectedClientId(null); setClientDropdownOpen(false); setPage(1) }} className={cn('w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50', !selectedClientId && 'bg-primary-50')}>
-                      <span className={cn('font-medium', !selectedClientId ? 'text-primary-700' : 'text-gray-700')}>{t('contracts.allClients')}</span>
-                    </button>
-                    {filterOptions?.clients?.map((client: any) => (
-                      <button key={client.id} onClick={() => { setSelectedClientId(client.id); setClientDropdownOpen(false); setPage(1) }} className={cn('w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50', selectedClientId === client.id && 'bg-primary-50')}>
-                        <span className={cn('truncate', selectedClientId === client.id ? 'text-primary-700 font-medium' : 'text-gray-700')}>
-                          {client.name} <span className="text-gray-400">({client.code})</span>
+                  <div className="menu" style={{ top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 240, overflowY: 'auto' }}>
+                    <div
+                      className="mi"
+                      onClick={() => { setSelectedClientId(null); setClientDropdownOpen(false); setPage(1) }}
+                      style={!selectedClientId ? { background: 'var(--p-f)', color: 'var(--p)', fontWeight: 600 } : undefined}
+                    >
+                      {t('contracts.allClients')}
+                    </div>
+                    {filterOptions?.clients?.map((client) => (
+                      <div
+                        key={client.id}
+                        className="mi"
+                        onClick={() => { setSelectedClientId(client.id); setClientDropdownOpen(false); setPage(1) }}
+                        style={selectedClientId === client.id ? { background: 'var(--p-f)', color: 'var(--p)', fontWeight: 600 } : undefined}
+                      >
+                        <span className="grow trunc">
+                          {client.name} <span className="faint">({client.code})</span>
                         </span>
-                        <span className="text-gray-400 text-xs ml-2 shrink-0">{client.contract_count}</span>
-                      </button>
+                        <span className="faint num" style={{ fontSize: 'var(--fs-xs)' }}>{client.contract_count}</span>
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Counterparty Filter */}
+            {/* Counterparty filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('contracts.counterparty')}</label>
-              <div className="relative" ref={partyDropdownRef}>
+              <label className="lbl">{uiLabel('counterparty', t('contracts.counterparty'))}</label>
+              <div style={{ position: 'relative' }} ref={partyDropdownRef}>
                 <button
+                  type="button"
+                  className="inp"
                   onClick={() => setPartyDropdownOpen(!partyDropdownOpen)}
-                  className={cn(
-                    'w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left text-sm bg-white',
-                    partyDropdownOpen ? 'border-primary-500 ring-2 ring-primary-100' : 'border-gray-300 hover:border-gray-400'
-                  )}
+                  style={{ width: '100%', cursor: 'pointer', textAlign: 'left' }}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <BuildingOfficeIcon className="h-4 w-4 text-gray-400 shrink-0" />
-                    <span className={selectedCounterparty ? 'truncate font-medium text-gray-900' : 'text-gray-500'}>
-                      {selectedCounterparty || t('contracts.allParties')}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {selectedCounterparty && (
-                      <button onClick={(e) => { e.stopPropagation(); setSelectedCounterparty(null); setPage(1) }} className="p-0.5 hover:bg-gray-100 rounded">
-                        <XMarkIcon className="h-4 w-4 text-gray-400" />
-                      </button>
-                    )}
-                    <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition-transform', partyDropdownOpen && 'rotate-180')} />
-                  </div>
+                  <BuildingOfficeIcon style={{ width: 15, height: 15, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
+                  <span
+                    className="grow trunc"
+                    style={{ fontSize: 'var(--fs-md)', color: selectedCounterparty ? 'var(--t)' : 'var(--m)', fontWeight: selectedCounterparty ? 500 : 400 }}
+                  >
+                    {selectedCounterparty || t('contracts.allParties')}
+                  </span>
+                  {selectedCounterparty && (
+                    <IconButton
+                      icon={XMarkIcon}
+                      label={t('contracts.clearAllFilters')}
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); setSelectedCounterparty(null); setPage(1) }}
+                    />
+                  )}
+                  <ChevronDownIcon
+                    style={{ width: 14, height: 14, flexShrink: 0, color: 'var(--f)', transition: 'transform .12s', transform: partyDropdownOpen ? 'rotate(180deg)' : undefined }}
+                    aria-hidden
+                  />
                 </button>
                 {partyDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg">
-                    <div className="p-2 border-b border-gray-100">
-                      <div className="relative">
-                        <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input ref={partyInputRef} type="text" placeholder={t('contracts.searchParties')} value={partySearch} onChange={(e) => setPartySearch(e.target.value)} className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-500" />
+                  <div className="menu" style={{ top: '100%', left: 0, right: 0, marginTop: 4 }}>
+                    <div style={{ padding: 4, borderBottom: '1px solid var(--b)', marginBottom: 4 }}>
+                      <div className="inp" style={{ height: 30 }}>
+                        <MagnifyingGlassIcon style={{ width: 14, height: 14, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
+                        <input
+                          ref={partyInputRef}
+                          type="text"
+                          placeholder={t('contracts.searchParties')}
+                          value={partySearch}
+                          onChange={(e) => setPartySearch(e.target.value)}
+                        />
                       </div>
                     </div>
-                    <div className="max-h-56 overflow-y-auto">
-                      <button onClick={() => { setSelectedCounterparty(null); setPartyDropdownOpen(false); setPartySearch(''); setPage(1) }} className={cn('w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50', !selectedCounterparty && 'bg-primary-50')}>
-                        <span className={cn('font-medium', !selectedCounterparty ? 'text-primary-700' : 'text-gray-700')}>{t('contracts.allParties')}</span>
-                      </button>
+                    <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                      <div
+                        className="mi"
+                        onClick={() => { setSelectedCounterparty(null); setPartyDropdownOpen(false); setPartySearch(''); setPage(1) }}
+                        style={!selectedCounterparty ? { background: 'var(--p-f)', color: 'var(--p)', fontWeight: 600 } : undefined}
+                      >
+                        {t('contracts.allParties')}
+                      </div>
                       {filteredCounterparties.map((party: string) => (
-                        <button key={party} onClick={() => { setSelectedCounterparty(party); setPartyDropdownOpen(false); setPartySearch(''); setPage(1) }} className={cn('w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50', selectedCounterparty === party && 'bg-primary-50')}>
-                          <span className={cn('truncate', selectedCounterparty === party ? 'text-primary-700 font-medium' : 'text-gray-700')}>{party}</span>
-                        </button>
+                        <div
+                          key={party}
+                          className="mi"
+                          onClick={() => { setSelectedCounterparty(party); setPartyDropdownOpen(false); setPartySearch(''); setPage(1) }}
+                          style={selectedCounterparty === party ? { background: 'var(--p-f)', color: 'var(--p)', fontWeight: 600 } : undefined}
+                        >
+                          <span className="trunc">{party}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -439,170 +668,96 @@ export default function ContractsPage() {
               </div>
             </div>
 
-            {/* Risk Level Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('contracts.riskLevel')}</label>
-              <select value={selectedRisk || ''} onChange={(e) => { setSelectedRisk(e.target.value || null); setPage(1) }} className="input text-sm">
-                <option value="">{t('contracts.allRiskLevels')}</option>
-                {filterOptions?.risk_levels.map((risk: string) => (
-                  <option key={risk} value={risk}>{t(`risk.${risk.toLowerCase()}`, { defaultValue: risk })}</option>
-                ))}
-              </select>
-            </div>
+            {/* Risk level filter */}
+            <Select
+              label={t('contracts.riskLevel')}
+              value={selectedRisk || ''}
+              onChange={(e) => { setSelectedRisk(e.target.value || null); setPage(1) }}
+              options={[
+                { value: '', label: t('contracts.allRiskLevels') },
+                ...(filterOptions?.risk_levels || []).map((risk: string) => ({
+                  value: risk,
+                  label: t(`risk.${risk.toLowerCase()}`, { defaultValue: risk }),
+                })),
+              ]}
+            />
           </div>
-          {hasActiveFilters && (
-            <div className="mt-3 flex items-center gap-2">
-              <button onClick={clearFilters} className="text-sm text-primary-600 hover:text-primary-800 font-medium">
-                {t('contracts.clearAllFilters')}
-              </button>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Tree View */}
+      {/* Bulk-action bar */}
+      {selectedContracts.size > 0 && (
+        <div className="row banner banner-p" style={{ gap: 12, alignItems: 'center' }}>
+          <b>{t('contracts.selectedCount', { count: selectedContracts.size, defaultValue: '{{count}} selected' })}</b>
+          <span className="grow" />
+          <Button variant="ghost" size="sm" onClick={() => setSelectedContracts(new Set())}>
+            {t('contracts.deselect', { defaultValue: 'Deselect' })}
+          </Button>
+          <Button variant="danger-ghost" size="sm" icon={TrashIcon} onClick={() => setShowDeleteConfirm(true)}>
+            {t('common.delete')}
+          </Button>
+        </div>
+      )}
+
+      {/* Tree view */}
       {viewMode === 'tree' && (
         hierarchyLoading ? (
-          <div className="flex items-center justify-center h-64"><LoadingSpinner size="lg" /></div>
+          <div className="row" style={{ justifyContent: 'center', height: 256 }}><LoadingSpinner size="lg" /></div>
         ) : hierarchyData ? (
           <ContractTreeView roots={hierarchyData.roots} totalContracts={hierarchyData.total_contracts} totalLinks={hierarchyData.total_links} />
         ) : null
       )}
 
-      {/* Table View */}
+      {/* Table view */}
       {viewMode === 'table' && (isLoading ? (
-        <div className="flex items-center justify-center h-64"><LoadingSpinner size="lg" /></div>
+        <div className="row" style={{ justifyContent: 'center', height: 256 }}><LoadingSpinner size="lg" /></div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr className="border-t-2 border-primary-500">
-                <th className="px-4 py-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={data?.items && data.items.length > 0 && data.items.every(c => selectedContracts.has(c.id))}
-                    onChange={toggleAllContracts}
-                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('contracts.contractName')}</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('contracts.type')}</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{uiLabel('counterparty', t('contracts.counterparty'))}</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('common.status')}</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{uiLabel('contract_value', t('contracts.value'))}</th>
-                <th className="px-4 py-3 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('contracts.risk')}</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('contracts.expiry')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {data?.items.map((contract) => (
-                <tr
-                  key={contract.id}
-                  className={cn(
-                    'hover:bg-gray-50/50 transition-colors',
-                    selectedContracts.has(contract.id) && 'bg-primary-50/50'
-                  )}
-                >
-                  <td className="px-4 py-3.5">
-                    <input
-                      type="checkbox"
-                      checked={selectedContracts.has(contract.id)}
-                      onChange={() => toggleContractSelection(contract.id)}
-                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <Link
-                      to={`/contracts/${contract.id}`}
-                      className="text-sm font-medium text-gray-900 hover:text-primary-700 transition-colors"
-                    >
-                      {contract.filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ')}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className="text-sm text-gray-600">
-                      {contract.contract_type ? contractTypeLabel(contract.contract_type) : '\u2014'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className="text-sm text-gray-700">
-                      {contract.counterparty || '\u2014'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <StatusBadge status={contract.status} />
-                  </td>
-                  <td className="px-4 py-3.5 text-right">
-                    <span className="text-sm text-gray-700 font-medium tabular-nums">
-                      {formatValue(contract.contract_value, contract.currency)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-center">
-                    {contract.risk_level ? (
-                      <RiskBadge level={contract.risk_level} />
-                    ) : (
-                      <span className="text-sm text-gray-400">{'\u2014'}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className="text-sm text-gray-600">
-                      {formatExpiry(contract.expiration_date)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Empty state */}
-          {data?.items.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">{t('contracts.noContractsFound')}</p>
-              {hasActiveFilters && (
-                <button onClick={clearFilters} className="mt-2 text-primary-600 hover:text-primary-800 text-sm">{t('contracts.clearAllFilters')}</button>
-              )}
-            </div>
-          )}
+        <div className="col" style={{ gap: 12 }}>
+          <Table<ContractSummary>
+            columns={columns}
+            rows={items}
+            rowKey={(c) => c.id}
+            onRowClick={(c) => navigate(`/contracts/${c.id}`)}
+            empty={emptyState}
+          />
 
           {/* Pagination */}
           {data && data.pages > 1 && (
-            <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-              <p className="text-sm text-gray-500">
+            <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+              <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
                 {t('contracts.showingRange', { start: startItem, end: endItem, total: data.total })}
-              </p>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
+              </span>
+              <span className="grow" />
+              <div className="row" style={{ gap: 2 }}>
+                <IconButton
+                  icon={ChevronLeftIcon}
+                  label={t('contracts.previousPage', { defaultValue: 'Previous page' })}
+                  size="sm"
                   disabled={page === 1}
-                  className="px-2 py-1.5 text-sm text-gray-500 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  &lsaquo;
-                </button>
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                />
                 {getPageNumbers().map((p, i) =>
                   p === '...' ? (
-                    <span key={`dots-${i}`} className="px-2 py-1.5 text-sm text-gray-400">&hellip;</span>
+                    <span key={`dots-${i}`} className="faint" style={{ padding: '0 6px', fontSize: 'var(--fs-sm)' }}>&hellip;</span>
                   ) : (
-                    <button
+                    <Button
                       key={p}
+                      variant={page === p ? 'primary' : 'ghost'}
+                      size="sm"
                       onClick={() => setPage(p as number)}
-                      className={cn(
-                        'min-w-[32px] h-8 rounded-md text-sm font-medium transition-colors',
-                        page === p
-                          ? 'bg-primary-700 text-white'
-                          : 'text-gray-600 hover:bg-gray-100'
-                      )}
+                      style={{ minWidth: 30, justifyContent: 'center' }}
                     >
                       {p}
-                    </button>
+                    </Button>
                   )
                 )}
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                <IconButton
+                  icon={ChevronRightIcon}
+                  label={t('contracts.nextPage', { defaultValue: 'Next page' })}
+                  size="sm"
                   disabled={page === totalPages}
-                  className="px-2 py-1.5 text-sm text-gray-500 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  &rsaquo;
-                </button>
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                />
               </div>
             </div>
           )}
