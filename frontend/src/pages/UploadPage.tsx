@@ -1,13 +1,18 @@
 /* Upload page — Direction B redesign.
    Dashed token-styled dropzone → queue card with per-file rows → live pipeline
    visualization driven by the real per-stage processing status the backend
-   reports (/contracts/:id/processing-status/current). Upload flows, polling,
-   client/group selectors, retry and navigation are unchanged from the
-   pre-redesign page. */
-import { useState, useCallback, useEffect } from 'react'
+   reports (/contracts/:id/processing-status/current).
+
+   Job state (upload → queued → processing → completed/failed) lives in the
+   global UploadContext, so navigating away mid-upload keeps the jobs alive
+   (the UploadTray surfaces them everywhere) and coming back shows consistent
+   state. This page keeps only what is page-scoped: the dropzone's pre-upload
+   queue (File objects not yet uploaded, incl. rejected drops), the
+   client/group destination pickers, and the detailed pipeline visualization. */
+import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   ArrowPathIcon,
   ArrowRightIcon,
@@ -28,22 +33,15 @@ import { useTranslation } from 'react-i18next'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
+import { PIPELINE_STAGES, isActiveJob, useUploads } from '@/contexts/UploadContext'
 import { Button, IconButton, Pill, Tag, AiTag, Field, Select, Bar, useToast } from '@/components/ui'
 import { formatFileSize } from '@/lib/utils'
 
-interface FileUpload {
+/** A dropped file that has not been handed to the upload context yet. */
+interface PendingFile {
   file: File
-  status: 'pending' | 'uploading' | 'uploaded' | 'processing' | 'completed' | 'error'
-  progress: number
+  /** Dropzone rejection message — the file will never be uploaded. */
   error?: string
-  warning?: string
-  stage?: string
-  progressPercent?: number
-  contractId?: string
-  clauseCount?: number
-  obligationCount?: number
-  hasSuggestions?: boolean
-  suggestionCount?: number
 }
 
 const ACCEPTED_TYPES = {
@@ -70,25 +68,6 @@ const ACCEPTED_TYPES = {
 }
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
-
-// Ordered pipeline stages, matching the stage ids the processing worker reports.
-const PIPELINE_STAGES: Array<{ id: string; labelKey: string }> = [
-  { id: 'parsing', labelKey: 'upload.stageParsing' },
-  { id: 'chunking', labelKey: 'upload.stageChunking' },
-  { id: 'classifying', labelKey: 'upload.stageClassifying' },
-  { id: 'metadata', labelKey: 'upload.stageMetadata' },
-  { id: 'custom_fields', labelKey: 'upload.stageCustomFields' },
-  { id: 'risk', labelKey: 'upload.stageRisk' },
-  { id: 'knowledge_graph', labelKey: 'upload.stageKnowledgeGraph' },
-  { id: 'clause_extraction', labelKey: 'upload.stageClauses' },
-  { id: 'obligation_detection', labelKey: 'upload.stageObligations' },
-  { id: 'sla_extraction', labelKey: 'upload.stageSlas' },
-  { id: 'renewal_analysis', labelKey: 'upload.stageRenewals' },
-  { id: 'schema_extraction', labelKey: 'upload.stageSchema' },
-  { id: 'link_detection', labelKey: 'upload.stageLinks' },
-  { id: 'compliance_check', labelKey: 'upload.stageCompliance' },
-  { id: 'governance_bridge', labelKey: 'upload.stageGovernance' },
-]
 
 /* Live pipeline: compact steps with done / active / pending states, driven by
    the real stage id the worker reports. Before the worker picks the file up
@@ -155,11 +134,11 @@ function Pipeline({ stage, percent }: { stage?: string; percent?: number }) {
 export default function UploadPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const { toast } = useToast()
   const { user, isSuperAdmin } = useAuth()
   const { config } = useTenantConfig()
-  const [files, setFiles] = useState<FileUpload[]>([])
+  const { jobs, queueStatus, startUploads, retryProcessing, dismissJob } = useUploads()
+  const [pending, setPending] = useState<PendingFile[]>([])
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [groupName, setGroupName] = useState('')
   const [showNewClientForm, setShowNewClientForm] = useState(false)
@@ -198,55 +177,11 @@ export default function UploadPage() {
     },
   })
 
-  // Get contract IDs that are still processing
-  const processingContractIds = files
-    .filter(f => f.status === 'uploaded' || f.status === 'processing')
-    .map(f => f.contractId)
-    .filter(Boolean) as string[]
+  // Contract IDs still being tracked by the provider (for the queue banner)
+  const processingContractIds = jobs
+    .filter((j) => isActiveJob(j) && j.contractId)
+    .map((j) => j.contractId) as string[]
 
-  // Poll for contract status updates
-  const { data: contractsData } = useQuery({
-    queryKey: ['contracts-status', processingContractIds],
-    queryFn: async () => {
-      const results = await Promise.all(
-        processingContractIds.map(id => api.getContract(id).catch(() => null))
-      )
-      return results.filter(Boolean)
-    },
-    enabled: processingContractIds.length > 0,
-    refetchInterval: 2000, // Poll every 2 seconds
-  })
-
-  // Per-stage pipeline progress for files currently processing
-  const { data: stageData } = useQuery({
-    queryKey: ['contracts-stages', processingContractIds],
-    queryFn: async () => {
-      const results = await Promise.all(
-        processingContractIds.map(id => api.getProcessingStatusCurrent(id).catch(() => null))
-      )
-      return results.filter(Boolean)
-    },
-    enabled: processingContractIds.length > 0,
-    refetchInterval: 2000,
-  })
-
-  useEffect(() => {
-    if (!stageData) return
-    setFiles(prev => prev.map(f => {
-      if (!f.contractId) return f
-      const s = stageData.find(x => x?.contract_id === f.contractId)
-      if (!s || s.stage === 'idle') return f
-      return { ...f, stage: s.stage, progressPercent: s.progress_percent }
-    }))
-  }, [stageData])
-
-  // Queue position + ETA while files wait for the processing worker
-  const { data: queueStatus } = useQuery({
-    queryKey: ['processing-queue-status'],
-    queryFn: () => api.getProcessingQueueStatus(),
-    enabled: processingContractIds.length > 0,
-    refetchInterval: 10000,
-  })
   const myQueuedJobs = (queueStatus?.jobs ?? []).filter(
     (j) => processingContractIds.includes(j.contract_id) && j.status === 'queued',
   )
@@ -254,116 +189,13 @@ export default function UploadPage() {
     ? Math.max(1, Math.round(Math.max(...myQueuedJobs.map((j) => j.eta_seconds)) / 60))
     : 0
 
-  const retryProcessing = async (index: number) => {
-    const f = files[index]
-    if (!f.contractId) return
-    try {
-      await api.processContract(f.contractId)
-      setFiles((prev) =>
-        prev.map((x, i) =>
-          i === index ? { ...x, status: 'uploaded' as const, error: undefined } : x,
-        ),
-      )
-    } catch {
-      // keep the row in error state; the message is already shown
-    }
-  }
-
-  // Update file statuses based on contract data
-  useEffect(() => {
-    if (!contractsData) return
-
-    let hasNewlyCompleted = false
-    const newlyCompletedIds: string[] = []
-
-    setFiles(prev => prev.map(f => {
-      if (!f.contractId) return f
-
-      const contract = contractsData.find(c => c?.id === f.contractId)
-      if (!contract) return f
-
-      if (contract.status === 'completed') {
-        // Check if this is a newly completed contract (was not completed before)
-        if (f.status !== 'completed') {
-          hasNewlyCompleted = true
-          newlyCompletedIds.push(f.contractId)
-        }
-        return {
-          ...f,
-          status: 'completed',
-          clauseCount: contract.clause_count,
-          obligationCount: contract.obligation_count,
-        }
-      } else if (contract.status === 'processing') {
-        return { ...f, status: 'processing' }
-      } else if (contract.status === 'failed') {
-        return { ...f, status: 'error', error: contract.processing_error || t('upload.processingFailed') }
-      }
-
-      return f
-    }))
-
-    // Invalidate all relevant caches when contracts complete processing
-    if (hasNewlyCompleted) {
-      // Dashboard components
-      queryClient.invalidateQueries({ queryKey: ['clauses-summary'] })
-      queryClient.invalidateQueries({ queryKey: ['obligations-summary'] })
-      queryClient.invalidateQueries({ queryKey: ['contracts-summary'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['clients-summary'] })
-      // Contract list and details
-      queryClient.invalidateQueries({ queryKey: ['contracts'] })
-      queryClient.invalidateQueries({ queryKey: ['contract-filter-options'] })
-      // Post-signing pages
-      queryClient.invalidateQueries({ queryKey: ['postsigning-dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['renewal-calendar'] })
-      queryClient.invalidateQueries({ queryKey: ['vendors'] })
-      // Reports
-      queryClient.invalidateQueries({ queryKey: ['contract-trend'] })
-      queryClient.invalidateQueries({ queryKey: ['compliance-report'] })
-
-      // Check for suggested links on newly completed contracts
-      Promise.all(
-        newlyCompletedIds.map(async (contractId) => {
-          try {
-            const suggestions = await api.getSuggestedLinks(contractId)
-            if (suggestions.pending_count > 0) {
-              setFiles(prev => prev.map(f =>
-                f.contractId === contractId
-                  ? { ...f, hasSuggestions: true, suggestionCount: suggestions.pending_count }
-                  : f
-              ))
-            }
-          } catch {
-            // Ignore errors - suggestions are optional
-          }
-        })
-      )
-    }
-  }, [contractsData, queryClient])
-
-  const uploadMutation = useMutation({
-    mutationFn: async (fileUpload: FileUpload) => {
-      const response = await api.uploadFile(fileUpload.file)
-      return response
-    },
-  })
-
   const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
-    const rejected = rejectedFiles.map((rejection) => ({
+    const rejected: PendingFile[] = rejectedFiles.map((rejection) => ({
       file: rejection.file,
-      status: 'error' as const,
-      progress: 0,
       error: rejection.errors[0]?.message || t('upload.fileRejected'),
     }))
-
-    const accepted = acceptedFiles.map((file) => ({
-      file,
-      status: 'pending' as const,
-      progress: 0,
-    }))
-
-    setFiles((prev) => [...prev, ...accepted, ...rejected])
+    const accepted: PendingFile[] = acceptedFiles.map((file) => ({ file }))
+    setPending((prev) => [...prev, ...accepted, ...rejected])
   }, [])
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
@@ -374,128 +206,44 @@ export default function UploadPage() {
     useFsAccessApi: false, // Disable File System Access API for better compatibility (Safari, older browsers)
   })
 
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index))
+  const removePending = (index: number) => {
+    setPending((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const uploadFile = async (index: number) => {
-    const fileUpload = files[index]
-    if (fileUpload.status !== 'pending') return
+  // Per-row upload — hands a single file to the context (single-file endpoint).
+  const uploadOne = (index: number) => {
+    const p = pending[index]
+    if (!p || p.error) return
+    setPending((prev) => prev.filter((_, i) => i !== index))
+    void startUploads([p.file], { single: true })
+  }
 
-    setFiles((prev) =>
-      prev.map((f, i) => (i === index ? { ...f, status: 'uploading' as const, progress: 50 } : f))
+  // Batch upload — groups files in the same folder, reusing an existing group
+  // by name when one matches, and files under the selected client.
+  const uploadAll = () => {
+    const eligible = pending.filter((p) => !p.error)
+    if (eligible.length === 0) return
+
+    const trimmedGroup = groupName.trim()
+    const existingGroup = groups.find(
+      (g) => g.name.toLowerCase() === trimmedGroup.toLowerCase(),
     )
-
-    try {
-      const result = await uploadMutation.mutateAsync(fileUpload)
-      setFiles((prev) =>
-        prev.map((f, i) =>
-          i === index
-            ? { ...f, status: 'uploaded' as const, progress: 100, contractId: result.id || undefined }
-            : f
-        )
-      )
-    } catch (error: any) {
-      setFiles((prev) =>
-        prev.map((f, i) =>
-          i === index
-            ? {
-                ...f,
-                status: 'error' as const,
-                progress: 0,
-                error: error?.message || t('upload.uploadFailed'),
-              }
-            : f
-        )
-      )
-    }
-  }
-
-  const uploadAll = async () => {
-    const pendingIndices = files
-      .map((f, i) => (f.status === 'pending' ? i : -1))
-      .filter((i) => i !== -1)
-
-    if (pendingIndices.length === 0) return
-
-    // Mark all as uploading
-    setFiles((prev) =>
-      prev.map((f, i) =>
-        pendingIndices.includes(i) ? { ...f, status: 'uploading' as const, progress: 50 } : f
-      )
+    setPending((prev) => prev.filter((p) => p.error))
+    void startUploads(
+      eligible.map((p) => p.file),
+      {
+        clientId: selectedClientId || undefined,
+        groupName: existingGroup ? undefined : trimmedGroup || undefined,
+        groupId: existingGroup?.id,
+      },
     )
-
-    try {
-      // Use batch upload to group files in same folder
-      const pendingFiles = pendingIndices.map((i) => files[i].file)
-      const trimmedGroup = groupName.trim()
-      const existingGroup = groups.find(
-        (g) => g.name.toLowerCase() === trimmedGroup.toLowerCase(),
-      )
-      const result = await api.uploadFiles(
-        pendingFiles,
-        selectedClientId || undefined,
-        existingGroup ? undefined : trimmedGroup || undefined,
-        existingGroup?.id,
-      )
-
-      // Update status based on batch response
-      setFiles((prev) =>
-        prev.map((f, i) => {
-          if (!pendingIndices.includes(i)) return f
-
-          // Find matching file in response
-          const fileResult = result.files?.find(
-            (r) => r.filename === f.file.name || r.filename?.includes(f.file.name.substring(0, 20))
-          )
-
-          if (fileResult?.status === 'accepted' && fileResult.id) {
-            return {
-              ...f,
-              status: 'uploaded' as const,
-              progress: 100,
-              contractId: fileResult.id,
-              warning: fileResult.duplicate_of_filename
-                ? t('upload.duplicateWarning', { filename: fileResult.duplicate_of_filename })
-                : undefined,
-            }
-          } else if (fileResult?.status === 'rejected') {
-            return {
-              ...f,
-              status: 'error' as const,
-              progress: 0,
-              error: fileResult?.message || t('upload.uploadRejected'),
-            }
-          } else {
-            return {
-              ...f,
-              status: 'error' as const,
-              progress: 0,
-              error: t('upload.uploadFailedNoResponse'),
-            }
-          }
-        })
-      )
-    } catch (error: any) {
-      // If batch fails, mark all as error
-      setFiles((prev) =>
-        prev.map((f, i) =>
-          pendingIndices.includes(i)
-            ? {
-                ...f,
-                status: 'error' as const,
-                progress: 0,
-                error: error?.message || t('upload.batchUploadFailed'),
-              }
-            : f
-        )
-      )
-    }
   }
 
-  const pendingCount = files.filter((f) => f.status === 'pending').length
-  const completedCount = files.filter((f) => f.status === 'completed').length
-  const totalSize = files.reduce((s, f) => s + f.file.size, 0)
+  const pendingCount = pending.filter((p) => !p.error).length
+  const completedCount = jobs.filter((j) => j.state === 'completed').length
+  const totalCount = pending.length + jobs.length
+  const totalSize =
+    pending.reduce((s, p) => s + p.file.size, 0) + jobs.reduce((s, j) => s + j.fileSize, 0)
   const clientOptions = [
     { value: '', label: t('upload.none') },
     ...clients.map((c) => ({ value: c.id, label: `${c.name} (${c.code})` })),
@@ -671,11 +419,11 @@ export default function UploadPage() {
         </Button>
       </div>
 
-      {/* File queue + live pipeline */}
-      {files.length > 0 && (
+      {/* File queue + live pipeline (pending drops first, then tracked jobs) */}
+      {totalCount > 0 && (
         <div className="tbl-w">
           <div className="row" style={{ padding: '11px 14px', background: 'var(--s3)', borderBottom: '1px solid var(--b)' }}>
-            <b style={{ fontSize: 'var(--fs-md)' }}>{t('upload.filesCount', { count: files.length })}</b>
+            <b style={{ fontSize: 'var(--fs-md)' }}>{t('upload.filesCount', { count: totalCount })}</b>
             <span className="faint" style={{ fontSize: 'var(--fs-sm)', marginLeft: 8 }}>
               {formatFileSize(totalSize)}
             </span>
@@ -709,103 +457,132 @@ export default function UploadPage() {
             </div>
           )}
 
-          {files.map((fileUpload, index) => (
-            <div key={index} className="col" style={{ borderBottom: '1px solid var(--b)' }}>
+          {/* Pending drops — not uploaded yet (page-local) */}
+          {pending.map((p, index) => (
+            <div key={`${p.file.name}-${index}`} className="col" style={{ borderBottom: '1px solid var(--b)' }}>
               <div className="row" style={{ gap: 10, padding: '11px 14px' }}>
                 <DocumentTextIcon style={{ width: 17, height: 17, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
                 <span className="mono trunc grow" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
-                  {fileUpload.file.name}
+                  {p.file.name}
                 </span>
-                {fileUpload.warning && (
+                <span className="faint num" style={{ fontSize: 'var(--fs-sm)', whiteSpace: 'nowrap' }}>
+                  {formatFileSize(p.file.size)}
+                </span>
+                {p.error ? (
+                  <Pill tone="da">{t('status.failed', { defaultValue: 'Failed' })}</Pill>
+                ) : (
+                  <Button variant="secondary" size="sm" onClick={() => uploadOne(index)}>
+                    {t('nav.upload')}
+                  </Button>
+                )}
+                <IconButton
+                  icon={XMarkIcon}
+                  size="sm"
+                  label={t('upload.removeFromQueue', { defaultValue: 'Remove from queue' })}
+                  onClick={() => removePending(index)}
+                />
+              </div>
+              {p.error && (
+                <div style={{ padding: '0 14px 12px 41px' }}>
+                  <div className="banner banner-da" style={{ alignItems: 'center' }}>
+                    <ExclamationCircleIcon style={{ width: 16, height: 16, flexShrink: 0 }} aria-hidden />
+                    <span className="grow">{p.error}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Tracked jobs — sourced from the global upload context */}
+          {jobs.map((job) => (
+            <div key={job.id} className="col" style={{ borderBottom: '1px solid var(--b)' }}>
+              <div className="row" style={{ gap: 10, padding: '11px 14px' }}>
+                <DocumentTextIcon style={{ width: 17, height: 17, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
+                <span className="mono trunc grow" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                  {job.fileName}
+                </span>
+                {job.warning && (
                   <Pill tone="wa">{t('upload.alreadyUploaded', { defaultValue: 'Duplicate' })}</Pill>
                 )}
                 <span className="faint num" style={{ fontSize: 'var(--fs-sm)', whiteSpace: 'nowrap' }}>
-                  {formatFileSize(fileUpload.file.size)}
+                  {formatFileSize(job.fileSize)}
                 </span>
 
-                {fileUpload.status === 'pending' && (
-                  <>
-                    <Button variant="secondary" size="sm" onClick={() => uploadFile(index)}>
-                      {t('nav.upload')}
-                    </Button>
-                    <IconButton
-                      icon={XMarkIcon}
-                      size="sm"
-                      label={t('upload.removeFromQueue', { defaultValue: 'Remove from queue' })}
-                      onClick={() => removeFile(index)}
-                    />
-                  </>
-                )}
-                {fileUpload.status === 'uploading' && (
+                {job.state === 'uploading' && (
                   <span className="row muted" style={{ gap: 6, fontSize: 'var(--fs-sm)' }}>
                     <ArrowPathIcon className="spin" style={{ width: 14, height: 14, color: 'var(--p)' }} aria-hidden />
                     {t('upload.uploading')}
                   </span>
                 )}
-                {(fileUpload.status === 'uploaded' || fileUpload.status === 'processing') && (
+                {(job.state === 'queued' || job.state === 'duplicate' || job.state === 'processing') && (
                   <Pill tone="p">{t('upload.processing')}</Pill>
                 )}
-                {fileUpload.status === 'completed' && (
+                {job.state === 'completed' && (
                   <>
                     <CheckCircleIcon style={{ width: 17, height: 17, color: 'var(--ok)', flexShrink: 0 }} aria-hidden />
                     <Button
                       variant="secondary"
                       size="sm"
                       iconRight={ArrowRightIcon}
-                      onClick={() => navigate(`/contracts/${fileUpload.contractId}`)}
+                      onClick={() => navigate(`/contracts/${job.contractId}`)}
                     >
                       {t('upload.view')}
                     </Button>
                   </>
                 )}
-                {fileUpload.status === 'error' && (
+                {job.state === 'failed' && (
                   <>
                     <Pill tone="da">{t('status.failed', { defaultValue: 'Failed' })}</Pill>
                     <IconButton
                       icon={XMarkIcon}
                       size="sm"
                       label={t('upload.removeFromQueue', { defaultValue: 'Remove from queue' })}
-                      onClick={() => removeFile(index)}
+                      onClick={() => dismissJob(job.id)}
                     />
                   </>
                 )}
               </div>
 
               {/* Duplicate-content warning detail */}
-              {fileUpload.warning && (
+              {job.warning && (
                 <div className="row" style={{ gap: 6, padding: '0 14px 10px 41px', fontSize: 'var(--fs-sm)', color: 'var(--wa)' }}>
                   <ExclamationTriangleIcon style={{ width: 13, height: 13, flexShrink: 0 }} aria-hidden />
-                  <span className="trunc">{fileUpload.warning}</span>
+                  <span className="trunc">{job.warning}</span>
                 </div>
               )}
 
               {/* Live pipeline while the worker runs */}
-              {(fileUpload.status === 'uploaded' || fileUpload.status === 'processing') && (
+              {(job.state === 'queued' || job.state === 'duplicate' || job.state === 'processing') && (
                 <div style={{ padding: '0 14px 12px 41px' }}>
-                  <Pipeline stage={fileUpload.stage} percent={fileUpload.progressPercent} />
+                  <Pipeline stage={job.stage} percent={job.progressPercent} />
                 </div>
               )}
 
               {/* Success detail: extraction counts + suggested links */}
-              {fileUpload.status === 'completed' && (
+              {job.state === 'completed' && (
                 <div className="row" style={{ flexWrap: 'wrap', gap: 8, padding: '0 14px 10px 41px' }}>
                   <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--ok)' }}>
-                    {t('upload.extractedSummary', { clauses: fileUpload.clauseCount, obligations: fileUpload.obligationCount })}
+                    {t('upload.extractedSummary', { clauses: job.clauseCount, obligations: job.obligationCount })}
                   </span>
-                  {fileUpload.hasSuggestions && fileUpload.suggestionCount ? (
-                    <Tag icon={LinkIcon}>{t('upload.linkCount', { count: fileUpload.suggestionCount })}</Tag>
+                  {job.hasSuggestions && job.suggestionCount ? (
+                    <Tag icon={LinkIcon}>{t('upload.linkCount', { count: job.suggestionCount })}</Tag>
                   ) : null}
                 </div>
               )}
 
               {/* Failure detail: danger banner + retry when processing can be re-run */}
-              {fileUpload.status === 'error' && fileUpload.error && (
+              {job.state === 'failed' && job.error && (
                 <div style={{ padding: '0 14px 12px 41px' }}>
                   <div className="banner banner-da" style={{ alignItems: 'center' }}>
                     <ExclamationCircleIcon style={{ width: 16, height: 16, flexShrink: 0 }} aria-hidden />
-                    <span className="grow">{fileUpload.error}</span>
-                    {fileUpload.contractId && (
-                      <Button variant="secondary" size="sm" icon={ArrowPathIcon} onClick={() => retryProcessing(index)}>
+                    <span className="grow">{job.error}</span>
+                    {job.contractId && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={ArrowPathIcon}
+                        onClick={() => retryProcessing(job.contractId as string)}
+                      >
                         {t('upload.retry')}
                       </Button>
                     )}
@@ -840,7 +617,7 @@ export default function UploadPage() {
       )}
 
       {/* Related contracts found notification */}
-      {files.some(f => f.hasSuggestions) && (
+      {jobs.some((j) => j.hasSuggestions) && (
         <div className="banner banner-p" style={{ alignItems: 'center' }}>
           <LinkIcon style={{ width: 16, height: 16, flexShrink: 0 }} aria-hidden />
           <span className="grow">
@@ -852,9 +629,9 @@ export default function UploadPage() {
             size="sm"
             onClick={() => {
               // Navigate to the first contract with suggestions
-              const fileWithSuggestions = files.find(f => f.hasSuggestions && f.contractId)
-              if (fileWithSuggestions?.contractId) {
-                navigate(`/contracts/${fileWithSuggestions.contractId}`)
+              const jobWithSuggestions = jobs.find((j) => j.hasSuggestions && j.contractId)
+              if (jobWithSuggestions?.contractId) {
+                navigate(`/contracts/${jobWithSuggestions.contractId}`)
               }
             }}
           >
