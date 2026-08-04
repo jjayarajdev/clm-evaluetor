@@ -7,7 +7,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary brand colors — driven by CSS variables (see index.css :root)
+        // Primary brand colors — driven by CSS variables (see index.css :root).
+        // Direction B: violet scale.
         primary: {
           50:  'var(--color-primary-50)',
           100: 'var(--color-primary-100)',
@@ -21,6 +22,11 @@ export default {
           900: 'var(--color-primary-900)',
           950: 'var(--color-primary-950)',
         },
+        // Semantic tokens from the Direction B token sheet (dark-mode aware)
+        ok: { DEFAULT: 'var(--ok)', faint: 'var(--ok-f)', border: 'var(--ok-b)' },
+        wa: { DEFAULT: 'var(--wa)', faint: 'var(--wa-f)', border: 'var(--wa-b)' },
+        da: { DEFAULT: 'var(--da)', faint: 'var(--da-f)', border: 'var(--da-b)' },
+        info: { DEFAULT: 'var(--in)', faint: 'var(--in-f)', border: 'var(--in-b)' },
         // Risk level colors from PRD
         risk: {
           low: '#10B981',      // Green
@@ -37,8 +43,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Menlo', 'monospace'],
+        sans: ['Instrument Sans', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'Menlo', 'monospace'],
       },
     },
   },
