@@ -1,3 +1,9 @@
+/* Settings — Direction B redesign.
+   Header → Tabs (admin-only tabs filtered) → one .card per section with a
+   titled header and .card-p body. Sections keep their original queries,
+   mutations and validation; saves surface through primary Buttons + toasts,
+   destructive actions go through ConfirmDialog. TenantRolePermissionsSection
+   is reused as-is. */
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -15,6 +21,14 @@ import {
   SparklesIcon,
   AdjustmentsHorizontalIcon,
   ScaleIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  XMarkIcon,
+  KeyIcon,
+  FolderIcon,
+  ChatBubbleLeftRightIcon,
+  WrenchScrewdriverIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
@@ -29,13 +43,18 @@ import {
 } from '@/lib/api/admin'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import TenantRolePermissionsSection from '@/components/settings/TenantRolePermissionsSection'
+import {
+  Bar, Button, Checkbox, ConfirmDialog, Drawer, EmptyState, Field, IconButton,
+  Pill, Select, Switch, Tabs, Tag, useToast,
+} from '@/components/ui'
+import type { IconType, PillTone } from '@/components/ui'
 
 type SettingsTab = 'general' | 'notifications' | 'security' | 'integrations' | 'appearance' | 'extraction' | 'scoring' | 'ai' | 'permissions'
 
 interface SettingsSection {
   id: SettingsTab
   name: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: IconType
   description: string
 }
 
@@ -107,68 +126,53 @@ export default function SettingsPage() {
     [isAdmin]
   )
 
+  const active = sections.find((s) => s.id === activeTab)
+
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 18 }}>
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">{t('nav.settings')}</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {t('settings.subtitle')}
-        </p>
+        <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>{t('nav.settings')}</h1>
+        <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>{t('settings.subtitle')}</p>
       </div>
 
-      <div className="flex gap-6">
-        {/* Sidebar */}
-        <div className="w-64 shrink-0">
-          <nav className="space-y-1">
-            {visibleSections.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => setActiveTab(section.id)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors',
-                  activeTab === section.id
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-gray-600 hover:bg-gray-50'
-                )}
-              >
-                <section.icon className="h-5 w-5" />
-                {t(`settings.tabs.${section.id}`, { defaultValue: section.name })}
-              </button>
-            ))}
-          </nav>
-        </div>
+      {/* Section tabs */}
+      <Tabs<SettingsTab>
+        tabs={visibleSections.map((s) => ({
+          value: s.id,
+          label: t(`settings.tabs.${s.id}`, { defaultValue: s.name }),
+          icon: s.icon,
+        }))}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
 
-        {/* Content */}
-        <div className="flex-1">
-          <div className="card">
-            <div className="card-header">
-              <h2 className="text-lg font-medium text-gray-900">
-                {t(`settings.tabs.${activeTab}`, { defaultValue: sections.find((s) => s.id === activeTab)?.name })}
-              </h2>
-              <p className="text-sm text-gray-500">
-                {t(`settings.tabDescriptions.${activeTab}`, { defaultValue: sections.find((s) => s.id === activeTab)?.description })}
-              </p>
+      {/* Active section card */}
+      <div className="card">
+        <div style={{ padding: '13px 16px', borderBottom: '1px solid var(--b)' }}>
+          <b style={{ fontSize: 'var(--fs-lg)' }}>
+            {t(`settings.tabs.${activeTab}`, { defaultValue: active?.name })}
+          </b>
+          <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 2 }}>
+            {t(`settings.tabDescriptions.${activeTab}`, { defaultValue: active?.description })}
+          </p>
+        </div>
+        <div className="card-p">
+          {activeTab === 'general' && <GeneralSettings />}
+          {activeTab === 'notifications' && <NotificationSettings />}
+          {activeTab === 'security' && <SecuritySettings />}
+          {activeTab === 'integrations' && <IntegrationSettings />}
+          {activeTab === 'appearance' && <AppearanceSettings />}
+          {activeTab === 'extraction' && isAdmin && (
+            <div className="col" style={{ gap: 22 }}>
+              <ExtractionThresholdsSettings />
+              <div className="divider" />
+              <PromptAddendaSettings />
             </div>
-            <div className="card-body">
-              {activeTab === 'general' && <GeneralSettings />}
-              {activeTab === 'notifications' && <NotificationSettings />}
-              {activeTab === 'security' && <SecuritySettings />}
-              {activeTab === 'integrations' && <IntegrationSettings />}
-              {activeTab === 'appearance' && <AppearanceSettings />}
-              {activeTab === 'extraction' && isAdmin && (
-                <div className="space-y-8">
-                  <ExtractionThresholdsSettings />
-                  <div className="pt-6 border-t border-gray-200">
-                    <PromptAddendaSettings />
-                  </div>
-                </div>
-              )}
-              {activeTab === 'scoring' && isAdmin && <ScoringRulesSection />}
-              {activeTab === 'ai' && isAdmin && <AzureOpenAISection />}
-              {activeTab === 'permissions' && isAdmin && <TenantRolePermissionsSection />}
-            </div>
-          </div>
+          )}
+          {activeTab === 'scoring' && isAdmin && <ScoringRulesSection />}
+          {activeTab === 'ai' && isAdmin && <AzureOpenAISection />}
+          {activeTab === 'permissions' && isAdmin && <TenantRolePermissionsSection />}
         </div>
       </div>
     </div>
@@ -191,19 +195,16 @@ function LanguageSetting() {
   }
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        {t('common.language')}
-      </label>
-      <select
-        className="input max-w-md"
-        value={i18n.language?.startsWith('fr') ? 'fr' : 'en'}
-        onChange={(e) => changeLanguage(e.target.value as AppLanguage)}
-      >
-        <option value="en">{t('common.english')}</option>
-        <option value="fr">{t('common.french')}</option>
-      </select>
-    </div>
+    <Select
+      label={t('common.language')}
+      containerStyle={{ maxWidth: 380 }}
+      value={i18n.language?.startsWith('fr') ? 'fr' : 'en'}
+      onChange={(e) => changeLanguage(e.target.value as AppLanguage)}
+      options={[
+        { value: 'en', label: t('common.english') },
+        { value: 'fr', label: t('common.french') },
+      ]}
+    />
   )
 }
 
@@ -213,12 +214,12 @@ function GeneralSettings() {
   const { user, isAdmin } = useAuth()
   const { config, refresh: refreshConfig } = useTenantConfig()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [settings, setSettings] = useState({
     orgName: user?.tenant_name || 'My Organization',
     currency: 'USD',
     dateFormat: 'MM/DD/YYYY',
   })
-  const [saved, setSaved] = useState(false)
 
   const { data: profiles } = useQuery({
     queryKey: ['industry-profiles'],
@@ -236,51 +237,44 @@ function GeneralSettings() {
 
   const handleSave = () => {
     localStorage.setItem('clm_settings', JSON.stringify(settings))
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    toast({ text: t('settings.general.saved') })
   }
 
   const currentSlug = config?.industry
 
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 22 }}>
       {/* Industry Profile Selector */}
       {isAdmin && (
-        <div className="pb-6 border-b border-gray-200">
-          <div className="flex items-center gap-2 mb-3">
-            <SwatchIcon className="h-5 w-5 text-violet-500" />
-            <h3 className="text-sm font-medium text-gray-900">{t('settings.general.industryProfile')}</h3>
+        <div className="col" style={{ gap: 10 }}>
+          <div>
+            <div className="row" style={{ gap: 7 }}>
+              <SwatchIcon style={{ width: 15, height: 15, color: 'var(--p)' }} aria-hidden />
+              <span className="sec-t">{t('settings.general.industryProfile')}</span>
+            </div>
+            <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4, lineHeight: 1.5 }}>
+              {t('settings.general.industryProfileDescription')}
+            </p>
           </div>
-          <p className="text-xs text-gray-500 mb-4">
-            {t('settings.general.industryProfileDescription')}
-          </p>
 
           {/* Current profile display */}
           {currentSlug && config?.industry_name ? (
-            <div className="mb-4 p-3 bg-violet-50 border border-violet-200 rounded-lg">
-              <div className="flex items-center gap-2">
-                <CheckCircleIcon className="h-4 w-4 text-violet-600 flex-shrink-0" />
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-violet-900">
-                    {config.industry_name}
-                  </span>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-violet-600">
-                    <span>{t('settings.general.contractTypesCount', { count: config.contract_types?.length || 0 })}</span>
-                    <span>{t('settings.general.clauseTypesCount', { count: config.clause_types?.length || 0 })}</span>
-                    <span>{t('settings.general.riskCategoriesCount', { count: config.risk_categories?.length || 0 })}</span>
-                    <span>{t('settings.general.slaMetricsCount', { count: config.sla_metrics?.length || 0 })}</span>
-                  </div>
-                </div>
-              </div>
+            <div className="banner banner-p">
+              <CheckCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+              <span>
+                <b>{config.industry_name}</b>
+                <span className="row" style={{ gap: 12, marginTop: 3, fontSize: 'var(--fs-xs)', flexWrap: 'wrap' }}>
+                  <span>{t('settings.general.contractTypesCount', { count: config.contract_types?.length || 0 })}</span>
+                  <span>{t('settings.general.clauseTypesCount', { count: config.clause_types?.length || 0 })}</span>
+                  <span>{t('settings.general.riskCategoriesCount', { count: config.risk_categories?.length || 0 })}</span>
+                  <span>{t('settings.general.slaMetricsCount', { count: config.sla_metrics?.length || 0 })}</span>
+                </span>
+              </span>
             </div>
           ) : (
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-center gap-2">
-                <SparklesIcon className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                <span className="text-sm text-amber-800">
-                  {t('settings.general.noProfileSelected')}
-                </span>
-              </div>
+            <div className="banner banner-wa">
+              <SparklesIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+              <span>{t('settings.general.noProfileSelected')}</span>
             </div>
           )}
 
@@ -291,38 +285,42 @@ function GeneralSettings() {
               return (
                 <button
                   key={profile.id}
+                  type="button"
                   onClick={() => {
                     if (!isActive) {
                       assignMutation.mutate(profile.slug)
                     }
                   }}
                   disabled={assignMutation.isPending}
-                  className={cn(
-                    'text-left p-3 rounded-lg border-2 transition-all',
-                    isActive
-                      ? 'border-violet-500 bg-violet-50/50 ring-1 ring-violet-200'
-                      : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/30',
-                    assignMutation.isPending && 'opacity-60 cursor-wait'
-                  )}
+                  className="col"
+                  style={{
+                    gap: 6,
+                    textAlign: 'left',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--r-md)',
+                    border: '1px solid ' + (isActive ? 'var(--p-b)' : 'var(--b)'),
+                    background: isActive ? 'var(--p-f)' : 'var(--s)',
+                    cursor: assignMutation.isPending ? 'wait' : 'pointer',
+                    opacity: assignMutation.isPending ? 0.6 : 1,
+                    transition: 'border-color .12s var(--ease), background .12s var(--ease)',
+                  }}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-semibold text-gray-900">
+                  <span className="row" style={{ gap: 8 }}>
+                    <span className="grow trunc" style={{ fontSize: 'var(--fs-md)', fontWeight: 600 }}>
                       {profile.name}
                     </span>
-                    {isActive && (
-                      <CheckCircleIcon className="h-4 w-4 text-violet-600" />
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 mb-2 line-clamp-2">
+                    {isActive && <CheckCircleIcon style={{ width: 15, height: 15, flexShrink: 0, color: 'var(--p)' }} aria-hidden />}
+                  </span>
+                  <span className="muted" style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.45, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                     {profile.description}
-                  </p>
-                  <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                  </span>
+                  <span className="faint row" style={{ gap: 8, fontSize: 'var(--fs-2xs)', flexWrap: 'wrap' }}>
                     <span>{t('settings.general.typesCount', { count: profile.contract_type_count })}</span>
-                    <span className="text-gray-300">|</span>
+                    <span>·</span>
                     <span>{t('settings.general.clausesCount', { count: profile.clause_type_count })}</span>
-                    <span className="text-gray-300">|</span>
+                    <span>·</span>
                     <span>{t('settings.general.risksCount', { count: profile.risk_category_count })}</span>
-                  </div>
+                  </span>
                 </button>
               )
             })}
@@ -330,20 +328,26 @@ function GeneralSettings() {
 
           {/* Clear profile option */}
           {currentSlug && (
-            <button
-              onClick={() => assignMutation.mutate(null)}
-              disabled={assignMutation.isPending}
-              className="mt-2 text-xs text-gray-500 hover:text-red-600 transition-colors"
-            >
-              {t('settings.general.clearProfile')}
-            </button>
+            <div className="row">
+              <Button
+                variant="danger-ghost"
+                size="sm"
+                icon={XMarkIcon}
+                onClick={() => assignMutation.mutate(null)}
+                disabled={assignMutation.isPending}
+              >
+                {t('settings.general.clearProfile')}
+              </Button>
+            </div>
           )}
 
           {assignMutation.isError && (
-            <p className="mt-2 text-xs text-red-600">
-              {(assignMutation.error as any)?.response?.data?.detail || t('settings.general.updateProfileFailed')}
-            </p>
+            <div className="banner banner-da">
+              <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+              <span>{(assignMutation.error as any)?.response?.data?.detail || t('settings.general.updateProfileFailed')}</span>
+            </div>
           )}
+          <div className="divider" />
         </div>
       )}
 
@@ -352,48 +356,36 @@ function GeneralSettings() {
 
       <LanguageSetting />
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {t('settings.general.organizationName')}
-        </label>
-        <input
-          type="text"
-          value={settings.orgName}
-          onChange={(e) => setSettings(s => ({ ...s, orgName: e.target.value }))}
-          className="input max-w-md"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {t('settings.general.defaultCurrency')}
-        </label>
-        <select
-          className="input max-w-md"
-          value={settings.currency}
-          onChange={(e) => setSettings(s => ({ ...s, currency: e.target.value }))}
-        >
-          <option value="USD">{t('settings.general.currencyUsd')}</option>
-          <option value="EUR">{t('settings.general.currencyEur')}</option>
-          <option value="GBP">{t('settings.general.currencyGbp')}</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {t('settings.general.dateFormat')}
-        </label>
-        <select
-          className="input max-w-md"
-          value={settings.dateFormat}
-          onChange={(e) => setSettings(s => ({ ...s, dateFormat: e.target.value }))}
-        >
-          <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-          <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-          <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-        </select>
-      </div>
-      <div className="pt-4 flex items-center gap-3">
-        <button className="btn-primary" onClick={handleSave}>{t('settings.general.saveChanges')}</button>
-        {saved && <span className="text-sm text-green-600">{t('settings.general.saved')}</span>}
+      <Field
+        label={t('settings.general.organizationName')}
+        containerStyle={{ maxWidth: 380 }}
+        value={settings.orgName}
+        onChange={(e) => setSettings(s => ({ ...s, orgName: e.target.value }))}
+      />
+      <Select
+        label={t('settings.general.defaultCurrency')}
+        containerStyle={{ maxWidth: 380 }}
+        value={settings.currency}
+        onChange={(e) => setSettings(s => ({ ...s, currency: e.target.value }))}
+        options={[
+          { value: 'USD', label: t('settings.general.currencyUsd') },
+          { value: 'EUR', label: t('settings.general.currencyEur') },
+          { value: 'GBP', label: t('settings.general.currencyGbp') },
+        ]}
+      />
+      <Select
+        label={t('settings.general.dateFormat')}
+        containerStyle={{ maxWidth: 380 }}
+        value={settings.dateFormat}
+        onChange={(e) => setSettings(s => ({ ...s, dateFormat: e.target.value }))}
+        options={[
+          { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+          { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+          { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
+        ]}
+      />
+      <div className="row">
+        <Button variant="primary" onClick={handleSave}>{t('settings.general.saveChanges')}</Button>
       </div>
     </div>
   )
@@ -434,14 +426,16 @@ function PartyAliasesSection() {
   }
 
   return (
-    <div className="pb-6 border-b border-gray-200">
-      <div className="flex items-center gap-2 mb-1">
-        <ShieldCheckIcon className="h-5 w-5 text-violet-500" />
-        <h3 className="text-sm font-medium text-gray-900">{t('settings.aliases.title')}</h3>
+    <div className="col" style={{ gap: 10 }}>
+      <div>
+        <div className="row" style={{ gap: 7 }}>
+          <ShieldCheckIcon style={{ width: 15, height: 15, color: 'var(--p)' }} aria-hidden />
+          <span className="sec-t">{t('settings.aliases.title')}</span>
+        </div>
+        <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4, lineHeight: 1.5 }}>
+          {t('settings.aliases.description')}
+        </p>
       </div>
-      <p className="text-xs text-gray-500 mb-4">
-        {t('settings.aliases.description')}
-      </p>
 
       {isLoading ? (
         <LoadingSpinner size="sm" />
@@ -449,48 +443,59 @@ function PartyAliasesSection() {
         <>
           {/* Existing aliases */}
           {aliases.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               {aliases.map((alias) => (
                 <span
                   key={alias}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 border border-violet-200 rounded-full text-sm text-violet-800"
+                  className="row"
+                  style={{
+                    gap: 4,
+                    height: 28,
+                    padding: '0 4px 0 10px',
+                    border: '1px solid var(--p-b)',
+                    borderRadius: 'var(--r-sm)',
+                    background: 'var(--p-f)',
+                    color: 'var(--p)',
+                    fontSize: 'var(--fs-sm)',
+                    fontWeight: 500,
+                  }}
                 >
                   {alias}
-                  <button
+                  <IconButton
+                    icon={TrashIcon}
+                    size="sm"
+                    label={t('settings.aliases.remove')}
                     onClick={() => removeAlias(alias)}
                     disabled={saving}
-                    className="text-violet-400 hover:text-red-500 transition-colors disabled:opacity-50"
-                    title={t('settings.aliases.remove')}
-                  >
-                    <TrashIcon className="h-3.5 w-3.5" />
-                  </button>
+                  />
                 </span>
               ))}
             </div>
           )}
 
           {/* Add new alias */}
-          <div className="flex items-center gap-2 max-w-md">
-            <input
-              type="text"
+          <div className="row" style={{ gap: 8, maxWidth: 420 }}>
+            <Field
+              containerClassName="grow"
               value={newAlias}
               onChange={(e) => setNewAlias(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addAlias()}
               placeholder={t('settings.aliases.placeholder')}
-              className="input flex-1"
               disabled={saving}
+              aria-label={t('settings.aliases.title')}
             />
-            <button
+            <Button
+              variant="primary"
+              icon={PlusIcon}
               onClick={addAlias}
               disabled={saving || !newAlias.trim()}
-              className="btn-primary flex items-center gap-1.5 disabled:opacity-50"
             >
-              <PlusIcon className="h-4 w-4" />
               {t('settings.aliases.add')}
-            </button>
+            </Button>
           </div>
         </>
       )}
+      <div className="divider" />
     </div>
   )
 }
@@ -516,11 +521,11 @@ const DEFINITION_OPTIONS: Array<'obligations' | 'risk_level' | 'both'> = ['oblig
 function ScoringRulesSection() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [scope, setScope] = useState<string>('tenant') // 'tenant' | <buId>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [draft, setDraft] = useState<any>(null)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const { data: buList } = useQuery({
@@ -549,7 +554,6 @@ function ScoringRulesSection() {
       at_risk: { ...DEFAULT_SCORING.at_risk, ...(s.at_risk || {}) },
       compliance: { ...DEFAULT_SCORING.compliance, ...(s.compliance || {}) },
     })
-    setSaved(false)
     setError(null)
   }, [current, scope])
 
@@ -568,7 +572,7 @@ function ScoringRulesSection() {
         await updateBusinessUnit(scope, { config_overrides: { scoring: payload } })
       }
       queryClient.invalidateQueries({ queryKey: ['scoring-config', scope] })
-      setSaved(true)
+      toast({ text: t('common.saved', { defaultValue: 'Saved' }) })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -582,144 +586,139 @@ function ScoringRulesSection() {
   const comp = draft.compliance
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="col" style={{ gap: 22, maxWidth: 620 }}>
       {/* Scope selector */}
-      <div>
-        <label className="label">{t('settings.scoring.scope', { defaultValue: 'Applies to' })}</label>
-        <select
-          className="input max-w-md"
-          value={scope}
-          onChange={(e) => setScope(e.target.value)}
-        >
-          <option value="tenant">{t('settings.scoring.scopeTenant', { defaultValue: 'Whole organization (default)' })}</option>
-          {(buList?.items || []).map((bu) => (
-            <option key={bu.id} value={bu.id}>
-              {t('settings.scoring.scopeBu', { defaultValue: 'Business unit: {{name}}', name: bu.name })}
-            </option>
-          ))}
-        </select>
-        <p className="mt-1 text-xs text-gray-500">
-          {scope === 'tenant'
+      <Select
+        label={t('settings.scoring.scope', { defaultValue: 'Applies to' })}
+        containerStyle={{ maxWidth: 380 }}
+        value={scope}
+        onChange={(e) => setScope(e.target.value)}
+        options={[
+          { value: 'tenant', label: t('settings.scoring.scopeTenant', { defaultValue: 'Whole organization (default)' }) },
+          ...(buList?.items || []).map((bu) => ({
+            value: bu.id,
+            label: t('settings.scoring.scopeBu', { defaultValue: 'Business unit: {{name}}', name: bu.name }),
+          })),
+        ]}
+        hint={
+          scope === 'tenant'
             ? t('settings.scoring.scopeTenantHint', { defaultValue: 'These rules apply everywhere unless a business unit overrides them.' })
             : hasOverride
               ? t('settings.scoring.scopeBuCustom', { defaultValue: 'This business unit has custom rules that override the organization defaults.' })
-              : t('settings.scoring.scopeBuInherited', { defaultValue: 'This business unit currently inherits the organization defaults. Saving here creates an override.' })}
-        </p>
-      </div>
+              : t('settings.scoring.scopeBuInherited', { defaultValue: 'This business unit currently inherits the organization defaults. Saving here creates an override.' })
+        }
+      />
 
       {/* At Risk */}
-      <div className="pt-2">
-        <h3 className="text-sm font-semibold text-gray-900 mb-1">{t('settings.scoring.atRiskTitle', { defaultValue: 'At Risk' })}</h3>
-        <p className="text-xs text-gray-500 mb-3">{t('settings.scoring.atRiskDesc', { defaultValue: 'When a contract is counted as "at risk".' })}</p>
+      <div className="col" style={{ gap: 12 }}>
+        <div>
+          <span className="sec-t">{t('settings.scoring.atRiskTitle', { defaultValue: 'At Risk' })}</span>
+          <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4 }}>
+            {t('settings.scoring.atRiskDesc', { defaultValue: 'When a contract is counted as "at risk".' })}
+          </p>
+        </div>
 
-        <label className="label">{t('settings.scoring.definition', { defaultValue: 'Definition' })}</label>
-        <select
-          className="input max-w-md"
+        <Select
+          label={t('settings.scoring.definition', { defaultValue: 'Definition' })}
+          containerStyle={{ maxWidth: 380 }}
           value={ar.definition}
           onChange={(e) => setAtRisk({ definition: e.target.value })}
-        >
-          {DEFINITION_OPTIONS.map((d) => (
-            <option key={d} value={d}>{t(`settings.scoring.definitionOpt.${d}`, {
+          options={DEFINITION_OPTIONS.map((d) => ({
+            value: d,
+            label: t(`settings.scoring.definitionOpt.${d}`, {
               defaultValue: d === 'obligations' ? 'Overdue obligations' : d === 'risk_level' ? 'AI risk level' : 'Either one',
-            })}</option>
-          ))}
-        </select>
+            }),
+          }))}
+        />
 
         {ar.definition !== 'risk_level' && (
-          <div className="mt-4 grid grid-cols-2 gap-4 max-w-md">
-            <div>
-              <label className="label">{t('settings.scoring.overdueCount', { defaultValue: 'Overdue obligations ≥' })}</label>
-              <input
-                type="number" min={1} step={1} className="input"
-                value={ar.overdue_count_threshold}
-                onChange={(e) => setAtRisk({ overdue_count_threshold: Number(e.target.value) })}
-              />
-            </div>
-            <div>
-              <label className="label">{t('settings.scoring.overdueRatio', { defaultValue: 'or overdue share >' })}</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number" min={0} max={100} step={5} className="input"
-                  value={Math.round(ar.overdue_ratio_threshold * 100)}
-                  onChange={(e) => setAtRisk({ overdue_ratio_threshold: Number(e.target.value) / 100 })}
-                />
-                <span className="text-sm text-gray-500">%</span>
-              </div>
-            </div>
+          <div className="grid grid-cols-2 gap-4" style={{ maxWidth: 420 }}>
+            <Field
+              label={t('settings.scoring.overdueCount', { defaultValue: 'Overdue obligations ≥' })}
+              type="number" min={1} step={1}
+              value={ar.overdue_count_threshold}
+              onChange={(e) => setAtRisk({ overdue_count_threshold: Number(e.target.value) })}
+            />
+            <Field
+              label={t('settings.scoring.overdueRatio', { defaultValue: 'or overdue share >' })}
+              type="number" min={0} max={100} step={5}
+              value={Math.round(ar.overdue_ratio_threshold * 100)}
+              onChange={(e) => setAtRisk({ overdue_ratio_threshold: Number(e.target.value) / 100 })}
+              hint="%"
+            />
           </div>
         )}
 
         {ar.definition !== 'obligations' && (
-          <div className="mt-4">
-            <label className="label">{t('settings.scoring.riskLevels', { defaultValue: 'Risk levels that count as at-risk' })}</label>
-            <div className="flex flex-wrap gap-3">
+          <div>
+            <span className="lbl">{t('settings.scoring.riskLevels', { defaultValue: 'Risk levels that count as at-risk' })}</span>
+            <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
               {RISK_LEVEL_OPTIONS.map((lvl) => (
-                <label key={lvl} className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={ar.risk_levels.includes(lvl)}
-                    onChange={(e) => setAtRisk({
-                      risk_levels: e.target.checked
-                        ? [...ar.risk_levels, lvl]
-                        : ar.risk_levels.filter((x: string) => x !== lvl),
-                    })}
-                  />
-                  {t(`settings.scoring.riskLevel.${lvl}`, { defaultValue: lvl.charAt(0).toUpperCase() + lvl.slice(1) })}
-                </label>
+                <Checkbox
+                  key={lvl}
+                  checked={ar.risk_levels.includes(lvl)}
+                  onChange={(checked) => setAtRisk({
+                    risk_levels: checked
+                      ? [...ar.risk_levels, lvl]
+                      : ar.risk_levels.filter((x: string) => x !== lvl),
+                  })}
+                  label={t(`settings.scoring.riskLevel.${lvl}`, { defaultValue: lvl.charAt(0).toUpperCase() + lvl.slice(1) })}
+                />
               ))}
             </div>
           </div>
         )}
       </div>
 
+      <div className="divider" />
+
       {/* Compliance */}
-      <div className="pt-4 border-t border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-900 mb-1">{t('settings.scoring.complianceTitle', { defaultValue: 'Compliance' })}</h3>
-        <p className="text-xs text-gray-500 mb-3">{t('settings.scoring.complianceDesc', { defaultValue: 'Overall compliance is a weighted blend of the measured components (relative weights).' })}</p>
-        <div className="grid grid-cols-2 gap-4 max-w-md">
-          <div>
-            <label className="label">{t('settings.scoring.obligationWeight', { defaultValue: 'Obligation weight' })}</label>
-            <input
-              type="number" min={0} step={0.1} className="input"
-              value={comp.obligation_weight}
-              onChange={(e) => setCompliance({ obligation_weight: Number(e.target.value) })}
-            />
-          </div>
-          <div>
-            <label className="label">{t('settings.scoring.slaWeight', { defaultValue: 'SLA weight' })}</label>
-            <input
-              type="number" min={0} step={0.1} className="input"
-              value={comp.sla_weight}
-              onChange={(e) => setCompliance({ sla_weight: Number(e.target.value) })}
-            />
-          </div>
+      <div className="col" style={{ gap: 12 }}>
+        <div>
+          <span className="sec-t">{t('settings.scoring.complianceTitle', { defaultValue: 'Compliance' })}</span>
+          <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4, lineHeight: 1.5 }}>
+            {t('settings.scoring.complianceDesc', { defaultValue: 'Overall compliance is a weighted blend of the measured components (relative weights).' })}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-4" style={{ maxWidth: 420 }}>
+          <Field
+            label={t('settings.scoring.obligationWeight', { defaultValue: 'Obligation weight' })}
+            type="number" min={0} step={0.1}
+            value={comp.obligation_weight}
+            onChange={(e) => setCompliance({ obligation_weight: Number(e.target.value) })}
+          />
+          <Field
+            label={t('settings.scoring.slaWeight', { defaultValue: 'SLA weight' })}
+            type="number" min={0} step={0.1}
+            value={comp.sla_weight}
+            onChange={(e) => setCompliance({ sla_weight: Number(e.target.value) })}
+          />
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <div className="banner banner-da">
+          <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Actions */}
-      <div className="flex items-center gap-3 pt-2">
-        <button onClick={() => save(draft)} disabled={saving} className="btn-primary disabled:opacity-50">
+      <div className="row" style={{ gap: 8 }}>
+        <Button variant="primary" icon={CheckCircleIcon} onClick={() => save(draft)} disabled={saving}>
           {saving ? t('common.saving', { defaultValue: 'Saving…' }) : t('common.save', { defaultValue: 'Save' })}
-        </button>
+        </Button>
         {hasOverride && (
-          <button
+          <Button
+            variant="secondary"
             onClick={() => save({})}
             disabled={saving}
-            className="btn-secondary disabled:opacity-50"
             title={t('settings.scoring.resetHint', { defaultValue: 'Remove the override and fall back to the inherited defaults.' })}
           >
             {scope === 'tenant'
               ? t('settings.scoring.resetTenant', { defaultValue: 'Reset to system defaults' })
               : t('settings.scoring.resetBu', { defaultValue: 'Clear override (inherit)' })}
-          </button>
-        )}
-        {saved && (
-          <span className="inline-flex items-center gap-1 text-sm text-green-600">
-            <CheckCircleIcon className="h-4 w-4" />
-            {t('common.saved', { defaultValue: 'Saved' })}
-          </span>
+          </Button>
         )}
       </div>
     </div>
@@ -736,13 +735,13 @@ const AZURE_API_VERSIONS = ['2024-12-01-preview', '2025-01-01-preview', '2024-08
 function AzureOpenAISection() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [enabled, setEnabled] = useState(false)
   const [provider, setProvider] = useState<'azure' | 'openai'>('azure')
   const [endpoint, setEndpoint] = useState('')
   const [apiVersion, setApiVersion] = useState('2024-08-01-preview')
   const [deployment, setDeployment] = useState('')
   const [apiKey, setApiKey] = useState('')
-  const [saved, setSaved] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   const { data, isLoading } = useQuery({ queryKey: ['azure-openai'], queryFn: getAzureOpenAI })
@@ -762,7 +761,8 @@ function AzureOpenAISection() {
   const saveMutation = useMutation({
     mutationFn: () => setAzureOpenAI({ enabled, provider, endpoint, api_version: apiVersion, deployment, api_key: apiKey }),
     onSuccess: () => {
-      setSaved(true); setApiKey('')
+      setApiKey('')
+      toast({ text: t('common.saved', { defaultValue: 'Saved' }) })
       queryClient.invalidateQueries({ queryKey: ['azure-openai'] })
     },
   })
@@ -775,77 +775,101 @@ function AzureOpenAISection() {
   if (isLoading) return <LoadingSpinner size="sm" />
 
   return (
-    <div className="space-y-5 max-w-2xl">
-      <p className="text-sm text-gray-500">{t('settings.azure.intro')}</p>
+    <div className="col" style={{ gap: 18, maxWidth: 620 }}>
+      <p className="muted" style={{ fontSize: 'var(--fs-md)', lineHeight: 1.55 }}>{t('settings.azure.intro')}</p>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={enabled} onChange={(e) => { setEnabled(e.target.checked); setSaved(false) }} />
-        <span className="font-medium text-gray-900">{t('settings.azure.enable')}</span>
-      </label>
+      <Switch
+        checked={enabled}
+        onChange={(checked) => setEnabled(checked)}
+        label={t('settings.azure.enable')}
+      />
 
-      <div className={cn('space-y-4', !enabled && 'opacity-50')}>
-        <div>
-          <label className="label">{t('settings.azure.provider')}</label>
-          <div className="flex gap-4">
-            <label className="inline-flex items-center gap-1.5 text-sm">
-              <input type="radio" checked={provider === 'azure'} onChange={() => { setProvider('azure'); setSaved(false) }} disabled={!enabled} />
-              {t('settings.azure.providerAzure')}
-            </label>
-            <label className="inline-flex items-center gap-1.5 text-sm">
-              <input type="radio" checked={provider === 'openai'} onChange={() => { setProvider('openai'); setSaved(false) }} disabled={!enabled} />
-              {t('settings.azure.providerOpenAI')}
-            </label>
-          </div>
-        </div>
+      <div className="col" style={{ gap: 14, opacity: enabled ? 1 : 0.5 }}>
+        <Select
+          label={t('settings.azure.provider')}
+          containerStyle={{ maxWidth: 380 }}
+          value={provider}
+          onChange={(e) => setProvider(e.target.value as 'azure' | 'openai')}
+          disabled={!enabled}
+          options={[
+            { value: 'azure', label: t('settings.azure.providerAzure') },
+            { value: 'openai', label: t('settings.azure.providerOpenAI') },
+          ]}
+        />
 
         {provider === 'azure' && (
-          <div>
-            <label className="label">{t('settings.azure.endpoint')}</label>
-            <input className="input w-full" placeholder="https://your-resource.openai.azure.com" value={endpoint} onChange={(e) => { setEndpoint(e.target.value); setSaved(false) }} disabled={!enabled} />
-          </div>
+          <Field
+            label={t('settings.azure.endpoint')}
+            placeholder="https://your-resource.openai.azure.com"
+            value={endpoint}
+            onChange={(e) => setEndpoint(e.target.value)}
+            disabled={!enabled}
+          />
         )}
-        <div>
-          <label className="label">{provider === 'openai' ? t('settings.azure.openaiKey') : t('settings.azure.apiKey')}</label>
-          <input className="input w-full" type="password" placeholder={data?.api_key_set ? `${data.api_key_masked} — ${t('settings.azure.keyKept')}` : (provider === 'openai' ? t('settings.azure.openaiKeyPlaceholder') : t('settings.azure.keyPlaceholder'))} value={apiKey} onChange={(e) => { setApiKey(e.target.value); setSaved(false) }} disabled={!enabled} />
-          <p className="mt-1 text-xs text-gray-400">{t('settings.azure.keyHint')}</p>
-        </div>
+        <Field
+          label={provider === 'openai' ? t('settings.azure.openaiKey') : t('settings.azure.apiKey')}
+          type="password"
+          icon={KeyIcon}
+          placeholder={data?.api_key_set ? `${data.api_key_masked} — ${t('settings.azure.keyKept')}` : (provider === 'openai' ? t('settings.azure.openaiKeyPlaceholder') : t('settings.azure.keyPlaceholder'))}
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          disabled={!enabled}
+          hint={t('settings.azure.keyHint')}
+        />
         {provider === 'azure' && (
           <>
-            <div>
-              <label className="label">{t('settings.azure.deployment')}</label>
-              <input className="input max-w-md" placeholder="e.g. gpt-4o-mini, gpt-5, my-deployment" value={deployment} onChange={(e) => { setDeployment(e.target.value); setSaved(false) }} disabled={!enabled} />
-              <p className="mt-1 text-xs text-gray-400">{t('settings.azure.deploymentHint')}</p>
-            </div>
-            <div>
-              <label className="label">{t('settings.azure.apiVersion')}</label>
-              <select className="input max-w-xs" value={apiVersion} onChange={(e) => { setApiVersion(e.target.value); setSaved(false) }} disabled={!enabled}>
-                {AZURE_API_VERSIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
-              <p className="mt-1 text-xs text-gray-400">{t('settings.azure.apiVersionHint')}</p>
-            </div>
+            <Field
+              label={t('settings.azure.deployment')}
+              containerStyle={{ maxWidth: 380 }}
+              placeholder="e.g. gpt-4o-mini, gpt-5, my-deployment"
+              value={deployment}
+              onChange={(e) => setDeployment(e.target.value)}
+              disabled={!enabled}
+              hint={t('settings.azure.deploymentHint')}
+            />
+            <Select
+              label={t('settings.azure.apiVersion')}
+              containerStyle={{ maxWidth: 280 }}
+              value={apiVersion}
+              onChange={(e) => setApiVersion(e.target.value)}
+              disabled={!enabled}
+              options={AZURE_API_VERSIONS.map((v) => ({ value: v, label: v }))}
+              hint={t('settings.azure.apiVersionHint')}
+            />
           </>
         )}
         {provider === 'openai' && (
-          <div className="rounded-lg bg-sky-50 border border-sky-200 p-3 text-xs text-sky-800">
-            {t('settings.azure.openaiNote')}
+          <div className="banner banner-in">
+            <InformationCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+            <span>{t('settings.azure.openaiNote')}</span>
           </div>
         )}
       </div>
 
       {testResult && (
-        <div className={cn('text-sm rounded-lg p-2', testResult.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700')}>
-          {testResult.ok ? '✓ ' : '✕ '}{testResult.message}
+        <div
+          className={cn('banner', !testResult.ok && 'banner-da')}
+          style={testResult.ok ? { background: 'var(--ok-f)', borderColor: 'var(--ok-b)', color: 'var(--ok)' } : undefined}
+        >
+          {testResult.ok
+            ? <CheckCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+            : <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />}
+          <span>{testResult.message}</span>
         </div>
       )}
 
-      <div className="flex items-center gap-3 pt-1">
-        <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="btn-primary disabled:opacity-50">
+      <div className="row" style={{ gap: 8 }}>
+        <Button variant="primary" icon={CheckCircleIcon} onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
           {saveMutation.isPending ? t('common.saving') : t('common.save')}
-        </button>
-        <button onClick={() => { setTestResult(null); testMutation.mutate() }} disabled={testMutation.isPending || !data?.api_key_set} className="btn-secondary disabled:opacity-50" title={t('settings.azure.testHint')}>
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => { setTestResult(null); testMutation.mutate() }}
+          disabled={testMutation.isPending || !data?.api_key_set}
+          title={t('settings.azure.testHint')}
+        >
           {testMutation.isPending ? t('settings.azure.testing') : t('settings.azure.test')}
-        </button>
-        {saved && <span className="inline-flex items-center gap-1 text-sm text-green-600"><CheckCircleIcon className="h-4 w-4" />{t('common.saved')}</span>}
+        </Button>
       </div>
     </div>
   )
@@ -883,17 +907,19 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   compliance_overdue: 'Compliance Overdue',
 }
 
-const PRIORITY_COLORS: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-700',
-  normal: 'bg-blue-100 text-blue-700',
-  high: 'bg-amber-100 text-amber-700',
-  critical: 'bg-red-100 text-red-700',
+const PRIORITY_TONE: Record<string, PillTone> = {
+  low: 'n',
+  normal: 'in',
+  high: 'wa',
+  critical: 'da',
 }
 
 function NotificationSettings() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [showTemplates, setShowTemplates] = useState(false)
+  const [ruleToDelete, setRuleToDelete] = useState<NotificationRule | null>(null)
 
   const { data: rules, isLoading } = useQuery({
     queryKey: ['notification-rules'],
@@ -913,7 +939,10 @@ function NotificationSettings() {
 
   const deleteMutation = useMutation({
     mutationFn: (ruleId: string) => api.deleteNotificationRule(ruleId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notification-rules'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notification-rules'] })
+      toast({ text: t('settings.notifications.ruleDeleted', { defaultValue: 'Notification rule deleted' }) })
+    },
   })
 
   const createFromTemplateMutation = useMutation({
@@ -921,159 +950,151 @@ function NotificationSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notification-rules'] })
       setShowTemplates(false)
+      toast({ text: t('settings.notifications.ruleCreated', { defaultValue: 'Notification rule created' }) })
     },
   })
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-32">
+      <div className="row" style={{ justifyContent: 'center', height: 128 }}>
         <LoadingSpinner size="md" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 14 }}>
       {/* Header with Add Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-medium text-gray-900">{t('settings.notifications.title')}</h3>
-          <p className="text-xs text-gray-500">{t('settings.notifications.subtitle')}</p>
+      <div className="row" style={{ gap: 12 }}>
+        <div className="grow">
+          <span className="sec-t">{t('settings.notifications.title')}</span>
+          <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 3 }}>{t('settings.notifications.subtitle')}</p>
         </div>
-        <button
-          onClick={() => setShowTemplates(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700"
-        >
-          <PlusIcon className="h-4 w-4" />
+        <Button variant="primary" icon={PlusIcon} onClick={() => setShowTemplates(true)}>
           {t('settings.notifications.addRule')}
-        </button>
+        </Button>
       </div>
 
-      {/* Templates Modal */}
-      {showTemplates && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {t('settings.notifications.chooseTemplate')}
-            </h3>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {templates?.map((template, index) => (
-                <button
-                  key={index}
-                  onClick={() => createFromTemplateMutation.mutate(index)}
-                  className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="font-medium text-gray-900">{template.name}</p>
-                    <span className={cn(
-                      'px-2 py-0.5 rounded text-xs font-medium',
-                      PRIORITY_COLORS[template.priority] || PRIORITY_COLORS.normal
-                    )}>
-                      {t(`settings.notifications.priority.${template.priority}`, { defaultValue: template.priority })}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-500">{template.description}</p>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
-                    <span>{t(`settings.notifications.eventTypes.${template.event_type}`, { defaultValue: EVENT_TYPE_LABELS[template.event_type] || template.event_type })}</span>
-                    <span>•</span>
-                    <span>{t('settings.notifications.daysBefore', { count: template.days_before })}</span>
-                    <span>•</span>
-                    <span>{template.channels.join(', ')}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <div className="flex justify-end mt-4">
-              <button
-                onClick={() => setShowTemplates(false)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-              >
-                {t('common.cancel')}
-              </button>
-            </div>
-          </div>
+      {/* Template picker */}
+      <Drawer
+        open={showTemplates}
+        title={t('settings.notifications.chooseTemplate')}
+        onClose={() => setShowTemplates(false)}
+        footer={
+          <Button variant="secondary" className="grow" onClick={() => setShowTemplates(false)}>
+            {t('common.cancel')}
+          </Button>
+        }
+      >
+        <div className="col" style={{ gap: 10 }}>
+          {templates?.map((template, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => createFromTemplateMutation.mutate(index)}
+              disabled={createFromTemplateMutation.isPending}
+              className="col"
+              style={{
+                gap: 6,
+                textAlign: 'left',
+                padding: '11px 12px',
+                border: '1px solid var(--b)',
+                borderRadius: 'var(--r-md)',
+                background: 'var(--s)',
+                cursor: createFromTemplateMutation.isPending ? 'wait' : 'pointer',
+                transition: 'border-color .12s var(--ease), background .12s var(--ease)',
+              }}
+            >
+              <span className="row" style={{ gap: 8 }}>
+                <span className="grow trunc" style={{ fontWeight: 600, fontSize: 'var(--fs-md)' }}>{template.name}</span>
+                <Pill tone={PRIORITY_TONE[template.priority] || 'in'}>
+                  {t(`settings.notifications.priority.${template.priority}`, { defaultValue: template.priority })}
+                </Pill>
+              </span>
+              <span className="muted" style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.45 }}>{template.description}</span>
+              <span className="faint row" style={{ gap: 8, fontSize: 'var(--fs-xs)', flexWrap: 'wrap' }}>
+                <span>{t(`settings.notifications.eventTypes.${template.event_type}`, { defaultValue: EVENT_TYPE_LABELS[template.event_type] || template.event_type })}</span>
+                <span>·</span>
+                <span>{t('settings.notifications.daysBefore', { count: template.days_before })}</span>
+                <span>·</span>
+                <span>{template.channels.join(', ')}</span>
+              </span>
+            </button>
+          ))}
         </div>
-      )}
+      </Drawer>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!ruleToDelete}
+        title={t('settings.notifications.deleteRuleTitle', { defaultValue: 'Delete notification rule' })}
+        body={t('settings.notifications.confirmDelete')}
+        affected={ruleToDelete ? [ruleToDelete.name] : undefined}
+        confirmLabel={t('common.delete', { defaultValue: 'Delete' })}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => {
+          if (ruleToDelete) deleteMutation.mutate(ruleToDelete.id)
+          setRuleToDelete(null)
+        }}
+        onCancel={() => setRuleToDelete(null)}
+      />
 
       {/* Rules List */}
       {rules && rules.length > 0 ? (
-        <div className="space-y-3">
+        <div className="col" style={{ gap: 10 }}>
           {rules.map((rule) => (
             <div
               key={rule.id}
-              className={cn(
-                'p-4 border rounded-lg transition-colors',
-                rule.is_active ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50'
-              )}
+              className="card card-p row"
+              style={{ gap: 12, alignItems: 'flex-start', background: rule.is_active ? undefined : 'var(--s3)' }}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className={cn(
-                      'font-medium',
-                      rule.is_active ? 'text-gray-900' : 'text-gray-500'
-                    )}>
-                      {rule.name}
-                    </p>
-                    <span className={cn(
-                      'px-2 py-0.5 rounded text-xs font-medium',
-                      PRIORITY_COLORS[rule.priority] || PRIORITY_COLORS.normal
-                    )}>
-                      {t(`settings.notifications.priority.${rule.priority}`, { defaultValue: rule.priority })}
+              <div className="grow col" style={{ gap: 5, minWidth: 0 }}>
+                <span className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  <span className={cn(!rule.is_active && 'muted')} style={{ fontWeight: 600, fontSize: 'var(--fs-md)' }}>
+                    {rule.name}
+                  </span>
+                  <Pill tone={PRIORITY_TONE[rule.priority] || 'in'}>
+                    {t(`settings.notifications.priority.${rule.priority}`, { defaultValue: rule.priority })}
+                  </Pill>
+                  {!rule.is_active && <Tag>{t('settings.notifications.disabled')}</Tag>}
+                </span>
+                {rule.description && (
+                  <span className="muted" style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.45 }}>{rule.description}</span>
+                )}
+                <span className="faint row" style={{ gap: 10, fontSize: 'var(--fs-xs)', flexWrap: 'wrap' }}>
+                  <Tag>
+                    {t(`settings.notifications.eventTypes.${rule.event_type}`, { defaultValue: EVENT_TYPE_LABELS[rule.event_type] || rule.event_type })}
+                  </Tag>
+                  <span>{t('settings.notifications.daysBefore', { count: rule.days_before })}</span>
+                  <span>{rule.channels.join(', ')}</span>
+                  {rule.trigger_count > 0 && (
+                    <span style={{ color: 'var(--ok)' }}>
+                      {t('settings.notifications.triggeredTimes', { count: rule.trigger_count })}
                     </span>
-                    {!rule.is_active && (
-                      <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-xs">
-                        {t('settings.notifications.disabled')}
-                      </span>
-                    )}
-                  </div>
-                  {rule.description && (
-                    <p className="text-sm text-gray-500 mb-2">{rule.description}</p>
                   )}
-                  <div className="flex items-center gap-3 text-xs text-gray-400">
-                    <span className="px-2 py-0.5 bg-gray-100 rounded">
-                      {t(`settings.notifications.eventTypes.${rule.event_type}`, { defaultValue: EVENT_TYPE_LABELS[rule.event_type] || rule.event_type })}
-                    </span>
-                    <span>{t('settings.notifications.daysBefore', { count: rule.days_before })}</span>
-                    <span>{rule.channels.join(', ')}</span>
-                    {rule.trigger_count > 0 && (
-                      <span className="text-green-600">
-                        {t('settings.notifications.triggeredTimes', { count: rule.trigger_count })}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={rule.is_active}
-                      onChange={() => toggleMutation.mutate(rule.id)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                  </label>
-                  <button
-                    onClick={() => {
-                      if (confirm(t('settings.notifications.confirmDelete'))) {
-                        deleteMutation.mutate(rule.id)
-                      }
-                    }}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
-                </div>
+                </span>
+              </div>
+              <div className="row" style={{ gap: 6, flexShrink: 0 }}>
+                <Switch
+                  checked={rule.is_active}
+                  onChange={() => toggleMutation.mutate(rule.id)}
+                />
+                <IconButton
+                  icon={TrashIcon}
+                  label={t('settings.notifications.deleteRuleTitle', { defaultValue: 'Delete notification rule' })}
+                  size="sm"
+                  onClick={() => setRuleToDelete(rule)}
+                />
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 text-gray-500">
-          <BellIcon className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-          <p className="text-sm font-medium mb-1">{t('settings.notifications.noRules')}</p>
-          <p className="text-xs">{t('settings.notifications.noRulesHint')}</p>
-        </div>
+        <EmptyState
+          icon={BellIcon}
+          title={t('settings.notifications.noRules')}
+          body={t('settings.notifications.noRulesHint')}
+        />
       )}
     </div>
   )
@@ -1081,9 +1102,9 @@ function NotificationSettings() {
 
 function SecuritySettings() {
   const { t } = useTranslation()
+  const { toast } = useToast()
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' })
   const [passwordError, setPasswordError] = useState('')
-  const [passwordSuccess, setPasswordSuccess] = useState(false)
 
   const handleUpdatePassword = async () => {
     setPasswordError('')
@@ -1102,66 +1123,80 @@ function SecuritySettings() {
     try {
       await api.changeMyPassword(passwords.current, passwords.newPass)
       setPasswords({ current: '', newPass: '', confirm: '' })
-      setPasswordSuccess(true)
-      setTimeout(() => setPasswordSuccess(false), 3000)
+      toast({ text: t('settings.security.passwordUpdated') })
     } catch (err: any) {
       setPasswordError(err?.response?.data?.detail || t('settings.security.updateFailed'))
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-sm font-medium text-gray-900 mb-3">{t('settings.security.changePassword')}</h3>
-        <div className="space-y-3 max-w-md">
-          <input
-            type="password"
-            placeholder={t('settings.security.currentPassword')}
-            value={passwords.current}
-            onChange={(e) => setPasswords(p => ({ ...p, current: e.target.value }))}
-            className="input"
-          />
-          <input
-            type="password"
-            placeholder={t('settings.security.newPassword')}
-            value={passwords.newPass}
-            onChange={(e) => setPasswords(p => ({ ...p, newPass: e.target.value }))}
-            className="input"
-          />
-          <input
-            type="password"
-            placeholder={t('settings.security.confirmPassword')}
-            value={passwords.confirm}
-            onChange={(e) => setPasswords(p => ({ ...p, confirm: e.target.value }))}
-            className="input"
-          />
-          <div className="flex items-center gap-3">
-            <button className="btn-primary" onClick={handleUpdatePassword}>{t('settings.security.updatePassword')}</button>
-            {passwordSuccess && <span className="text-sm text-green-600">{t('settings.security.passwordUpdated')}</span>}
+    <div className="col" style={{ gap: 22 }}>
+      {/* Change password */}
+      <div className="col" style={{ gap: 12, maxWidth: 420 }}>
+        <span className="sec-t">{t('settings.security.changePassword')}</span>
+        <Field
+          type="password"
+          icon={LockClosedIcon}
+          placeholder={t('settings.security.currentPassword')}
+          aria-label={t('settings.security.currentPassword')}
+          value={passwords.current}
+          onChange={(e) => setPasswords(p => ({ ...p, current: e.target.value }))}
+        />
+        <Field
+          type="password"
+          icon={KeyIcon}
+          placeholder={t('settings.security.newPassword')}
+          aria-label={t('settings.security.newPassword')}
+          value={passwords.newPass}
+          onChange={(e) => setPasswords(p => ({ ...p, newPass: e.target.value }))}
+        />
+        <Field
+          type="password"
+          icon={KeyIcon}
+          placeholder={t('settings.security.confirmPassword')}
+          aria-label={t('settings.security.confirmPassword')}
+          value={passwords.confirm}
+          onChange={(e) => setPasswords(p => ({ ...p, confirm: e.target.value }))}
+        />
+        {passwordError && (
+          <div className="banner banner-da">
+            <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+            <span>{passwordError}</span>
           </div>
-          {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
+        )}
+        <div className="row">
+          <Button variant="primary" onClick={handleUpdatePassword}>{t('settings.security.updatePassword')}</Button>
         </div>
       </div>
-      <div className="pt-4 border-t border-gray-200">
-        <h3 className="text-sm font-medium text-gray-900 mb-3">{t('settings.security.twoFactor')}</h3>
-        <p className="text-sm text-gray-500 mb-3">
+
+      <div className="divider" />
+
+      {/* Two-factor */}
+      <div className="col" style={{ gap: 8 }}>
+        <span className="sec-t">{t('settings.security.twoFactor')}</span>
+        <p className="muted" style={{ fontSize: 'var(--fs-md)', lineHeight: 1.5 }}>
           {t('settings.security.twoFactorDescription')}
         </p>
-        <div className="flex items-center gap-2">
-          <button className="btn-secondary opacity-60 cursor-not-allowed" disabled>{t('settings.security.enable2fa')}</button>
-          <span className="text-xs text-gray-400">{t('settings.comingSoon')}</span>
+        <div className="row" style={{ gap: 8 }}>
+          <Button variant="secondary" disabled>{t('settings.security.enable2fa')}</Button>
+          <Tag>{t('settings.comingSoon')}</Tag>
         </div>
       </div>
-      <div className="pt-4 border-t border-gray-200">
-        <h3 className="text-sm font-medium text-gray-900 mb-3">{t('settings.security.activeSessions')}</h3>
-        <p className="text-sm text-gray-500 mb-3">
-          {t('settings.security.activeSessionsDescription')}
-        </p>
-        <div className="flex items-center gap-2">
-          <button className="btn-secondary text-red-600 hover:text-red-700 opacity-60 cursor-not-allowed" disabled>
-            {t('settings.security.signOutAllDevices')}
-          </button>
-          <span className="text-xs text-gray-400">{t('settings.comingSoon')}</span>
+
+      <div className="divider" />
+
+      {/* Active sessions — danger zone */}
+      <div className="col" style={{ gap: 8 }}>
+        <span className="sec-t">{t('settings.security.activeSessions')}</span>
+        <div className="banner banner-da" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0 }} aria-hidden />
+          <span className="grow" style={{ minWidth: 220 }}>{t('settings.security.activeSessionsDescription')}</span>
+          <span className="row" style={{ gap: 8, flexShrink: 0 }}>
+            <Button variant="danger-ghost" size="sm" disabled>
+              {t('settings.security.signOutAllDevices')}
+            </Button>
+            <Tag>{t('settings.comingSoon')}</Tag>
+          </span>
         </div>
       </div>
     </div>
@@ -1170,41 +1205,56 @@ function SecuritySettings() {
 
 function IntegrationSettings() {
   const { t } = useTranslation()
-  const integrations = [
-    { name: 'OpenAI', description: t('settings.integrations.descriptions.openai'), connected: true, configurable: false },
-    { name: 'ServiceNow', description: t('settings.integrations.descriptions.servicenow'), connected: false, configurable: true, configPath: '/admin/integrations/servicenow' },
-    { name: 'SharePoint', description: t('settings.integrations.descriptions.sharepoint'), connected: false, configurable: true, configPath: '/admin/integrations/sharepoint' },
-    { name: 'SSO (OIDC)', description: t('settings.integrations.descriptions.sso'), connected: false, configurable: true, configPath: '/admin/sso' },
-    { name: 'Microsoft Teams', description: t('settings.integrations.descriptions.teams'), connected: false, configurable: false },
-    { name: 'Slack', description: t('settings.integrations.descriptions.slack'), connected: false, configurable: false },
+  const integrations: Array<{
+    name: string
+    description: string
+    icon: IconType
+    connected: boolean
+    configurable: boolean
+    configPath?: string
+  }> = [
+    { name: 'OpenAI', description: t('settings.integrations.descriptions.openai'), icon: SparklesIcon, connected: true, configurable: false },
+    { name: 'ServiceNow', description: t('settings.integrations.descriptions.servicenow'), icon: WrenchScrewdriverIcon, connected: false, configurable: true, configPath: '/admin/integrations/servicenow' },
+    { name: 'SharePoint', description: t('settings.integrations.descriptions.sharepoint'), icon: FolderIcon, connected: false, configurable: true, configPath: '/admin/integrations/sharepoint' },
+    { name: 'SSO (OIDC)', description: t('settings.integrations.descriptions.sso'), icon: KeyIcon, connected: false, configurable: true, configPath: '/admin/sso' },
+    { name: 'Microsoft Teams', description: t('settings.integrations.descriptions.teams'), icon: ChatBubbleLeftRightIcon, connected: false, configurable: false },
+    { name: 'Slack', description: t('settings.integrations.descriptions.slack'), icon: ChatBubbleLeftRightIcon, connected: false, configurable: false },
   ]
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
       {integrations.map((integration) => (
-        <div
-          key={integration.name}
-          className="flex items-center justify-between py-3 border-b border-gray-200 last:border-0"
-        >
-          <div>
-            <p className="text-sm font-medium text-gray-900">{integration.name}</p>
-            <p className="text-xs text-gray-500">{integration.description}</p>
-          </div>
-          {integration.connected ? (
-            <span className="text-sm font-medium px-3 py-1.5 rounded-lg bg-green-100 text-green-700">
-              {t('settings.integrations.connected')}
-            </span>
-          ) : integration.configurable ? (
-            <a
-              href={integration.configPath}
-              className="text-sm font-medium px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
+        <div key={integration.name} className="card card-p col" style={{ gap: 12 }}>
+          <div className="row" style={{ gap: 11 }}>
+            <span
+              style={{
+                width: 34, height: 34, borderRadius: 'var(--r-md)', display: 'grid', placeItems: 'center',
+                background: 'var(--s2)', color: 'var(--m)', flexShrink: 0,
+              }}
             >
+              <integration.icon style={{ width: 17, height: 17 }} aria-hidden />
+            </span>
+            <span className="grow" style={{ minWidth: 0 }}>
+              <span className="trunc" style={{ display: 'block', fontSize: 'var(--fs-lg)', fontWeight: 600 }}>
+                {integration.name}
+              </span>
+              <span className="faint trunc" style={{ display: 'block', fontSize: 'var(--fs-sm)' }} title={integration.description}>
+                {integration.description}
+              </span>
+            </span>
+            <Pill tone={integration.connected ? 'ok' : 'n'}>
+              {integration.connected
+                ? t('settings.integrations.connected')
+                : t('settings.integrations.notConnected', { defaultValue: 'Not connected' })}
+            </Pill>
+          </div>
+          {integration.connected ? null : integration.configurable ? (
+            <a href={integration.configPath} className="btn btn-s btn-sm" style={{ width: '100%' }}>
+              <Cog6ToothIcon style={{ width: 13, height: 13, flexShrink: 0 }} aria-hidden />
               {t('settings.integrations.configure')}
             </a>
           ) : (
-            <span className="text-sm font-medium px-3 py-1.5 rounded-lg bg-gray-50 text-gray-400">
-              {t('settings.comingSoon')}
-            </span>
+            <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('settings.comingSoon')}</span>
           )}
         </div>
       ))}
@@ -1217,60 +1267,65 @@ function AppearanceSettings() {
   const [theme, setTheme] = useState('light')
 
   const themes = [
-    { id: 'light', label: t('settings.appearance.light'), preview: 'bg-white border border-gray-200' },
-    { id: 'dark', label: t('settings.appearance.dark'), preview: 'bg-gray-800', disabled: true },
-    { id: 'system', label: t('settings.appearance.system'), preview: 'bg-gradient-to-b from-white to-gray-800', disabled: true },
+    { id: 'light', label: t('settings.appearance.light'), preview: { background: 'var(--s)', border: '1px solid var(--b)' } },
+    { id: 'dark', label: t('settings.appearance.dark'), preview: { background: 'var(--t)' }, disabled: true },
+    { id: 'system', label: t('settings.appearance.system'), preview: { background: 'linear-gradient(to bottom, var(--s), var(--t))' }, disabled: true },
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 22 }}>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          {t('settings.appearance.theme')}
-        </label>
-        <div className="flex gap-3">
+        <span className="lbl">{t('settings.appearance.theme')}</span>
+        <div className="row" style={{ gap: 10, alignItems: 'stretch', maxWidth: 560 }}>
           {themes.map((th) => (
             <button
               key={th.id}
+              type="button"
               onClick={() => !th.disabled && setTheme(th.id)}
-              className={cn(
-                'flex-1 p-4 border-2 rounded-lg bg-white transition-colors',
-                theme === th.id ? 'border-primary-500' : 'border-gray-200 hover:border-gray-300',
-                th.disabled && 'opacity-50 cursor-not-allowed',
-              )}
+              className="col grow"
+              style={{
+                gap: 8,
+                padding: 12,
+                borderRadius: 'var(--r-md)',
+                border: '1px solid ' + (theme === th.id ? 'var(--p-b)' : 'var(--b)'),
+                background: theme === th.id ? 'var(--p-f)' : 'var(--s)',
+                cursor: th.disabled ? 'not-allowed' : 'pointer',
+                opacity: th.disabled ? 0.5 : 1,
+                transition: 'border-color .12s var(--ease), background .12s var(--ease)',
+              }}
             >
-              <div className={cn('h-16 rounded mb-2', th.preview)} />
-              <div className="flex items-center justify-center gap-1">
-                <p className="text-sm font-medium text-gray-900">{th.label}</p>
-                {th.disabled && <span className="text-[10px] text-gray-400">{t('settings.appearance.soon')}</span>}
-              </div>
+              <span style={{ height: 56, borderRadius: 'var(--r-sm)', ...th.preview }} />
+              <span className="row" style={{ gap: 6, justifyContent: 'center' }}>
+                <span style={{ fontSize: 'var(--fs-md)', fontWeight: 600 }}>{th.label}</span>
+                {th.disabled && <Tag>{t('settings.appearance.soon')}</Tag>}
+              </span>
             </button>
           ))}
         </div>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {t('settings.appearance.sidebarPosition')}
-        </label>
-        <div className="flex items-center gap-2">
-          <select className="input max-w-md opacity-60" disabled>
-            <option value="left">{t('settings.appearance.left')}</option>
-            <option value="right">{t('settings.appearance.right')}</option>
-          </select>
-          <span className="text-xs text-gray-400">{t('settings.comingSoon')}</span>
-        </div>
+      <div className="row" style={{ gap: 8, alignItems: 'flex-end' }}>
+        <Select
+          label={t('settings.appearance.sidebarPosition')}
+          containerStyle={{ width: 280 }}
+          disabled
+          options={[
+            { value: 'left', label: t('settings.appearance.left') },
+            { value: 'right', label: t('settings.appearance.right') },
+          ]}
+        />
+        <Tag>{t('settings.comingSoon')}</Tag>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {t('settings.appearance.density')}
-        </label>
-        <div className="flex items-center gap-2">
-          <select className="input max-w-md opacity-60" disabled>
-            <option value="comfortable">{t('settings.appearance.comfortable')}</option>
-            <option value="compact">{t('settings.appearance.compact')}</option>
-          </select>
-          <span className="text-xs text-gray-400">{t('settings.comingSoon')}</span>
-        </div>
+      <div className="row" style={{ gap: 8, alignItems: 'flex-end' }}>
+        <Select
+          label={t('settings.appearance.density')}
+          containerStyle={{ width: 280 }}
+          disabled
+          options={[
+            { value: 'comfortable', label: t('settings.appearance.comfortable') },
+            { value: 'compact', label: t('settings.appearance.compact') },
+          ]}
+        />
+        <Tag>{t('settings.comingSoon')}</Tag>
       </div>
     </div>
   )
@@ -1290,6 +1345,7 @@ const EXTRACTION_FIELD_LABELS: Record<string, string> = {
 function ExtractionThresholdsSettings() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const { data, isLoading } = useQuery({
     queryKey: ['extraction-thresholds'],
     queryFn: getExtractionThresholds,
@@ -1297,7 +1353,6 @@ function ExtractionThresholdsSettings() {
 
   const [defaultThreshold, setDefaultThreshold] = useState<number>(0.7)
   const [fields, setFields] = useState<Record<string, number>>({})
-  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Sync local state when server data arrives or refreshes
@@ -1313,9 +1368,8 @@ function ExtractionThresholdsSettings() {
     onSuccess: (resp) => {
       setDefaultThreshold(resp.default)
       setFields({ ...resp.fields })
-      setSaved(true)
       setError(null)
-      setTimeout(() => setSaved(false), 2000)
+      toast({ text: t('settings.saved') })
       queryClient.invalidateQueries({ queryKey: ['extraction-thresholds'] })
     },
     onError: (err: any) => {
@@ -1325,7 +1379,7 @@ function ExtractionThresholdsSettings() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-8">
+      <div className="row" style={{ justifyContent: 'center', padding: 32 }}>
         <LoadingSpinner size="md" />
       </div>
     )
@@ -1365,115 +1419,114 @@ function ExtractionThresholdsSettings() {
       JSON.stringify(data.fields) !== JSON.stringify(fields))
 
   return (
-    <div className="space-y-6">
-      <div className="text-sm text-gray-600">
+    <div className="col" style={{ gap: 18, maxWidth: 620 }}>
+      <p className="muted" style={{ fontSize: 'var(--fs-md)', lineHeight: 1.55 }}>
         {t('settings.extraction.intro')}
-      </div>
+      </p>
 
       {/* Default threshold */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {t('settings.extraction.defaultThreshold')}
-        </label>
-        <p className="text-xs text-gray-500 mb-2">
+        <span className="lbl">{t('settings.extraction.defaultThreshold')}</span>
+        <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginBottom: 8, lineHeight: 1.5 }}>
           {t('settings.extraction.defaultThresholdHint')}
         </p>
-        <div className="flex items-center gap-3 max-w-xs">
-          <input
+        <div className="row" style={{ gap: 12 }}>
+          <Field
             type="number"
             min={0}
             max={1}
             step={0.05}
             value={defaultThreshold}
+            aria-label={t('settings.extraction.defaultThreshold')}
             onChange={(e) => {
               const v = parseFloat(e.target.value)
               if (!Number.isNaN(v) && v >= 0 && v <= 1) setDefaultThreshold(v)
             }}
-            className="input"
+            containerStyle={{ width: 110 }}
           />
-          <span className="text-sm text-gray-500">{(defaultThreshold * 100).toFixed(0)}%</span>
+          <Bar value={defaultThreshold * 100} width={140} />
+          <span className="mono num muted" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
+            {(defaultThreshold * 100).toFixed(0)}%
+          </span>
         </div>
       </div>
 
       {/* Per-field overrides */}
-      <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-2">{t('settings.extraction.perFieldOverrides')}</h3>
+      <div className="col" style={{ gap: 8 }}>
+        <span className="sec-t">{t('settings.extraction.perFieldOverrides')}</span>
         {Object.keys(fields).length === 0 ? (
-          <p className="text-sm text-gray-400 italic mb-3">
+          <p className="faint" style={{ fontSize: 'var(--fs-md)', fontStyle: 'italic' }}>
             {t('settings.extraction.noOverrides')}
           </p>
         ) : (
-          <div className="space-y-2 mb-3">
+          <div className="col" style={{ gap: 8 }}>
             {Object.entries(fields).map(([field, value]) => (
-              <div key={field} className="flex items-center gap-3">
-                <span className="w-40 text-sm text-gray-700">
+              <div key={field} className="row" style={{ gap: 12 }}>
+                <span style={{ width: 160, fontSize: 'var(--fs-md)' }}>
                   {t(`settings.extraction.fields.${field}`, { defaultValue: EXTRACTION_FIELD_LABELS[field] || field })}
                 </span>
-                <input
+                <Field
                   type="number"
                   min={0}
                   max={1}
                   step={0.05}
                   value={value}
+                  aria-label={t(`settings.extraction.fields.${field}`, { defaultValue: EXTRACTION_FIELD_LABELS[field] || field })}
                   onChange={(e) => updateField(field, e.target.value)}
-                  className="input w-32"
+                  containerStyle={{ width: 110 }}
                 />
-                <span className="text-xs text-gray-500 w-12">
+                <Bar value={value * 100} width={100} />
+                <span className="mono num muted" style={{ fontSize: 'var(--fs-sm)', width: 40 }}>
                   {(value * 100).toFixed(0)}%
                 </span>
-                <button
-                  type="button"
+                <IconButton
+                  icon={TrashIcon}
+                  size="sm"
+                  label={t('settings.extraction.removeOverride')}
                   onClick={() => removeField(field)}
-                  className="text-gray-400 hover:text-red-600"
-                  title={t('settings.extraction.removeOverride')}
-                >
-                  <TrashIcon className="h-4 w-4" />
-                </button>
+                />
               </div>
             ))}
           </div>
         )}
 
         {unsetFields.length > 0 && (
-          <div className="flex items-center gap-2">
-            <select
-              className="input max-w-xs"
-              value=""
-              onChange={(e) => {
-                addField(e.target.value)
-                e.currentTarget.value = ''
-              }}
-            >
-              <option value="">{t('settings.extraction.addFieldOverride')}</option>
-              {unsetFields.map((f) => (
-                <option key={f} value={f}>
-                  {t(`settings.extraction.fields.${f}`, { defaultValue: EXTRACTION_FIELD_LABELS[f] || f })}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            aria-label={t('settings.extraction.addFieldOverride')}
+            containerStyle={{ maxWidth: 280 }}
+            value=""
+            onChange={(e) => {
+              addField(e.target.value)
+              e.currentTarget.value = ''
+            }}
+            options={[
+              { value: '', label: t('settings.extraction.addFieldOverride') },
+              ...unsetFields.map((f) => ({
+                value: f,
+                label: t(`settings.extraction.fields.${f}`, { defaultValue: EXTRACTION_FIELD_LABELS[f] || f }),
+              })),
+            ]}
+          />
         )}
       </div>
 
+      {error && (
+        <div className="banner banner-da">
+          <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* Save row */}
-      <div className="pt-4 border-t border-gray-200 flex items-center gap-3">
-        <button
-          type="button"
+      <div className="row">
+        <Button
+          variant="primary"
+          icon={CheckCircleIcon}
           onClick={handleSave}
           disabled={!isDirty || mutation.isPending}
-          className={cn(
-            'btn btn-primary',
-            (!isDirty || mutation.isPending) && 'opacity-60 cursor-not-allowed'
-          )}
         >
           {mutation.isPending ? t('settings.saving') : t('settings.extraction.saveThresholds')}
-        </button>
-        {saved && (
-          <span className="text-sm text-green-600 inline-flex items-center gap-1">
-            <CheckCircleIcon className="h-4 w-4" /> {t('settings.saved')}
-          </span>
-        )}
-        {error && <span className="text-sm text-red-600">{error}</span>}
+        </Button>
       </div>
     </div>
   )
@@ -1508,13 +1561,13 @@ const PROMPT_ADDENDA_ORDER = ['metadata', 'clauses', 'obligations', 'slas', 'ris
 function PromptAddendaSettings() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const { data, isLoading } = useQuery({
     queryKey: ['prompt-addenda'],
     queryFn: getPromptAddenda,
   })
 
   const [draft, setDraft] = useState<Record<string, string>>({})
-  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -1525,9 +1578,8 @@ function PromptAddendaSettings() {
     mutationFn: (payload: Record<string, string>) => updatePromptAddenda(payload),
     onSuccess: (resp) => {
       setDraft({ ...resp.addenda })
-      setSaved(true)
       setError(null)
-      setTimeout(() => setSaved(false), 2000)
+      toast({ text: t('settings.saved') })
       queryClient.invalidateQueries({ queryKey: ['prompt-addenda'] })
     },
     onError: (err: any) => {
@@ -1536,7 +1588,11 @@ function PromptAddendaSettings() {
   })
 
   if (isLoading) {
-    return <div className="py-4 flex justify-center"><LoadingSpinner size="md" /></div>
+    return (
+      <div className="row" style={{ justifyContent: 'center', padding: 16 }}>
+        <LoadingSpinner size="md" />
+      </div>
+    )
   }
 
   const maxChars = data?.max_chars ?? 2000
@@ -1557,67 +1613,65 @@ function PromptAddendaSettings() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="col" style={{ gap: 14, maxWidth: 620 }}>
       <div>
-        <h3 className="text-base font-medium text-gray-900">{t('settings.prompts.title')}</h3>
-        <p className="text-sm text-gray-600 mt-1">
+        <span className="sec-t">{t('settings.prompts.title')}</span>
+        <p className="muted" style={{ fontSize: 'var(--fs-md)', marginTop: 4, lineHeight: 1.55 }}>
           {t('settings.prompts.description', { maxChars })}
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="col" style={{ gap: 14 }}>
         {PROMPT_ADDENDA_ORDER.map((agent) => {
           const info = PROMPT_ADDENDA_LABELS[agent]
           const value = draft[agent] || ''
           const over = value.length > maxChars
           return (
             <div key={agent}>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium text-gray-700">
+              <div className="row" style={{ marginBottom: 5 }}>
+                <label className="lbl grow" style={{ marginBottom: 0 }}>
                   {t(`settings.prompts.labels.${agent}`, { defaultValue: info.label })}
                 </label>
-                <span className={cn(
-                  'text-xs',
-                  over ? 'text-red-600 font-medium' : 'text-gray-400'
-                )}>
+                <span
+                  className="mono num"
+                  style={{ fontSize: 'var(--fs-xs)', color: over ? 'var(--da)' : 'var(--f)', fontWeight: over ? 600 : undefined }}
+                >
                   {value.length} / {maxChars}
                 </span>
               </div>
-              <textarea
-                value={value}
-                onChange={(e) => handleChange(agent, e.target.value)}
-                placeholder={t(`settings.prompts.placeholders.${agent}`, { defaultValue: info.placeholder })}
-                rows={3}
-                className={cn(
-                  'w-full text-sm border rounded-md p-2 focus:outline-none focus:ring-1',
-                  over
-                    ? 'border-red-300 focus:ring-red-400'
-                    : 'border-gray-200 focus:ring-primary-400'
-                )}
-              />
+              <div
+                className="inp"
+                style={{ height: 'auto', alignItems: 'stretch', ...(over ? { borderColor: 'var(--da-b)' } : undefined) }}
+              >
+                <textarea
+                  value={value}
+                  onChange={(e) => handleChange(agent, e.target.value)}
+                  placeholder={t(`settings.prompts.placeholders.${agent}`, { defaultValue: info.placeholder })}
+                  rows={3}
+                  style={{ resize: 'vertical', padding: '8px 0' }}
+                />
+              </div>
             </div>
           )
         })}
       </div>
 
-      <div className="pt-2 flex items-center gap-3">
-        <button
-          type="button"
+      {error && (
+        <div className="banner banner-da">
+          <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <div className="row">
+        <Button
+          variant="primary"
+          icon={CheckCircleIcon}
           onClick={handleSave}
           disabled={!isDirty || mutation.isPending || Object.values(draft).some(v => (v || '').length > maxChars)}
-          className={cn(
-            'btn btn-primary',
-            (!isDirty || mutation.isPending) && 'opacity-60 cursor-not-allowed'
-          )}
         >
           {mutation.isPending ? t('settings.saving') : t('settings.prompts.savePromptAddenda')}
-        </button>
-        {saved && (
-          <span className="text-sm text-green-600 inline-flex items-center gap-1">
-            <CheckCircleIcon className="h-4 w-4" /> {t('settings.saved')}
-          </span>
-        )}
-        {error && <span className="text-sm text-red-600">{error}</span>}
+        </Button>
       </div>
     </div>
   )
