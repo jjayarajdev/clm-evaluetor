@@ -336,25 +336,30 @@ export interface ImprovementActionCreate {
 
 // Surveys
 export type SurveyType = 'satisfaction' | 'performance' | 'relationship_health' | 'custom'
+export type SurveyFrequency = 'one_time' | 'monthly' | 'quarterly' | 'semi_annual' | 'annual'
 export type QuestionType = 'rating' | 'rating_5' | 'nps' | 'single_choice' | 'multiple_choice' | 'text' | 'text_long' | 'yes_no'
 export type SurveyInstanceStatus = 'draft' | 'scheduled' | 'sent' | 'in_progress' | 'completed' | 'expired' | 'cancelled'
 
 export interface SurveyTemplate {
   id: string
-  tenant_id: string
+  tenant_id?: string
   name: string
   description: string | null
-  survey_type: SurveyType
+  survey_type?: SurveyType
   is_active: boolean
-  is_anonymous: boolean
+  is_anonymous?: boolean
   frequency: string | null
-  intro_text: string | null
+  intro_text?: string | null
   closing_text: string | null
   version: number
   created_at: string
   updated_at: string
   questions?: SurveyQuestion[]
   question_count?: number
+  // Backend field names (TemplateResponse) — the API returns these
+  introduction_text?: string | null
+  allow_anonymous?: boolean
+  require_all_questions?: boolean
 }
 
 export interface SurveyTemplateCreate {
@@ -367,28 +372,63 @@ export interface SurveyTemplateCreate {
   closing_text?: string
 }
 
+// Matches backend TemplateUpdate — PUT /surveys/templates/{id} accepts only these.
+export interface SurveyTemplateUpdate {
+  name?: string
+  description?: string
+  frequency?: SurveyFrequency
+  introduction_text?: string
+  closing_text?: string
+  allow_anonymous?: boolean
+  require_all_questions?: boolean
+  is_active?: boolean
+}
+
 export interface SurveyQuestion {
   id: string
   template_id: string
-  question_text: string
+  question_text?: string
   question_type: QuestionType
   options: string[] | null
-  display_order: number
+  display_order?: number
   is_required: boolean
-  category: string | null
+  category?: string | null
   kpi_id: string | null
-  rating_labels: Record<string, string> | null
+  rating_labels?: Record<string, string> | null
+  // Backend field names (QuestionResponse) — the API returns these
+  text?: string
+  help_text?: string | null
+  sequence?: number
+  rating_min_label?: string | null
+  rating_max_label?: string | null
+  is_active?: boolean
 }
 
+// Matches backend QuestionCreate — POST /surveys/templates/{id}/questions.
 export interface SurveyQuestionCreate {
-  question_text: string
-  question_type: QuestionType
+  text: string
+  help_text?: string
+  question_type?: QuestionType
   options?: string[]
-  display_order?: number
-  is_required?: boolean
-  category?: string
+  rating_min_label?: string
+  rating_max_label?: string
   kpi_id?: string
-  rating_labels?: Record<string, string>
+  sequence?: number
+  is_required?: boolean
+}
+
+// Matches backend QuestionUpdate — PUT /surveys/templates/{tid}/questions/{qid}.
+export interface SurveyQuestionUpdate {
+  text?: string
+  help_text?: string
+  question_type?: QuestionType
+  options?: string[]
+  rating_min_label?: string
+  rating_max_label?: string
+  kpi_id?: string
+  sequence?: number
+  is_required?: boolean
+  is_active?: boolean
 }
 
 export interface SurveyInstance {

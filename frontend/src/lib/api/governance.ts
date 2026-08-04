@@ -281,9 +281,32 @@ export async function createSurveyTemplate(data: import('@/types/governance').Su
   return response.data
 }
 
+export async function updateSurveyTemplate(id: string, data: import('@/types/governance').SurveyTemplateUpdate): Promise<import('@/types/governance').SurveyTemplate> {
+  const response = await client.put(`/surveys/templates/${id}`, data)
+  return response.data
+}
+
+// Soft delete: the backend marks the template inactive (is_active=false).
+// Existing survey instances and their responses keep working; the template
+// simply drops out of the (active-only) list and can't be used for new surveys.
+export async function deleteSurveyTemplate(id: string): Promise<void> {
+  await client.delete(`/surveys/templates/${id}`)
+}
+
 export async function addSurveyQuestion(templateId: string, data: import('@/types/governance').SurveyQuestionCreate): Promise<import('@/types/governance').SurveyQuestion> {
   const response = await client.post(`/surveys/templates/${templateId}/questions`, data)
   return response.data
+}
+
+export async function updateSurveyQuestion(templateId: string, questionId: string, data: import('@/types/governance').SurveyQuestionUpdate): Promise<import('@/types/governance').SurveyQuestion> {
+  const response = await client.put(`/surveys/templates/${templateId}/questions/${questionId}`, data)
+  return response.data
+}
+
+// Soft delete: the question is marked inactive and disappears from the
+// template; answers already collected in past responses are untouched.
+export async function deleteSurveyQuestion(templateId: string, questionId: string): Promise<void> {
+  await client.delete(`/surveys/templates/${templateId}/questions/${questionId}`)
 }
 
 export async function getSurveyInstances(params?: {

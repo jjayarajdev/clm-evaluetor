@@ -3,16 +3,22 @@
    with internal/external inline score editing, gap coloring, status Pills and
    approve/reject actions (comment captured in a Drawer). Data fetching,
    grouping-by-KPI logic and every mutation (save/approve/reject/delete/bulk)
-   are unchanged from the pre-redesign page. */
+   are unchanged from the pre-redesign page.
+   Also merges the relationship's unscored KPIs into the table (em-dash scores,
+   "Not scored" pill) and offers Add-KPI / Record-score Drawers mirroring the
+   RelationshipDetailPage forms, so KPIs can be created and scored from here. */
 import { useState, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  ArrowTopRightOnSquareIcon,
   BuildingOffice2Icon,
   ChartBarIcon,
   CheckCircleIcon,
   CheckIcon,
   ClockIcon,
+  PlusIcon,
   ScaleIcon,
   TrashIcon,
   XCircleIcon,
@@ -25,6 +31,7 @@ import {
   ConfirmDialog,
   Drawer,
   EmptyState,
+  Field,
   IconButton,
   Pill,
   Select,
@@ -35,6 +42,7 @@ import {
 } from '@/components/ui'
 import type { TableColumn } from '@/components/ui'
 import type { PendingApproval } from '@/types/fitgap'
+import type { KPICreate, PerceptionScoreCreate } from '@/types/governance'
 
 const CAT_LABEL: Record<string, string> = {
   service_delivery: 'Delivery', quality: 'Quality', cost_efficiency: 'Cost',
@@ -50,7 +58,18 @@ interface KpiRow {
   ext?: PendingApproval
   gap: number | null
   pending: boolean
+  /** false when the KPI exists but has no score for the selected period */
+  scored: boolean
 }
+
+const KPI_FORM_DEFAULTS: Partial<KPICreate> = {
+  category: 'service_delivery',
+  is_perception_based: true,
+  weight: 1,
+  frequency: 'quarterly',
+}
+
+const SCORE_FORM_DEFAULTS: Partial<PerceptionScoreCreate> = { perspective: 'internal', score: 5 }
 
 function gapTone(gap: number): string {
   return gap < 0.8 ? 'var(--ok)' : gap <= 1.5 ? 'var(--wa)' : 'var(--da)'
@@ -59,6 +78,7 @@ function gapTone(gap: number): string {
 export default function KPIApprovalsPage() {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const [relId, setRelId] = useState('')
   const [period, setPeriod] = useState('')
@@ -66,17 +86,32 @@ export default function KPIApprovalsPage() {
   const [modal, setModal] = useState<{ type: 'approve' | 'reject'; kpiId: string; scoreId: string; name: string } | null>(null)
   const [comment, setComment] = useState('')
   const [del, setDel] = useState<{ kpiId: string; scoreId: string; name: string } | null>(null)
+  const [showAddKPI, setShowAddKPI] = useState(false)
+  const [kpiForm, setKpiForm] = useState<Partial<KPICreate>>(KPI_FORM_DEFAULTS)
+  const [scoreTarget, setScoreTarget] = useState<{ kpiId: string; name: string } | null>(null)
+  const [scoreForm, setScoreForm] = useState<Partial<PerceptionScoreCreate>>(SCORE_FORM_DEFAULTS)
 
   const { data: rels = [] } = useQuery({
     queryKey: ['relationships'],
     queryFn: () => api.getRelationships(),
   })
 
-  const { data: scores = [], isLoading } = useQuery({
+  const { data: scores = [], isLoading: scoresLoading } = useQuery({
     queryKey: ['kpi-scores', relId],
     queryFn: () => api.getPendingApprovals({ relationship_id: relId }),
     enabled: !!relId,
   })
+
+  // The relationship's KPI definitions — so KPIs without any score for the
+  // selected period still show up (previously invisible: rows were built from
+  // perception scores alone).
+  const { data: kpis = [], isLoading: kpisLoading } = useQuery({
+    queryKey: ['kpis', relId],
+    queryFn: () => api.getKPIs({ relationship_id: relId }),
+    enabled: !!relId,
+  })
+
+  const isLoading = scoresLoading || kpisLoading
 
   const periods = useMemo(() => {
     const s = new Set<string>()
@@ -85,9 +120,10 @@ export default function KPIApprovalsPage() {
   }, [scores])
 
   useEffect(() => { if (periods.length && !period) setPeriod(periods[0]) }, [periods, period])
-  useEffect(() => { setPeriod(''); setEditing({}) }, [relId])
+  useEffect(() => { setPeriod(''); setEditing({}); setShowAddKPI(false); setScoreTarget(null) }, [relId])
 
-  // Group by KPI for selected period — internal + external side by side
+  // Group by KPI for selected period — internal + external side by side.
+  // KPIs with no score for the period are appended as "not scored" rows.
   const rows = useMemo<KpiRow[]>(() => {
     const filtered = scores.filter(s => s.period === period)
     const map = new Map<string, { int?: PendingApproval; ext?: PendingApproval }>()
@@ -96,7 +132,7 @@ export default function KPIApprovalsPage() {
       if (s.is_internal || s.perspective === 'internal') e.int = s; else e.ext = s
       map.set(s.kpi_id, e)
     }
-    return Array.from(map.values()).map(({ int, ext }) => {
+    const scoredRows: KpiRow[] = Array.from(map.values()).map(({ int, ext }) => {
       const ref = int || ext!
       return {
         kpi_id: ref.kpi_id,
@@ -105,9 +141,23 @@ export default function KPIApprovalsPage() {
         int, ext,
         gap: int && ext ? Math.abs(Number(int.score) - Number(ext.score)) : null,
         pending: int?.approval_status === 'pending_approval' || ext?.approval_status === 'pending_approval',
+        scored: true,
       }
-    }).sort((a, b) => a.name.localeCompare(b.name))
-  }, [scores, period])
+    })
+    const unscoredRows: KpiRow[] = kpis
+      .filter(k => !map.has(k.id))
+      .map(k => ({
+        kpi_id: k.id,
+        name: k.name,
+        cat: k.category || 'other',
+        int: undefined,
+        ext: undefined,
+        gap: null,
+        pending: false,
+        scored: false,
+      }))
+    return [...scoredRows, ...unscoredRows].sort((a, b) => a.name.localeCompare(b.name))
+  }, [scores, kpis, period])
 
   const pendingN = rows.filter(r => r.pending).length
   const avgGap = (() => { const g = rows.filter(r => r.gap !== null); return g.length ? g.reduce((a, r) => a + r.gap!, 0) / g.length : 0 })()
@@ -151,6 +201,38 @@ export default function KPIApprovalsPage() {
       toast({ text: t('governance.allApproved', { defaultValue: 'All pending scores approved' }) })
     },
   })
+
+  // Create KPI — mirrors RelationshipDetailPage's add-KPI flow
+  const createKPIMut = useMutation({
+    mutationFn: (data: KPICreate) => api.createKPI(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kpis', relId] })
+      qc.invalidateQueries({ queryKey: ['kpi-scores'] })
+      setShowAddKPI(false)
+      setKpiForm(KPI_FORM_DEFAULTS)
+      toast({ text: t('governance.kpiCreated', { defaultValue: 'KPI created' }) })
+    },
+  })
+
+  // Record a perception score — mirrors RelationshipDetailPage's score flow
+  const submitScoreMut = useMutation({
+    mutationFn: ({ kpiId, data }: { kpiId: string; data: PerceptionScoreCreate }) =>
+      api.submitPerceptionScore(kpiId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kpi-scores'] })
+      qc.invalidateQueries({ queryKey: ['kpis', relId] })
+      qc.invalidateQueries({ queryKey: ['gap-summary', relId] })
+      setScoreTarget(null)
+      setScoreForm(SCORE_FORM_DEFAULTS)
+      toast({ text: t('governance.scoreSubmitted', { defaultValue: 'Perception score submitted' }) })
+    },
+  })
+
+  function openRecordScore(kpiId: string, name: string) {
+    // Prefill the currently selected period chip, if any
+    setScoreForm({ ...SCORE_FORM_DEFAULTS, ...(period ? { period } : {}) })
+    setScoreTarget({ kpiId, name })
+  }
 
   function sid(s: PendingApproval) { return s.score_id || s.id }
 
@@ -208,6 +290,7 @@ export default function KPIApprovalsPage() {
   }
 
   function rowStatus(r: KpiRow): { label: string; tone: 'ok' | 'wa' | 'da' | 'n' } {
+    if (!r.scored) return { label: t('governance.notScored', { defaultValue: 'Not scored' }), tone: 'n' }
     if (r.pending) return { label: t('status.pending'), tone: 'wa' }
     const statuses = [r.int?.approval_status, r.ext?.approval_status].filter(Boolean)
     if (statuses.includes('rejected')) return { label: t('governance.rejected', { defaultValue: 'Rejected' }), tone: 'da' }
@@ -274,10 +357,16 @@ export default function KPIApprovalsPage() {
     {
       key: 'actions',
       header: t('common.actions'),
-      width: 110,
+      width: 130,
       align: 'right',
       render: r => (
         <span className="row" style={{ gap: 2, display: 'inline-flex' }}>
+          <IconButton
+            icon={PlusIcon}
+            label={t('governance.recordScore', { defaultValue: 'Record score' })}
+            size="sm"
+            onClick={() => openRecordScore(r.kpi_id, r.name)}
+          />
           {r.pending && (
             <>
               <IconButton
@@ -296,13 +385,15 @@ export default function KPIApprovalsPage() {
               />
             </>
           )}
-          <IconButton
-            icon={TrashIcon} label={t('common.delete')} size="sm"
-            onClick={() => {
-              const s = r.int || r.ext!
-              setDel({ kpiId: r.kpi_id, scoreId: sid(s), name: r.name })
-            }}
-          />
+          {(r.int || r.ext) && (
+            <IconButton
+              icon={TrashIcon} label={t('common.delete')} size="sm"
+              onClick={() => {
+                const s = (r.int || r.ext)!
+                setDel({ kpiId: r.kpi_id, scoreId: sid(s), name: r.name })
+              }}
+            />
+          )}
         </span>
       ),
     },
@@ -334,6 +425,9 @@ export default function KPIApprovalsPage() {
               })),
             ]}
           />
+          <Button variant="secondary" icon={PlusIcon} disabled={!relId} onClick={() => setShowAddKPI(true)}>
+            {t('governance.addKpi')}
+          </Button>
           {pendingN > 0 && (
             <Button variant="primary" icon={CheckIcon} onClick={() => bulkMut.mutate()} disabled={bulkMut.isPending}>
               {bulkMut.isPending ? t('governance.approving') : t('governance.approveAllCount', { count: pendingN })}
@@ -360,8 +454,33 @@ export default function KPIApprovalsPage() {
         </div>
       )}
 
+      {/* Relationship selected but it has no KPIs yet */}
+      {relId && !isLoading && rows.length === 0 && (
+        <div className="card">
+          <EmptyState
+            icon={ChartBarIcon}
+            title={t('governance.noKpisYet')}
+            body={t('governance.kpisEmptyBody', { defaultValue: 'KPIs measure the relationship from both sides. Add one to start scoring.' })}
+            action={
+              <span className="row" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <Button variant="primary" icon={PlusIcon} onClick={() => setShowAddKPI(true)}>
+                  {t('governance.addKpi')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  icon={ArrowTopRightOnSquareIcon}
+                  onClick={() => navigate(`/relationships/${relId}`)}
+                >
+                  {t('governance.openRelationship', { defaultValue: 'Open relationship' })}
+                </Button>
+              </span>
+            }
+          />
+        </div>
+      )}
+
       {/* Scorecard */}
-      {relId && !isLoading && (
+      {relId && !isLoading && rows.length > 0 && (
         <>
           {/* Period chips */}
           {periods.length > 0 && (
@@ -477,6 +596,163 @@ export default function KPIApprovalsPage() {
           setDel(null)
         }}
       />
+
+      {/* Add-KPI drawer — mirrors RelationshipDetailPage */}
+      <Drawer
+        open={showAddKPI}
+        title={t('governance.addKpi')}
+        sub={selectedRel?.org_a?.name && selectedRel?.org_b?.name
+          ? `${selectedRel.org_a.name} ↔ ${selectedRel.org_b.name}`
+          : selectedRel?.name}
+        onClose={() => setShowAddKPI(false)}
+        width={420}
+        footer={
+          <>
+            <span className="grow" />
+            <Button variant="ghost" onClick={() => setShowAddKPI(false)}>{t('common.cancel')}</Button>
+            <Button
+              variant="primary"
+              disabled={!kpiForm.name || createKPIMut.isPending}
+              onClick={() => {
+                if (kpiForm.name && relId) {
+                  createKPIMut.mutate({ ...kpiForm, relationship_id: relId } as KPICreate)
+                }
+              }}
+            >
+              {createKPIMut.isPending ? t('governance.creating') : t('governance.createKpi')}
+            </Button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 14 }}>
+          <Field
+            label={`${t('governance.name')} *`}
+            value={kpiForm.name || ''}
+            autoFocus
+            onChange={e => setKpiForm({ ...kpiForm, name: e.target.value })}
+            placeholder={t('governance.kpiNamePlaceholder')}
+          />
+          <Select
+            label={t('governance.category')}
+            value={kpiForm.category || 'service_delivery'}
+            onChange={e => setKpiForm({ ...kpiForm, category: e.target.value as KPICreate['category'] })}
+            options={[
+              { value: 'service_delivery', label: t('governance.kpiCategories.service_delivery') },
+              { value: 'quality', label: t('governance.kpiCategories.quality') },
+              { value: 'timeliness', label: t('governance.kpiCategories.timeliness') },
+              { value: 'communication', label: t('governance.kpiCategories.communication') },
+              { value: 'innovation', label: t('governance.kpiCategories.innovation') },
+              { value: 'cost_efficiency', label: t('governance.kpiCategories.cost_efficiency') },
+              { value: 'compliance', label: t('governance.kpiCategories.compliance') },
+              { value: 'satisfaction', label: t('governance.kpiCategories.satisfaction') },
+            ]}
+          />
+          <div>
+            <label className="lbl">{t('governance.description')}</label>
+            <div className="inp" style={{ height: 'auto', padding: '8px 10px' }}>
+              <textarea
+                rows={2}
+                style={{ resize: 'vertical' }}
+                value={kpiForm.description || ''}
+                onChange={e => setKpiForm({ ...kpiForm, description: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid gap-3 grid-cols-2">
+            <Field
+              label={t('governance.targetValue')}
+              type="number"
+              value={kpiForm.target_value ?? ''}
+              onChange={e => setKpiForm({ ...kpiForm, target_value: Number(e.target.value) })}
+            />
+            <Select
+              label={t('governance.frequency')}
+              value={kpiForm.frequency || 'quarterly'}
+              onChange={e => setKpiForm({ ...kpiForm, frequency: e.target.value as KPICreate['frequency'] })}
+              options={[
+                { value: 'weekly', label: t('governance.frequencies.weekly') },
+                { value: 'monthly', label: t('governance.frequencies.monthly') },
+                { value: 'quarterly', label: t('governance.frequencies.quarterly') },
+                { value: 'annual', label: t('governance.frequencies.annual') },
+              ]}
+            />
+          </div>
+        </div>
+      </Drawer>
+
+      {/* Record-score drawer — mirrors RelationshipDetailPage's submit-score form */}
+      <Drawer
+        open={!!scoreTarget}
+        title={t('governance.submitScore')}
+        sub={scoreTarget?.name}
+        onClose={() => setScoreTarget(null)}
+        width={400}
+        footer={
+          <>
+            <span className="grow" />
+            <Button variant="ghost" onClick={() => setScoreTarget(null)}>{t('common.cancel')}</Button>
+            <Button
+              variant="primary"
+              disabled={submitScoreMut.isPending}
+              onClick={() => {
+                if (scoreTarget && scoreForm.perspective && scoreForm.score) {
+                  submitScoreMut.mutate({ kpiId: scoreTarget.kpiId, data: scoreForm as PerceptionScoreCreate })
+                }
+              }}
+            >
+              {submitScoreMut.isPending ? t('governance.submitting') : t('governance.submit')}
+            </Button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 14 }}>
+          <Select
+            label={t('governance.perspective')}
+            value={scoreForm.perspective || 'internal'}
+            onChange={e => setScoreForm({ ...scoreForm, perspective: e.target.value as PerceptionScoreCreate['perspective'] })}
+            options={[
+              { value: 'internal', label: t('governance.sides.internal') },
+              { value: 'external', label: t('governance.sides.external') },
+            ]}
+          />
+          <div>
+            <label className="lbl">
+              {t('governance.score')}{' '}
+              <span className="num" style={{ color: 'var(--p)', fontWeight: 700 }}>{scoreForm.score}/10</span>
+            </label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              value={scoreForm.score || 5}
+              onChange={e => setScoreForm({ ...scoreForm, score: Number(e.target.value) })}
+              style={{ width: '100%', accentColor: 'var(--p)' }}
+            />
+            <div className="row faint" style={{ fontSize: 'var(--fs-xs)' }}>
+              <span>{t('governance.perfStatus.poor')}</span>
+              <span className="grow" />
+              <span>{t('governance.perfStatus.excellent')}</span>
+            </div>
+          </div>
+          <Field
+            label={t('governance.period')}
+            value={scoreForm.period || ''}
+            onChange={e => setScoreForm({ ...scoreForm, period: e.target.value })}
+            placeholder={t('governance.periodPlaceholder')}
+          />
+          <div>
+            <label className="lbl">{t('governance.comments')}</label>
+            <div className="inp" style={{ height: 'auto', padding: '8px 10px' }}>
+              <textarea
+                rows={2}
+                style={{ resize: 'vertical' }}
+                value={scoreForm.comments || ''}
+                onChange={e => setScoreForm({ ...scoreForm, comments: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+      </Drawer>
     </div>
   )
 }
