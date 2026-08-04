@@ -29,6 +29,7 @@ import {
   ChatBubbleLeftRightIcon,
   WrenchScrewdriverIcon,
   LockClosedIcon,
+  TruckIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
@@ -534,6 +535,7 @@ function ScoringRulesSection() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [scope, setScope] = useState<string>('tenant') // 'tenant' | <buId>
+  const [rulesTab, setRulesTab] = useState<'at_risk' | 'compliance' | 'vendor'>('at_risk')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [draft, setDraft] = useState<any>(null)
   const [saving, setSaving] = useState(false)
@@ -624,14 +626,22 @@ function ScoringRulesSection() {
         }
       />
 
+      <Tabs
+        tabs={[
+          { value: 'at_risk', label: t('settings.scoring.atRiskTitle', { defaultValue: 'At Risk' }), icon: ExclamationTriangleIcon },
+          { value: 'compliance', label: t('settings.scoring.complianceTitle', { defaultValue: 'Compliance' }), icon: ScaleIcon },
+          { value: 'vendor', label: t('settings.scoring.vendorTitle', { defaultValue: 'Vendor scorecard' }), icon: TruckIcon },
+        ]}
+        value={rulesTab}
+        onChange={setRulesTab}
+      />
+
       {/* At Risk */}
+      {rulesTab === 'at_risk' && (
       <div className="col" style={{ gap: 12 }}>
-        <div>
-          <span className="sec-t">{t('settings.scoring.atRiskTitle', { defaultValue: 'At Risk' })}</span>
-          <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4 }}>
-            {t('settings.scoring.atRiskDesc', { defaultValue: 'When a contract is counted as "at risk".' })}
-          </p>
-        </div>
+        <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          {t('settings.scoring.atRiskDesc', { defaultValue: 'When a contract is counted as "at risk".' })}
+        </p>
 
         <Select
           label={t('settings.scoring.definition', { defaultValue: 'Definition' })}
@@ -684,17 +694,14 @@ function ScoringRulesSection() {
           </div>
         )}
       </div>
-
-      <div className="divider" />
+      )}
 
       {/* Compliance */}
+      {rulesTab === 'compliance' && (
       <div className="col" style={{ gap: 12 }}>
-        <div>
-          <span className="sec-t">{t('settings.scoring.complianceTitle', { defaultValue: 'Compliance' })}</span>
-          <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4, lineHeight: 1.5 }}>
-            {t('settings.scoring.complianceDesc', { defaultValue: 'Overall compliance is a weighted blend of the measured components (relative weights).' })}
-          </p>
-        </div>
+        <p className="muted" style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.5 }}>
+          {t('settings.scoring.complianceDesc', { defaultValue: 'Overall compliance is a weighted blend of the measured components (relative weights).' })}
+        </p>
         <div className="grid grid-cols-2 gap-4" style={{ maxWidth: 420 }}>
           <Field
             label={t('settings.scoring.obligationWeight', { defaultValue: 'Obligation weight' })}
@@ -710,17 +717,14 @@ function ScoringRulesSection() {
           />
         </div>
       </div>
-
-      <div className="divider" />
+      )}
 
       {/* Vendor scorecard */}
+      {rulesTab === 'vendor' && (
       <div className="col" style={{ gap: 12 }}>
-        <div>
-          <span className="sec-t">{t('settings.scoring.vendorTitle', { defaultValue: 'Vendor scorecard' })}</span>
-          <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4, lineHeight: 1.5 }}>
-            {t('settings.scoring.vendorDesc', { defaultValue: 'How counterparty performance scores are blended and banded. Only measured signals (obligations, SLAs) enter the blend; weights are renormalized.' })}
-          </p>
-        </div>
+        <p className="muted" style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.5 }}>
+          {t('settings.scoring.vendorDesc', { defaultValue: 'How counterparty performance scores are blended and banded. Only measured signals (obligations, SLAs) enter the blend; weights are renormalized.' })}
+        </p>
 
         <div className="grid grid-cols-2 gap-4" style={{ maxWidth: 420 }}>
           <Field
@@ -789,6 +793,7 @@ function ScoringRulesSection() {
           </div>
         </div>
       </div>
+      )}
 
       {error && (
         <div className="banner banner-da">
@@ -797,11 +802,14 @@ function ScoringRulesSection() {
         </div>
       )}
 
-      {/* Actions */}
+      {/* Actions — one override blob: saving applies the values from all three tabs */}
       <div className="row" style={{ gap: 8 }}>
         <Button variant="primary" icon={CheckCircleIcon} onClick={() => save(draft)} disabled={saving}>
           {saving ? t('common.saving', { defaultValue: 'Saving…' }) : t('common.save', { defaultValue: 'Save' })}
         </Button>
+        <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
+          {t('settings.scoring.saveAllTabsHint', { defaultValue: 'Saves all three rule sets.' })}
+        </span>
         {hasOverride && (
           <Button
             variant="secondary"
