@@ -57,6 +57,7 @@
 
 @layer base {
   html { @apply antialiased; }
+  html, body, #root { height: 100%; }
   body {
     background:var(--pg);color:var(--t);
     font-family:var(--font);font-size:var(--fs-md);line-height:1.5;

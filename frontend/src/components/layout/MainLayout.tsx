@@ -3,28 +3,23 @@ import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import { useSidebar } from '@/contexts/SidebarContext'
-import { cn } from '@/lib/utils'
+import CommandPalette from '@/components/ui/CommandPalette'
 
+/* Direction B shell: in-flow sidebar column + top bar + scrollable content.
+   Relies on the html/body/#root height chain set in index.css. */
 export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { collapsed } = useSidebar()
   const location = useLocation()
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
+    <div className="flex h-full overflow-hidden" style={{ background: 'var(--pg)' }}>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main content */}
-      <div className={cn(
-        'transition-all duration-200',
-        collapsed ? 'lg:pl-[60px]' : 'lg:pl-[220px]'
-      )}>
+      <div className="flex min-w-0 flex-1 flex-col">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="py-6">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <main className="scroll flex-1 min-h-0">
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
             {/* Contain page crashes so one bad component doesn't blank the app.
                 Resets on navigation so moving away from a broken page recovers. */}
             <ErrorBoundary resetKey={location.pathname}>
@@ -33,6 +28,8 @@ export default function MainLayout() {
           </div>
         </main>
       </div>
+
+      <CommandPalette />
     </div>
   )
 }

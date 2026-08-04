@@ -81,8 +81,13 @@ export default function CommandPalette() {
       }
     }
 
+    const handleOpen = () => setIsOpen(true)
     document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('ev:open-palette', handleOpen)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('ev:open-palette', handleOpen)
+    }
   }, [])
 
   const filteredCommands = query === ''

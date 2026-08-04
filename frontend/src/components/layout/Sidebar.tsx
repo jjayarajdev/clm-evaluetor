@@ -1,39 +1,47 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
-  HomeIcon,
-  DocumentTextIcon,
-  CloudArrowUpIcon,
-  ChatBubbleLeftRightIcon,
-  UsersIcon,
-  Cog6ToothIcon,
-  XMarkIcon,
-  ClipboardDocumentCheckIcon,
-  CalendarDaysIcon,
+  ArrowRightOnRectangleIcon,
+  ArrowUpTrayIcon,
+  AdjustmentsHorizontalIcon,
+  BeakerIcon,
+  BuildingLibraryIcon,
   BuildingOffice2Icon,
   ChartBarIcon,
-  DocumentChartBarIcon,
-  CircleStackIcon,
-  ClockIcon,
-  ChevronLeftIcon,
+  ChartPieIcon,
+  ChatBubbleLeftRightIcon,
   ChevronRightIcon,
-  GlobeAltIcon,
-  AdjustmentsHorizontalIcon,
-  UserGroupIcon,
-  BuildingLibraryIcon,
-  LinkIcon,
+  CircleStackIcon,
+  ClipboardDocumentCheckIcon,
   ClipboardDocumentListIcon,
-  ShieldCheckIcon,
-  BeakerIcon,
+  ClockIcon,
+  CloudArrowUpIcon,
+  Cog6ToothIcon,
+  DocumentChartBarIcon,
+  DocumentTextIcon,
   FolderIcon,
+  GlobeAltIcon,
+  LanguageIcon,
+  LinkIcon,
+  MoonIcon,
+  ShieldCheckIcon,
+  Squares2X2Icon,
+  SunIcon,
   SwatchIcon,
+  UserCircleIcon,
+  UserGroupIcon,
+  UsersIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTheme } from '@/contexts/ThemeContext'
 import { can, type Permission } from '@/lib/rbac'
-import { useSidebar } from '@/contexts/SidebarContext'
+import { setAppLanguage, type AppLanguage } from '@/i18n'
+import api from '@/lib/api'
 import { cn, userDisplayName, userInitials } from '@/lib/utils'
+import { Avatar, IconButton, type IconType } from '@/components/ui'
 
 interface SidebarProps {
   open: boolean
@@ -43,51 +51,59 @@ interface SidebarProps {
 interface NavItem {
   name: string
   href: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: IconType
   permission: Permission
 }
 
 interface NavGroup {
   label: string
   items: NavItem[]
-  collapsible?: boolean
 }
 
-// ── Navigation Structure ──────────────────────────────────────────
+// ── Navigation Structure (Direction B: module-grouped) ────────────
 // `name` holds an i18n key, translated at render time via t(item.name).
 // Visibility is driven entirely by `permission` via can() — the role→permission
 // map lives in src/lib/rbac.ts (single source of truth).
 
-const mainSection: NavItem[] = [
-  { name: 'nav.dashboard', href: '/dashboard', icon: HomeIcon, permission: 'dashboard' },
-  { name: 'nav.contracts', href: '/contracts', icon: DocumentTextIcon, permission: 'contracts' },
-  { name: 'nav.groups', href: '/groups', icon: FolderIcon, permission: 'groups' },
-  { name: 'nav.postSigning', href: '/post-signing', icon: ClipboardDocumentCheckIcon, permission: 'postSigning' },
-  { name: 'nav.renewals', href: '/renewals', icon: CalendarDaysIcon, permission: 'renewals' },
+const NAV_SECTIONS: { label: string | null; items: NavItem[] }[] = [
+  {
+    label: null,
+    items: [{ name: 'nav.dashboard', href: '/dashboard', icon: Squares2X2Icon, permission: 'dashboard' }],
+  },
+  {
+    label: 'nav.sectionIntelligence',
+    items: [
+      { name: 'nav.contracts', href: '/contracts', icon: DocumentTextIcon, permission: 'contracts' },
+      { name: 'nav.groups', href: '/groups', icon: FolderIcon, permission: 'groups' },
+      { name: 'nav.upload', href: '/upload', icon: ArrowUpTrayIcon, permission: 'upload' },
+      { name: 'nav.askAi', href: '/query', icon: ChatBubbleLeftRightIcon, permission: 'askAi' },
+      { name: 'nav.reports', href: '/reports', icon: DocumentChartBarIcon, permission: 'reports' },
+    ],
+  },
+  {
+    label: 'nav.sectionPostSigning',
+    items: [
+      { name: 'nav.postSigning', href: '/post-signing', icon: ClipboardDocumentCheckIcon, permission: 'postSigning' },
+      { name: 'nav.renewals', href: '/renewals', icon: ClockIcon, permission: 'renewals' },
+      { name: 'nav.vendors', href: '/vendors', icon: BuildingOffice2Icon, permission: 'vendors' },
+    ],
+  },
+  {
+    label: 'nav.sectionGovernance',
+    items: [
+      { name: 'nav.organizations', href: '/organizations', icon: BuildingLibraryIcon, permission: 'organizations' },
+      { name: 'nav.relationships', href: '/relationships', icon: LinkIcon, permission: 'relationships' },
+      { name: 'nav.kpiApprovals', href: '/kpi-approvals', icon: ChartBarIcon, permission: 'kpiApprovals' },
+      { name: 'nav.surveys', href: '/surveys', icon: ClipboardDocumentListIcon, permission: 'surveys' },
+    ],
+  },
 ]
 
-const managementSection: NavItem[] = [
-  { name: 'nav.vendors', href: '/vendors', icon: BuildingOffice2Icon, permission: 'vendors' },
-  { name: 'nav.reports', href: '/reports', icon: DocumentChartBarIcon, permission: 'reports' },
-  { name: 'nav.usage', href: '/usage', icon: ChartBarIcon, permission: 'usage' },
-  { name: 'nav.upload', href: '/upload', icon: CloudArrowUpIcon, permission: 'upload' },
-]
-
-const governanceSection: NavItem[] = [
-  { name: 'nav.organizations', href: '/organizations', icon: BuildingLibraryIcon, permission: 'organizations' },
-  { name: 'nav.relationships', href: '/relationships', icon: LinkIcon, permission: 'relationships' },
-  { name: 'nav.kpiApprovals', href: '/kpi-approvals', icon: ShieldCheckIcon, permission: 'kpiApprovals' },
-  { name: 'nav.surveys', href: '/surveys', icon: ClipboardDocumentListIcon, permission: 'surveys' },
-]
-
-const intelligenceSection: NavItem[] = [
-  { name: 'nav.askAi', href: '/query', icon: ChatBubbleLeftRightIcon, permission: 'askAi' },
-]
+const usageItem: NavItem = { name: 'nav.usage', href: '/usage', icon: ChartPieIcon, permission: 'usage' }
 
 const adminGroups: NavGroup[] = [
   {
     label: 'nav.usersAccess',
-    collapsible: true,
     items: [
       { name: 'nav.users', href: '/users', icon: UsersIcon, permission: 'admin' },
       { name: 'nav.businessUnits', href: '/admin/business-units', icon: BuildingOffice2Icon, permission: 'admin' },
@@ -96,7 +112,6 @@ const adminGroups: NavGroup[] = [
   },
   {
     label: 'nav.integrations',
-    collapsible: true,
     items: [
       { name: 'nav.servicenow', href: '/admin/integrations/servicenow', icon: CloudArrowUpIcon, permission: 'admin' },
       { name: 'nav.sharepoint', href: '/admin/integrations/sharepoint', icon: FolderIcon, permission: 'admin' },
@@ -105,7 +120,6 @@ const adminGroups: NavGroup[] = [
   },
   {
     label: 'nav.system',
-    collapsible: true,
     items: [
       { name: 'nav.industryProfiles', href: '/admin/industry-profiles', icon: SwatchIcon, permission: 'admin' },
       { name: 'nav.extractionQuality', href: '/admin/extraction-quality', icon: BeakerIcon, permission: 'admin' },
@@ -127,103 +141,53 @@ const superAdminNav: NavItem[] = [
   { name: 'nav.integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, permission: 'superadmin' },
 ]
 
-// ── Section Label ─────────────────────────────────────────────────
+const LANGUAGES: { code: AppLanguage; labelKey: string }[] = [
+  { code: 'en', labelKey: 'common.english' },
+  { code: 'fr', labelKey: 'common.french' },
+]
 
-function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean }) {
-  const { t } = useTranslation()
-  if (collapsed) return null
+// ── Pieces ────────────────────────────────────────────────────────
+
+function Wordmark() {
   return (
-    <p className="px-3 pt-1 pb-1 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-      {t(label)}
-    </p>
-  )
-}
-
-// ── Nav Item Component ────────────────────────────────────────────
-
-function NavItemLink({
-  item,
-  onClose,
-  collapsed,
-  indent = false,
-}: {
-  item: NavItem
-  onClose: () => void
-  collapsed: boolean
-  indent?: boolean
-}) {
-  const [showTooltip, setShowTooltip] = useState(false)
-  const { t } = useTranslation()
-  const label = t(item.name)
-
-  return (
-    <div className="relative">
-      <NavLink
-        to={item.href}
-        onClick={onClose}
-        onMouseEnter={() => collapsed && setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-        aria-label={label}
-        title={label}
-        className={({ isActive }) =>
-          cn(
-            'flex items-center gap-3 rounded-lg transition-all duration-150',
-            collapsed
-              ? 'justify-center w-10 h-10'
-              : indent
-                ? 'pl-7 pr-3 py-2'
-                : 'px-3 py-2',
-            isActive
-              ? 'bg-white/15 text-white'
-              : 'text-gray-300 hover:bg-white/10 hover:text-white'
-          )
-        }
+    <div className="row" style={{ gap: 9, padding: '4px 8px' }}>
+      <span
+        style={{
+          width: 26, height: 26, borderRadius: 7, background: 'var(--p)', color: 'var(--on-p)',
+          display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 700, flexShrink: 0,
+        }}
       >
-        {({ isActive }) => (
-          <>
-            <item.icon
-              className={cn(
-                indent ? 'h-4 w-4' : 'h-5 w-5',
-                'shrink-0',
-                isActive ? 'text-white' : 'text-gray-400'
-              )}
-              aria-hidden="true"
-            />
-            {!collapsed && (
-              <span className={cn('font-medium truncate', indent ? 'text-[13px]' : 'text-sm')}>{label}</span>
-            )}
-          </>
-        )}
-      </NavLink>
-
-      {collapsed && showTooltip && (
-        <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50" role="tooltip">
-          <div className="bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap shadow-lg">
-            {label}
-          </div>
-        </div>
-      )}
+        E
+      </span>
+      <span style={{ fontSize: 'var(--fs-xl)', fontWeight: 600, letterSpacing: '-.4px' }}>Evaluetor</span>
     </div>
   )
 }
 
-// ── Flyout Menu Component (slides out to the right) ──────────────
+function NavItemLink({ item, onClose }: { item: NavItem; onClose: () => void }) {
+  const { t } = useTranslation()
+  const label = t(item.name)
+  return (
+    <NavLink
+      to={item.href}
+      onClick={onClose}
+      className="row"
+      style={({ isActive }) => ({
+        gap: 10, width: '100%', height: 34, padding: '0 10px', borderRadius: 'var(--r-sm)',
+        background: isActive ? 'var(--p-f)' : undefined,
+        color: isActive ? 'var(--p)' : 'var(--m)',
+        fontSize: 'var(--fs-md)', fontWeight: isActive ? 600 : 500,
+        textDecoration: 'none',
+      })}
+    >
+      <item.icon style={{ width: 16, height: 16, flexShrink: 0 }} aria-hidden />
+      <span className="grow trunc">{label}</span>
+    </NavLink>
+  )
+}
 
-function FlyoutMenu({
-  groups,
-  allow,
-  onClose,
-  collapsed,
-  triggerIcon: TriggerIcon,
-  triggerLabel,
-}: {
-  groups: NavGroup[]
-  allow: (p: Permission) => boolean
-  onClose: () => void
-  collapsed: boolean
-  triggerIcon: React.ComponentType<{ className?: string }>
-  triggerLabel: string
-}) {
+/* Admin flyout — one trigger for the deep admin tree, panel opens to the right. */
+function AdminFlyout({ allow, onClose }: { allow: (p: Permission) => boolean; onClose: () => void }) {
   const { t } = useTranslation()
   const location = useLocation()
   const [isOpen, setIsOpen] = useState(false)
@@ -231,23 +195,12 @@ function FlyoutMenu({
   const panelRef = useRef<HTMLDivElement>(null)
   const [panelPos, setPanelPos] = useState({ bottom: 0, left: 0 })
 
-  // All items across groups the user is allowed to see
-  const allItems = groups.flatMap((g) => g.items.filter((item) => allow(item.permission)))
-  const hasActiveChild = allItems.some((item) => location.pathname.startsWith(item.href))
+  const allItems = adminGroups.flatMap((g) => g.items.filter((i) => allow(i.permission)))
+  const hasActiveChild = allItems.some((i) => location.pathname.startsWith(i.href))
 
-  // Position the flyout panel next to the trigger button, growing upward
-  const updatePosition = useCallback(() => {
-    if (!triggerRef.current) return
-    const rect = triggerRef.current.getBoundingClientRect()
-    setPanelPos({
-      bottom: window.innerHeight - rect.bottom,
-      left: rect.right + 8,
-    })
-  }, [])
-
-  // Close flyout on outside click
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    if (!isOpen) return
+    const handle = (e: MouseEvent) => {
       const target = e.target as Node
       if (
         triggerRef.current && !triggerRef.current.contains(target) &&
@@ -256,150 +209,198 @@ function FlyoutMenu({
         setIsOpen(false)
       }
     }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
   }, [isOpen])
 
-  // Close flyout on route change
-  useEffect(() => {
-    setIsOpen(false)
-  }, [location.pathname])
+  useEffect(() => setIsOpen(false), [location.pathname])
 
-  // Recalculate position when opening
   useEffect(() => {
-    if (isOpen) updatePosition()
-  }, [isOpen, updatePosition])
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      setPanelPos({ bottom: window.innerHeight - rect.bottom, left: rect.right + 8 })
+    }
+  }, [isOpen])
 
   if (allItems.length === 0) return null
 
   return (
     <>
-      {/* Trigger button */}
       <button
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          'flex items-center gap-3 rounded-lg transition-all duration-150 w-full',
-          collapsed
-            ? 'justify-center w-10 h-10'
-            : 'px-3 py-2',
-          isOpen
-            ? 'bg-white/20 text-white'
-            : hasActiveChild
-              ? 'bg-white/15 text-white'
-              : 'text-gray-300 hover:bg-white/10 hover:text-white'
-        )}
+        className="row"
+        style={{
+          gap: 10, width: '100%', height: 34, padding: '0 10px', border: 0, borderRadius: 'var(--r-sm)',
+          background: isOpen || hasActiveChild ? 'var(--p-f)' : 'transparent',
+          color: isOpen || hasActiveChild ? 'var(--p)' : 'var(--m)',
+          fontSize: 'var(--fs-md)', fontWeight: isOpen || hasActiveChild ? 600 : 500,
+          cursor: 'pointer', textAlign: 'left',
+        }}
       >
-        <TriggerIcon
-          className={cn(
-            'h-5 w-5 shrink-0',
-            isOpen || hasActiveChild ? 'text-white' : 'text-gray-400'
-          )}
+        <Cog6ToothIcon style={{ width: 16, height: 16, flexShrink: 0 }} aria-hidden />
+        <span className="grow trunc">{t('nav.administration')}</span>
+        <ChevronRightIcon
+          style={{ width: 13, height: 13, flexShrink: 0, transition: 'transform .2s var(--ease)', transform: isOpen ? 'rotate(90deg)' : undefined }}
+          aria-hidden
         />
-        {!collapsed && (
-          <>
-            <span className="text-sm font-medium truncate flex-1 text-left">{t(triggerLabel)}</span>
-            <ChevronRightIcon className={cn(
-              'h-3.5 w-3.5 shrink-0 transition-transform duration-200',
-              isOpen && 'rotate-90'
-            )} />
-          </>
-        )}
       </button>
 
-      {/* Flyout panel — rendered via portal to escape sidebar overflow */}
-      {isOpen && createPortal(
-        <div
-          ref={panelRef}
-          className="fixed z-[9999] rounded-xl bg-primary-900 border border-white/15 shadow-2xl"
-          style={{
-            bottom: `${panelPos.bottom}px`,
-            left: `${panelPos.left}px`,
-            animation: 'flyoutIn 150ms ease-out',
-            minWidth: '220px',
-          }}
-        >
-          {/* Flyout header */}
-          <div className="px-4 py-3 border-b border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t(triggerLabel)}</p>
-          </div>
-
-          {/* Groups */}
-          <div className="py-2 max-h-[60vh] overflow-y-auto">
-            {groups.map((group, gi) => {
-              const items = group.items.filter((item) => allow(item.permission))
+      {isOpen &&
+        createPortal(
+          <div
+            ref={panelRef}
+            className="menu"
+            style={{
+              position: 'fixed', bottom: panelPos.bottom, left: panelPos.left, top: 'auto',
+              minWidth: 230, maxHeight: '70vh', overflowY: 'auto', zIndex: 95,
+            }}
+          >
+            {adminGroups.map((group, gi) => {
+              const items = group.items.filter((i) => allow(i.permission))
               if (items.length === 0) return null
               return (
                 <div key={group.label}>
-                  {gi > 0 && <div className="border-t border-white/10 my-1.5 mx-3" />}
-                  <p className="px-4 pt-2 pb-1 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-                    {t(group.label)}
-                  </p>
+                  {gi > 0 && <div className="msep" />}
+                  <div className="sec-t" style={{ padding: '7px 8px 4px' }}>{t(group.label)}</div>
                   {items.map((item) => (
                     <NavLink
                       key={item.name}
                       to={item.href}
-                      onClick={() => {
-                        setIsOpen(false)
-                        onClose()
-                      }}
-                      className={({ isActive }) =>
-                        cn(
-                          'flex items-center gap-3 mx-2 px-3 py-2 rounded-lg text-sm transition-all duration-150',
-                          isActive
-                            ? 'bg-white/15 text-white'
-                            : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                        )
-                      }
+                      onClick={() => { setIsOpen(false); onClose() }}
+                      className={({ isActive }) => cn('mi', isActive && 'on')}
+                      style={({ isActive }) => ({
+                        textDecoration: 'none',
+                        background: isActive ? 'var(--p-f)' : undefined,
+                        color: isActive ? 'var(--p)' : undefined,
+                      })}
                     >
-                      {({ isActive }) => (
-                        <>
-                          <item.icon
-                            className={cn('h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-gray-400')}
-                          />
-                          <span className="font-medium">{t(item.name)}</span>
-                        </>
-                      )}
+                      <item.icon style={{ width: 15, height: 15, flexShrink: 0, color: 'var(--m)' }} aria-hidden />
+                      {t(item.name)}
                     </NavLink>
                   ))}
                 </div>
               )
             })}
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body
+        )}
     </>
   )
 }
 
-// ── Nav Section (label + items) ───────────────────────────────────
+/* Bottom-anchored user card opening an upward menu: profile + sign out. */
+function UserMenu({ onClose }: { onClose: () => void }) {
+  const { user, logout } = useAuth()
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
 
-function NavSection({
-  label,
-  items,
-  allow,
-  onClose,
-  collapsed,
-}: {
-  label: string
-  items: NavItem[]
-  allow: (p: Permission) => boolean
-  onClose: () => void
-  collapsed: boolean
-}) {
-  const filtered = items.filter((item) => allow(item.permission))
-  if (filtered.length === 0) return null
+  useEffect(() => {
+    if (!open) return
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('mousedown', handle)
+    document.addEventListener('keydown', key)
+    return () => {
+      document.removeEventListener('mousedown', handle)
+      document.removeEventListener('keydown', key)
+    }
+  }, [open])
+
+  if (!user) return null
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        className="row"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        style={{
+          gap: 9, width: '100%', padding: '7px 8px', border: '1px solid var(--b)', borderRadius: 'var(--r-md)',
+          background: 'var(--s)', cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <Avatar name={userDisplayName(user)} initials={userInitials(user)} size={28} />
+        <span className="grow" style={{ minWidth: 0 }}>
+          <span className="trunc" style={{ display: 'block', fontSize: 'var(--fs-md)', fontWeight: 600 }}>
+            {userDisplayName(user)}
+          </span>
+          <span className="trunc" style={{ display: 'block', fontSize: 'var(--fs-2xs)', color: 'var(--f)' }}>
+            {t(`roles.${user.role}`)}{user.tenant_name ? ` · ${user.tenant_name}` : ''}
+          </span>
+        </span>
+      </button>
+      {open && (
+        <div className="menu" style={{ bottom: '100%', left: 0, right: 0, top: 'auto', marginBottom: 6, minWidth: 0 }}>
+          <div
+            className="mi"
+            role="menuitem"
+            onClick={() => { setOpen(false); onClose(); navigate('/settings') }}
+          >
+            <UserCircleIcon style={{ width: 15, height: 15, color: 'var(--m)' }} aria-hidden />
+            {t('nav.profile')}
+          </div>
+          <div className="msep" />
+          <div className="mi" role="menuitem" onClick={() => logout()}>
+            <ArrowRightOnRectangleIcon style={{ width: 15, height: 15, color: 'var(--m)' }} aria-hidden />
+            {t('nav.signOut')}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LanguageSwitcher() {
+  const { user } = useAuth()
+  const { t, i18n } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [open])
+
+  const changeLanguage = async (code: AppLanguage) => {
+    setAppLanguage(code)
+    setOpen(false)
+    if (user) {
+      try {
+        await api.updateMyPreferences(code)
+      } catch {
+        // Preference persists locally even if the API call fails
+      }
+    }
+  }
 
   return (
-    <>
-      <SectionLabel label={label} collapsed={collapsed} />
-      {filtered.map((item) => (
-        <NavItemLink key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
-      ))}
-    </>
+    <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
+      <IconButton icon={LanguageIcon} label={t('common.language')} onClick={() => setOpen((o) => !o)} />
+      {open && (
+        <div className="menu" style={{ bottom: '100%', left: 0, top: 'auto', marginBottom: 6, minWidth: 140 }}>
+          {LANGUAGES.map(({ code, labelKey }) => (
+            <div
+              key={code}
+              className="mi"
+              role="menuitem"
+              style={i18n.language === code ? { color: 'var(--p)', fontWeight: 600 } : undefined}
+              onClick={() => changeLanguage(code)}
+            >
+              {t(labelKey)}
+              {i18n.language === code && <span className="kb">✓</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -407,182 +408,84 @@ function NavSection({
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuth()
-  const { t } = useTranslation()
-  const { collapsed, toggleCollapsed } = useSidebar()
+  const { t, i18n } = useTranslation()
+  const { theme, toggle } = useTheme()
 
   const allow = (p: Permission) => can(user, p)
-  const filteredMain = mainSection.filter((item) => allow(item.permission))
-  const filteredMgmt = managementSection.filter((item) => allow(item.permission))
-  const filteredGov = governanceSection.filter((item) => allow(item.permission))
-  const filteredIntel = intelligenceSection.filter((item) => allow(item.permission))
-  const filteredSuperAdmin = superAdminNav.filter((item) => allow(item.permission))
+  const sections = NAV_SECTIONS
+    .map((sec) => ({ ...sec, items: sec.items.filter((i) => allow(i.permission)) }))
+    .filter((sec) => sec.items.length > 0)
+  const showUsage = allow(usageItem.permission)
   const hasAdmin = allow('admin')
-  const hasSuperAdmin = allow('superadmin')
-
-  const sidebarWidth = collapsed ? 'w-[60px]' : 'w-[220px]'
+  const filteredSuperAdmin = superAdminNav.filter((i) => allow(i.permission))
 
   const sidebarContent = (
-    <div className={cn(
-      'flex h-full flex-col bg-primary-800 transition-all duration-200',
-      sidebarWidth
-    )}>
-      {/* Logo & Toggle */}
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="h-8 w-8 shrink-0 rounded-lg bg-primary-600 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">E</span>
-          </div>
-          {!collapsed && (
-            <span className="text-base font-semibold text-white truncate">
-              Evaluetor
-            </span>
-          )}
-        </div>
-        <button
-          onClick={toggleCollapsed}
-          className={cn(
-            'p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors',
-            collapsed && 'absolute -right-3 top-4 bg-primary-800 border border-white/20 shadow-lg z-10'
-          )}
-          aria-label={collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
-          title={collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
-        >
-          {collapsed ? (
-            <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <ChevronLeftIcon className="h-4 w-4" aria-hidden="true" />
-          )}
-        </button>
+    <nav
+      className="col"
+      aria-label="Main navigation"
+      style={{
+        width: 'var(--nav-w)', flexShrink: 0, height: '100%',
+        background: 'var(--s)', borderRight: '1px solid var(--b)',
+      }}
+    >
+      <div className="row" style={{ padding: '12px 12px 8px', gap: 8 }}>
+        <Wordmark />
+        <span className="grow" />
+        <IconButton icon={XMarkIcon} label={t('nav.closeSidebar')} onClick={onClose} className="lg:hidden" />
       </div>
 
-      {/* Navigation */}
-      <nav
-        className={cn(
-          'flex-1 flex flex-col py-4 overflow-y-auto',
-          collapsed ? 'items-center space-y-1' : 'px-3 space-y-0.5'
-        )}
-        aria-label="Main navigation"
-      >
-        {/* MAIN */}
-        {filteredMain.length > 0 && (
-          <NavSection label="nav.sectionMain" items={mainSection} allow={allow} onClose={onClose} collapsed={collapsed} />
-        )}
-
-        {/* MANAGEMENT */}
-        {filteredMgmt.length > 0 && (
-          <>
-            <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <NavSection label="nav.sectionManagement" items={managementSection} allow={allow} onClose={onClose} collapsed={collapsed} />
-          </>
-        )}
-
-        {/* GOVERNANCE */}
-        {filteredGov.length > 0 && (
-          <>
-            <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <NavSection label="nav.sectionGovernance" items={governanceSection} allow={allow} onClose={onClose} collapsed={collapsed} />
-          </>
-        )}
-
-        {/* INTELLIGENCE */}
-        {filteredIntel.length > 0 && (
-          <>
-            <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <NavSection label="nav.sectionIntelligence" items={intelligenceSection} allow={allow} onClose={onClose} collapsed={collapsed} />
-          </>
-        )}
-
-        {/* Admin flyout */}
-        {hasAdmin && (
-          <>
-            <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <SectionLabel label="nav.sectionAdmin" collapsed={collapsed} />
-            <FlyoutMenu
-              groups={adminGroups}
-              allow={allow}
-              onClose={onClose}
-              collapsed={collapsed}
-              triggerIcon={Cog6ToothIcon}
-              triggerLabel="nav.administration"
-            />
-          </>
-        )}
-
-        {/* Super Admin — show items directly (no flyout needed, it's their only section) */}
-        {hasSuperAdmin && filteredSuperAdmin.length > 0 && (
-          <>
-            <div className={cn('border-t border-white/10 !my-3', collapsed ? 'w-6' : 'w-full')} />
-            <SectionLabel label="nav.sectionSuperAdmin" collapsed={collapsed} />
-            {filteredSuperAdmin.map((item) => (
-              <NavItemLink key={item.name} item={item} onClose={onClose} collapsed={collapsed} />
+      <div className="scroll grow" style={{ padding: '4px 10px 10px' }}>
+        {sections.map((sec, n) => (
+          <div key={sec.label || n} style={{ marginBottom: 4 }}>
+            {sec.label && <div className="sec-t" style={{ padding: '14px 10px 6px' }}>{t(sec.label)}</div>}
+            {sec.items.map((item) => (
+              <NavItemLink key={item.name} item={item} onClose={onClose} />
             ))}
-          </>
+          </div>
+        ))}
+
+        {(showUsage || hasAdmin) && (
+          <div style={{ marginBottom: 4 }}>
+            <div className="sec-t" style={{ padding: '14px 10px 6px' }}>{t('nav.sectionAdmin')}</div>
+            {showUsage && <NavItemLink item={usageItem} onClose={onClose} />}
+            {hasAdmin && <AdminFlyout allow={allow} onClose={onClose} />}
+          </div>
         )}
-      </nav>
 
-      {/* User Avatar (bottom) */}
-      <div className={cn(
-        'border-t border-white/10 py-4',
-        collapsed ? 'flex flex-col items-center' : 'px-3'
-      )}>
-        {user && (
-          <div className={cn(
-            'relative group',
-            collapsed ? 'flex justify-center' : ''
-          )}>
-            <div className={cn(
-              'flex items-center gap-3 rounded-lg transition-all cursor-pointer',
-              collapsed
-                ? 'justify-center'
-                : 'p-2 hover:bg-white/10 w-full'
-            )}>
-              <div className="h-9 w-9 shrink-0 rounded-full bg-primary-600 flex items-center justify-center hover:ring-2 hover:ring-primary-400 transition-all">
-                <span className="text-sm font-semibold text-white">
-                  {userInitials(user)}
-                </span>
-              </div>
-              {!collapsed && (
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
-                    {userDisplayName(user)}
-                  </p>
-                  <p className="text-xs text-gray-400 truncate">{t(`roles.${user.role}`)}</p>
-                  {user.tenant_name && (
-                    <p className="text-xs font-semibold text-primary-400 truncate">{user.tenant_name}</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {collapsed && (
-              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                <div className="bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap shadow-lg">
-                  {userDisplayName(user)}
-                  <span className="text-gray-400 ml-1">({t(`roles.${user.role}`)})</span>
-                  {user.tenant_name && (
-                    <span className="text-primary-400 ml-1">&middot; {user.tenant_name}</span>
-                  )}
-                </div>
-              </div>
-            )}
+        {filteredSuperAdmin.length > 0 && (
+          <div style={{ marginBottom: 4 }}>
+            <div className="sec-t" style={{ padding: '14px 10px 6px' }}>{t('nav.sectionSuperAdmin')}</div>
+            {filteredSuperAdmin.map((item) => (
+              <NavItemLink key={item.name} item={item} onClose={onClose} />
+            ))}
           </div>
         )}
       </div>
-    </div>
+
+      <div style={{ padding: 10, borderTop: '1px solid var(--b)' }}>
+        <div className="row" style={{ gap: 6, marginBottom: 8 }}>
+          <IconButton
+            icon={theme === 'dark' ? SunIcon : MoonIcon}
+            label={t('nav.toggleTheme')}
+            onClick={toggle}
+          />
+          <LanguageSwitcher />
+          <span className="grow" />
+          <span className="faint mono" style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase' }}>
+            {i18n.language}
+          </span>
+        </div>
+        <UserMenu onClose={onClose} />
+      </div>
+    </nav>
   )
 
   return (
     <>
-      {/* Mobile sidebar overlay */}
+      {/* Mobile: scrim + drawer */}
       {open && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-          onClick={onClose}
-          aria-hidden="true"
-        />
+        <div className="fixed inset-0 z-40 lg:hidden" style={{ background: 'rgba(9,9,11,.45)' }} onClick={onClose} aria-hidden="true" />
       )}
-
-      {/* Mobile sidebar */}
       <div
         className={cn(
           'fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:hidden',
@@ -592,27 +495,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         aria-modal="true"
         aria-label="Mobile navigation"
       >
-        <button
-          className="absolute right-2 top-2 p-2 text-gray-400 hover:text-white"
-          onClick={onClose}
-          aria-label={t('nav.closeSidebar')}
-        >
-          <XMarkIcon className="h-5 w-5" aria-hidden="true" />
-        </button>
         {sidebarContent}
       </div>
 
-      {/* Desktop sidebar */}
-      <div
-        className={cn(
-          'hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col transition-all duration-200',
-          collapsed ? 'lg:w-[60px]' : 'lg:w-[220px]'
-        )}
-        role="navigation"
-        aria-label="Main navigation"
-      >
-        {sidebarContent}
-      </div>
+      {/* Desktop: in-flow fixed-width column */}
+      <div className="hidden lg:flex h-full flex-shrink-0">{sidebarContent}</div>
     </>
   )
 }
