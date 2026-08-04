@@ -60,8 +60,9 @@ class RenewalWidget(BaseModel):
     expired_recent_count: int = 0
     expired_value: float = 0.0      # summed value of recently lapsed contracts
 
-    # Upcoming renewals
-    upcoming_renewals: list[dict]  # Top 5
+    # Renewals needing attention: recently-lapsed first (newest lapse first),
+    # then upcoming expirations soonest-first. Top 8.
+    upcoming_renewals: list[dict]
 
 
 class VendorWidget(BaseModel):

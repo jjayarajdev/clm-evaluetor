@@ -320,7 +320,12 @@ class PostSigningService:
         value_at_risk = sum(float(c.contract_value) for c in expiring_90 if c.contract_value)
         expired_value = sum(float(c.contract_value) for c in expired_recent if c.contract_value)
 
-        upcoming = sorted(expiring_90, key=lambda c: c.expiration_date or date.max)[:5]
+        # Past-due renewals need attention most: recently-lapsed first (newest
+        # lapse first), then upcoming expirations soonest-first.
+        upcoming = (
+            sorted(expired_recent, key=lambda c: c.expiration_date, reverse=True)
+            + sorted(expiring_90, key=lambda c: c.expiration_date or date.max)
+        )[:8]
         upcoming_renewals = [
             {
                 "contract_id": str(c.id),

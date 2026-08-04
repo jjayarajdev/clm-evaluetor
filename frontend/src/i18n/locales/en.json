@@ -605,7 +605,7 @@
     "notRated": "Not rated",
     "vendorsSubtitle": "active counterparties",
     "extractedUntracked": "extracted · not yet tracked",
-    "renewalsComingUp": "Renewals coming up",
+    "renewalsComingUp": "Renewals needing attention",
     "colContract": "Contract",
     "colCounterparty": "Counterparty",
     "colExpires": "Expires",

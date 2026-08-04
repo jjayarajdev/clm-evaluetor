@@ -937,6 +937,13 @@ export default function PostSigningPage() {
       nowrap: true,
       render: (r) => {
         const days = r.expiration_date ? daysUntil(r.expiration_date) : null
+        if (days != null && days < 0) {
+          return (
+            <span className="num" style={{ fontWeight: 600, color: 'var(--da)' }}>
+              {t('contracts.daysAgo', { count: -days, defaultValue: '{{count}}d ago' })}
+            </span>
+          )
+        }
         return (
           <span className="num" style={{ fontWeight: 500, color: days != null && days < 30 ? 'var(--wa)' : undefined }}>
             {days != null ? t('postsigning.daysCount', { count: days }) : '—'}
