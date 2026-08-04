@@ -373,6 +373,20 @@ Respond with the structured JSON as specified."""
                     logger.info(f"LLM rejected counterparty: {raw_value}")
                     metadata.counterparty = None
 
+            # Fallback: counterparty missing or rejected (e.g. the model picked
+            # the uploader's own org and exclusion nulled it) — try the other
+            # extracted parties. _clean_counterparty_with_llm re-applies the
+            # exclusion + junk checks, so the first survivor is safe to use.
+            if (metadata.counterparty is None or not metadata.counterparty.value) and metadata.parties:
+                for party in metadata.parties:
+                    cleaned = await _clean_counterparty_with_llm(str(party), excluded_parties)
+                    if cleaned:
+                        logger.info(f"Counterparty recovered from parties list: {cleaned}")
+                        metadata.counterparty = MetadataField(
+                            value=cleaned, confidence=0.6, raw_text=str(party)
+                        )
+                        break
+
             return metadata
         else:
             logger.warning(f"Could not parse metadata response: {response.response[:200]}")
@@ -417,8 +431,13 @@ async def _clean_counterparty_with_llm(value: str, excluded_parties: list[str] |
                 logger.info(f"LLM cleaning rejected '{value}' — is substring of excluded party '{ep}'")
                 return None
 
-    # If it looks clean already (short, has legal suffix), return as-is
-    if len(value) < 80 and re.search(r'\b(Inc\.?|LLC|Ltd\.?|Limited|Corp\.?|Corporation|GmbH|BV|B\.V\.?|LP|LLP|PLC|AG|SA|NV|N\.V\.?|Pty|Pvt)\b', value, re.IGNORECASE):
+    # If it looks clean already (short, has legal suffix), return as-is.
+    # Includes French/EU forms (SAS, SARL, SASU, EURL, SCI, GIE, SpA, S.r.l., AB, Oy)
+    if len(value) < 80 and re.search(
+        r'\b(Inc\.?|LLC|Ltd\.?|Limited|Corp\.?|Corporation|GmbH|BV|B\.V\.?|LP|LLP|PLC|AG'
+        r'|SA|NV|N\.V\.?|Pty|Pvt|SAS|SASU|SARL|EURL|SCI|GIE|SpA|S\.p\.A\.?|Srl|S\.r\.l\.?|AB|Oy)\b',
+        value, re.IGNORECASE,
+    ):
         return value
 
     # Use LLM to extract clean name (per-tenant client)
@@ -436,15 +455,19 @@ async def _clean_counterparty_with_llm(value: str, excluded_parties: list[str] |
 
 Rules:
 - Return ONLY the company name (e.g., "Acme Corporation", "TechServices Inc.", "CareerSource Heartland")
-- A valid company name is a proper noun, often with a legal suffix (Inc., LLC, Ltd., Corp., etc.)
-- Remove any addresses, cities, states, zip codes
-- Return NULL if the text is any of these:
+- Company names may be in ANY language and often have NO legal suffix at all —
+  a bare proper-noun trade name like "OPENWORK", "ALTHEA" or "Datadog" IS a
+  valid company name. Legal suffixes vary by country (Inc., LLC, Ltd., GmbH,
+  SAS, SARL, SA, BV, SpA, AB, Oy, ...) and are optional.
+- Remove any addresses, cities, states, zip codes, and legal boilerplate
+  ("société par actions simplifiée au capital de ...", "a Delaware corporation")
+- Return NULL ONLY if the text clearly is one of these:
   * Template placeholder: "[Company Name]", "[VENDOR]", "Party A/B"
-  * Generic role: "Contractor", "Service Provider", "Supplier", "Client", "Vendor"
+  * Generic role word: "Contractor", "Service Provider", "Supplier", "Client", "Vendor", "Le Prestataire", "Le Client"
   * Sentence fragment: "the terms of any SOW", "attached hereto as Exhibit A", "the ones in the RFP"
   * Document reference: "this Agreement", "the Contract", "PMI Agreement", "SDLC"
-  * Any text that is NOT a proper company/organization name
-- If you are uncertain whether it's a real company name, return: NULL
+- When the text is a plausible proper-noun name, KEEP it — do not reject a
+  name merely because it is short, unfamiliar, or lacks a suffix.
 - Return the name only, nothing else."""
                 },
                 {
