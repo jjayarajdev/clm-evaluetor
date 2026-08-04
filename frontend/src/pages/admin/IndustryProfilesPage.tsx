@@ -1,3 +1,9 @@
+/* Industry Profiles admin — Direction B restyle.
+   Toolbar header (profile switcher menu, super-admin New Industry) → left
+   taxonomy nav with accuracy/suggestion badges → searchable base/custom item
+   lists → edit in a Drawer (Field/Select primitives) → AI suggestions and
+   quality notices as banners. Queries, mutations, the NewIndustryWizard,
+   permission checks and i18n are unchanged from the pre-redesign page. */
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -30,6 +36,8 @@ import {
   ChartBarIcon,
   CheckCircleIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
+  InformationCircleIcon,
   LightBulbIcon,
   SwatchIcon,
   PlusIcon,
@@ -43,6 +51,17 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
+import {
+  Button,
+  Drawer,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Select,
+  Tag,
+} from '@/components/ui'
+import type { PillTone } from '@/components/ui'
 
 // ============================================================================
 // Types
@@ -98,7 +117,7 @@ const TABS = [
 
 type TabId = typeof TABS[number]['id']
 
-// Fields config for the slide-over edit form per tab
+// Fields config for the drawer edit form per tab
 const TAB_FIELDS: Record<string, Array<{ key: string; label: string; placeholder: string; required?: boolean; type?: string }>> = {
   contract_types: [
     { key: 'code', label: 'Code', placeholder: 'e.g. supply_agreement', required: true },
@@ -131,11 +150,28 @@ const TAB_FIELDS: Record<string, Array<{ key: string; label: string; placeholder
 // AccuracyBadge
 // ============================================================================
 
+function accuracyTone(score: number): PillTone {
+  return score >= 90 ? 'ok' : score >= 70 ? 'wa' : 'da'
+}
+
 function AccuracyBadge({ score, size = 'sm' }: { score: number | null | undefined; size?: 'sm' | 'md' }) {
   if (score == null) return null
-  const color = score >= 90 ? 'bg-green-100 text-green-700' : score >= 70 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-  const sizeClass = size === 'md' ? 'px-2 py-0.5 text-xs' : 'px-1.5 py-0.5 text-[10px]'
-  return <span className={cn('font-semibold rounded-full', color, sizeClass)}>{Math.round(score)}%</span>
+  const tone = accuracyTone(score)
+  if (size === 'md') {
+    return (
+      <Pill tone={tone} dot={false} className="num">
+        {Math.round(score)}%
+      </Pill>
+    )
+  }
+  return (
+    <span
+      className="num"
+      style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: `var(--${tone})`, flexShrink: 0 }}
+    >
+      {Math.round(score)}%
+    </span>
+  )
 }
 
 // ============================================================================
@@ -168,46 +204,63 @@ function ProfileSelector({
 
   return (
     <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors text-sm"
-      >
-        <CheckCircleIcon className="h-4 w-4 text-violet-500" />
-        <span className="font-medium text-gray-900">{current?.name || t('industry.noProfile')}</span>
-        <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition-transform', open && 'rotate-180')} />
+      <button onClick={() => setOpen(!open)} className="btn btn-s">
+        <CheckCircleIcon style={{ width: 15, height: 15, color: 'var(--p)', flexShrink: 0 }} aria-hidden />
+        <span>{current?.name || t('industry.noProfile')}</span>
+        <ChevronDownIcon
+          style={{ width: 14, height: 14, color: 'var(--f)', flexShrink: 0 }}
+          className={cn('transition-transform', open && 'rotate-180')}
+          aria-hidden
+        />
       </button>
       {open && (
-        <div className="absolute top-full right-0 mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1">
+        <div className="menu scroll" style={{ top: '100%', right: 0, marginTop: 4, width: 288, maxHeight: 420 }}>
           {profiles.map((p) => (
             <button
               key={p.id}
               onClick={() => { onSwitch(p.slug); setOpen(false) }}
-              className={cn('w-full text-left px-4 py-2.5 hover:bg-gray-50', p.slug === currentSlug && 'bg-violet-50')}
+              className={cn(
+                'col w-full text-left rounded-md transition-colors',
+                p.slug === currentSlug ? 'bg-[var(--p-f)]' : 'bg-transparent hover:bg-[var(--s2)]'
+              )}
+              style={{ gap: 2, padding: '8px 10px', border: 0, cursor: 'pointer' }}
             >
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-gray-900">{p.name}</div>
-                {p.slug === currentSlug && <CheckCircleIcon className="h-4 w-4 text-violet-500" />}
-              </div>
-              <div className="text-xs text-gray-500">{p.description}</div>
-              <div className="flex gap-3 mt-1">
-                <span className="text-[10px] text-gray-400">{t('industry.typesCount', { count: p.contract_type_count })}</span>
-                <span className="text-[10px] text-gray-400">{t('industry.clausesCount', { count: p.clause_type_count })}</span>
-                <span className="text-[10px] text-gray-400">{t('industry.slasCount', { count: p.sla_metric_count })}</span>
-              </div>
+              <span className="row" style={{ gap: 8 }}>
+                <span className="grow trunc" style={{ fontSize: 'var(--fs-md)', fontWeight: 500, color: 'var(--t)' }}>
+                  {p.name}
+                </span>
+                {p.slug === currentSlug && (
+                  <CheckCircleIcon style={{ width: 15, height: 15, color: 'var(--p)', flexShrink: 0 }} aria-hidden />
+                )}
+              </span>
+              {p.description && (
+                <span className="faint trunc" style={{ fontSize: 'var(--fs-sm)' }}>{p.description}</span>
+              )}
+              <span className="row" style={{ gap: 10 }}>
+                <span className="faint num" style={{ fontSize: 'var(--fs-2xs)' }}>
+                  {t('industry.typesCount', { count: p.contract_type_count })}
+                </span>
+                <span className="faint num" style={{ fontSize: 'var(--fs-2xs)' }}>
+                  {t('industry.clausesCount', { count: p.clause_type_count })}
+                </span>
+                <span className="faint num" style={{ fontSize: 'var(--fs-2xs)' }}>
+                  {t('industry.slasCount', { count: p.sla_metric_count })}
+                </span>
+              </span>
               {/* Usage is a cross-tenant, super-admin-only concern */}
               {isSuperAdmin && ((p.tenant_default_count ?? 0) > 0 || (p.contract_count ?? 0) > 0) && (
-                <div className="flex gap-3 mt-0.5">
+                <span className="row" style={{ gap: 10 }}>
                   {(p.tenant_default_count ?? 0) > 0 && (
-                    <span className="text-[10px] font-medium text-violet-500">
+                    <span className="num" style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--p)' }}>
                       {t('industry.usedByTenants', { count: p.tenant_default_count })}
                     </span>
                   )}
                   {(p.contract_count ?? 0) > 0 && (
-                    <span className="text-[10px] font-medium text-violet-500">
+                    <span className="num" style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--p)' }}>
                       {t('industry.usedByContracts', { count: p.contract_count })}
                     </span>
                   )}
-                </div>
+                </span>
               )}
             </button>
           ))}
@@ -218,52 +271,7 @@ function ProfileSelector({
 }
 
 // ============================================================================
-// Slide-Over Panel
-// ============================================================================
-
-function SlideOver({
-  open,
-  onClose,
-  title,
-  children,
-}: {
-  open: boolean
-  onClose: () => void
-  title: string
-  children: React.ReactNode
-}) {
-  useEffect(() => {
-    if (open) {
-      const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-      document.addEventListener('keydown', handler)
-      return () => document.removeEventListener('keydown', handler)
-    }
-  }, [open, onClose])
-
-  if (!open) return null
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
-      {/* Panel */}
-      <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-            <XMarkIcon className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {children}
-        </div>
-      </div>
-    </>
-  )
-}
-
-// ============================================================================
-// Item Edit Form (inside slide-over)
+// Item Edit Form (inside drawer)
 // ============================================================================
 
 function ItemEditForm({
@@ -307,21 +315,22 @@ function ItemEditForm({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="col" style={{ gap: 14 }}>
       {/* Accuracy info */}
       {accuracy && accuracy.total > 0 && (
-        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-600">{t('industry.extractionAccuracy')}</span>
+        <div className="card card-p">
+          <div className="row">
+            <span className="sec-t">{t('industry.extractionAccuracy')}</span>
+            <span className="grow" />
             <AccuracyBadge score={accuracy.accuracy} size="md" />
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4 }}>
             {t('industry.verifiedCorrect', { correct: accuracy.correct, total: accuracy.total })}
           </div>
           {accuracy.accuracy < 70 && (
             <Link
               to={`/admin/extraction-quality?entity_type=clause&taxonomy_code=${item.code}`}
-              className="text-xs text-red-600 hover:text-red-700 font-medium mt-1 inline-block"
+              style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--da)', display: 'inline-block', marginTop: 4 }}
             >
               {t('industry.reviewExtractions')}
             </Link>
@@ -330,63 +339,48 @@ function ItemEditForm({
       )}
 
       {/* Fields */}
-      {fields.map((f) => (
-        <div key={f.key}>
-          <label className="block text-xs font-medium text-gray-600 mb-1">
-            {t(`industry.fields.${f.key}`, { defaultValue: f.label })} {f.required && <span className="text-red-400">*</span>}
-          </label>
-          {f.key === 'direction' ? (
-            <select
-              value={draft[f.key] || ''}
-              onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
-            >
-              <option value="">—</option>
-              <option value="higher_is_better">{t('industry.higherIsBetter')}</option>
-              <option value="lower_is_better">{t('industry.lowerIsBetter')}</option>
-            </select>
-          ) : (
-            <input
-              type={f.type || 'text'}
-              value={draft[f.key] || ''}
-              onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSave() }}
-              placeholder={t(`industry.ph.${tabId}.${f.key}`, { defaultValue: f.placeholder })}
-              disabled={f.key === 'code' && !isNew}
-              className={cn(
-                'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400',
-                f.key === 'code' && !isNew && 'bg-gray-50 text-gray-500'
-              )}
-            />
-          )}
-        </div>
-      ))}
+      {fields.map((f) =>
+        f.key === 'direction' ? (
+          <Select
+            key={f.key}
+            label={t(`industry.fields.${f.key}`, { defaultValue: f.label })}
+            value={draft[f.key] || ''}
+            onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
+            options={[
+              { value: '', label: '—' },
+              { value: 'higher_is_better', label: t('industry.higherIsBetter') },
+              { value: 'lower_is_better', label: t('industry.lowerIsBetter') },
+            ]}
+          />
+        ) : (
+          <Field
+            key={f.key}
+            label={`${t(`industry.fields.${f.key}`, { defaultValue: f.label })}${f.required ? ' *' : ''}`}
+            type={f.type || 'text'}
+            value={draft[f.key] || ''}
+            onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSave() }}
+            placeholder={t(`industry.ph.${tabId}.${f.key}`, { defaultValue: f.placeholder })}
+            disabled={f.key === 'code' && !isNew}
+            className={cn(f.key === 'code' && 'mono')}
+          />
+        )
+      )}
 
       {/* Actions */}
-      <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-        <div>
-          {onDelete && !isNew && (
-            <button
-              onClick={onDelete}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <TrashIcon className="h-4 w-4" />
-              {t('common.delete')}
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
-            {t('common.cancel')}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!canSave}
-            className="px-4 py-2 text-sm font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-40 transition-colors"
-          >
-            {isNew ? t('industry.add') : t('common.save')}
-          </button>
-        </div>
+      <div className="row" style={{ gap: 8, paddingTop: 14, borderTop: '1px solid var(--b)' }}>
+        {onDelete && !isNew && (
+          <Button variant="danger-ghost" icon={TrashIcon} onClick={onDelete}>
+            {t('common.delete')}
+          </Button>
+        )}
+        <span className="grow" />
+        <Button variant="ghost" onClick={onCancel}>
+          {t('common.cancel')}
+        </Button>
+        <Button variant="primary" disabled={!canSave} onClick={handleSave}>
+          {isNew ? t('industry.add') : t('common.save')}
+        </Button>
       </div>
     </div>
   )
@@ -409,24 +403,39 @@ function SuggestionPill({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-amber-200 rounded-md text-sm">
-      <span className="font-medium text-gray-800 truncate flex-1" title={suggestion.code}>{suggestion.label}</span>
-      <button
+    <div
+      className="row"
+      style={{
+        gap: 6,
+        padding: '3px 4px 3px 10px',
+        background: 'var(--s)',
+        border: '1px solid var(--wa-b)',
+        borderRadius: 'var(--r-sm)',
+      }}
+    >
+      <span
+        className="grow trunc"
+        style={{ fontSize: 'var(--fs-md)', fontWeight: 500, color: 'var(--t)' }}
+        title={suggestion.code}
+      >
+        {suggestion.label}
+      </span>
+      <IconButton
+        icon={CheckIcon}
+        size="sm"
+        label={t('industry.approve')}
+        disabled={isProcessing}
         onClick={() => onApprove(suggestion.id)}
+        style={{ color: 'var(--ok)', opacity: isProcessing ? 0.4 : undefined }}
+      />
+      <IconButton
+        icon={XMarkIcon}
+        size="sm"
+        label={t('industry.reject')}
         disabled={isProcessing}
-        className="p-0.5 text-green-600 hover:bg-green-100 rounded disabled:opacity-40 flex-shrink-0"
-        title={t('industry.approve')}
-      >
-        <CheckIcon className="h-3.5 w-3.5" />
-      </button>
-      <button
         onClick={() => onReject(suggestion.id)}
-        disabled={isProcessing}
-        className="p-0.5 text-red-500 hover:bg-red-100 rounded disabled:opacity-40"
-        title={t('industry.reject')}
-      >
-        <XMarkIcon className="h-3.5 w-3.5" />
-      </button>
+        style={{ color: 'var(--da)', opacity: isProcessing ? 0.4 : undefined }}
+      />
     </div>
   )
 }
@@ -447,25 +456,29 @@ function TaxonomyRow({
   isCustom?: boolean
 }) {
   const { t } = useTranslation()
+  const lowAccuracy = !isCustom && accuracy != null && accuracy.accuracy < 70
   return (
     <button
       onClick={onClick}
       className={cn(
-        'w-full flex items-center gap-2 px-3 py-1.5 text-left rounded border transition-all',
-        'hover:border-violet-300 hover:bg-violet-50/30',
+        'row w-full text-left rounded-md border transition-colors',
         isCustom
-          ? 'bg-violet-50/30 border-violet-100'
-          : accuracy && accuracy.accuracy < 70
-            ? 'bg-white border-l-2 border-l-red-400 border-gray-100'
-            : 'bg-white border-gray-100'
+          ? 'bg-[var(--p-f)] border-[var(--p-b)] hover:bg-[var(--p-f2)]'
+          : 'bg-[var(--s)] border-[var(--b)] hover:bg-[var(--s2)]'
       )}
+      style={{
+        gap: 8,
+        padding: '5px 10px',
+        cursor: 'pointer',
+        borderLeft: lowAccuracy ? '2px solid var(--da)' : undefined,
+      }}
     >
-      <span className="text-[13px] font-medium text-gray-900 truncate flex-1">{item.label}</span>
-      {isCustom && (
-        <span className="text-[8px] font-semibold uppercase px-1 py-px rounded bg-violet-100 text-violet-600 flex-shrink-0">{t('industry.custom')}</span>
-      )}
+      <span className="grow trunc" style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--t)' }}>
+        {item.label}
+      </span>
+      {isCustom && <Tag>{t('industry.custom')}</Tag>}
       {accuracy && accuracy.total > 0 && <AccuracyBadge score={accuracy.accuracy} />}
-      <ChevronDownIcon className="h-3.5 w-3.5 text-gray-300 -rotate-90 flex-shrink-0" />
+      <ChevronRightIcon style={{ width: 13, height: 13, color: 'var(--f)', flexShrink: 0 }} aria-hidden />
     </button>
   )
 }
@@ -490,11 +503,16 @@ function CollapsibleGroup({
     <div>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 w-full py-1 px-1 text-left group"
+        className="row w-full text-left bg-transparent"
+        style={{ gap: 6, padding: '4px 2px', border: 0, cursor: 'pointer' }}
       >
-        <ChevronDownIcon className={cn('h-3 w-3 text-gray-400 transition-transform', !open && '-rotate-90')} />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 group-hover:text-gray-600">{label}</span>
-        <span className="text-[10px] text-gray-300">{count}</span>
+        <ChevronDownIcon
+          style={{ width: 12, height: 12, color: 'var(--f)', flexShrink: 0 }}
+          className={cn('transition-transform', !open && '-rotate-90')}
+          aria-hidden
+        />
+        <span className="sec-t">{label}</span>
+        <span className="faint num" style={{ fontSize: 'var(--fs-2xs)' }}>{count}</span>
       </button>
       {open && children}
     </div>
@@ -546,33 +564,37 @@ function ExtractionHintsContent({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="col" style={{ gap: 14 }}>
       {/* Quality-driven hints banner */}
       {qualityHints && qualityHints.length > 0 && (
-        <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
-          <div className="flex items-center gap-2 mb-2">
-            <SparklesIcon className="h-4 w-4 text-amber-500" />
-            <span className="text-xs font-semibold text-gray-700">
+        <div className="banner banner-wa" style={{ flexDirection: 'column', gap: 6 }}>
+          <div className="row" style={{ gap: 8 }}>
+            <SparklesIcon style={{ width: 15, height: 15, flexShrink: 0 }} aria-hidden />
+            <b style={{ fontSize: 'var(--fs-sm)' }}>
               {t('industry.suggestedImprovements', { count: qualityHints.length })}
-            </span>
+            </b>
           </div>
-          <div className="max-h-64 overflow-y-auto">
-          {qualityHints.map((h) => (
-            <div key={h.code} className="flex items-center justify-between py-1.5 border-t border-amber-100">
-              <div>
-                <span className="text-sm text-gray-800">{h.label}</span>
-                <span className="text-xs text-red-500 ml-2">{t('industry.accuracyPercent', { percent: Math.round(h.accuracy) })}</span>
+          <div className="scroll" style={{ maxHeight: 256 }}>
+            {qualityHints.map((h) => (
+              <div key={h.code} className="row" style={{ gap: 8, padding: '5px 0', borderTop: '1px solid var(--wa-b)' }}>
+                <span className="grow" style={{ minWidth: 0 }}>
+                  <span style={{ fontSize: 'var(--fs-md)', color: 'var(--t)' }}>{h.label}</span>
+                  <span className="num" style={{ fontSize: 'var(--fs-sm)', color: 'var(--da)', marginLeft: 8 }}>
+                    {t('industry.accuracyPercent', { percent: Math.round(h.accuracy) })}
+                  </span>
+                </span>
+                {h.suggested_hint && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    style={{ color: 'var(--p)' }}
+                    onClick={() => { setEditKey(h.category); setEditValue(h.suggested_hint); handleSave(h.category, h.suggested_hint) }}
+                  >
+                    {t('industry.apply')}
+                  </Button>
+                )}
               </div>
-              {h.suggested_hint && (
-                <button
-                  onClick={() => { setEditKey(h.category); setEditValue(h.suggested_hint); handleSave(h.category, h.suggested_hint) }}
-                  className="text-xs text-violet-600 hover:text-violet-800 font-medium"
-                >
-                  {t('industry.apply')}
-                </button>
-              )}
-            </div>
-          ))}
+            ))}
           </div>
         </div>
       )}
@@ -584,43 +606,53 @@ function ExtractionHintsContent({
         const value = allHints[key]
 
         return (
-          <div key={key} className={cn('rounded-lg border p-3', isCustom ? 'border-violet-200 bg-violet-50/30' : 'border-gray-200 bg-white')}>
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-700 uppercase">{key.replace(/_/g, ' ')}</span>
-                {isCustom && <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-violet-100 text-violet-600">{t('industry.custom')}</span>}
-              </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => { setEditKey(key); setEditValue(value) }} className="p-1 text-gray-400 hover:text-blue-600">
-                  <PencilIcon className="h-3.5 w-3.5" />
-                </button>
-                {isCustom && (
-                  <button onClick={() => handleRemove(key)} className="p-1 text-gray-400 hover:text-red-500">
-                    <TrashIcon className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
+          <div
+            key={key}
+            className="card card-p"
+            style={isCustom ? { borderColor: 'var(--p-b)', background: 'var(--p-f)' } : undefined}
+          >
+            <div className="row" style={{ gap: 8, marginBottom: 4 }}>
+              <span className="sec-t" style={{ color: 'var(--m)' }}>{key.replace(/_/g, ' ')}</span>
+              {isCustom && <Tag>{t('industry.custom')}</Tag>}
+              <span className="grow" />
+              <IconButton
+                icon={PencilIcon}
+                size="sm"
+                label={t('common.edit')}
+                onClick={() => { setEditKey(key); setEditValue(value) }}
+              />
+              {isCustom && (
+                <IconButton
+                  icon={TrashIcon}
+                  size="sm"
+                  label={t('common.delete')}
+                  onClick={() => handleRemove(key)}
+                  style={{ color: 'var(--da)' }}
+                />
+              )}
             </div>
             {isEditing ? (
-              <div className="space-y-2">
-                <textarea
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  rows={4}
-                  className="w-full px-3 py-2 text-sm border border-violet-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
-                  autoFocus
-                />
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handleSave(key, editValue)} className="px-3 py-1.5 text-xs bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+              <div className="col" style={{ gap: 8 }}>
+                <div className="inp" style={{ height: 'auto', padding: '8px 10px' }}>
+                  <textarea
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    rows={4}
+                    style={{ resize: 'vertical' }}
+                    autoFocus
+                  />
+                </div>
+                <div className="row" style={{ gap: 8 }}>
+                  <Button variant="primary" size="sm" onClick={() => handleSave(key, editValue)}>
                     {t('common.save')}
-                  </button>
-                  <button onClick={() => setEditKey(null)} className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800">
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setEditKey(null)}>
                     {t('common.cancel')}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-gray-600 whitespace-pre-wrap line-clamp-3">{value}</p>
+              <p className="muted line-clamp-3 whitespace-pre-wrap" style={{ fontSize: 'var(--fs-md)' }}>{value}</p>
             )}
           </div>
         )
@@ -628,36 +660,38 @@ function ExtractionHintsContent({
 
       {/* Add new hint */}
       {addMode ? (
-        <div className="p-3 bg-violet-50 rounded-lg border border-violet-200 space-y-2">
-          <input
+        <div className="card card-p col" style={{ gap: 10, borderColor: 'var(--p-b)' }}>
+          <Field
             type="text"
             value={newKey}
             onChange={(e) => setNewKey(e.target.value)}
             placeholder={t('industry.agentKeyPlaceholder')}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
             autoFocus
           />
-          <textarea
-            value={newValue}
-            onChange={(e) => setNewValue(e.target.value)}
-            placeholder={t('industry.hintTextPlaceholder')}
-            rows={3}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
-          />
-          <div className="flex items-center gap-2">
-            <button onClick={handleAdd} disabled={!newKey.trim() || !newValue.trim()} className="px-3 py-1.5 text-xs bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-40">
+          <div className="inp" style={{ height: 'auto', padding: '8px 10px' }}>
+            <textarea
+              value={newValue}
+              onChange={(e) => setNewValue(e.target.value)}
+              placeholder={t('industry.hintTextPlaceholder')}
+              rows={3}
+              style={{ resize: 'vertical' }}
+            />
+          </div>
+          <div className="row" style={{ gap: 8 }}>
+            <Button variant="primary" size="sm" disabled={!newKey.trim() || !newValue.trim()} onClick={handleAdd}>
               {t('industry.add')}
-            </button>
-            <button onClick={() => setAddMode(false)} className="px-3 py-1.5 text-xs text-gray-600">{t('common.cancel')}</button>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setAddMode(false)}>
+              {t('common.cancel')}
+            </Button>
           </div>
         </div>
       ) : (
-        <button
-          onClick={() => setAddMode(true)}
-          className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-800 font-medium"
-        >
-          <PlusIcon className="h-4 w-4" /> {t('industry.addCustomHint')}
-        </button>
+        <div>
+          <Button variant="ghost" size="sm" icon={PlusIcon} style={{ color: 'var(--p)' }} onClick={() => setAddMode(true)}>
+            {t('industry.addCustomHint')}
+          </Button>
+        </div>
       )}
     </div>
   )
@@ -685,49 +719,55 @@ function CompanyNamesContent({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-        <p className="text-sm text-blue-700">
-          {t('industry.companyNamesInfo')}
-        </p>
+    <div className="col" style={{ gap: 14 }}>
+      <div className="banner banner-in">
+        <InformationCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+        <span>{t('industry.companyNamesInfo')}</span>
       </div>
 
       {aliases.length > 0 ? (
-        <div className="space-y-1">
-          {aliases.map((name) => (
-            <div key={name} className="flex items-center justify-between px-3 py-2.5 bg-white rounded-lg border border-gray-100 hover:border-gray-300 transition-colors">
-              <div className="flex items-center gap-2">
-                <BuildingOffice2Icon className="h-4 w-4 text-gray-400" />
-                <span className="text-sm font-medium text-gray-900">{name}</span>
-              </div>
-              <button onClick={() => onSave(aliases.filter((a) => a !== name))} className="p-1 text-gray-400 hover:text-red-500">
-                <XMarkIcon className="h-4 w-4" />
-              </button>
+        <div className="tbl-w">
+          {aliases.map((name, i) => (
+            <div
+              key={name}
+              className="row"
+              style={{
+                gap: 8,
+                minHeight: 44,
+                padding: '0 8px 0 12px',
+                borderBottom: i < aliases.length - 1 ? '1px solid var(--b)' : undefined,
+              }}
+            >
+              <BuildingOffice2Icon style={{ width: 15, height: 15, color: 'var(--f)', flexShrink: 0 }} aria-hidden />
+              <span className="grow trunc" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>{name}</span>
+              <IconButton
+                icon={XMarkIcon}
+                size="sm"
+                label={t('common.delete')}
+                onClick={() => onSave(aliases.filter((a) => a !== name))}
+              />
             </div>
           ))}
         </div>
       ) : (
-        <div className="p-8 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
-          <BuildingOffice2Icon className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-          <p className="text-sm text-gray-500">{t('industry.noCompanyNames')}</p>
+        <div className="card">
+          <EmptyState icon={BuildingOffice2Icon} title={t('industry.noCompanyNames')} />
         </div>
       )}
 
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-600 mb-1">{t('industry.addCompanyName')}</label>
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
-            placeholder={t('industry.companyNamePlaceholder')}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
-          />
-        </div>
-        <button onClick={handleAdd} disabled={!newName.trim()} className="px-4 py-2 text-sm font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-40">
+      <div className="row" style={{ gap: 8, alignItems: 'flex-end' }}>
+        <Field
+          label={t('industry.addCompanyName')}
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
+          placeholder={t('industry.companyNamePlaceholder')}
+          containerClassName="grow"
+        />
+        <Button variant="primary" disabled={!newName.trim()} onClick={handleAdd}>
           {t('industry.add')}
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -749,6 +789,14 @@ export default function IndustryProfilesPage() {
   const { isSuperAdmin } = useAuth()
 
   const currentSlug = config?.industry
+
+  // Close the edit drawer on Escape (parity with the previous slide-over)
+  useEffect(() => {
+    if (!slideOver) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setSlideOver(null) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [slideOver])
 
   // ── Data fetching ──────────────────────────────────────────
   const { data: profiles = [], isLoading: profilesLoading } = useQuery<ProfileSummary[]>({
@@ -938,48 +986,56 @@ export default function IndustryProfilesPage() {
 
   // ── Loading ────────────────────────────────────────────────
   if (profilesLoading || profileLoading) {
-    return <div className="flex items-center justify-center py-20"><LoadingSpinner size="lg" /></div>
+    return (
+      <div className="row" style={{ justifyContent: 'center', padding: '80px 0' }}>
+        <LoadingSpinner size="lg" />
+      </div>
+    )
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col">
+    <div className="h-[calc(100vh-4rem)] col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <SwatchIcon className="h-6 w-6 text-violet-500" />
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">{t('industry.title')}</h1>
-            <p className="text-xs text-gray-500">{t('industry.subtitle')}</p>
-          </div>
+      <div
+        className="row"
+        style={{
+          gap: 12,
+          padding: '12px 24px',
+          borderBottom: '1px solid var(--b)',
+          background: 'var(--s)',
+          flexShrink: 0,
+        }}
+      >
+        <SwatchIcon style={{ width: 22, height: 22, color: 'var(--p)', flexShrink: 0 }} aria-hidden />
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-xl)', fontWeight: 600, letterSpacing: '-.3px' }}>{t('industry.title')}</h1>
+          <p className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('industry.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
-          {isSuperAdmin && (
-            <button
-              onClick={() => setShowNewIndustry(true)}
-              className="btn-primary text-sm flex items-center gap-1.5"
-            >
-              <PlusIcon className="h-4 w-4" />
-              {t('industry.newIndustry')}
-            </button>
-          )}
-          <ProfileSelector
-            profiles={profiles}
-            currentSlug={effectiveSlug || null}
-            isSuperAdmin={isSuperAdmin}
-            onSwitch={(slug) =>
-              isSuperAdmin ? setViewSlug(slug) : switchProfileMutation.mutate(slug)
-            }
-          />
-        </div>
+        {isSuperAdmin && (
+          <Button variant="primary" icon={PlusIcon} onClick={() => setShowNewIndustry(true)}>
+            {t('industry.newIndustry')}
+          </Button>
+        )}
+        <ProfileSelector
+          profiles={profiles}
+          currentSlug={effectiveSlug || null}
+          isSuperAdmin={isSuperAdmin}
+          onSwitch={(slug) =>
+            isSuperAdmin ? setViewSlug(slug) : switchProfileMutation.mutate(slug)
+          }
+        />
       </div>
 
       {showNewIndustry && <NewIndustryWizard onClose={() => setShowNewIndustry(false)} />}
 
       {/* Main layout: sidebar + content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="row grow" style={{ gap: 0, alignItems: 'stretch', overflow: 'hidden' }}>
         {/* Sidebar */}
-        <div className="w-52 flex-shrink-0 border-r border-gray-200 bg-gray-50 flex flex-col">
-          <nav className="flex-1 py-3 px-2 space-y-0.5">
+        <div
+          className="col w-52 flex-shrink-0"
+          style={{ borderRight: '1px solid var(--b)', background: 'var(--s3)' }}
+        >
+          <nav className="col grow" style={{ gap: 2, padding: '12px 8px' }}>
             {TABS.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
@@ -995,22 +1051,31 @@ export default function IndustryProfilesPage() {
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setSearch('') }}
                   className={cn(
-                    'w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors',
-                    isActive
-                      ? 'bg-violet-100 text-violet-800 font-semibold'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    'row w-full text-left rounded-md transition-colors',
+                    isActive ? 'bg-[var(--p-f)]' : 'bg-transparent hover:bg-[var(--s2)]'
                   )}
+                  style={{
+                    gap: 8,
+                    height: 36,
+                    padding: '0 10px',
+                    border: 0,
+                    cursor: 'pointer',
+                    fontSize: 'var(--fs-md)',
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? 'var(--p)' : 'var(--m)',
+                  }}
                 >
-                  <Icon className={cn('h-4 w-4 flex-shrink-0', isActive ? 'text-violet-600' : 'text-gray-400')} />
-                  <span className="flex-1 text-left truncate">{t(`industry.tabs.${tab.id}`, { defaultValue: tab.label })}</span>
-                  <div className="flex items-center gap-1">
-                    <AccuracyBadge score={tabScore} />
-                    {tabSugCount > 0 && (
-                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">
-                        {tabSugCount}
-                      </span>
-                    )}
-                  </div>
+                  <Icon
+                    style={{ width: 15, height: 15, flexShrink: 0, color: isActive ? 'var(--p)' : 'var(--f)' }}
+                    aria-hidden
+                  />
+                  <span className="grow trunc">{t(`industry.tabs.${tab.id}`, { defaultValue: tab.label })}</span>
+                  <AccuracyBadge score={tabScore} />
+                  {tabSugCount > 0 && (
+                    <span className="pill pill-wa num" style={{ height: 16, padding: '0 5px', fontSize: 'var(--fs-2xs)' }}>
+                      {tabSugCount}
+                    </span>
+                  )}
                 </button>
               )
             })}
@@ -1018,36 +1083,40 @@ export default function IndustryProfilesPage() {
 
           {/* Sidebar footer: quality overview */}
           {qualityOverview?.avg_overall_score != null && (
-            <div className="px-3 py-3 border-t border-gray-200">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-semibold uppercase text-gray-400">{t('industry.accuracy')}</span>
+            <div style={{ padding: '10px 12px', borderTop: '1px solid var(--b)' }}>
+              <div className="row">
+                <span className="sec-t grow">{t('industry.accuracy')}</span>
                 <AccuracyBadge score={qualityOverview.avg_overall_score} size="md" />
               </div>
               <Link
                 to="/admin/extraction-quality"
-                className="flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-800 font-medium mt-1"
+                className="row"
+                style={{ gap: 4, fontSize: 'var(--fs-xs)', fontWeight: 500, marginTop: 4 }}
               >
-                {t('industry.viewDetails')} <ArrowTopRightOnSquareIcon className="h-3 w-3" />
+                {t('industry.viewDetails')}
+                <ArrowTopRightOnSquareIcon style={{ width: 12, height: 12 }} aria-hidden />
               </Link>
             </div>
           )}
 
           {/* Suggestion summary */}
           {pendingCount > 0 && (
-            <div className="px-3 py-3 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <SparklesIcon className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-[11px] font-semibold text-gray-600">{t('industry.suggestionsCount', { count: pendingCount })}</span>
-                </div>
+            <div style={{ padding: '10px 12px', borderTop: '1px solid var(--b)' }}>
+              <div className="row" style={{ gap: 6 }}>
+                <SparklesIcon style={{ width: 14, height: 14, color: 'var(--wa)', flexShrink: 0 }} aria-hidden />
+                <span className="muted grow trunc" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>
+                  {t('industry.suggestionsCount', { count: pendingCount })}
+                </span>
                 {suggestions.length > 1 && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    style={{ color: 'var(--ok)', height: 22, padding: '0 6px', fontSize: 'var(--fs-2xs)' }}
                     onClick={() => approveAllMutation.mutate()}
                     disabled={approveAllMutation.isPending}
-                    className="text-[10px] text-green-600 hover:text-green-800 font-medium disabled:opacity-40"
                   >
                     {t('industry.approveAll')}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -1055,40 +1124,38 @@ export default function IndustryProfilesPage() {
         </div>
 
         {/* Content area */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="grow scroll" style={{ alignSelf: 'stretch' }}>
           {isTaxonomyTab ? (
             <div className="p-6 max-w-4xl">
               {/* Search + Add */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="relative flex-1">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t('industry.searchPlaceholder', { items: t(`industry.tabs.${activeTab}`, { defaultValue: TABS.find((tab) => tab.id === activeTab)?.label ?? '' }).toLowerCase() })}
-                    className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
-                  />
-                </div>
-                <button
+              <div className="row" style={{ gap: 10, marginBottom: 16 }}>
+                <Field
+                  icon={MagnifyingGlassIcon}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t('industry.searchPlaceholder', { items: t(`industry.tabs.${activeTab}`, { defaultValue: TABS.find((tab) => tab.id === activeTab)?.label ?? '' }).toLowerCase() })}
+                  containerClassName="grow"
+                />
+                <Button
+                  variant="primary"
+                  icon={PlusIcon}
                   onClick={() => setSlideOver({ item: { code: '', label: '' }, isNew: true, isCustom: !isSuperAdmin, isBase: isSuperAdmin })}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
                 >
-                  <PlusIcon className="h-4 w-4" />
                   {t('industry.add')}
-                </button>
+                </Button>
               </div>
 
               {/* Tab-specific suggestions — AI-proposed additions to review */}
               {tabSuggestions.length > 0 && (
-                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
-                  <div className="mb-2 flex items-center gap-1.5">
-                    <SparklesIcon className="h-4 w-4 text-amber-500" />
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+                <div className="banner banner-wa" style={{ flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                  <div className="row" style={{ gap: 6 }}>
+                    <SparklesIcon style={{ width: 15, height: 15, flexShrink: 0 }} aria-hidden />
+                    <span className="sec-t" style={{ color: 'inherit' }}>
                       {t('industry.aiSuggestions', { count: tabSuggestions.length })}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5">
                     {tabSuggestions.map((s) => (
                       <SuggestionPill
                         key={s.id}
@@ -1103,14 +1170,14 @@ export default function IndustryProfilesPage() {
               )}
 
               {/* Base items */}
-              <div className="mb-6">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">
+              <div style={{ marginBottom: 24 }}>
+                <h3 className="sec-t" style={{ marginBottom: 8 }}>
                   {t('industry.baseProfile', { count: filterItems(tabData.base).length })}
                 </h3>
 
                 {activeTab === 'clause_types' && groupedBase ? (
                   // Grouped by category for clauses — collapsible
-                  <div className="space-y-1">
+                  <div className="col" style={{ gap: 4 }}>
                     {Object.entries(groupedBase).map(([category, items]) => (
                       <CollapsibleGroup key={category} label={category} count={items.length}>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 pt-1">
@@ -1144,7 +1211,7 @@ export default function IndustryProfilesPage() {
               {/* Custom items */}
               {filterItems(tabData.custom).length > 0 && (
                 <div>
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-violet-500 mb-2">
+                  <h3 className="sec-t" style={{ marginBottom: 8, color: 'var(--p)' }}>
                     {t('industry.tenantCustom', { count: filterItems(tabData.custom).length })}
                   </h3>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
@@ -1184,11 +1251,13 @@ export default function IndustryProfilesPage() {
         </div>
       </div>
 
-      {/* Slide-over panel */}
-      <SlideOver
+      {/* Edit drawer */}
+      <Drawer
         open={!!slideOver}
         onClose={() => setSlideOver(null)}
+        width={448}
         title={slideOver?.isNew ? t(`industry.addItem.${activeTab}`, { defaultValue: `Add ${TABS.find((tab) => tab.id === activeTab)?.label.replace(/s$/, '') || 'Item'}` }) : (slideOver?.item.label || t('common.edit'))}
+        sub={slideOver && !slideOver.isNew ? slideOver.item.code : undefined}
       >
         {slideOver && TAB_FIELDS[activeTab] && (
           <ItemEditForm
@@ -1208,14 +1277,18 @@ export default function IndustryProfilesPage() {
             onCancel={() => setSlideOver(null)}
           />
         )}
-      </SlideOver>
+      </Drawer>
 
       {/* Error banner */}
       {(saveMutation.isError || updateProfileMutation.isError) && (
-        <div className="fixed bottom-4 right-4 p-3 bg-red-50 border border-red-200 rounded-lg shadow-lg z-50">
-          <p className="text-xs text-red-600">
+        <div
+          className="banner banner-da"
+          style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 90, boxShadow: 'var(--sh-lg)', maxWidth: 380 }}
+        >
+          <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+          <span>
             {(saveMutation.error as Error)?.message || (updateProfileMutation.error as Error)?.message || t('industry.failedToSave')}
-          </p>
+          </span>
         </div>
       )}
     </div>

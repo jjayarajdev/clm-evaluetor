@@ -1,11 +1,15 @@
+/* Extraction Quality admin — Direction B restyle.
+   Token design system (var(--p)/--ok/--wa/--da, .card .banner .tabs .kbd …) and
+   '@/components/ui' primitives (Stat, Pill, Confidence, Chip, Drawer,
+   ConfirmDialog, EmptyState, Button, IconButton, Checkbox, Switch, Field, AiTag).
+   Queries, mutations, filters, drill-downs, keyboard review flow, permission
+   checks, i18n keys and routes are unchanged from the pre-redesign page. */
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams, Link } from 'react-router-dom'
 import {
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationTriangleIcon,
-  ClockIcon,
   PlusIcon,
   TrashIcon,
   ChevronRightIcon,
@@ -33,39 +37,49 @@ import { useTranslation } from 'react-i18next'
 import i18n from '@/i18n'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ContractPdfViewer from '@/components/contracts/ContractPdfViewer'
+import {
+  AiTag,
+  Button,
+  Checkbox,
+  Chip,
+  Confidence,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Stat,
+  Switch,
+} from '@/components/ui'
+import type { PillTone } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 type ViewMode = 'overview' | 'detail'
 
-const SCORE_COLORS = (score: number | null) => {
-  if (score === null) return 'text-gray-400'
-  if (score >= 90) return 'text-green-600'
-  if (score >= 70) return 'text-yellow-600'
-  return 'text-red-600'
+/** Accuracy score tone: >=90 ok, >=70 warn, <70 danger, null neutral. */
+const scoreTone = (score: number | null) =>
+  score === null ? 'var(--f)' : score >= 90 ? 'var(--ok)' : score >= 70 ? 'var(--wa)' : 'var(--da)'
+
+const VERIF_TONE: Record<string, PillTone> = {
+  correct: 'ok',
+  incorrect: 'da',
+  partial: 'wa',
+  pending: 'n',
 }
 
-const SCORE_BG = (score: number | null) => {
-  if (score === null) return 'bg-gray-50'
-  if (score >= 90) return 'bg-green-50'
-  if (score >= 70) return 'bg-yellow-50'
-  return 'bg-red-50'
-}
-
-const STATUS_BADGE = {
-  correct: 'bg-green-100 text-green-700',
-  incorrect: 'bg-red-100 text-red-700',
-  partial: 'bg-yellow-100 text-yellow-700',
-  pending: 'bg-gray-100 text-gray-500',
-}
+const RISK_TONE: Record<string, PillTone> = { high: 'da', medium: 'wa', low: 'ok' }
 
 function ScoreCard({ label, score }: { label: string; score: number | null }) {
   return (
-    <div className={cn('rounded-lg p-4 text-center', SCORE_BG(score))}>
-      <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{label}</p>
-      <p className={cn('text-2xl font-bold', SCORE_COLORS(score))}>
-        {score !== null ? `${score}%` : '--'}
-      </p>
-    </div>
+    <Stat
+      label={label}
+      value={
+        <span style={{ color: scoreTone(score) }}>
+          {score !== null ? `${score}%` : '--'}
+        </span>
+      }
+    />
   )
 }
 
@@ -73,13 +87,9 @@ function VerificationBadge({ status }: { status: string | null }) {
   const { t } = useTranslation()
   if (!status) return null
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', STATUS_BADGE[status as keyof typeof STATUS_BADGE] || STATUS_BADGE.pending)}>
-      {status === 'correct' && <CheckCircleIcon className="h-3 w-3" />}
-      {status === 'incorrect' && <XCircleIcon className="h-3 w-3" />}
-      {status === 'partial' && <ExclamationTriangleIcon className="h-3 w-3" />}
-      {status === 'pending' && <ClockIcon className="h-3 w-3" />}
+    <Pill tone={VERIF_TONE[status] || 'n'}>
       {status === 'pending' ? t('status.pending') : t(`extraction.verifStatus.${status}`, { defaultValue: status })}
-    </span>
+    </Pill>
   )
 }
 
@@ -114,21 +124,19 @@ function MetadataEditRow({
 
   if (editing) {
     return (
-      <div className="px-4 py-3 bg-primary-50/50">
+      <div className="px-4 py-3" style={{ background: 'var(--p-f)' }}>
         <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium text-gray-700 capitalize">{item.field.replace(/_/g, ' ')}</p>
-          <button onClick={() => setEditing(false)} className="p-1 text-gray-400 hover:text-gray-600">
-            <XMarkIcon className="h-4 w-4" />
-          </button>
+          <p className="capitalize" style={{ fontWeight: 500 }}>{item.field.replace(/_/g, ' ')}</p>
+          <IconButton size="sm" icon={XMarkIcon} label={t('common.cancel')} onClick={() => setEditing(false)} />
         </div>
         <div className="space-y-2">
           <div>
-            <label className="text-xs text-gray-500">{t('extraction.original', { value: item.value !== null ? String(item.value) : t('extraction.empty') })}</label>
+            <label className="lbl">{t('extraction.original', { value: item.value !== null ? String(item.value) : t('extraction.empty') })}</label>
             <input
               type="text"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
-              className="input w-full mt-1"
+              className="input w-full"
               placeholder={t('extraction.correctedValuePlaceholder')}
               autoFocus
             />
@@ -137,25 +145,17 @@ function MetadataEditRow({
             type="text"
             value={editNotes}
             onChange={(e) => setEditNotes(e.target.value)}
-            className="input w-full text-sm"
+            className="input w-full"
             placeholder={t('extraction.notesOptionalPlaceholder')}
           />
-          <div className="flex gap-2">
-            <button
-              onClick={() => saveEdit('incorrect')}
-              className="btn-secondary text-xs px-3 py-1.5 bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-            >
-              Save as Incorrect
-            </button>
-            <button
-              onClick={() => saveEdit('partial')}
-              className="btn-secondary text-xs px-3 py-1.5 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100"
-            >
-              Save as Partial
-            </button>
-            <button onClick={() => setEditing(false)} className="btn-secondary text-xs px-3 py-1.5">
-              {t('common.cancel')}
-            </button>
+          <div className="row">
+            <Button size="sm" style={{ background: 'var(--da-f)', borderColor: 'var(--da-b)', color: 'var(--da)' }} onClick={() => saveEdit('incorrect')}>
+              {t('extraction.saveAsIncorrect')}
+            </Button>
+            <Button size="sm" style={{ background: 'var(--wa-f)', borderColor: 'var(--wa-b)', color: 'var(--wa)' }} onClick={() => saveEdit('partial')}>
+              {t('extraction.saveAsPartial')}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>{t('common.cancel')}</Button>
           </div>
         </div>
       </div>
@@ -165,26 +165,22 @@ function MetadataEditRow({
   return (
     <div className="flex items-center justify-between px-4 py-3">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-700 capitalize">{item.field.replace(/_/g, ' ')}</p>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {displayValue !== null ? displayValue : <span className="italic text-gray-400">{t('extraction.notExtracted')}</span>}
+        <p className="capitalize" style={{ fontWeight: 500 }}>{item.field.replace(/_/g, ' ')}</p>
+        <p className="muted mt-0.5">
+          {displayValue !== null ? displayValue : <span className="italic faint">{t('extraction.notExtracted')}</span>}
         </p>
         {corrected && (
-          <p className="text-xs text-primary-600 mt-0.5">{t('extraction.correctedFrom', { value: item.value !== null ? String(item.value) : t('extraction.empty') })}</p>
+          <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--p)', marginTop: 2 }}>{t('extraction.correctedFrom', { value: item.value !== null ? String(item.value) : t('extraction.empty') })}</p>
         )}
         {item.verification?.notes && (
-          <p className="text-xs text-gray-400 mt-0.5 italic">{item.verification.notes}</p>
+          <p className="faint italic" style={{ fontSize: 'var(--fs-xs)', marginTop: 2 }}>{item.verification.notes}</p>
         )}
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {item.verification && <VerificationBadge status={item.verification.status} />}
-        <div className="flex gap-1 ml-1">
-          <button onClick={() => onVerify('metadata_field', item.field, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" title={t('extraction.markCorrect')}>
-            <CheckCircleIcon className="h-5 w-5" />
-          </button>
-          <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title={t('extraction.editAndCorrect')}>
-            <PencilSquareIcon className="h-5 w-5" />
-          </button>
+        <div className="row ml-1" style={{ gap: 2 }}>
+          <IconButton icon={CheckCircleIcon} label={t('extraction.markCorrect')} onClick={() => onVerify('metadata_field', item.field, 'correct')} />
+          <IconButton icon={PencilSquareIcon} label={t('extraction.editAndCorrect')} onClick={startEdit} />
         </div>
       </div>
     </div>
@@ -234,22 +230,20 @@ function ClauseEditRow({
 
   if (editing) {
     return (
-      <div className="px-4 py-3 bg-primary-50/50">
+      <div className="px-4 py-3" style={{ background: 'var(--p-f)' }}>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-primary-600">{t('extraction.editClause')}</span>
-          <button onClick={() => setEditing(false)} className="p-1 text-gray-400 hover:text-gray-600">
-            <XMarkIcon className="h-4 w-4" />
-          </button>
+          <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--p)' }}>{t('extraction.editClause')}</span>
+          <IconButton size="sm" icon={XMarkIcon} label={t('common.cancel')} onClick={() => setEditing(false)} />
         </div>
         <div className="space-y-2">
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-xs text-gray-500">{t('extraction.clauseType')}</label>
-              <input type="text" value={editType} onChange={(e) => setEditType(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.clauseTypePlaceholder')} />
+              <label className="lbl">{t('extraction.clauseType')}</label>
+              <input type="text" value={editType} onChange={(e) => setEditType(e.target.value)} className="input w-full" placeholder={t('extraction.clauseTypePlaceholder')} />
             </div>
             <div className="w-32">
-              <label className="text-xs text-gray-500">{t('extraction.riskLevel')}</label>
-              <select value={editRisk} onChange={(e) => setEditRisk(e.target.value)} className="input w-full mt-1">
+              <label className="lbl">{t('extraction.riskLevel')}</label>
+              <select value={editRisk} onChange={(e) => setEditRisk(e.target.value)} className="input w-full">
                 <option value="">--</option>
                 <option value="low">{t('risk.low')}</option>
                 <option value="medium">{t('risk.medium')}</option>
@@ -258,14 +252,14 @@ function ClauseEditRow({
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-500">{t('extraction.text')}</label>
-            <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="input w-full mt-1 text-sm" />
+            <label className="lbl">{t('extraction.text')}</label>
+            <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="input w-full" />
           </div>
-          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full text-sm" placeholder={t('extraction.notesPlaceholder')} />
-          <div className="flex gap-2">
-            <button onClick={() => saveEdit('incorrect')} className="btn-secondary text-xs px-3 py-1.5 bg-red-50 text-red-700 border-red-200 hover:bg-red-100">{t('extraction.saveAsIncorrect')}</button>
-            <button onClick={() => saveEdit('partial')} className="btn-secondary text-xs px-3 py-1.5 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100">{t('extraction.saveAsPartial')}</button>
-            <button onClick={() => setEditing(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
+          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full" placeholder={t('extraction.notesPlaceholder')} />
+          <div className="row">
+            <Button size="sm" style={{ background: 'var(--da-f)', borderColor: 'var(--da-b)', color: 'var(--da)' }} onClick={() => saveEdit('incorrect')}>{t('extraction.saveAsIncorrect')}</Button>
+            <Button size="sm" style={{ background: 'var(--wa-f)', borderColor: 'var(--wa-b)', color: 'var(--wa)' }} onClick={() => saveEdit('partial')}>{t('extraction.saveAsPartial')}</Button>
+            <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>{t('common.cancel')}</Button>
           </div>
         </div>
       </div>
@@ -275,30 +269,30 @@ function ClauseEditRow({
   return (
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{displayType || t('extraction.unknown')}</span>
+        <div className="row">
+          <Pill tone="p" dot={false}>{displayType || t('extraction.unknown')}</Pill>
           {clause.risk_level && (
-            <span className={cn('text-xs rounded px-1.5 py-0.5', clause.risk_level === 'high' ? 'bg-red-50 text-red-600' : clause.risk_level === 'medium' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600')}>
+            <Pill tone={RISK_TONE[clause.risk_level] || 'n'} dot={false}>
               {t('extraction.riskSuffix', { level: t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level }) })}
-</span>
+            </Pill>
           )}
-          {clause.confidence !== null && <span className="text-xs text-gray-400">{t('extraction.confidence', { percent: Math.round(clause.confidence * 100) })}</span>}
+          {clause.confidence !== null && <Confidence value={clause.confidence} />}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="row">
           {clause.verification && <VerificationBadge status={clause.verification.status} />}
-          <div className="flex gap-1">
-            <button onClick={() => onVerify('clause', clause.id, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" title={t('extraction.markCorrect')}><CheckCircleIcon className="h-4 w-4" /></button>
-            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title={t('common.edit')}><PencilSquareIcon className="h-4 w-4" /></button>
-              {onLocate && clause.text && (
-                <button onClick={() => onLocate(clause.text!, clause.page_number)} className="p-1 rounded hover:bg-yellow-50 text-gray-400 hover:text-yellow-600" title={t('extraction.locateInDocument')}><EyeIcon className="h-4 w-4" /></button>
-              )}
+          <div className="row" style={{ gap: 2 }}>
+            <IconButton size="sm" icon={CheckCircleIcon} label={t('extraction.markCorrect')} onClick={() => onVerify('clause', clause.id, 'correct')} />
+            <IconButton size="sm" icon={PencilSquareIcon} label={t('common.edit')} onClick={startEdit} />
+            {onLocate && clause.text && (
+              <IconButton size="sm" icon={EyeIcon} label={t('extraction.locateInDocument')} onClick={() => onLocate(clause.text!, clause.page_number)} />
+            )}
           </div>
         </div>
       </div>
-      <p className="text-sm text-gray-600 line-clamp-3">{displayText}</p>
-      {corrected && <p className="text-xs text-primary-600 mt-1">{t('extraction.corrected')}</p>}
-      {clause.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{clause.verification.notes}</p>}
-      {clause.section_number && <p className="text-xs text-gray-400 mt-1">{clause.page_number ? t('extraction.sectionPage', { section: clause.section_number, page: clause.page_number }) : t('extraction.sectionOnly', { section: clause.section_number })}</p>}
+      <p className="muted line-clamp-3">{displayText}</p>
+      {corrected && <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--p)', marginTop: 4 }}>{t('extraction.corrected')}</p>}
+      {clause.verification?.notes && <p className="faint italic" style={{ fontSize: 'var(--fs-xs)', marginTop: 2 }}>{clause.verification.notes}</p>}
+      {clause.section_number && <p className="faint" style={{ fontSize: 'var(--fs-xs)', marginTop: 4 }}>{clause.page_number ? t('extraction.sectionPage', { section: clause.section_number, page: clause.page_number }) : t('extraction.sectionOnly', { section: clause.section_number })}</p>}
     </div>
   )
 }
@@ -339,31 +333,31 @@ function ObligationEditRow({
 
   if (editing) {
     return (
-      <div className="px-4 py-3 bg-primary-50/50">
+      <div className="px-4 py-3" style={{ background: 'var(--p-f)' }}>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-blue-600">{t('extraction.editObligation')}</span>
-          <button onClick={() => setEditing(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
+          <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--p)' }}>{t('extraction.editObligation')}</span>
+          <IconButton size="sm" icon={XMarkIcon} label={t('common.cancel')} onClick={() => setEditing(false)} />
         </div>
         <div className="space-y-2">
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-xs text-gray-500">{t('extraction.type')}</label>
-              <input type="text" value={editType} onChange={(e) => setEditType(e.target.value)} className="input w-full mt-1" />
+              <label className="lbl">{t('extraction.type')}</label>
+              <input type="text" value={editType} onChange={(e) => setEditType(e.target.value)} className="input w-full" />
             </div>
             <div className="flex-1">
-              <label className="text-xs text-gray-500">{t('extraction.obligatedParty')}</label>
-              <input type="text" value={editParty} onChange={(e) => setEditParty(e.target.value)} className="input w-full mt-1" />
+              <label className="lbl">{t('extraction.obligatedParty')}</label>
+              <input type="text" value={editParty} onChange={(e) => setEditParty(e.target.value)} className="input w-full" />
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-500">{t('extraction.description')}</label>
-            <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} className="input w-full mt-1 text-sm" />
+            <label className="lbl">{t('extraction.description')}</label>
+            <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} className="input w-full" />
           </div>
-          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full text-sm" placeholder={t('extraction.notesPlaceholder')} />
-          <div className="flex gap-2">
-            <button onClick={() => saveEdit('incorrect')} className="btn-secondary text-xs px-3 py-1.5 bg-red-50 text-red-700 border-red-200 hover:bg-red-100">{t('extraction.saveAsIncorrect')}</button>
-            <button onClick={() => saveEdit('partial')} className="btn-secondary text-xs px-3 py-1.5 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100">{t('extraction.saveAsPartial')}</button>
-            <button onClick={() => setEditing(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
+          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full" placeholder={t('extraction.notesPlaceholder')} />
+          <div className="row">
+            <Button size="sm" style={{ background: 'var(--da-f)', borderColor: 'var(--da-b)', color: 'var(--da)' }} onClick={() => saveEdit('incorrect')}>{t('extraction.saveAsIncorrect')}</Button>
+            <Button size="sm" style={{ background: 'var(--wa-f)', borderColor: 'var(--wa-b)', color: 'var(--wa)' }} onClick={() => saveEdit('partial')}>{t('extraction.saveAsPartial')}</Button>
+            <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>{t('common.cancel')}</Button>
           </div>
         </div>
       </div>
@@ -375,23 +369,23 @@ function ObligationEditRow({
   return (
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || t('extraction.unknown')}</span>
-          {obl.is_critical && <span className="text-xs bg-red-50 text-red-600 rounded px-1.5 py-0.5">{t('risk.critical')}</span>}
-          {obl.obligated_party && <span className="text-xs text-gray-400">{obl.obligated_party}</span>}
+        <div className="row">
+          <Pill tone="in" dot={false}>{obl.obligation_type || t('extraction.unknown')}</Pill>
+          {obl.is_critical && <Pill tone="da" dot={false}>{t('risk.critical')}</Pill>}
+          {obl.obligated_party && <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{obl.obligated_party}</span>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="row">
           {obl.verification && <VerificationBadge status={obl.verification.status} />}
-          <div className="flex gap-1">
-            <button onClick={() => onVerify('obligation', obl.id, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600"><CheckCircleIcon className="h-4 w-4" /></button>
-            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title={t('common.edit')}><PencilSquareIcon className="h-4 w-4" /></button>
+          <div className="row" style={{ gap: 2 }}>
+            <IconButton size="sm" icon={CheckCircleIcon} label={t('extraction.markCorrect')} onClick={() => onVerify('obligation', obl.id, 'correct')} />
+            <IconButton size="sm" icon={PencilSquareIcon} label={t('common.edit')} onClick={startEdit} />
           </div>
         </div>
       </div>
-      <p className="text-sm text-gray-600 line-clamp-2">{displayDesc}</p>
-      {corrected && <p className="text-xs text-primary-600 mt-1">{t('extraction.corrected')}</p>}
-      {obl.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{obl.verification.notes}</p>}
-      {obl.deadline && <p className="text-xs text-gray-400 mt-1">{t('extraction.deadline', { deadline: obl.deadline, type: obl.deadline_type })}</p>}
+      <p className="muted line-clamp-2">{displayDesc}</p>
+      {corrected && <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--p)', marginTop: 4 }}>{t('extraction.corrected')}</p>}
+      {obl.verification?.notes && <p className="faint italic" style={{ fontSize: 'var(--fs-xs)', marginTop: 2 }}>{obl.verification.notes}</p>}
+      {obl.deadline && <p className="faint" style={{ fontSize: 'var(--fs-xs)', marginTop: 4 }}>{t('extraction.deadline', { deadline: obl.deadline, type: obl.deadline_type })}</p>}
     </div>
   )
 }
@@ -433,31 +427,31 @@ function SLAEditRow({
 
   if (editing) {
     return (
-      <div className="px-4 py-3 bg-primary-50/50">
+      <div className="px-4 py-3" style={{ background: 'var(--p-f)' }}>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-teal-600">{t('extraction.editSla')}</span>
-          <button onClick={() => setEditing(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
+          <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--p)' }}>{t('extraction.editSla')}</span>
+          <IconButton size="sm" icon={XMarkIcon} label={t('common.cancel')} onClick={() => setEditing(false)} />
         </div>
         <div className="space-y-2">
           <div>
-            <label className="text-xs text-gray-500">{t('extraction.slaName')}</label>
-            <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input w-full mt-1" />
+            <label className="lbl">{t('extraction.slaName')}</label>
+            <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input w-full" />
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-xs text-gray-500">{t('extraction.targetValue')}</label>
-              <input type="number" step="any" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} className="input w-full mt-1" />
+              <label className="lbl">{t('extraction.targetValue')}</label>
+              <input type="number" step="any" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} className="input w-full" />
             </div>
             <div className="flex-1">
-              <label className="text-xs text-gray-500">{t('extraction.unit')}</label>
-              <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.unitExamplePlaceholder')} />
+              <label className="lbl">{t('extraction.unit')}</label>
+              <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} className="input w-full" placeholder={t('extraction.unitExamplePlaceholder')} />
             </div>
           </div>
-          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full text-sm" placeholder={t('extraction.notesPlaceholder')} />
-          <div className="flex gap-2">
-            <button onClick={() => saveEdit('incorrect')} className="btn-secondary text-xs px-3 py-1.5 bg-red-50 text-red-700 border-red-200 hover:bg-red-100">{t('extraction.saveAsIncorrect')}</button>
-            <button onClick={() => saveEdit('partial')} className="btn-secondary text-xs px-3 py-1.5 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100">{t('extraction.saveAsPartial')}</button>
-            <button onClick={() => setEditing(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
+          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full" placeholder={t('extraction.notesPlaceholder')} />
+          <div className="row">
+            <Button size="sm" style={{ background: 'var(--da-f)', borderColor: 'var(--da-b)', color: 'var(--da)' }} onClick={() => saveEdit('incorrect')}>{t('extraction.saveAsIncorrect')}</Button>
+            <Button size="sm" style={{ background: 'var(--wa-f)', borderColor: 'var(--wa-b)', color: 'var(--wa)' }} onClick={() => saveEdit('partial')}>{t('extraction.saveAsPartial')}</Button>
+            <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>{t('common.cancel')}</Button>
           </div>
         </div>
       </div>
@@ -470,29 +464,29 @@ function SLAEditRow({
   return (
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-teal-600 bg-teal-50 rounded px-1.5 py-0.5">{sla.metric_type || 'SLA'}</span>
+        <div className="row">
+          <Pill tone="p" dot={false}>{sla.metric_type || 'SLA'}</Pill>
           {sla.severity && (
-            <span className={cn('text-xs rounded px-1.5 py-0.5', sla.severity === 'critical' ? 'bg-red-50 text-red-600' : sla.severity === 'major' ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 text-gray-600')}>
+            <Pill tone={sla.severity === 'critical' ? 'da' : sla.severity === 'major' ? 'wa' : 'n'} dot={false}>
               {t(`extraction.severity.${sla.severity}`, { defaultValue: sla.severity })}
-            </span>
+            </Pill>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="row">
           {sla.verification && <VerificationBadge status={sla.verification.status} />}
-          <div className="flex gap-1">
-            <button onClick={() => onVerify('sla', sla.id, 'correct')} className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600"><CheckCircleIcon className="h-4 w-4" /></button>
-            <button onClick={startEdit} className="p-1 rounded hover:bg-primary-50 text-gray-400 hover:text-primary-600" title={t('common.edit')}><PencilSquareIcon className="h-4 w-4" /></button>
+          <div className="row" style={{ gap: 2 }}>
+            <IconButton size="sm" icon={CheckCircleIcon} label={t('extraction.markCorrect')} onClick={() => onVerify('sla', sla.id, 'correct')} />
+            <IconButton size="sm" icon={PencilSquareIcon} label={t('common.edit')} onClick={startEdit} />
           </div>
         </div>
       </div>
-      <p className="text-sm text-gray-700 font-medium">{displayName}</p>
-      <p className="text-sm text-gray-500">
+      <p style={{ fontWeight: 500 }}>{displayName}</p>
+      <p className="muted">
         {t('extraction.target', { value: displayTarget !== null ? displayTarget : '--', unit: sla.metric_unit || '' })}
-        {sla.has_penalty && sla.penalty_value && <span className="ml-2 text-red-500">{t('extraction.penalty', { value: sla.penalty_value })}</span>}
+        {sla.has_penalty && sla.penalty_value && <span className="ml-2" style={{ color: 'var(--da)' }}>{t('extraction.penalty', { value: sla.penalty_value })}</span>}
       </p>
-      {corrected && <p className="text-xs text-primary-600 mt-1">{t('extraction.corrected')}</p>}
-      {sla.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{sla.verification.notes}</p>}
+      {corrected && <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--p)', marginTop: 4 }}>{t('extraction.corrected')}</p>}
+      {sla.verification?.notes && <p className="faint italic" style={{ fontSize: 'var(--fs-xs)', marginTop: 2 }}>{sla.verification.notes}</p>}
     </div>
   )
 }
@@ -514,27 +508,27 @@ function AddMissingClause({ onAdd }: { onAdd: (correctedValue: Record<string, un
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="w-full px-4 py-3 text-sm text-primary-600 hover:bg-primary-50 flex items-center gap-1.5 transition-colors">
+      <button onClick={() => setOpen(true)} className="w-full px-4 py-3 flex items-center gap-1.5 transition-colors hover:bg-[var(--p-f)]" style={{ color: 'var(--p)', fontWeight: 500 }}>
         <PlusIcon className="h-4 w-4" /> {t('extraction.addMissingClause')}
       </button>
     )
   }
 
   return (
-    <div className="px-4 py-3 bg-primary-50/50">
+    <div className="px-4 py-3" style={{ background: 'var(--p-f)' }}>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-primary-600">{t('extraction.addMissingClauseTitle')}</span>
-        <button onClick={() => setOpen(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
+        <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--p)' }}>{t('extraction.addMissingClauseTitle')}</span>
+        <IconButton size="sm" icon={XMarkIcon} label={t('common.cancel')} onClick={() => setOpen(false)} />
       </div>
       <div className="space-y-2">
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="text-xs text-gray-500">{t('extraction.clauseType')} *</label>
-            <input type="text" value={clauseType} onChange={(e) => setClauseType(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.clauseTypePlaceholder')} autoFocus />
+            <label className="lbl">{t('extraction.clauseType')} *</label>
+            <input type="text" value={clauseType} onChange={(e) => setClauseType(e.target.value)} className="input w-full" placeholder={t('extraction.clauseTypePlaceholder')} autoFocus />
           </div>
           <div className="w-32">
-            <label className="text-xs text-gray-500">{t('extraction.riskLevel')}</label>
-            <select value={riskLevel} onChange={(e) => setRiskLevel(e.target.value)} className="input w-full mt-1">
+            <label className="lbl">{t('extraction.riskLevel')}</label>
+            <select value={riskLevel} onChange={(e) => setRiskLevel(e.target.value)} className="input w-full">
               <option value="">--</option>
               <option value="low">{t('risk.low')}</option>
               <option value="medium">{t('risk.medium')}</option>
@@ -543,12 +537,12 @@ function AddMissingClause({ onAdd }: { onAdd: (correctedValue: Record<string, un
           </div>
         </div>
         <div>
-          <label className="text-xs text-gray-500">{t('extraction.clauseText')} *</label>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} className="input w-full mt-1 text-sm" placeholder={t('extraction.pasteClauseTextPlaceholder')} />
+          <label className="lbl">{t('extraction.clauseText')} *</label>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} className="input w-full" placeholder={t('extraction.pasteClauseTextPlaceholder')} />
         </div>
-        <div className="flex gap-2">
-          <button onClick={handleSubmit} disabled={!clauseType || !text} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">{t('extraction.addToGoldenSet')}</button>
-          <button onClick={() => setOpen(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
+        <div className="row">
+          <Button size="sm" variant="primary" disabled={!clauseType || !text} onClick={handleSubmit}>{t('extraction.addToGoldenSet')}</Button>
+          <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
         </div>
       </div>
     </div>
@@ -570,36 +564,36 @@ function AddMissingObligation({ onAdd }: { onAdd: (correctedValue: Record<string
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="w-full px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-1.5 transition-colors">
+      <button onClick={() => setOpen(true)} className="w-full px-4 py-3 flex items-center gap-1.5 transition-colors hover:bg-[var(--p-f)]" style={{ color: 'var(--p)', fontWeight: 500 }}>
         <PlusIcon className="h-4 w-4" /> {t('extraction.addMissingObligation')}
       </button>
     )
   }
 
   return (
-    <div className="px-4 py-3 bg-blue-50/50">
+    <div className="px-4 py-3" style={{ background: 'var(--p-f)' }}>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-blue-600">{t('extraction.addMissingObligationTitle')}</span>
-        <button onClick={() => setOpen(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
+        <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--p)' }}>{t('extraction.addMissingObligationTitle')}</span>
+        <IconButton size="sm" icon={XMarkIcon} label={t('common.cancel')} onClick={() => setOpen(false)} />
       </div>
       <div className="space-y-2">
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="text-xs text-gray-500">{t('extraction.obligationType')} *</label>
-            <input type="text" value={oblType} onChange={(e) => setOblType(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.obligationTypePlaceholder')} autoFocus />
+            <label className="lbl">{t('extraction.obligationType')} *</label>
+            <input type="text" value={oblType} onChange={(e) => setOblType(e.target.value)} className="input w-full" placeholder={t('extraction.obligationTypePlaceholder')} autoFocus />
           </div>
           <div className="flex-1">
-            <label className="text-xs text-gray-500">{t('extraction.obligatedParty')}</label>
-            <input type="text" value={party} onChange={(e) => setParty(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.obligatedPartyPlaceholder')} />
+            <label className="lbl">{t('extraction.obligatedParty')}</label>
+            <input type="text" value={party} onChange={(e) => setParty(e.target.value)} className="input w-full" placeholder={t('extraction.obligatedPartyPlaceholder')} />
           </div>
         </div>
         <div>
-          <label className="text-xs text-gray-500">{t('extraction.description')} *</label>
-          <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} className="input w-full mt-1 text-sm" placeholder={t('extraction.describeObligationPlaceholder')} />
+          <label className="lbl">{t('extraction.description')} *</label>
+          <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} className="input w-full" placeholder={t('extraction.describeObligationPlaceholder')} />
         </div>
-        <div className="flex gap-2">
-          <button onClick={handleSubmit} disabled={!oblType || !desc} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">{t('extraction.addToGoldenSet')}</button>
-          <button onClick={() => setOpen(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
+        <div className="row">
+          <Button size="sm" variant="primary" disabled={!oblType || !desc} onClick={handleSubmit}>{t('extraction.addToGoldenSet')}</Button>
+          <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
         </div>
       </div>
     </div>
@@ -628,40 +622,40 @@ function AddMissingSLA({ onAdd }: { onAdd: (correctedValue: Record<string, unkno
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="w-full px-4 py-3 text-sm text-teal-600 hover:bg-teal-50 flex items-center gap-1.5 transition-colors">
+      <button onClick={() => setOpen(true)} className="w-full px-4 py-3 flex items-center gap-1.5 transition-colors hover:bg-[var(--p-f)]" style={{ color: 'var(--p)', fontWeight: 500 }}>
         <PlusIcon className="h-4 w-4" /> {t('extraction.addMissingSla')}
       </button>
     )
   }
 
   return (
-    <div className="px-4 py-3 bg-teal-50/50">
+    <div className="px-4 py-3" style={{ background: 'var(--p-f)' }}>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-teal-600">{t('extraction.addMissingSlaTitle')}</span>
-        <button onClick={() => setOpen(false)} className="p-1 text-gray-400 hover:text-gray-600"><XMarkIcon className="h-4 w-4" /></button>
+        <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--p)' }}>{t('extraction.addMissingSlaTitle')}</span>
+        <IconButton size="sm" icon={XMarkIcon} label={t('common.cancel')} onClick={() => setOpen(false)} />
       </div>
       <div className="space-y-2">
         <div>
-          <label className="text-xs text-gray-500">{t('extraction.slaName')} *</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.slaNamePlaceholder')} autoFocus />
+          <label className="lbl">{t('extraction.slaName')} *</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input w-full" placeholder={t('extraction.slaNamePlaceholder')} autoFocus />
         </div>
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="text-xs text-gray-500">{t('extraction.metricType')}</label>
-            <input type="text" value={metricType} onChange={(e) => setMetricType(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.metricTypePlaceholder')} />
+            <label className="lbl">{t('extraction.metricType')}</label>
+            <input type="text" value={metricType} onChange={(e) => setMetricType(e.target.value)} className="input w-full" placeholder={t('extraction.metricTypePlaceholder')} />
           </div>
           <div className="w-28">
-            <label className="text-xs text-gray-500">{t('extraction.targetLabel')}</label>
-            <input type="number" step="any" value={target} onChange={(e) => setTarget(e.target.value)} className="input w-full mt-1" placeholder="99.9" />
+            <label className="lbl">{t('extraction.targetLabel')}</label>
+            <input type="number" step="any" value={target} onChange={(e) => setTarget(e.target.value)} className="input w-full" placeholder="99.9" />
           </div>
           <div className="w-28">
-            <label className="text-xs text-gray-500">{t('extraction.unit')}</label>
-            <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} className="input w-full mt-1" placeholder={t('extraction.unitPlaceholder')} />
+            <label className="lbl">{t('extraction.unit')}</label>
+            <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} className="input w-full" placeholder={t('extraction.unitPlaceholder')} />
           </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={handleSubmit} disabled={!name} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">{t('extraction.addToGoldenSet')}</button>
-          <button onClick={() => setOpen(false)} className="btn-secondary text-xs px-3 py-1.5">{t('common.cancel')}</button>
+        <div className="row">
+          <Button size="sm" variant="primary" disabled={!name} onClick={handleSubmit}>{t('extraction.addToGoldenSet')}</Button>
+          <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
         </div>
       </div>
     </div>
@@ -770,7 +764,8 @@ function ContractTextViewer({ text, highlightText }: { text: string; highlightTe
       if (before) frag.appendChild(document.createTextNode(before))
       const mark = document.createElement('mark')
       mark.className = 'clause-hl'
-      mark.style.backgroundColor = 'rgba(250, 204, 21, 0.4)'
+      mark.style.backgroundColor = 'var(--wa-b)'
+      mark.style.color = 'inherit'
       mark.style.borderRadius = '2px'
       mark.style.padding = '1px 0'
       mark.textContent = match
@@ -788,11 +783,11 @@ function ContractTextViewer({ text, highlightText }: { text: string; highlightTe
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-shrink-0 flex items-center px-3 py-2 bg-white border-b border-gray-200">
-        <DocumentTextIcon className="h-4 w-4 text-gray-400 mr-2" />
-        <span className="text-xs text-gray-600 font-medium">{t('extraction.extractedText')}</span>
+      <div className="flex-shrink-0 flex items-center px-3 py-2" style={{ background: 'var(--s)', borderBottom: '1px solid var(--b)' }}>
+        <DocumentTextIcon className="h-4 w-4 mr-2" style={{ color: 'var(--f)' }} />
+        <span className="muted" style={{ fontSize: 'var(--fs-xs)', fontWeight: 500 }}>{t('extraction.extractedText')}</span>
       </div>
-      <div ref={containerRef} className="flex-1 overflow-y-auto p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-mono bg-white">
+      <div ref={containerRef} className="flex-1 overflow-y-auto p-4 leading-relaxed whitespace-pre-wrap mono" style={{ background: 'var(--s)', fontSize: 'var(--fs-sm)' }}>
         {text}
       </div>
     </div>
@@ -826,6 +821,7 @@ function DspyCompilationPanel() {
   const [resultMessage, setResultMessage] = useState<string | null>(null)
   const [resultIsError, setResultIsError] = useState(false)
   const [editingThreshold, setEditingThreshold] = useState<number | null>(null)
+  const [showCompileAllConfirm, setShowCompileAllConfirm] = useState(false)
 
   const { data: status, isLoading } = useQuery({
     queryKey: ['dspy-compilation-status'],
@@ -882,7 +878,11 @@ function DspyCompilationPanel() {
   }
 
   const handleCompileAll = () => {
-    if (!confirm(t('extraction.confirmCompileAll'))) return
+    setShowCompileAllConfirm(true)
+  }
+
+  const confirmCompileAll = () => {
+    setShowCompileAllConfirm(false)
     setResultMessage(null)
     setPendingAgent('all')
     compileMutation.mutate(undefined)
@@ -891,28 +891,25 @@ function DspyCompilationPanel() {
   const anyPending = pendingAgent !== null
 
   return (
-    <div className="bg-white rounded-lg border">
-      <div className="px-4 py-3 border-b flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <SparklesIcon className="h-4 w-4 text-violet-500" />
-          <h2 className="text-sm font-semibold text-gray-700">{t('extraction.promptOptimization')}</h2>
-          <span className="text-xs text-gray-400" title={t('extraction.dspyTooltip')}>
+    <div className="card">
+      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--b)' }}>
+        <div className="row min-w-0">
+          <AiTag />
+          <h2 style={{ fontWeight: 600 }}>{t('extraction.promptOptimization')}</h2>
+          <span className="faint trunc" style={{ fontSize: 'var(--fs-xs)' }} title={t('extraction.dspyTooltip')}>
             {t('extraction.compilesFromGoldenSet')}
           </span>
         </div>
-        <button
+        <Button
+          size="sm"
+          variant="secondary"
           onClick={handleCompileAll}
           disabled={anyPending}
-          className={cn(
-            'inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border',
-            anyPending
-              ? 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'
-              : 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
-          )}
+          style={!anyPending ? { background: 'var(--p-f)', borderColor: 'var(--p-b)', color: 'var(--p)' } : undefined}
         >
           {pendingAgent === 'all' ? (
             <>
-              <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+              <ArrowPathIcon className="h-3.5 w-3.5 spin" />
               {t('extraction.compiling')}
             </>
           ) : (
@@ -921,13 +918,13 @@ function DspyCompilationPanel() {
               {t('extraction.compileAll')}
             </>
           )}
-        </button>
+        </Button>
       </div>
 
       {isLoading ? (
         <div className="p-6 flex justify-center"><LoadingSpinner size="sm" /></div>
       ) : (
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-[var(--b)]">
           {DSPY_AGENT_ORDER.map((agent) => {
             const s = status?.programs?.[agent]
             const compiled = s?.compiled === true
@@ -937,32 +934,16 @@ function DspyCompilationPanel() {
             return (
               <div key={agent} className="px-4 py-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
-                      compiled
-                        ? 'bg-green-50 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
-                    )}
-                  >
-                    {compiled ? (
-                      <>
-                        <CheckCircleIcon className="h-3.5 w-3.5" />
-                        {t('extraction.compiled')}
-                      </>
-                    ) : (
-                      <>
-                        <ExclamationTriangleIcon className="h-3.5 w-3.5" />
-                        {t('extraction.defaults')}
-                      </>
-                    )}
-                  </span>
-                  <span className="text-sm font-medium text-gray-900 min-w-[80px]">
+                  <Pill tone={compiled ? 'ok' : 'n'}>
+                    {compiled ? t('extraction.compiled') : t('extraction.defaults')}
+                  </Pill>
+                  <span className="min-w-[80px]" style={{ fontWeight: 500 }}>
                     {t(`extraction.agents.${agent}`, { defaultValue: DSPY_AGENT_LABELS[agent] })}
                   </span>
                   {compiled ? (
                     <span
-                      className="text-xs text-gray-500"
+                      className="muted"
+                      style={{ fontSize: 'var(--fs-xs)' }}
                       title={compiledAt ? new Date(compiledAt * 1000).toLocaleString() : undefined}
                     >
                       {t('extraction.lastCompiled', { time: formatRelativeTime(compiledAt) })}
@@ -970,53 +951,48 @@ function DspyCompilationPanel() {
                       {typeof s?.verifications_since_last_compile === 'number' &&
                         s.verifications_since_last_compile > 0 && (
                         <span
-                          className={cn(
-                            'ml-2 px-1.5 py-0.5 rounded text-xs font-medium',
-                            autoConfig?.enabled &&
-                              s.verifications_since_last_compile >= (autoConfig.threshold || 5)
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-blue-50 text-blue-700'
-                          )}
+                          className="ml-2"
                           title={
                             autoConfig?.enabled
                               ? t('extraction.autoRecompileTriggersAt', { count: autoConfig.threshold })
                               : t('extraction.enableAutoRecompileHint')
                           }
                         >
-                          {t('extraction.newCount', { value: s.verifications_since_last_compile })}
+                          <Pill
+                            dot={false}
+                            tone={
+                              autoConfig?.enabled &&
+                              s.verifications_since_last_compile >= (autoConfig.threshold || 5)
+                                ? 'wa'
+                                : 'in'
+                            }
+                          >
+                            {t('extraction.newCount', { value: s.verifications_since_last_compile })}
+                          </Pill>
                         </span>
                       )}
                     </span>
                   ) : (
-                    <span className="text-xs text-gray-400 italic">
+                    <span className="faint italic" style={{ fontSize: 'var(--fs-xs)' }}>
                       {t('extraction.usingGenericPrompts')}
                       {typeof s?.verifications_since_last_compile === 'number' && s.verifications_since_last_compile > 0 && (
-                        <span className="ml-1 text-gray-600">
+                        <span className="muted ml-1">
                           {t('extraction.verifiedExamplesAvailable', { count: s.verifications_since_last_compile })}
                         </span>
                       )}
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => handleCompileOne(agent)}
-                  disabled={anyPending}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border',
-                    anyPending
-                      ? 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                  )}
-                >
+                <Button size="sm" variant="secondary" onClick={() => handleCompileOne(agent)} disabled={anyPending}>
                   {isPending ? (
                     <>
-                      <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                      <ArrowPathIcon className="h-3.5 w-3.5 spin" />
                       {pendingAgent === 'all' ? t('extraction.waiting') : t('extraction.compiling')}
                     </>
                   ) : (
                     t('extraction.compile')
                   )}
-                </button>
+                </Button>
               </div>
             )
           })}
@@ -1025,25 +1001,19 @@ function DspyCompilationPanel() {
 
       {/* Auto-recompile config */}
       {autoConfig && (
-        <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <label className="inline-flex items-center gap-2 text-xs font-medium text-gray-700">
-              <input
-                type="checkbox"
-                checked={autoConfig.enabled}
-                onChange={(e) =>
-                  autoConfigMutation.mutate({ enabled: e.target.checked })
-                }
-                disabled={autoConfigMutation.isPending}
-                className="rounded border-gray-300"
-              />
-              {t('extraction.autoRecompileLabel')}
-            </label>
-            <span className="text-xs text-gray-400" title={t('extraction.backgroundTaskTooltip')}>
+        <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderTop: '1px solid var(--b)', background: 'var(--s3)' }}>
+          <div className="row min-w-0">
+            <Switch
+              checked={autoConfig.enabled}
+              onChange={(checked) => autoConfigMutation.mutate({ enabled: checked })}
+              disabled={autoConfigMutation.isPending}
+              label={t('extraction.autoRecompileLabel')}
+            />
+            <span className="faint" style={{ fontSize: 'var(--fs-xs)' }} title={t('extraction.backgroundTaskTooltip')}>
               {t('extraction.runsInBackground')}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-600">
+          <div className="row muted" style={{ fontSize: 'var(--fs-sm)' }}>
             <span>{t('extraction.threshold')}</span>
             {editingThreshold !== null ? (
               <>
@@ -1053,32 +1023,30 @@ function DspyCompilationPanel() {
                   max={100}
                   value={editingThreshold}
                   onChange={(e) => setEditingThreshold(Number(e.target.value) || 1)}
-                  className="w-16 px-1.5 py-0.5 text-xs border border-gray-300 rounded"
+                  className="input"
+                  style={{ width: 64, minHeight: 28, padding: '2px 8px', fontSize: 'var(--fs-sm)' }}
                 />
                 <button
                   onClick={() =>
                     editingThreshold && autoConfigMutation.mutate({ threshold: editingThreshold })
                   }
                   disabled={autoConfigMutation.isPending}
-                  className="text-violet-600 hover:text-violet-800 font-medium"
+                  style={{ color: 'var(--p)', fontWeight: 600 }}
                 >
                   {t('common.save')}
                 </button>
-                <button
-                  onClick={() => setEditingThreshold(null)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
+                <button onClick={() => setEditingThreshold(null)} className="muted">
                   {t('common.cancel')}
                 </button>
               </>
             ) : (
               <>
-                <span className="font-medium text-gray-900">
+                <span style={{ fontWeight: 600, color: 'var(--t)' }}>
                   {t('extraction.newVerifications', { count: autoConfig.threshold })}
                 </span>
                 <button
                   onClick={() => setEditingThreshold(autoConfig.threshold)}
-                  className="text-violet-600 hover:text-violet-800 font-medium"
+                  style={{ color: 'var(--p)', fontWeight: 600 }}
                 >
                   {t('common.edit')}
                 </button>
@@ -1089,22 +1057,31 @@ function DspyCompilationPanel() {
       )}
 
       {resultMessage && (
-        <div
-          className={cn(
-            'px-4 py-2 text-xs border-t flex items-start gap-2',
-            resultIsError
-              ? 'bg-red-50 text-red-700 border-red-200'
-              : 'bg-green-50 text-green-700 border-green-200'
-          )}
-        >
-          {resultIsError ? (
-            <XCircleIcon className="h-4 w-4 mt-0.5 shrink-0" />
-          ) : (
-            <CheckCircleIcon className="h-4 w-4 mt-0.5 shrink-0" />
-          )}
-          <span>{resultMessage}</span>
+        <div className="p-3" style={{ borderTop: '1px solid var(--b)' }}>
+          <div
+            className={cn('banner', resultIsError && 'banner-da')}
+            style={!resultIsError ? { background: 'var(--ok-f)', borderColor: 'var(--ok-b)', color: 'var(--ok)' } : undefined}
+          >
+            {resultIsError ? (
+              <XCircleIcon className="h-4 w-4 mt-0.5 shrink-0" />
+            ) : (
+              <CheckCircleIcon className="h-4 w-4 mt-0.5 shrink-0" />
+            )}
+            <span>{resultMessage}</span>
+          </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showCompileAllConfirm}
+        title={t('extraction.compileAll')}
+        body={t('extraction.confirmCompileAll')}
+        tone="warn"
+        confirmLabel={t('common.confirm', { defaultValue: 'Confirm' })}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmCompileAll}
+        onCancel={() => setShowCompileAllConfirm(false)}
+      />
     </div>
   )
 }
@@ -1122,6 +1099,8 @@ export default function ExtractionQualityPage() {
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'metadata' | 'clauses' | 'obligations' | 'slas'>('metadata')
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [confirmAutoApprove, setConfirmAutoApprove] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<{ contractId: string; isGlobal: boolean } | null>(null)
 
   // ─── Review UX (#26): filter + focus + keyboard nav ───
   // Filter the list to what actually needs the reviewer's attention.
@@ -1450,10 +1429,10 @@ export default function ExtractionQualityPage() {
     if (!detail) {
       return (
         <div className="p-6">
-          <button onClick={backToOverview} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
-            <ArrowLeftIcon className="h-4 w-4" /> {t('extraction.backToGoldenSet')}
-          </button>
-          <p className="text-gray-500">{t('extraction.contractNotFound')}</p>
+          <Button variant="ghost" size="sm" icon={ArrowLeftIcon} onClick={backToOverview} className="mb-4">
+            {t('extraction.backToGoldenSet')}
+          </Button>
+          <p className="muted">{t('extraction.contractNotFound')}</p>
         </div>
       )
     }
@@ -1472,39 +1451,32 @@ export default function ExtractionQualityPage() {
     return (
       <div className="flex flex-col h-[calc(100vh-88px)] -mx-4 sm:-mx-6 lg:-mx-8 -mt-6">
         {/* Header Bar */}
-        <div className="flex-shrink-0 px-4 py-3 border-b bg-white flex items-center justify-between">
+        <div className="flex-shrink-0 px-4 py-3 flex items-center justify-between" style={{ background: 'var(--s)', borderBottom: '1px solid var(--b)' }}>
           <div className="flex items-center gap-3 min-w-0">
-            <button onClick={backToOverview} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 shrink-0">
-              <ArrowLeftIcon className="h-4 w-4" /> {t('extraction.back')}
-            </button>
-            <DocumentTextIcon className="h-5 w-5 text-primary-600 shrink-0" />
-            <h1 className="text-base font-semibold text-gray-900 truncate">{detail.filename}</h1>
+            <Button variant="ghost" size="sm" icon={ArrowLeftIcon} onClick={backToOverview} className="shrink-0">
+              {t('extraction.back')}
+            </Button>
+            <DocumentTextIcon className="h-5 w-5 shrink-0" style={{ color: 'var(--p)' }} />
+            <h1 className="trunc" style={{ fontSize: 'var(--fs-lg)', fontWeight: 600 }}>{detail.filename}</h1>
             {detail.is_golden && detail.is_global && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 shrink-0">
-                <GlobeAltIcon className="h-3 w-3" /> {t('extraction.platform')}
-              </span>
+              <Pill tone="in" dot={false} className="shrink-0">
+                <GlobeAltIcon style={{ width: 12, height: 12 }} aria-hidden /> {t('extraction.platform')}
+              </Pill>
             )}
             {detail.is_golden && !detail.is_global && (
-              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 shrink-0">{t('extraction.goldenSet')}</span>
+              <Pill tone="wa" dot={false} className="shrink-0">{t('extraction.goldenSet')}</Pill>
             )}
           </div>
-          <button
-            onClick={() => setShowDocViewer(!showDocViewer)}
-            className={cn(
-              'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors shrink-0',
-              showDocViewer ? 'bg-primary-50 text-primary-700 border-primary-200' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-            )}
-          >
-            <EyeIcon className="h-4 w-4" />
+          <Chip on={showDocViewer} icon={EyeIcon} onClick={() => setShowDocViewer(!showDocViewer)} className="shrink-0">
             {showDocViewer ? t('extraction.hideDocument') : t('extraction.showDocument')}
-          </button>
+          </Chip>
         </div>
 
         {/* Split Pane */}
         <div className="flex flex-1 overflow-hidden">
           {/* Left: Document Viewer */}
           {showDocViewer && (
-            <div className="w-1/2 flex-shrink-0 border-r bg-gray-50 h-full overflow-hidden flex flex-col">
+            <div className="w-1/2 flex-shrink-0 h-full overflow-hidden flex flex-col" style={{ borderRight: '1px solid var(--b)', background: 'var(--s3)' }}>
               {detail.extracted_text && /\.txt$/i.test(detail.filename || '') ? (
                 <ContractTextViewer
                   text={detail.extracted_text}
@@ -1522,128 +1494,94 @@ export default function ExtractionQualityPage() {
           )}
 
           {/* Right: Review Panel */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto scroll">
             <div className="p-4 space-y-4">
               {/* Summary Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white rounded-lg border p-3 text-center">
-            <p className="text-xs text-gray-500">{t('extraction.tabs.metadata')}</p>
-            <p className="text-lg font-semibold">{detail.summary.metadata_filled}/{detail.summary.metadata_total}</p>
-          </div>
-          <div className="bg-white rounded-lg border p-3 text-center">
-            <p className="text-xs text-gray-500">{t('extraction.tabs.clauses')}</p>
-            <p className="text-lg font-semibold">{detail.summary.clause_count}</p>
-          </div>
-          <div className="bg-white rounded-lg border p-3 text-center">
-            <p className="text-xs text-gray-500">{t('extraction.tabs.obligations')}</p>
-            <p className="text-lg font-semibold">{detail.summary.obligation_count}</p>
-          </div>
-          <div className="bg-white rounded-lg border p-3 text-center">
-            <p className="text-xs text-gray-500">{t('extraction.tabs.slas')}</p>
-            <p className="text-lg font-semibold">{detail.summary.sla_count}</p>
-          </div>
-        </div>
+                <Stat label={t('extraction.tabs.metadata')} value={`${detail.summary.metadata_filled}/${detail.summary.metadata_total}`} />
+                <Stat label={t('extraction.tabs.clauses')} value={detail.summary.clause_count} />
+                <Stat label={t('extraction.tabs.obligations')} value={detail.summary.obligation_count} />
+                <Stat label={t('extraction.tabs.slas')} value={detail.summary.sla_count} />
+              </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="flex gap-6">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={cn(
-                  'py-3 text-sm font-medium border-b-2 transition-colors',
-                  activeTab === tab.key
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                )}
-              >
-                {tab.label}{' '}
-                {detail.is_golden && tab.total > 0 ? (
-                  <span
-                    className={cn(
-                      'ml-1 px-1.5 py-0.5 rounded text-xs font-medium',
-                      tab.pending === 0
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-amber-100 text-amber-700'
-                    )}
-                    title={tab.pending === 0
-                      ? t('extraction.allReviewed', { count: tab.total })
-                      : t('extraction.pendingOfTotal', { pending: tab.pending, total: tab.total })}
-                  >
-                    {tab.pending === 0 ? `✓ ${tab.total}` : `${tab.pending} / ${tab.total}`}
-                  </span>
-                ) : (
-                  <span className="text-gray-400 ml-1">({tab.total})</span>
-                )}
-              </button>
-            ))}
-          </nav>
+        <div className="tabs" role="tablist">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={cn('tab', activeTab === tab.key && 'on')}
+            >
+              {tab.label}
+              {detail.is_golden && tab.total > 0 ? (
+                <span
+                  className="ct num"
+                  style={tab.pending === 0
+                    ? { background: 'var(--ok-f)', color: 'var(--ok)' }
+                    : { background: 'var(--wa-f)', color: 'var(--wa)' }}
+                  title={tab.pending === 0
+                    ? t('extraction.allReviewed', { count: tab.total })
+                    : t('extraction.pendingOfTotal', { pending: tab.pending, total: tab.total })}
+                >
+                  {tab.pending === 0 ? `✓ ${tab.total}` : `${tab.pending} / ${tab.total}`}
+                </span>
+              ) : (
+                <span className="ct num">{tab.total}</span>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Review filter bar — only meaningful for golden contracts */}
         {detail.is_golden && (
           <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
-            <div className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white p-0.5 text-xs">
+            <div className="row" style={{ gap: 6 }}>
               {(['pending', 'verified', 'all'] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setReviewFilter(f)}
-                  className={cn(
-                    'px-2.5 py-1 rounded font-medium capitalize transition-colors',
-                    reviewFilter === f
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  )}
-                >
+                <Chip key={f} on={reviewFilter === f} onClick={() => setReviewFilter(f)} className="capitalize">
                   {f === 'pending' ? t('status.pending') : t(`extraction.filter.${f}`)}
-                </button>
+                </Chip>
               ))}
             </div>
-            <div className="flex items-center gap-3 text-xs text-gray-500">
+            <div className="row muted flex-wrap" style={{ gap: 12, fontSize: 'var(--fs-sm)' }}>
               <span>
-                {t('extraction.showing')} <strong className="text-gray-900">{filteredItems.length}</strong>
+                {t('extraction.showing')} <strong style={{ color: 'var(--t)' }}>{filteredItems.length}</strong>
                 {' · '}
-                <strong className="text-amber-700">{tabPendingCounts[activeTab]}</strong> {t('extraction.pendingLabel')}
+                <strong style={{ color: 'var(--wa)' }}>{tabPendingCounts[activeTab]}</strong> {t('extraction.pendingLabel')}
                 {' / '}
-                <strong className="text-gray-900">
+                <strong style={{ color: 'var(--t)' }}>
                   {activeTab === 'metadata' ? detail.summary.metadata_total :
                    activeTab === 'clauses' ? detail.summary.clause_count :
                    activeTab === 'obligations' ? detail.summary.obligation_count :
                    detail.summary.sla_count} {t('extraction.totalLabel')}
                 </strong>
               </span>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer" title={t('extraction.autoAdvanceTooltip')}>
-                <input
-                  type="checkbox"
-                  checked={autoAdvance}
-                  onChange={(e) => setAutoAdvance(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                {t('extraction.autoAdvance')}
-              </label>
-              <button
+              <span title={t('extraction.autoAdvanceTooltip')}>
+                <Checkbox checked={autoAdvance} onChange={setAutoAdvance} label={t('extraction.autoAdvance')} />
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setShowShortcutsHelp(true)}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 hover:bg-gray-50 font-medium"
                 title={t('extraction.showKeyboardShortcuts')}
               >
-                <span className="font-mono">?</span> {t('extraction.shortcuts')}
-              </button>
+                <span className="kbd">?</span> {t('extraction.shortcuts')}
+              </Button>
             </div>
           </div>
         )}
 
         {/* Tab Content */}
-        <div className="bg-white rounded-lg border divide-y">
+        <div className="card overflow-hidden divide-y divide-[var(--b)]">
           {activeTab === 'metadata' && detail.is_golden && filteredItems.map((item: any) => {
             const key = itemKey('metadata', item)
             return (
               <div
                 key={key}
                 ref={(el) => registerRow(key, el)}
-                className={cn(
-                  focusedItemId === key && 'ring-2 ring-inset ring-primary-400 bg-primary-50/30'
-                )}
+                style={focusedItemId === key ? { boxShadow: 'inset 0 0 0 2px var(--p)', background: 'var(--p-f)' } : undefined}
                 onClick={() => setFocusedItemId(key)}
               >
                 <MetadataEditRow item={item} goldenSetId={detail.golden_set_id!} onVerify={handleVerify} />
@@ -1653,8 +1591,8 @@ export default function ExtractionQualityPage() {
           {activeTab === 'metadata' && !detail.is_golden && detail.metadata.map((item) => (
             <div key={item.field} className="flex items-center justify-between px-4 py-3">
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-700 capitalize">{item.field.replace(/_/g, ' ')}</p>
-                <p className="text-sm text-gray-500 mt-0.5">{item.value !== null && item.value !== undefined ? String(item.value) : <span className="italic text-gray-400">{t('extraction.notExtracted')}</span>}</p>
+                <p className="capitalize" style={{ fontWeight: 500 }}>{item.field.replace(/_/g, ' ')}</p>
+                <p className="muted mt-0.5">{item.value !== null && item.value !== undefined ? String(item.value) : <span className="italic faint">{t('extraction.notExtracted')}</span>}</p>
               </div>
             </div>
           ))}
@@ -1666,25 +1604,25 @@ export default function ExtractionQualityPage() {
               <div
                 key={key}
                 ref={(el) => registerRow(key, el)}
-                className={cn(focused && 'ring-2 ring-inset ring-primary-400 bg-primary-50/30')}
+                style={focused ? { boxShadow: 'inset 0 0 0 2px var(--p)', background: 'var(--p-f)' } : undefined}
                 onClick={() => setFocusedItemId(key)}
               >
                 {clause.is_manual ? (
-                  <div className="px-4 py-3 bg-amber-50/30">
+                  <div className="px-4 py-3" style={{ background: 'var(--wa-f)' }}>
                     <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{clause.clause_type || t('extraction.unknown')}</span>
+                      <div className="row">
+                        <Pill tone="p" dot={false}>{clause.clause_type || t('extraction.unknown')}</Pill>
                         {clause.risk_level && (
-                          <span className={cn('text-xs rounded px-1.5 py-0.5', clause.risk_level === 'high' ? 'bg-red-50 text-red-600' : clause.risk_level === 'medium' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600')}>
+                          <Pill tone={RISK_TONE[clause.risk_level] || 'n'} dot={false}>
                             {t('extraction.riskSuffix', { level: t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level }) })}
-              </span>
+                          </Pill>
                         )}
-                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">{t('extraction.manuallyAdded')}</span>
+                        <Pill tone="wa" dot={false}>{t('extraction.manuallyAdded')}</Pill>
                       </div>
                       {clause.verification && <VerificationBadge status={clause.verification.status} />}
                     </div>
-                    <p className="text-sm text-gray-600 line-clamp-3">{clause.text}</p>
-                    {clause.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{clause.verification.notes}</p>}
+                    <p className="muted line-clamp-3">{clause.text}</p>
+                    {clause.verification?.notes && <p className="faint italic" style={{ fontSize: 'var(--fs-xs)', marginTop: 2 }}>{clause.verification.notes}</p>}
                   </div>
                 ) : (
                   <ClauseEditRow clause={clause} goldenSetId={detail.golden_set_id!} onVerify={handleVerify} onLocate={(text: string, page?: number | null) => { setHighlightText(text); setHighlightPage(page ?? null); }} />
@@ -1694,8 +1632,8 @@ export default function ExtractionQualityPage() {
           })}
           {activeTab === 'clauses' && !detail.is_golden && detail.clauses.map((clause: any) => (
             <div key={clause.id} className="px-4 py-3">
-              <span className="text-xs font-medium text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">{clause.clause_type || t('extraction.unknown')}</span>
-              <p className="text-sm text-gray-600 mt-1 line-clamp-3">{clause.text}</p>
+              <Pill tone="p" dot={false}>{clause.clause_type || t('extraction.unknown')}</Pill>
+              <p className="muted mt-1 line-clamp-3">{clause.text}</p>
             </div>
           ))}
           {activeTab === 'clauses' && detail.is_golden && (
@@ -1709,21 +1647,21 @@ export default function ExtractionQualityPage() {
               <div
                 key={key}
                 ref={(el) => registerRow(key, el)}
-                className={cn(focused && 'ring-2 ring-inset ring-primary-400 bg-primary-50/30')}
+                style={focused ? { boxShadow: 'inset 0 0 0 2px var(--p)', background: 'var(--p-f)' } : undefined}
                 onClick={() => setFocusedItemId(key)}
               >
                 {obl.is_manual ? (
-                  <div className="px-4 py-3 bg-amber-50/30">
+                  <div className="px-4 py-3" style={{ background: 'var(--wa-f)' }}>
                     <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || t('extraction.unknown')}</span>
-                        {obl.obligated_party && <span className="text-xs text-gray-400">{obl.obligated_party}</span>}
-                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">{t('extraction.manuallyAdded')}</span>
+                      <div className="row">
+                        <Pill tone="in" dot={false}>{obl.obligation_type || t('extraction.unknown')}</Pill>
+                        {obl.obligated_party && <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{obl.obligated_party}</span>}
+                        <Pill tone="wa" dot={false}>{t('extraction.manuallyAdded')}</Pill>
                       </div>
                       {obl.verification && <VerificationBadge status={obl.verification.status} />}
                     </div>
-                    <p className="text-sm text-gray-600 line-clamp-2">{obl.description}</p>
-                    {obl.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{obl.verification.notes}</p>}
+                    <p className="muted line-clamp-2">{obl.description}</p>
+                    {obl.verification?.notes && <p className="faint italic" style={{ fontSize: 'var(--fs-xs)', marginTop: 2 }}>{obl.verification.notes}</p>}
                   </div>
                 ) : (
                   <ObligationEditRow obl={obl} onVerify={handleVerify} />
@@ -1733,8 +1671,8 @@ export default function ExtractionQualityPage() {
           })}
           {activeTab === 'obligations' && !detail.is_golden && detail.obligations.map((obl: any) => (
             <div key={obl.id} className="px-4 py-3">
-              <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{obl.obligation_type || t('extraction.unknown')}</span>
-              <p className="text-sm text-gray-600 mt-1 line-clamp-2">{obl.description}</p>
+              <Pill tone="in" dot={false}>{obl.obligation_type || t('extraction.unknown')}</Pill>
+              <p className="muted mt-1 line-clamp-2">{obl.description}</p>
             </div>
           ))}
           {activeTab === 'obligations' && detail.is_golden && (
@@ -1748,21 +1686,21 @@ export default function ExtractionQualityPage() {
               <div
                 key={key}
                 ref={(el) => registerRow(key, el)}
-                className={cn(focused && 'ring-2 ring-inset ring-primary-400 bg-primary-50/30')}
+                style={focused ? { boxShadow: 'inset 0 0 0 2px var(--p)', background: 'var(--p-f)' } : undefined}
                 onClick={() => setFocusedItemId(key)}
               >
                 {sla.is_manual ? (
-                  <div className="px-4 py-3 bg-amber-50/30">
+                  <div className="px-4 py-3" style={{ background: 'var(--wa-f)' }}>
                     <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-teal-600 bg-teal-50 rounded px-1.5 py-0.5">{sla.metric_type || 'SLA'}</span>
-                        <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">{t('extraction.manuallyAdded')}</span>
+                      <div className="row">
+                        <Pill tone="p" dot={false}>{sla.metric_type || 'SLA'}</Pill>
+                        <Pill tone="wa" dot={false}>{t('extraction.manuallyAdded')}</Pill>
                       </div>
                       {sla.verification && <VerificationBadge status={sla.verification.status} />}
                     </div>
-                    <p className="text-sm text-gray-700 font-medium">{sla.sla_name}</p>
-                    <p className="text-sm text-gray-500">{t('extraction.target', { value: sla.target_value ?? '--', unit: sla.metric_unit || '' })}</p>
-                    {sla.verification?.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{sla.verification.notes}</p>}
+                    <p style={{ fontWeight: 500 }}>{sla.sla_name}</p>
+                    <p className="muted">{t('extraction.target', { value: sla.target_value ?? '--', unit: sla.metric_unit || '' })}</p>
+                    {sla.verification?.notes && <p className="faint italic" style={{ fontSize: 'var(--fs-xs)', marginTop: 2 }}>{sla.verification.notes}</p>}
                   </div>
                 ) : (
                   <SLAEditRow sla={sla} onVerify={handleVerify} />
@@ -1772,36 +1710,36 @@ export default function ExtractionQualityPage() {
           })}
           {activeTab === 'slas' && !detail.is_golden && detail.slas.map((sla: any) => (
             <div key={sla.id} className="px-4 py-3">
-              <span className="text-xs font-medium text-teal-600 bg-teal-50 rounded px-1.5 py-0.5">{sla.metric_type || 'SLA'}</span>
-              <p className="text-sm text-gray-700 font-medium mt-1">{sla.sla_name}</p>
-              <p className="text-sm text-gray-500">{t('extraction.target', { value: sla.target_value ?? '--', unit: sla.metric_unit || '' })}</p>
+              <Pill tone="p" dot={false}>{sla.metric_type || 'SLA'}</Pill>
+              <p className="mt-1" style={{ fontWeight: 500 }}>{sla.sla_name}</p>
+              <p className="muted">{t('extraction.target', { value: sla.target_value ?? '--', unit: sla.metric_unit || '' })}</p>
             </div>
           ))}
           {activeTab === 'slas' && detail.is_golden && (
             <AddMissingSLA onAdd={(val) => handleAddManual('sla', val)} />
           )}
 
-          {activeTab === 'clauses' && detail.clauses.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">{t('extraction.noClausesExtracted')}</div>}
-          {activeTab === 'obligations' && detail.obligations.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">{t('extraction.noObligationsExtracted')}</div>}
-          {activeTab === 'slas' && detail.slas.length === 0 && !detail.is_golden && <div className="p-8 text-center text-gray-400">{t('extraction.noSlasExtracted')}</div>}
+          {activeTab === 'clauses' && detail.clauses.length === 0 && !detail.is_golden && <div className="p-8 text-center faint">{t('extraction.noClausesExtracted')}</div>}
+          {activeTab === 'obligations' && detail.obligations.length === 0 && !detail.is_golden && <div className="p-8 text-center faint">{t('extraction.noObligationsExtracted')}</div>}
+          {activeTab === 'slas' && detail.slas.length === 0 && !detail.is_golden && <div className="p-8 text-center faint">{t('extraction.noSlasExtracted')}</div>}
 
           {/* Empty state when the active filter hides everything */}
           {detail.is_golden && filteredItems.length === 0 && (
-            <div className="p-8 text-center text-sm">
+            <div className="p-8 text-center">
               {reviewFilter === 'pending' ? (
-                <div className="text-green-600">
+                <div style={{ color: 'var(--ok)' }}>
                   <CheckCircleIcon className="h-6 w-6 mx-auto mb-1" />
                   {t('extraction.nothingPending')}
                   {(tabPendingCounts.metadata + tabPendingCounts.clauses + tabPendingCounts.obligations + tabPendingCounts.slas - tabPendingCounts[activeTab]) > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="muted" style={{ fontSize: 'var(--fs-xs)', marginTop: 4 }}>
                       {t('extraction.otherTabsPending')}
                     </p>
                   )}
                 </div>
               ) : reviewFilter === 'verified' ? (
-                <div className="text-gray-400">{t('extraction.noVerifiedItems')}</div>
+                <div className="faint">{t('extraction.noVerifiedItems')}</div>
               ) : (
-                <div className="text-gray-400">{t('extraction.noItems')}</div>
+                <div className="faint">{t('extraction.noItems')}</div>
               )}
             </div>
           )}
@@ -1810,51 +1748,35 @@ export default function ExtractionQualityPage() {
         </div>
         </div>
 
-        {/* Shortcuts help modal */}
-        {showShortcutsHelp && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-            onClick={() => setShowShortcutsHelp(false)}
-          >
-            <div
-              className="bg-white rounded-lg shadow-xl max-w-md w-full p-5"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900">{t('extraction.keyboardShortcuts')}</h3>
-                <button
-                  onClick={() => setShowShortcutsHelp(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
+        {/* Shortcuts help */}
+        <Drawer
+          open={showShortcutsHelp}
+          title={t('extraction.keyboardShortcuts')}
+          onClose={() => setShowShortcutsHelp(false)}
+          width={380}
+        >
+          <div className="space-y-2">
+            {[
+              ['j / ↓', t('extraction.shortcutNext')],
+              ['k / ↑', t('extraction.shortcutPrev')],
+              ['c', t('extraction.shortcutMarkCorrect')],
+              ['x', t('extraction.shortcutMarkIncorrect')],
+              ['p', t('extraction.shortcutMarkPartial')],
+              ['1 / 2 / 3 / 4', t('extraction.shortcutSwitchTabs')],
+              ['/', t('extraction.shortcutCycleFilter')],
+              ['Esc', t('extraction.shortcutEscape')],
+              ['?', t('extraction.shortcutHelp')],
+            ].map(([key, desc]) => (
+              <div key={key} className="row" style={{ gap: 12 }}>
+                <kbd className="kbd" style={{ minWidth: 80 }}>{key}</kbd>
+                <span className="muted">{desc}</span>
               </div>
-              <div className="space-y-1.5 text-sm">
-                {[
-                  ['j / ↓', t('extraction.shortcutNext')],
-                  ['k / ↑', t('extraction.shortcutPrev')],
-                  ['c', t('extraction.shortcutMarkCorrect')],
-                  ['x', t('extraction.shortcutMarkIncorrect')],
-                  ['p', t('extraction.shortcutMarkPartial')],
-                  ['1 / 2 / 3 / 4', t('extraction.shortcutSwitchTabs')],
-                  ['/', t('extraction.shortcutCycleFilter')],
-                  ['Esc', t('extraction.shortcutEscape')],
-                  ['?', t('extraction.shortcutHelp')],
-                ].map(([key, desc]) => (
-                  <div key={key} className="flex items-center gap-3">
-                    <kbd className="inline-block min-w-[80px] px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-xs font-mono text-gray-700">
-                      {key}
-                    </kbd>
-                    <span className="text-gray-600">{desc}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-gray-400 mt-4 leading-relaxed">
-                {t('extraction.shortcutsNote')} <kbd className="px-1 rounded bg-gray-100 text-xs">j</kbd>).
-              </p>
-            </div>
+            ))}
           </div>
-        )}
+          <p className="faint" style={{ fontSize: 'var(--fs-sm)', marginTop: 16, lineHeight: 1.5 }}>
+            {t('extraction.shortcutsNote')} <kbd className="kbd">j</kbd>).
+          </p>
+        </Drawer>
       </div>
     )
   }
@@ -1872,53 +1794,41 @@ export default function ExtractionQualityPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <AdjustmentsHorizontalIcon className="h-7 w-7 text-primary-600" />
+          <AdjustmentsHorizontalIcon className="h-7 w-7" style={{ color: 'var(--p)' }} />
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">{t('nav.extractionQuality')}</h1>
-            <p className="text-sm text-gray-500">{t('extraction.subtitle')}</p>
+            <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, letterSpacing: '-.3px' }}>{t('nav.extractionQuality')}</h1>
+            <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>{t('extraction.subtitle')}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="row">
           {overview && overview.pending_review > 0 && (
-            <button
-              onClick={() => {
-                if (confirm(t('extraction.confirmAutoApprove', { count: overview.pending_review }))) {
-                  autoApproveMutation.mutate()
-                }
-              }}
+            <Button
+              variant="secondary"
+              icon={CheckCircleIcon}
+              onClick={() => setConfirmAutoApprove(true)}
               disabled={autoApproveMutation.isPending}
-              className="btn-secondary flex items-center gap-1.5"
             >
-              <CheckCircleIcon className="h-4 w-4" />
               {autoApproveMutation.isPending ? t('extraction.approving') : t('extraction.autoApproveAll')}
-            </button>
+            </Button>
           )}
-          <button
-            onClick={() => setShowAddDialog(true)}
-            className="btn-primary flex items-center gap-1.5"
-          >
-            <PlusIcon className="h-4 w-4" /> {t('extraction.addToGoldenSet')}
-          </button>
+          <Button variant="primary" icon={PlusIcon} onClick={() => setShowAddDialog(true)}>
+            {t('extraction.addToGoldenSet')}
+          </Button>
         </div>
       </div>
 
       {/* Filter banner from cross-page navigation */}
       {filterEntityType && filterTaxonomyCode && (
-        <div className="flex items-center justify-between p-3 bg-violet-50 rounded-lg border border-violet-200">
-          <div className="flex items-center gap-2">
-            <FunnelIcon className="h-4 w-4 text-violet-500" />
-            <span className="text-sm text-violet-800">
-              {t('extraction.filtering')} <strong>{filterEntityType}</strong> {t('extraction.typeLabel')} <strong className="font-mono">{filterTaxonomyCode}</strong>
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link to="/admin/industry-profiles" className="text-xs text-violet-600 hover:text-violet-800 font-medium">
+        <div className="banner banner-p items-center">
+          <FunnelIcon className="h-4 w-4 shrink-0" />
+          <span className="grow">
+            {t('extraction.filtering')} <b>{filterEntityType}</b> {t('extraction.typeLabel')} <b className="mono">{filterTaxonomyCode}</b>
+          </span>
+          <div className="row shrink-0" style={{ gap: 12 }}>
+            <Link to="/admin/industry-profiles" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>
               &larr; {t('extraction.backToIndustryProfiles')}
             </Link>
-            <button
-              onClick={() => setSearchParams({})}
-              className="text-xs text-gray-500 hover:text-gray-700"
-            >
+            <button onClick={() => setSearchParams({})} className="muted" style={{ fontSize: 'var(--fs-xs)' }}>
               {t('extraction.clearFilter')}
             </button>
           </div>
@@ -1938,16 +1848,16 @@ export default function ExtractionQualityPage() {
 
       {/* Summary Stats */}
       {overview && (
-        <div className="flex gap-6 text-sm text-gray-500">
-          <span><strong className="text-gray-900">{overview.total_golden}</strong> {t('extraction.summaryGolden')}</span>
+        <div className="row muted flex-wrap" style={{ gap: 20, fontSize: 'var(--fs-sm)' }}>
+          <span><strong style={{ color: 'var(--t)' }}>{overview.total_golden}</strong> {t('extraction.summaryGolden')}</span>
           {overview.total_global > 0 && (
-            <span><strong className="text-blue-600">{overview.total_global}</strong> {t('extraction.summaryPlatform')}</span>
+            <span><strong style={{ color: 'var(--in)' }}>{overview.total_global}</strong> {t('extraction.summaryPlatform')}</span>
           )}
           {overview.total_tenant > 0 && (
-            <span><strong className="text-amber-600">{overview.total_tenant}</strong> {t('extraction.summaryTenant')}</span>
+            <span><strong style={{ color: 'var(--wa)' }}>{overview.total_tenant}</strong> {t('extraction.summaryTenant')}</span>
           )}
-          <span><strong className="text-green-600">{overview.verified}</strong> {t('extraction.summaryVerified')}</span>
-          <span><strong className="text-amber-600">{overview.pending_review}</strong> {t('extraction.summaryPendingReview')}</span>
+          <span><strong style={{ color: 'var(--ok)' }}>{overview.verified}</strong> {t('extraction.summaryVerified')}</span>
+          <span><strong style={{ color: 'var(--wa)' }}>{overview.pending_review}</strong> {t('extraction.summaryPendingReview')}</span>
         </div>
       )}
 
@@ -1955,20 +1865,20 @@ export default function ExtractionQualityPage() {
       <DspyCompilationPanel />
 
       {/* Golden Set Contracts List */}
-      <div className="bg-white rounded-lg border">
-        <div className="px-4 py-3 border-b">
-          <h2 className="text-sm font-semibold text-gray-700">{t('extraction.goldenSetContracts')}</h2>
+      <div className="card overflow-hidden">
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--b)' }}>
+          <h2 className="sec-t">{t('extraction.goldenSetContracts')}</h2>
         </div>
         {(!goldenSet || goldenSet.length === 0) ? (
-          <div className="p-8 text-center text-gray-400">
-            <DocumentTextIcon className="h-10 w-10 mx-auto mb-2 text-gray-300" />
-            <p>{t('extraction.noGoldenContracts')}</p>
-            <p className="text-xs mt-1">{t('extraction.addContractsHint')}</p>
-          </div>
+          <EmptyState
+            icon={DocumentTextIcon}
+            title={t('extraction.noGoldenContracts')}
+            body={t('extraction.addContractsHint')}
+          />
         ) : (
-          <div className="divide-y">
+          <div className="divide-y divide-[var(--b)]">
             {goldenSet.map((item) => (
-              <div key={item.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+              <div key={item.id} className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-[var(--s3)]">
                 <button
                   onClick={() => openDetail(item.contract_id)}
                   className="flex-1 text-left"
@@ -1976,14 +1886,14 @@ export default function ExtractionQualityPage() {
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.filename}</p>
+                        <p className="trunc" style={{ fontWeight: 500 }}>{item.filename}</p>
                         {item.is_global && (
-                          <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 shrink-0">
-                            <GlobeAltIcon className="h-3 w-3" /> {t('extraction.platform')}
-                          </span>
+                          <Pill tone="in" dot={false} className="shrink-0">
+                            <GlobeAltIcon style={{ width: 12, height: 12 }} aria-hidden /> {t('extraction.platform')}
+                          </Pill>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
+                      <div className="row muted flex-wrap" style={{ gap: 12, marginTop: 2, fontSize: 'var(--fs-xs)' }}>
                         {item.contract_type && <span className="capitalize">{item.contract_type}</span>}
                         {item.counterparty && <span>{item.counterparty}</span>}
                         <span>{t('extraction.clausesCount', { count: item.extraction.clause_count })}</span>
@@ -1992,34 +1902,31 @@ export default function ExtractionQualityPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <div className="flex items-center gap-1 text-xs">
-                        <span className="text-green-600">{item.verification.correct}</span>/
-                        <span className="text-red-600">{item.verification.incorrect}</span>/
-                        <span className="text-yellow-600">{item.verification.partial}</span>/
-                        <span className="text-gray-400">{item.verification.pending}</span>
+                      <div className="num" style={{ fontSize: 'var(--fs-xs)' }}>
+                        <span style={{ color: 'var(--ok)' }}>{item.verification.correct}</span>/
+                        <span style={{ color: 'var(--da)' }}>{item.verification.incorrect}</span>/
+                        <span style={{ color: 'var(--wa)' }}>{item.verification.partial}</span>/
+                        <span className="faint">{item.verification.pending}</span>
                       </div>
-                      <div className={cn('text-sm font-semibold w-14 text-right', SCORE_COLORS(item.scores.overall))}>
+                      <div className="num w-14 text-right" style={{ fontWeight: 600, color: scoreTone(item.scores.overall) }}>
                         {item.scores.overall !== null ? `${item.scores.overall}%` : '--'}
                       </div>
-                      <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                      <ChevronRightIcon className="h-4 w-4" style={{ color: 'var(--f)' }} />
                     </div>
                   </div>
                 </button>
                 {/* Only allow removing global entries if super admin, always allow removing tenant entries */}
                 {(isSuperAdmin || !item.is_global) && (
-                  <button
+                  <IconButton
+                    icon={TrashIcon}
+                    size="sm"
+                    label={item.is_global ? t('extraction.removeFromPlatformGoldenSet') : t('extraction.removeFromGoldenSet')}
+                    className="ml-2"
                     onClick={(e) => {
                       e.stopPropagation()
-                      const label = item.is_global ? t('extraction.confirmRemoveGlobal') : t('extraction.confirmRemove')
-                      if (confirm(label)) {
-                        removeMutation.mutate({ contractId: item.contract_id, isGlobal: item.is_global })
-                      }
+                      setRemoveTarget({ contractId: item.contract_id, isGlobal: item.is_global })
                     }}
-                    className="ml-2 p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
-                    title={item.is_global ? t('extraction.removeFromPlatformGoldenSet') : t('extraction.removeFromGoldenSet')}
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
+                  />
                 )}
               </div>
             ))}
@@ -2027,18 +1934,14 @@ export default function ExtractionQualityPage() {
         )}
         {/* Pagination */}
         {gsTotalPages > 1 && (
-          <div className="px-4 py-3 border-t flex items-center justify-between">
-            <span className="text-xs text-gray-500">
+          <div className="px-4 py-3 flex items-center justify-between" style={{ borderTop: '1px solid var(--b)' }}>
+            <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>
               {t('extraction.showingRange', { from: (gsPage - 1) * gsPageSize + 1, to: Math.min(gsPage * gsPageSize, gsTotal), total: gsTotal })}
             </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setGsPage((p) => Math.max(1, p - 1))}
-                disabled={gsPage <= 1}
-                className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-30"
-              >
+            <div className="row" style={{ gap: 4 }}>
+              <Button size="sm" variant="ghost" onClick={() => setGsPage((p) => Math.max(1, p - 1))} disabled={gsPage <= 1}>
                 {t('extraction.prev')}
-              </button>
+              </Button>
               {Array.from({ length: Math.min(7, gsTotalPages) }, (_, i) => {
                 let p: number
                 if (gsTotalPages <= 7) {
@@ -2051,92 +1954,110 @@ export default function ExtractionQualityPage() {
                   p = gsPage - 3 + i
                 }
                 return (
-                  <button
+                  <Button
                     key={p}
+                    size="sm"
+                    variant={p === gsPage ? 'primary' : 'ghost'}
                     onClick={() => setGsPage(p)}
-                    className={cn(
-                      'px-2 py-1 text-xs rounded border',
-                      p === gsPage ? 'bg-primary-600 text-white border-primary-600' : 'hover:bg-gray-50'
-                    )}
+                    className="num"
                   >
                     {p}
-                  </button>
+                  </Button>
                 )
               })}
-              <button
-                onClick={() => setGsPage((p) => Math.min(gsTotalPages, p + 1))}
-                disabled={gsPage >= gsTotalPages}
-                className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-30"
-              >
+              <Button size="sm" variant="ghost" onClick={() => setGsPage((p) => Math.min(gsTotalPages, p + 1))} disabled={gsPage >= gsTotalPages}>
                 {t('extraction.next')}
-              </button>
+              </Button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Add to Golden Set Dialog */}
-      {showAddDialog && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => { setShowAddDialog(false); setAddAsGlobal(false) }}>
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">{t('extraction.addContractToGoldenSet')}</h3>
-              <p className="text-sm text-gray-500 mt-0.5">
-                {addAsGlobal
-                  ? t('extraction.addingAsPlatform')
-                  : t('extraction.selectContractHint')}
-              </p>
-            </div>
-            <div className="px-5 py-3 border-b space-y-2">
-              <input
-                type="text"
-                placeholder={t('extraction.searchContractsPlaceholder')}
-                value={contractSearch}
-                onChange={(e) => setContractSearch(e.target.value)}
-                className="input w-full"
-              />
-              {isSuperAdmin && (
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={addAsGlobal}
-                    onChange={(e) => setAddAsGlobal(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <GlobeAltIcon className="h-4 w-4 text-blue-600" />
-                  <span className="text-gray-700">{t('extraction.addAsPlatformLabel')}</span>
-                </label>
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto divide-y">
-              {availableContracts.length === 0 ? (
-                <div className="p-6 text-center text-gray-400 text-sm">
-                  {contractsResponse ? t('extraction.noMatchingContracts') : <LoadingSpinner size="sm" />}
-                </div>
-              ) : (
-                availableContracts.slice(0, 20).map((contract) => (
-                  <button
-                    key={contract.id}
-                    onClick={() => addMutation.mutate({ contractId: contract.id, isGlobal: addAsGlobal })}
-                    disabled={addMutation.isPending}
-                    className="w-full text-left px-5 py-3 hover:bg-primary-50 transition-colors disabled:opacity-50"
-                  >
-                    <p className="text-sm font-medium text-gray-900 truncate">{contract.filename}</p>
-                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
-                      {contract.contract_type && <span className="capitalize">{contract.contract_type}</span>}
-                      {contract.counterparty && <span>{contract.counterparty}</span>}
-                      {contract.status && <span className="capitalize">{contract.status}</span>}
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-            <div className="px-5 py-3 border-t bg-gray-50 rounded-b-xl">
-              <button onClick={() => { setShowAddDialog(false); setAddAsGlobal(false) }} className="btn-secondary w-full">{t('common.cancel')}</button>
-            </div>
+      {/* Add to Golden Set */}
+      <Drawer
+        open={showAddDialog}
+        title={t('extraction.addContractToGoldenSet')}
+        onClose={() => { setShowAddDialog(false); setAddAsGlobal(false) }}
+        width={480}
+        footer={
+          <Button variant="secondary" style={{ flex: 1 }} onClick={() => { setShowAddDialog(false); setAddAsGlobal(false) }}>
+            {t('common.cancel')}
+          </Button>
+        }
+      >
+        <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          {addAsGlobal
+            ? t('extraction.addingAsPlatform')
+            : t('extraction.selectContractHint')}
+        </p>
+        <Field
+          type="text"
+          placeholder={t('extraction.searchContractsPlaceholder')}
+          value={contractSearch}
+          onChange={(e) => setContractSearch(e.target.value)}
+          containerStyle={{ marginTop: 12 }}
+        />
+        {isSuperAdmin && (
+          <div className="row" style={{ marginTop: 10 }}>
+            <Checkbox checked={addAsGlobal} onChange={setAddAsGlobal} label={t('extraction.addAsPlatformLabel')} />
+            <GlobeAltIcon className="h-4 w-4 shrink-0" style={{ color: 'var(--in)' }} aria-hidden />
           </div>
+        )}
+        <div className="card overflow-hidden divide-y divide-[var(--b)]" style={{ marginTop: 14 }}>
+          {availableContracts.length === 0 ? (
+            <div className="p-6 text-center faint" style={{ fontSize: 'var(--fs-sm)' }}>
+              {contractsResponse ? t('extraction.noMatchingContracts') : <LoadingSpinner size="sm" />}
+            </div>
+          ) : (
+            availableContracts.slice(0, 20).map((contract) => (
+              <button
+                key={contract.id}
+                onClick={() => addMutation.mutate({ contractId: contract.id, isGlobal: addAsGlobal })}
+                disabled={addMutation.isPending}
+                className="w-full text-left px-4 py-3 transition-colors hover:bg-[var(--p-f)] disabled:opacity-50"
+              >
+                <p className="trunc" style={{ fontWeight: 500 }}>{contract.filename}</p>
+                <div className="row muted flex-wrap" style={{ gap: 12, marginTop: 2, fontSize: 'var(--fs-xs)' }}>
+                  {contract.contract_type && <span className="capitalize">{contract.contract_type}</span>}
+                  {contract.counterparty && <span>{contract.counterparty}</span>}
+                  {contract.status && <span className="capitalize">{contract.status}</span>}
+                </div>
+              </button>
+            ))
+          )}
         </div>
-      )}
+      </Drawer>
+
+      {/* Confirm: auto-approve all pending verifications */}
+      <ConfirmDialog
+        open={confirmAutoApprove}
+        title={t('extraction.autoApproveAll')}
+        body={t('extraction.confirmAutoApprove', { count: overview?.pending_review ?? 0 })}
+        tone="warn"
+        confirmLabel={t('common.confirm', { defaultValue: 'Confirm' })}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => {
+          setConfirmAutoApprove(false)
+          autoApproveMutation.mutate()
+        }}
+        onCancel={() => setConfirmAutoApprove(false)}
+      />
+
+      {/* Confirm: remove contract from golden set */}
+      <ConfirmDialog
+        open={!!removeTarget}
+        title={removeTarget?.isGlobal ? t('extraction.removeFromPlatformGoldenSet') : t('extraction.removeFromGoldenSet')}
+        body={removeTarget?.isGlobal ? t('extraction.confirmRemoveGlobal') : t('extraction.confirmRemove')}
+        confirmLabel={t('common.remove', { defaultValue: 'Remove' })}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => {
+          if (removeTarget) {
+            removeMutation.mutate({ contractId: removeTarget.contractId, isGlobal: removeTarget.isGlobal })
+          }
+          setRemoveTarget(null)
+        }}
+        onCancel={() => setRemoveTarget(null)}
+      />
     </div>
   )
 }

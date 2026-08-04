@@ -1,3 +1,7 @@
+/* External contract portal — Direction B restyle. Token-gated PUBLIC page
+   rendered outside MainLayout: standalone header bar (wordmark on var(--s)),
+   content on var(--pg), cards/pills/tabs from '@/components/ui'. All token
+   validation, queries, mutations, download and comment flows unchanged. */
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
@@ -11,6 +15,7 @@ import {
   ExclamationTriangleIcon,
   ClockIcon,
   ChevronLeftIcon,
+  ChevronRightIcon,
   BellAlertIcon,
   ChartBarIcon,
   ExclamationCircleIcon,
@@ -20,8 +25,9 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import axios from 'axios'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn, formatDate } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
+import { Avatar, Button, Chip, EmptyState, IconButton, Pill, Tabs, Tag, useToast } from '@/components/ui'
+import type { PillTone, TabDef } from '@/components/ui'
 
 const apiBase = '/api/external'
 
@@ -174,12 +180,53 @@ interface GovernanceData {
 
 type TabId = 'document' | 'clauses' | 'obligations' | 'sla' | 'comments' | 'governance'
 
+// ── Tone maps (design tokens only) ─────────────────────────────────
+
+const riskTone = (level?: string): PillTone =>
+  level === 'high' || level === 'critical' ? 'da' : level === 'medium' ? 'wa' : 'ok'
+
+const priorityTone = (priority?: string): PillTone =>
+  priority === 'critical' ? 'da' : priority === 'high' || priority === 'medium' ? 'wa' : 'n'
+
+const SEVERITY_TONE: Record<string, PillTone> = {
+  critical: 'da',
+  significant: 'wa',
+  moderate: 'wa',
+  minor: 'ok',
+  aligned: 'ok',
+}
+
+const STATUS_TONE: Record<string, PillTone> = {
+  open: 'in',
+  in_progress: 'p',
+  blocked: 'da',
+  completed: 'ok',
+  cancelled: 'n',
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  service_delivery: 'Service Delivery',
+  quality: 'Quality',
+  timeliness: 'Timeliness',
+  communication: 'Communication',
+  innovation: 'Innovation',
+  cost_efficiency: 'Cost Efficiency',
+  compliance: 'Compliance',
+  satisfaction: 'Satisfaction',
+  other: 'Other',
+}
+
+function Spinner({ size = 26 }: { size?: number }) {
+  return <ArrowPathIcon className="spin" style={{ width: size, height: size, color: 'var(--f)' }} aria-hidden />
+}
+
 // ── Main Component ─────────────────────────────────────────────────
 
 export default function ExternalContractPage() {
   const { t } = useTranslation()
   const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
   const [newComment, setNewComment] = useState('')
   const [activeTab, setActiveTab] = useState<TabId>('document')
@@ -296,7 +343,7 @@ export default function ExternalContractPage() {
       link.remove()
       window.URL.revokeObjectURL(url)
     } catch {
-      alert(t('external.downloadFailed'))
+      toast({ text: t('external.downloadFailed'), error: true })
     }
   }
 
@@ -321,10 +368,10 @@ export default function ExternalContractPage() {
 
   if (validating) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <LoadingSpinner size="lg" />
-          <p className="mt-4 text-gray-600">{t('external.validatingAccess')}</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--pg)' }}>
+        <div className="col items-center" style={{ gap: 12 }}>
+          <Spinner size={28} />
+          <p className="muted">{t('external.validatingAccess')}</p>
         </div>
       </div>
     )
@@ -332,15 +379,13 @@ export default function ExternalContractPage() {
 
   if (validationError || !accessToken) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
-          </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">{t('external.accessDenied')}</h1>
-          <p className="text-gray-600">
-            {!accessToken ? t('external.noToken') : t('external.invalidLink')}
-          </p>
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--pg)' }}>
+        <div className="card w-full" style={{ maxWidth: 420 }}>
+          <EmptyState
+            icon={ExclamationTriangleIcon}
+            title={t('external.accessDenied')}
+            body={!accessToken ? t('external.noToken') : t('external.invalidLink')}
+          />
         </div>
       </div>
     )
@@ -350,33 +395,53 @@ export default function ExternalContractPage() {
 
   if (!effectiveContractId && validation?.contracts && validation.contracts.length > 1) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen" style={{ background: 'var(--pg)' }}>
         <PortalHeader user={validation.external_user} expiresAt={validation.token_expires_at} />
         <main className="max-w-5xl mx-auto px-4 py-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">{t('external.sharedContracts')}</h2>
-          <p className="text-sm text-gray-500 mb-6">{t('external.contractsSharedWithYou', { count: validation.contracts.length })}</p>
-          <div className="space-y-3">
+          <h2 style={{ fontSize: 'var(--fs-xl)', fontWeight: 600, letterSpacing: '-.2px' }}>{t('external.sharedContracts')}</h2>
+          <p className="muted" style={{ fontSize: 'var(--fs-md)', marginTop: 2, marginBottom: 20 }}>
+            {t('external.contractsSharedWithYou', { count: validation.contracts.length })}
+          </p>
+          <div className="col" style={{ gap: 10 }}>
             {validation.contracts.map((c) => (
               <button key={c.id}
                 onClick={() => { setSelectedContractId(c.id); setActiveTab('document'); }}
-                className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-primary-300 hover:shadow-md transition-all text-left group"
+                className="card card-p w-full text-left transition-shadow hover:shadow-[var(--sh-sm)]"
               >
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-primary-100 rounded-lg shrink-0 group-hover:bg-primary-200 transition-colors">
-                    <DocumentTextIcon className="w-7 h-7 text-primary-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate group-hover:text-primary-700 transition-colors">{c.filename}</p>
-                    {c.counterparty && <p className="text-sm text-gray-500 mt-0.5">{c.counterparty}</p>}
-                    <div className="flex items-center gap-2 mt-2">
-                      {c.contract_type && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{c.contract_type.replace(/_/g, ' ')}</span>}
-                      {c.expires_at && <span className="text-xs text-gray-400 flex items-center gap-1"><ClockIcon className="w-3 h-3" />{t('external.expires', { date: formatDate(c.expires_at) })}</span>}
+                <div className="row" style={{ gap: 14 }}>
+                  <span
+                    style={{
+                      width: 40, height: 40, borderRadius: 'var(--r-md)', flexShrink: 0,
+                      background: 'var(--p-f)', color: 'var(--p)', display: 'grid', placeItems: 'center',
+                    }}
+                  >
+                    <DocumentTextIcon style={{ width: 20, height: 20 }} aria-hidden />
+                  </span>
+                  <div className="grow">
+                    <p className="trunc" style={{ fontWeight: 600 }}>{c.filename}</p>
+                    {c.counterparty && <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 1 }}>{c.counterparty}</p>}
+                    <div className="row" style={{ gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                      {c.contract_type && <Tag><span className="capitalize">{c.contract_type.replace(/_/g, ' ')}</span></Tag>}
+                      {c.expires_at && (
+                        <span className="faint inline-flex items-center gap-1" style={{ fontSize: 'var(--fs-xs)' }}>
+                          <ClockIcon style={{ width: 12, height: 12 }} aria-hidden />
+                          {t('external.expires', { date: formatDate(c.expires_at) })}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {c.can_download && <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded flex items-center gap-1"><ArrowDownTrayIcon className="w-3 h-3" /> {t('external.download')}</span>}
-                    {c.can_comment && <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded flex items-center gap-1"><ChatBubbleLeftIcon className="w-3 h-3" /> {t('external.comment')}</span>}
-                    <ChevronLeftIcon className="w-5 h-5 text-gray-300 rotate-180 group-hover:text-primary-400 transition-colors" />
+                  <div className="row" style={{ gap: 6, flexShrink: 0 }}>
+                    {c.can_download && (
+                      <Pill tone="ok" dot={false}>
+                        <ArrowDownTrayIcon style={{ width: 11, height: 11 }} aria-hidden /> {t('external.download')}
+                      </Pill>
+                    )}
+                    {c.can_comment && (
+                      <Pill tone="in" dot={false}>
+                        <ChatBubbleLeftIcon style={{ width: 11, height: 11 }} aria-hidden /> {t('external.comment')}
+                      </Pill>
+                    )}
+                    <ChevronRightIcon style={{ width: 16, height: 16, color: 'var(--f)' }} aria-hidden />
                   </div>
                 </div>
               </button>
@@ -390,9 +455,13 @@ export default function ExternalContractPage() {
 
   if (!validation?.contracts?.length) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen" style={{ background: 'var(--pg)' }}>
         <PortalHeader user={validation?.external_user} expiresAt={validation?.token_expires_at} />
-        <main className="max-w-5xl mx-auto px-4 py-8 text-center"><p className="text-gray-600">{t('external.noContractsShared')}</p></main>
+        <main className="max-w-5xl mx-auto px-4 py-8">
+          <div className="card">
+            <EmptyState icon={DocumentTextIcon} title={t('external.noContractsShared')} />
+          </div>
+        </main>
         <PortalFooter />
       </div>
     )
@@ -403,51 +472,83 @@ export default function ExternalContractPage() {
   const showBackButton = validation?.contracts && validation.contracts.length > 1
   const canComment = contract?.can_comment ?? false
 
+  const tabDefs: TabDef<TabId>[] = contract
+    ? [
+        { value: 'document', label: t('external.document'), icon: EyeIcon },
+        { value: 'clauses', label: t('external.keyClauses'), icon: DocumentTextIcon, count: contract.clauses?.length || undefined },
+        { value: 'obligations', label: t('contract.obligations'), icon: BellAlertIcon, count: contract.obligations?.length || undefined },
+        { value: 'sla', label: t('contract.slas'), icon: ChartBarIcon, count: contract.slas?.length || undefined },
+        ...(governanceData?.has_governance
+          ? [{ value: 'governance' as TabId, label: t('external.governance'), icon: ShieldCheckIcon, count: governanceData.kpis.length || undefined }]
+          : []),
+        { value: 'comments', label: t('external.allComments'), icon: ChatBubbleLeftIcon, count: commentsData?.total || undefined },
+      ]
+    : []
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'var(--pg)' }}>
       <PortalHeader user={validation?.external_user} expiresAt={validation?.token_expires_at} />
       <main className="max-w-5xl mx-auto px-4 py-8">
         {showBackButton && (
-          <button onClick={() => { setSelectedContractId(null); setActiveTab('document'); }}
-            className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-800 mb-4">
-            <ChevronLeftIcon className="w-4 h-4" /> {t('external.allContracts')}
-          </button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={ChevronLeftIcon}
+            onClick={() => { setSelectedContractId(null); setActiveTab('document'); }}
+            style={{ marginBottom: 14 }}
+          >
+            {t('external.allContracts')}
+          </Button>
         )}
 
         {loadingContract ? (
-          <div className="text-center py-16"><LoadingSpinner size="lg" /></div>
+          <div className="flex justify-center py-16"><Spinner size={28} /></div>
         ) : contract ? (
           <>
             {/* Header Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 bg-primary-100 rounded-lg"><DocumentTextIcon className="w-8 h-8 text-primary-600" /></div>
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-900">{contract.filename}</h2>
-                      {contract.counterparty && <p className="text-gray-600 mt-1">{t('contracts.counterparty')}: {contract.counterparty}</p>}
-                      <div className="flex flex-wrap items-center gap-2 mt-2">
-                        {contract.contract_type && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded capitalize">{contract.contract_type.replace(/_/g, ' ')}</span>}
-                        {contract.risk_level && (
-                          <span className={cn("text-xs px-2 py-1 rounded capitalize",
-                            contract.risk_level === 'high' || contract.risk_level === 'critical' ? 'bg-red-100 text-red-700' :
-                            contract.risk_level === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-                          )}>{t('contract.riskLabel', { level: t(`risk.${contract.risk_level}`, { defaultValue: contract.risk_level }) })}</span>
-                        )}
-                        {contract.auto_renewal && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded flex items-center gap-1"><ArrowPathIcon className="w-3 h-3" /> {t('external.autoRenewal')}</span>}
-                        <span className={cn("text-xs px-2 py-1 rounded capitalize", contract.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600')}>{t(`status.${contract.status}`, { defaultValue: contract.status })}</span>
-                      </div>
+            <div className="card">
+              <div className="card-p" style={{ borderBottom: '1px solid var(--b)' }}>
+                <div className="row" style={{ alignItems: 'flex-start', gap: 14 }}>
+                  <span
+                    style={{
+                      width: 44, height: 44, borderRadius: 'var(--r-md)', flexShrink: 0,
+                      background: 'var(--p-f)', color: 'var(--p)', display: 'grid', placeItems: 'center',
+                    }}
+                  >
+                    <DocumentTextIcon style={{ width: 22, height: 22 }} aria-hidden />
+                  </span>
+                  <div className="grow">
+                    <h2 style={{ fontSize: 'var(--fs-xl)', fontWeight: 600, letterSpacing: '-.2px' }}>{contract.filename}</h2>
+                    {contract.counterparty && (
+                      <p className="muted" style={{ fontSize: 'var(--fs-md)', marginTop: 2 }}>
+                        {t('contracts.counterparty')}: {contract.counterparty}
+                      </p>
+                    )}
+                    <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                      {contract.contract_type && <Tag><span className="capitalize">{contract.contract_type.replace(/_/g, ' ')}</span></Tag>}
+                      {contract.risk_level && (
+                        <Pill tone={riskTone(contract.risk_level)}>
+                          {t('contract.riskLabel', { level: t(`risk.${contract.risk_level}`, { defaultValue: contract.risk_level }) })}
+                        </Pill>
+                      )}
+                      {contract.auto_renewal && (
+                        <Pill tone="in" dot={false}>
+                          <ArrowPathIcon style={{ width: 11, height: 11 }} aria-hidden /> {t('external.autoRenewal')}
+                        </Pill>
+                      )}
+                      <Pill tone={contract.status === 'completed' ? 'ok' : 'n'}>
+                        <span className="capitalize">{t(`status.${contract.status}`, { defaultValue: contract.status })}</span>
+                      </Pill>
                     </div>
                   </div>
                   {contract.can_download && (
-                    <button onClick={handleDownload} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shrink-0">
-                      <ArrowDownTrayIcon className="w-5 h-5" /> {t('external.download')}
-                    </button>
+                    <Button variant="primary" icon={ArrowDownTrayIcon} onClick={handleDownload} style={{ flexShrink: 0 }}>
+                      {t('external.download')}
+                    </Button>
                   )}
                 </div>
               </div>
-              <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="card-p grid grid-cols-2 md:grid-cols-4 gap-4">
                 {contract.effective_date && <DetailCell label={t('external.effectiveDate')} value={formatDate(contract.effective_date)} />}
                 {contract.expiration_date && <DetailCell label={t('external.expirationDate')} value={formatDate(contract.expiration_date)} />}
                 {(contract.total_value || contract.contract_value) && <DetailCell label={t('external.totalValue')} value={`${contract.currency || 'USD'} ${(contract.total_value || contract.contract_value || 0).toLocaleString()}`} />}
@@ -457,35 +558,26 @@ export default function ExternalContractPage() {
                 {contract.risk_score != null && <DetailCell label={t('external.riskScore')} value={`${contract.risk_score}/100`} />}
               </div>
               {contract.shared_message && (
-                <div className="px-6 pb-6">
-                  <div className="bg-primary-50 border-l-4 border-primary-400 p-4 rounded-r-lg">
-                    <p className="text-sm text-primary-800 italic">"{contract.shared_message}"</p>
+                <div style={{ padding: '0 16px 16px' }}>
+                  <div className="banner banner-p" style={{ fontStyle: 'italic' }}>
+                    "{contract.shared_message}"
                   </div>
                 </div>
               )}
             </div>
 
             {contract.summary && (
-              <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="font-semibold text-gray-900 mb-2">{t('external.contractSummary')}</h3>
-                <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">{contract.summary}</p>
+              <div className="card card-p" style={{ marginTop: 16 }}>
+                <div className="sec-t" style={{ marginBottom: 8 }}>{t('external.contractSummary')}</div>
+                <p className="muted" style={{ fontSize: 'var(--fs-md)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{contract.summary}</p>
               </div>
             )}
 
             {/* Tabs */}
-            <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="border-b border-gray-200 flex overflow-x-auto">
-                <TabButton active={activeTab === 'document'} onClick={() => setActiveTab('document')} icon={<EyeIcon className="w-4 h-4" />} label={t('external.document')} />
-                <TabButton active={activeTab === 'clauses'} onClick={() => setActiveTab('clauses')} icon={<DocumentTextIcon className="w-4 h-4" />} label={t('external.keyClauses')} count={contract.clauses?.length} />
-                <TabButton active={activeTab === 'obligations'} onClick={() => setActiveTab('obligations')} icon={<BellAlertIcon className="w-4 h-4" />} label={t('contract.obligations')} count={contract.obligations?.length} />
-                <TabButton active={activeTab === 'sla'} onClick={() => setActiveTab('sla')} icon={<ChartBarIcon className="w-4 h-4" />} label={t('contract.slas')} count={contract.slas?.length} />
-                {governanceData?.has_governance && (
-                  <TabButton active={activeTab === 'governance'} onClick={() => setActiveTab('governance')} icon={<ShieldCheckIcon className="w-4 h-4" />} label={t('external.governance')} count={governanceData.kpis.length} />
-                )}
-                <TabButton active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} icon={<ChatBubbleLeftIcon className="w-4 h-4" />} label={t('external.allComments')} count={commentsData?.total} />
-              </div>
+            <div className="card" style={{ marginTop: 16 }}>
+              <Tabs tabs={tabDefs} value={activeTab} onChange={setActiveTab} style={{ padding: '0 12px' }} />
 
-              <div className="p-6">
+              <div className="card-p">
                 {activeTab === 'document' && (
                   <DocumentPreview contractId={effectiveContractId!} accessToken={accessToken} filename={contract.filename} />
                 )}
@@ -553,78 +645,75 @@ function InlineCommentWidget({
   const count = comments.length
 
   return (
-    <div className="mt-3">
+    <div style={{ marginTop: 12 }}>
       {/* Comment toggle button */}
-      <div className="flex items-center gap-3">
+      <div className="row" style={{ gap: 10 }}>
         {canComment && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={ChatBubbleLeftIcon}
             onClick={() => {
               if (isOpen) { setCommentingOn(null); setItemComment(''); }
               else { setCommentingOn(sectionRef); setItemComment(''); }
             }}
-            className={cn(
-              "text-xs flex items-center gap-1 px-2 py-1 rounded transition-colors",
-              isOpen ? "bg-primary-100 text-primary-700" : "text-gray-400 hover:text-primary-600 hover:bg-primary-50"
-            )}
+            style={isOpen ? { background: 'var(--p-f)', color: 'var(--p)' } : undefined}
           >
-            <ChatBubbleLeftIcon className="w-3.5 h-3.5" />
             {isOpen ? t('common.cancel') : t('external.comment')}
-          </button>
+          </Button>
         )}
         {count > 0 && !isOpen && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={ChatBubbleLeftIcon}
             onClick={() => { setCommentingOn(sectionRef); setItemComment(''); }}
-            className="text-xs text-gray-400 hover:text-primary-600 flex items-center gap-1"
           >
-            <ChatBubbleLeftIcon className="w-3 h-3" />
             {t('external.commentCount', { count })}
-          </button>
+          </Button>
         )}
       </div>
 
       {/* Expanded: show existing comments + form */}
       {isOpen && (
-        <div className="mt-2 ml-0 border-l-2 border-primary-200 pl-3 space-y-2">
+        <div className="col" style={{ marginTop: 8, borderLeft: '2px solid var(--p-b)', paddingLeft: 12, gap: 8 }}>
           {/* Existing comments */}
           {comments.map((c) => (
-            <div key={c.id} className="flex items-start gap-2">
-              <div className={cn(
-                "h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium shrink-0",
-                c.is_internal_author ? "bg-blue-100 text-blue-700" : "bg-primary-100 text-primary-700"
-              )}>
-                {c.author_name?.charAt(0).toUpperCase() || '?'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-medium text-gray-800">{c.author_name}</span>
-                  <span className={cn("text-[10px] px-1 py-0.5 rounded",
-                    c.is_internal_author ? "bg-blue-50 text-blue-600" : "bg-primary-50 text-primary-600"
-                  )}>{c.is_internal_author ? t('external.internal') : t('external.you')}</span>
-                  <span className="text-[10px] text-gray-400">{formatDate(c.created_at)}</span>
+            <div key={c.id} className="row" style={{ alignItems: 'flex-start', gap: 8 }}>
+              <Avatar name={c.author_name || '?'} size={22} />
+              <div className="grow">
+                <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{c.author_name}</span>
+                  <Pill tone={c.is_internal_author ? 'in' : 'p'} dot={false}>
+                    {c.is_internal_author ? t('external.internal') : t('external.you')}
+                  </Pill>
+                  <span className="faint" style={{ fontSize: 'var(--fs-2xs)' }}>{formatDate(c.created_at)}</span>
                 </div>
-                <p className="text-xs text-gray-700 mt-0.5">{c.content}</p>
+                <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 2 }}>{c.content}</p>
               </div>
             </div>
           ))}
 
           {/* Input form */}
           {canComment && (
-            <div className="flex items-start gap-2 pt-1">
+            <div className="row" style={{ alignItems: 'flex-start', gap: 8, paddingTop: 4 }}>
               <textarea
                 value={itemComment}
                 onChange={(e) => setItemComment(e.target.value)}
                 placeholder={t('external.addYourComment')}
                 rows={2}
-                className="flex-1 text-xs px-3 py-2 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                className="input grow resize-none"
+                style={{ fontSize: 'var(--fs-sm)' }}
                 autoFocus
               />
-              <button
+              <Button
+                variant="primary"
+                size="sm"
+                icon={PaperAirplaneIcon}
                 onClick={() => onSubmitItemComment(sectionRef, clauseId)}
                 disabled={!itemComment.trim() || isPending}
-                className="px-3 py-2 bg-primary-600 text-white text-xs rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors shrink-0"
-              >
-                <PaperAirplaneIcon className="w-3.5 h-3.5" />
-              </button>
+                aria-label={t('external.send')}
+              />
             </div>
           )}
         </div>
@@ -639,25 +728,37 @@ function InlineCommentWidget({
 function PortalHeader({ user, expiresAt }: { user?: ValidateResponse['external_user']; expiresAt?: string }) {
   const { t } = useTranslation()
   return (
-    <header className="bg-white border-b border-gray-200">
-      <div className="max-w-5xl mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">E</span>
-            </div>
-            <div>
-              <h1 className="font-semibold text-gray-900">Evaluetor</h1>
-              <p className="text-xs text-gray-500">{t('external.sharedContractPortal')}</p>
-            </div>
+    <header style={{ background: 'var(--s)', borderBottom: '1px solid var(--b)' }}>
+      <div className="max-w-5xl mx-auto px-4">
+        <div className="row" style={{ height: 56, gap: 10 }}>
+          <span
+            aria-hidden
+            style={{
+              width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+              background: 'var(--p)', color: 'var(--on-p)',
+              display: 'grid', placeItems: 'center',
+              fontSize: 14, fontWeight: 700, lineHeight: 1,
+            }}
+          >
+            E
+          </span>
+          <div className="col">
+            <span style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, letterSpacing: '-.2px', lineHeight: 1.2 }}>Evaluetor</span>
+            <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('external.sharedContractPortal')}</span>
           </div>
-          <div className="flex items-center gap-4">
-            {expiresAt && <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400"><ClockIcon className="w-3.5 h-3.5" /><span>{t('external.expires', { date: formatDate(expiresAt) })}</span></div>}
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <ShieldCheckIcon className="w-4 h-4 text-green-600" />
-              <span className="hidden sm:inline">{user?.full_name || user?.email}</span>
-            </div>
-          </div>
+          <span className="grow" />
+          {expiresAt && (
+            <span className="faint hidden sm:inline-flex items-center gap-1" style={{ fontSize: 'var(--fs-xs)' }}>
+              <ClockIcon style={{ width: 13, height: 13 }} aria-hidden />
+              {t('external.expires', { date: formatDate(expiresAt) })}
+            </span>
+          )}
+          <span className="row" style={{ gap: 6 }}>
+            <ShieldCheckIcon style={{ width: 16, height: 16, color: 'var(--ok)', flexShrink: 0 }} aria-hidden />
+            <span className="muted hidden sm:inline trunc" style={{ fontSize: 'var(--fs-md)', maxWidth: 220 }}>
+              {user?.full_name || user?.email}
+            </span>
+          </span>
         </div>
       </div>
     </header>
@@ -667,27 +768,20 @@ function PortalHeader({ user, expiresAt }: { user?: ValidateResponse['external_u
 function PortalFooter() {
   const { t } = useTranslation()
   return (
-    <footer className="border-t border-gray-200 bg-white mt-12">
-      <div className="max-w-5xl mx-auto px-4 py-6 text-center text-sm text-gray-500">{t('external.poweredBy')}</div>
+    <footer style={{ borderTop: '1px solid var(--b)', background: 'var(--s)', marginTop: 48 }}>
+      <div className="max-w-5xl mx-auto px-4 py-6 text-center faint" style={{ fontSize: 'var(--fs-sm)' }}>
+        {t('external.poweredBy')}
+      </div>
     </footer>
   )
 }
 
 function DetailCell({ label, value }: { label: string; value: string }) {
-  return <div><p className="text-sm text-gray-500">{label}</p><p className="font-medium text-gray-900">{value}</p></div>
-}
-
-function TabButton({ active, onClick, icon, label, count }: {
-  active: boolean; onClick: () => void; icon: React.ReactNode; label: string; count?: number
-}) {
   return (
-    <button onClick={onClick}
-      className={cn("flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-        active ? "border-primary-600 text-primary-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-      )}>
-      {icon}{label}
-      {count != null && count > 0 && <span className={cn("text-xs px-1.5 py-0.5 rounded-full", active ? "bg-primary-100 text-primary-700" : "bg-gray-100 text-gray-600")}>{count}</span>}
-    </button>
+    <div>
+      <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>{label}</p>
+      <p style={{ fontWeight: 500, marginTop: 2 }}>{value}</p>
+    </div>
   )
 }
 
@@ -714,19 +808,34 @@ function DocumentPreview({ contractId, accessToken, filename }: { contractId: st
 
   const isPdf = filename?.toLowerCase().endsWith('.pdf')
 
-  if (loading) return <div className="flex flex-col items-center justify-center py-16"><LoadingSpinner size="lg" /><p className="mt-4 text-sm text-gray-500">{t('external.loadingPreview')}</p></div>
-  if (error || !pdfUrl) return <div className="text-center py-12"><DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">{error || t('external.previewNotAvailable')}</p><p className="text-xs text-gray-400 mt-1">{t('external.useDownloadButton')}</p></div>
-  if (!isPdf) return <div className="text-center py-12"><DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500 text-sm">{t('external.pdfOnly')}</p></div>
+  if (loading) {
+    return (
+      <div className="col items-center py-16" style={{ gap: 12 }}>
+        <Spinner size={28} />
+        <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>{t('external.loadingPreview')}</p>
+      </div>
+    )
+  }
+  if (error || !pdfUrl) {
+    return (
+      <EmptyState
+        icon={DocumentTextIcon}
+        title={error || t('external.previewNotAvailable')}
+        body={t('external.useDownloadButton')}
+      />
+    )
+  }
+  if (!isPdf) return <EmptyState icon={DocumentTextIcon} title={t('external.pdfOnly')} />
 
   if (fullscreen) {
     return (
       <>
-        <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 bg-gray-900">
-            <p className="text-white text-sm font-medium truncate">{filename}</p>
-            <button onClick={() => setFullscreen(false)} className="text-gray-300 hover:text-white p-1 rounded-lg hover:bg-gray-700 transition-colors"><XMarkIcon className="w-6 h-6" /></button>
+        <div className="fixed inset-0 z-50 col" style={{ background: 'var(--pg)' }}>
+          <div className="row px-4" style={{ height: 48, background: 'var(--s)', borderBottom: '1px solid var(--b)', flexShrink: 0 }}>
+            <p className="trunc grow" style={{ fontWeight: 600, fontSize: 'var(--fs-md)' }}>{filename}</p>
+            <IconButton icon={XMarkIcon} label={t('common.close', { defaultValue: 'Close' })} onClick={() => setFullscreen(false)} />
           </div>
-          <div className="flex-1"><iframe src={`${pdfUrl}#toolbar=1&navpanes=1`} className="w-full h-full border-0" title={t('external.contractDocument')} /></div>
+          <div className="grow"><iframe src={`${pdfUrl}#toolbar=1&navpanes=1`} className="w-full h-full border-0" title={t('external.contractDocument')} /></div>
         </div>
         <div className="h-[600px]" />
       </>
@@ -735,12 +844,14 @@ function DocumentPreview({ contractId, accessToken, filename }: { contractId: st
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm text-gray-500">{filename}</p>
-        <button onClick={() => setFullscreen(true)} className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1"><EyeIcon className="w-3.5 h-3.5" /> {t('external.fullscreen')}</button>
+      <div className="row" style={{ marginBottom: 10 }}>
+        <p className="muted grow trunc" style={{ fontSize: 'var(--fs-sm)' }}>{filename}</p>
+        <Button variant="ghost" size="sm" icon={EyeIcon} onClick={() => setFullscreen(true)}>
+          {t('external.fullscreen')}
+        </Button>
       </div>
-      <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-100">
-        <iframe src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1`} className="w-full border-0" style={{ height: '700px' }} title={t('external.contractDocument')} />
+      <div style={{ border: '1px solid var(--b)', borderRadius: 'var(--r-lg)', overflow: 'hidden', background: 'var(--s2)' }}>
+        <iframe src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1`} className="w-full border-0" style={{ height: 700 }} title={t('external.contractDocument')} />
       </div>
     </div>
   )
@@ -763,23 +874,29 @@ interface CommentableProps {
 
 function ClausesSection({ clauses, ...cp }: { clauses: Clause[] } & CommentableProps) {
   const { t } = useTranslation()
-  if (!clauses?.length) return <EmptyState text={t('external.noClauses')} />
+  if (!clauses?.length) return <EmptyState icon={DocumentTextIcon} title={t('external.noClauses')} />
 
   return (
-    <div className="space-y-4">
+    <div className="col" style={{ gap: 12 }}>
       {clauses.map((clause) => {
         const ref = `clause:${clause.id}`
         return (
-          <div key={clause.id} className="border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              {clause.section_number && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{clause.section_number}</span>}
-              {clause.clause_type && <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded capitalize">{t(`clauses.${clause.clause_type}`, { defaultValue: clause.clause_type.replace(/_/g, ' ') })}</span>}
-              {clause.risk_level && <span className={cn("text-xs px-2 py-0.5 rounded capitalize",
-                clause.risk_level === 'high' ? 'bg-red-100 text-red-700' : clause.risk_level === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-              )}>{t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level })}</span>}
+          <div key={clause.id} className="card card-p">
+            <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+              {clause.section_number && <Tag>{clause.section_number}</Tag>}
+              {clause.clause_type && (
+                <Pill tone="p" dot={false}>
+                  <span className="capitalize">{t(`clauses.${clause.clause_type}`, { defaultValue: clause.clause_type.replace(/_/g, ' ') })}</span>
+                </Pill>
+              )}
+              {clause.risk_level && (
+                <Pill tone={riskTone(clause.risk_level)}>
+                  <span className="capitalize">{t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level })}</span>
+                </Pill>
+              )}
             </div>
-            {clause.title && <p className="font-medium text-gray-900 mb-1">{clause.title}</p>}
-            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{clause.text}</p>
+            {clause.title && <p style={{ fontWeight: 600, marginBottom: 4 }}>{clause.title}</p>}
+            <p className="muted" style={{ fontSize: 'var(--fs-md)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{clause.text}</p>
             <InlineCommentWidget sectionRef={ref} clauseId={clause.id} comments={cp.getCommentsFor(ref)}
               canComment={cp.canComment} commentingOn={cp.commentingOn} setCommentingOn={cp.setCommentingOn}
               itemComment={cp.itemComment} setItemComment={cp.setItemComment}
@@ -795,7 +912,7 @@ function ClausesSection({ clauses, ...cp }: { clauses: Clause[] } & CommentableP
 
 function ObligationsSection({ obligations, ...cp }: { obligations: ObligationItem[] } & CommentableProps) {
   const { t } = useTranslation()
-  if (!obligations?.length) return <EmptyState text={t('external.noObligations')} />
+  if (!obligations?.length) return <EmptyState icon={BellAlertIcon} title={t('external.noObligations')} />
 
   const now = new Date()
   const sorted = [...obligations].sort((a, b) => {
@@ -804,28 +921,42 @@ function ObligationsSection({ obligations, ...cp }: { obligations: ObligationIte
   })
 
   return (
-    <div className="space-y-3">
+    <div className="col" style={{ gap: 12 }}>
       {sorted.map((ob) => {
         const isOverdue = ob.deadline && new Date(ob.deadline) < now && ob.status !== 'completed'
         const ref = `obligation:${ob.id}`
         return (
-          <div key={ob.id} className={cn("border rounded-lg p-4", isOverdue ? "border-red-200 bg-red-50" : "border-gray-200")}>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  {ob.is_critical && <ExclamationCircleIcon className="w-4 h-4 text-red-600 shrink-0" />}
-                  <p className="font-medium text-gray-900">{ob.description}</p>
+          <div
+            key={ob.id}
+            className="card card-p"
+            style={isOverdue ? { borderColor: 'var(--da-b)', background: 'var(--da-f)' } : undefined}
+          >
+            <div className="row" style={{ alignItems: 'flex-start', gap: 14 }}>
+              <div className="grow">
+                <div className="row" style={{ gap: 6 }}>
+                  {ob.is_critical && <ExclamationCircleIcon style={{ width: 16, height: 16, color: 'var(--da)', flexShrink: 0 }} aria-hidden />}
+                  <p style={{ fontWeight: 600 }}>{ob.description}</p>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                  {ob.obligation_type && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{t(`obligation.type.${ob.obligation_type}`, { defaultValue: ob.obligation_type.replace(/_/g, ' ') })}</span>}
-                  {ob.responsible_party && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{ob.responsible_party}</span>}
-                  {ob.priority && <span className={cn("px-2 py-0.5 rounded capitalize", ob.priority === 'critical' ? 'bg-red-100 text-red-700' : ob.priority === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600')}>{t(`risk.${ob.priority}`, { defaultValue: ob.priority })}</span>}
+                <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                  {ob.obligation_type && <Tag><span className="capitalize">{t(`obligation.type.${ob.obligation_type}`, { defaultValue: ob.obligation_type.replace(/_/g, ' ') })}</span></Tag>}
+                  {ob.responsible_party && <Pill tone="in" dot={false}>{ob.responsible_party}</Pill>}
+                  {ob.priority && (
+                    <Pill tone={priorityTone(ob.priority)}>
+                      <span className="capitalize">{t(`risk.${ob.priority}`, { defaultValue: ob.priority })}</span>
+                    </Pill>
+                  )}
                 </div>
-                {ob.consequence && <p className="text-xs text-gray-500 mt-2 italic">{t('external.consequence', { text: ob.consequence })}</p>}
+                {ob.consequence && <p className="faint" style={{ fontSize: 'var(--fs-sm)', marginTop: 8, fontStyle: 'italic' }}>{t('external.consequence', { text: ob.consequence })}</p>}
               </div>
-              <div className="text-right shrink-0">
-                {ob.deadline && <p className={cn("text-sm font-medium", isOverdue ? "text-red-700" : "text-gray-700")}>{isOverdue ? t('external.overdue') : formatDate(ob.deadline)}</p>}
-                <p className={cn("text-xs mt-1 capitalize", ob.status === 'completed' ? "text-green-600" : "text-gray-500")}>{t(`status.${ob.status || 'pending'}`, { defaultValue: ob.status || 'pending' })}</p>
+              <div className="text-right" style={{ flexShrink: 0 }}>
+                {ob.deadline && (
+                  <p className="num" style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: isOverdue ? 'var(--da)' : 'var(--t)' }}>
+                    {isOverdue ? t('external.overdue') : formatDate(ob.deadline)}
+                  </p>
+                )}
+                <p className="capitalize" style={{ fontSize: 'var(--fs-sm)', marginTop: 4, color: ob.status === 'completed' ? 'var(--ok)' : 'var(--m)' }}>
+                  {t(`status.${ob.status || 'pending'}`, { defaultValue: ob.status || 'pending' })}
+                </p>
               </div>
             </div>
             <InlineCommentWidget sectionRef={ref} comments={cp.getCommentsFor(ref)}
@@ -843,38 +974,49 @@ function ObligationsSection({ obligations, ...cp }: { obligations: ObligationIte
 
 function SLASection({ slas, ...cp }: { slas: SLAItem[] } & CommentableProps) {
   const { t } = useTranslation()
-  if (!slas?.length) return <EmptyState text={t('external.noSlas')} />
+  if (!slas?.length) return <EmptyState icon={ChartBarIcon} title={t('external.noSlas')} />
 
   return (
-    <div className="space-y-3">
+    <div className="col" style={{ gap: 12 }}>
       {slas.map((sla) => {
         const compliance = sla.current_compliance_rate
-        const complianceColor = compliance == null ? 'gray' : compliance >= 95 ? 'green' : compliance >= 80 ? 'amber' : 'red'
+        const tone = compliance == null ? null : compliance >= 95 ? 'var(--ok)' : compliance >= 80 ? 'var(--wa)' : 'var(--da)'
+        const ComplianceIcon = compliance == null ? null : compliance >= 95 ? CheckCircleIcon : compliance >= 80 ? ExclamationTriangleIcon : ExclamationCircleIcon
         const ref = `sla:${sla.id}`
 
         return (
-          <div key={sla.id} className="border border-gray-200 rounded-lg p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{sla.sla_name}</p>
-                {sla.sla_description && <p className="text-sm text-gray-600 mt-1">{sla.sla_description}</p>}
-                <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                  {sla.metric_type && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{sla.metric_type.replace(/_/g, ' ')}</span>}
-                  {sla.target_value != null && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{t('external.target', { value: `${sla.target_operator || '>='} ${sla.target_value}${sla.metric_unit || ''}` })}</span>}
-                  {sla.severity && <span className={cn("px-2 py-0.5 rounded capitalize", sla.severity === 'critical' ? 'bg-red-100 text-red-700' : sla.severity === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600')}>{t(`risk.${sla.severity}`, { defaultValue: sla.severity })}</span>}
-                  {sla.measurement_period && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{sla.measurement_period}</span>}
+          <div key={sla.id} className="card card-p">
+            <div className="row" style={{ alignItems: 'flex-start', gap: 14 }}>
+              <div className="grow">
+                <p style={{ fontWeight: 600 }}>{sla.sla_name}</p>
+                {sla.sla_description && <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4 }}>{sla.sla_description}</p>}
+                <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                  {sla.metric_type && <Tag><span className="capitalize">{sla.metric_type.replace(/_/g, ' ')}</span></Tag>}
+                  {sla.target_value != null && (
+                    <Pill tone="in" dot={false}>
+                      {t('external.target', { value: `${sla.target_operator || '>='} ${sla.target_value}${sla.metric_unit || ''}` })}
+                    </Pill>
+                  )}
+                  {sla.severity && (
+                    <Pill tone={priorityTone(sla.severity)}>
+                      <span className="capitalize">{t(`risk.${sla.severity}`, { defaultValue: sla.severity })}</span>
+                    </Pill>
+                  )}
+                  {sla.measurement_period && <Tag><span className="capitalize">{sla.measurement_period}</span></Tag>}
                 </div>
-                {sla.has_penalty && sla.penalty_description && <p className="text-xs text-gray-500 mt-2 italic">{t('external.penalty', { text: sla.penalty_description })}</p>}
+                {sla.has_penalty && sla.penalty_description && (
+                  <p className="faint" style={{ fontSize: 'var(--fs-sm)', marginTop: 8, fontStyle: 'italic' }}>{t('external.penalty', { text: sla.penalty_description })}</p>
+                )}
               </div>
-              <div className="text-right shrink-0">
-                {compliance != null ? (
-                  <div className="flex items-center gap-1.5">
-                    {complianceColor === 'green' && <CheckCircleIcon className="w-5 h-5 text-green-600" />}
-                    {complianceColor === 'amber' && <ExclamationTriangleIcon className="w-5 h-5 text-amber-600" />}
-                    {complianceColor === 'red' && <ExclamationCircleIcon className="w-5 h-5 text-red-600" />}
-                    <span className={cn("text-lg font-bold", complianceColor === 'green' ? 'text-green-700' : complianceColor === 'amber' ? 'text-amber-700' : 'text-red-700')}>{compliance.toFixed(1)}%</span>
-                  </div>
-                ) : <span className="text-sm text-gray-400">{t('external.noData')}</span>}
+              <div style={{ flexShrink: 0 }}>
+                {compliance != null && tone && ComplianceIcon ? (
+                  <span className="row" style={{ gap: 6 }}>
+                    <ComplianceIcon style={{ width: 18, height: 18, color: tone }} aria-hidden />
+                    <span className="num" style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: tone }}>{compliance.toFixed(1)}%</span>
+                  </span>
+                ) : (
+                  <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('external.noData')}</span>
+                )}
               </div>
             </div>
             <InlineCommentWidget sectionRef={ref} comments={cp.getCommentsFor(ref)}
@@ -898,48 +1040,50 @@ function AllCommentsSection({ comments, newComment, setNewComment, onSubmit, isP
   return (
     <div>
       {canComment ? (
-        <form onSubmit={onSubmit} className="mb-6">
-          <div className="border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
-            <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)}
-              placeholder={t('external.addGeneralComment')} rows={3}
-              className="w-full px-4 py-3 border-0 resize-none focus:ring-0 text-sm" />
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200">
-              <p className="text-xs text-gray-400">{t('external.commentsVisibleBoth')}</p>
-              <button type="submit" disabled={!newComment.trim() || isPending}
-                className="px-4 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center gap-2">
-                <PaperAirplaneIcon className="w-4 h-4" />{isPending ? t('external.sending') : t('external.send')}
-              </button>
+        <form onSubmit={onSubmit} style={{ marginBottom: 20 }}>
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder={t('external.addGeneralComment')}
+              rows={3}
+              className="w-full resize-none"
+              style={{ background: 'transparent', border: 0, outline: 'none', padding: '12px 14px', fontSize: 'var(--fs-md)', color: 'var(--t)' }}
+            />
+            <div className="row" style={{ padding: '8px 12px', borderTop: '1px solid var(--b)', background: 'var(--s3)' }}>
+              <span className="faint grow" style={{ fontSize: 'var(--fs-xs)' }}>{t('external.commentsVisibleBoth')}</span>
+              <Button variant="primary" size="sm" type="submit" icon={PaperAirplaneIcon} disabled={!newComment.trim() || isPending}>
+                {isPending ? t('external.sending') : t('external.send')}
+              </Button>
             </div>
           </div>
-          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+          {error && <div className="banner banner-da" style={{ marginTop: 8 }}>{error}</div>}
         </form>
       ) : (
-        <div className="mb-6 p-3 bg-gray-50 rounded-lg text-sm text-gray-500 text-center">{t('external.commentingDisabled')}</div>
+        <div className="muted text-center" style={{ marginBottom: 20, padding: '10px 12px', background: 'var(--s2)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-md)' }}>
+          {t('external.commentingDisabled')}
+        </div>
       )}
 
       {comments.length === 0 ? (
-        <EmptyState text={canComment ? t('external.noCommentsYet') : t('external.noComments')} />
+        <EmptyState icon={ChatBubbleLeftIcon} title={canComment ? t('external.noCommentsYet') : t('external.noComments')} />
       ) : (
-        <div className="space-y-4">
+        <div className="col" style={{ gap: 12 }}>
           {comments.map((comment) => (
-            <div key={comment.id} className="flex items-start gap-3">
-              <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium shrink-0",
-                comment.is_internal_author ? "bg-blue-100 text-blue-700" : "bg-primary-100 text-primary-700"
-              )}>{comment.author_name?.charAt(0).toUpperCase() || '?'}</div>
-              <div className="flex-1 bg-gray-50 rounded-lg px-4 py-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-gray-900 text-sm">{comment.author_name}</span>
-                  <span className={cn("text-xs px-1.5 py-0.5 rounded",
-                    comment.is_internal_author ? "bg-blue-100 text-blue-600" : "bg-primary-100 text-primary-600"
-                  )}>{comment.is_internal_author ? t('external.internal') : t('external.external')}</span>
-                  <span className="text-xs text-gray-400">{formatDate(comment.created_at)}</span>
+            <div key={comment.id} className="row" style={{ alignItems: 'flex-start', gap: 10 }}>
+              <Avatar name={comment.author_name || '?'} size={28} />
+              <div className="grow" style={{ background: 'var(--s2)', borderRadius: 'var(--r-md)', padding: '10px 14px' }}>
+                <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600, fontSize: 'var(--fs-md)' }}>{comment.author_name}</span>
+                  <Pill tone={comment.is_internal_author ? 'in' : 'p'} dot={false}>
+                    {comment.is_internal_author ? t('external.internal') : t('external.external')}
+                  </Pill>
+                  <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{formatDate(comment.created_at)}</span>
                   {comment.section_reference && (
-                    <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
-                      {t('external.onSection', { section: comment.section_reference.replace(':', ': #').replace(/-.*/, '...') })}
-                    </span>
+                    <Tag>{t('external.onSection', { section: comment.section_reference.replace(':', ': #').replace(/-.*/, '...') })}</Tag>
                   )}
                 </div>
-                <p className="text-sm text-gray-700 mt-1.5">{comment.content}</p>
+                <p className="muted" style={{ fontSize: 'var(--fs-md)', marginTop: 5 }}>{comment.content}</p>
               </div>
             </div>
           ))}
@@ -950,41 +1094,6 @@ function AllCommentsSection({ comments, newComment, setNewComment, onSubmit, isP
 }
 
 // ── Governance Section ──────────────────────────────────────────────
-
-const CATEGORY_LABELS: Record<string, string> = {
-  service_delivery: 'Service Delivery',
-  quality: 'Quality',
-  timeliness: 'Timeliness',
-  communication: 'Communication',
-  innovation: 'Innovation',
-  cost_efficiency: 'Cost Efficiency',
-  compliance: 'Compliance',
-  satisfaction: 'Satisfaction',
-  other: 'Other',
-}
-
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'bg-red-100 text-red-700',
-  significant: 'bg-orange-100 text-orange-700',
-  moderate: 'bg-amber-100 text-amber-700',
-  minor: 'bg-green-100 text-green-700',
-  aligned: 'bg-emerald-100 text-emerald-700',
-}
-
-const PRIORITY_COLORS: Record<string, string> = {
-  critical: 'bg-red-100 text-red-700',
-  high: 'bg-orange-100 text-orange-700',
-  medium: 'bg-amber-100 text-amber-700',
-  low: 'bg-gray-100 text-gray-600',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  open: 'bg-blue-100 text-blue-700',
-  in_progress: 'bg-primary-100 text-primary-700',
-  blocked: 'bg-red-100 text-red-700',
-  completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-gray-100 text-gray-500',
-}
 
 function GovernanceSection({ data }: { data: GovernanceData }) {
   const { t } = useTranslation()
@@ -1005,117 +1114,96 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
     <div>
       {/* Relationship header */}
       {rel && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-indigo-50 rounded-lg border border-primary-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">{t('external.businessRelationship')}</p>
-              <p className="font-semibold text-gray-900">
-                {rel.org_a_name} <span className="text-primary-500 mx-1">&harr;</span> {rel.org_b_name}
+        <div style={{ marginBottom: 20, padding: 16, background: 'var(--p-f)', border: '1px solid var(--p-b)', borderRadius: 'var(--r-lg)' }}>
+          <div className="row" style={{ gap: 14 }}>
+            <div className="grow">
+              <p className="muted" style={{ fontSize: 'var(--fs-sm)' }}>{t('external.businessRelationship')}</p>
+              <p style={{ fontWeight: 600, marginTop: 2 }}>
+                {rel.org_a_name} <span style={{ color: 'var(--p)', margin: '0 4px' }}>&harr;</span> {rel.org_b_name}
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              {rel.governance_tier && (
-                <span className="text-xs bg-white/80 text-primary-700 px-2 py-1 rounded capitalize border border-primary-200">{rel.governance_tier}</span>
-              )}
-              {rel.health_score != null && (
-                <div className="text-right">
-                  <p className="text-xs text-gray-500">{t('external.health')}</p>
-                  <p className={cn("text-lg font-bold",
-                    rel.health_score >= 80 ? "text-green-600" : rel.health_score >= 60 ? "text-amber-600" : "text-red-600"
-                  )}>{rel.health_score.toFixed(0)}</p>
-                </div>
-              )}
-            </div>
+            {rel.governance_tier && (
+              <Pill tone="p" dot={false}><span className="capitalize">{rel.governance_tier}</span></Pill>
+            )}
+            {rel.health_score != null && (
+              <div className="text-right" style={{ flexShrink: 0 }}>
+                <p className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('external.health')}</p>
+                <p className="num" style={{
+                  fontSize: 'var(--fs-xl)', fontWeight: 700,
+                  color: rel.health_score >= 80 ? 'var(--ok)' : rel.health_score >= 60 ? 'var(--wa)' : 'var(--da)',
+                }}>{rel.health_score.toFixed(0)}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* Section toggle */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setShowSection('kpis')}
-          className={cn("px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-            showSection === 'kpis' ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          )}
-        >
+      <div className="row" style={{ gap: 8, marginBottom: 14 }}>
+        <Chip on={showSection === 'kpis'} onClick={() => setShowSection('kpis')}>
           {t('external.kpisCount', { count: kpis.length })}
-        </button>
-        <button
-          onClick={() => setShowSection('improvements')}
-          className={cn("px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-            showSection === 'improvements' ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          )}
-        >
+        </Chip>
+        <Chip on={showSection === 'improvements'} onClick={() => setShowSection('improvements')}>
           {t('external.improvementsCount', { count: improvements.length })}
-        </button>
+        </Chip>
       </div>
 
       {showSection === 'kpis' && (
         <>
           {/* Category filter */}
           {categories.length > 1 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className={cn("px-3 py-1 text-xs rounded-full transition-colors",
-                  selectedCategory === 'all' ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                )}
-              >
+            <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+              <Chip on={selectedCategory === 'all'} onClick={() => setSelectedCategory('all')}>
                 {t('external.allCount', { count: kpis.length })}
-              </button>
+              </Chip>
               {categories.map((cat) => (
-                <button key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={cn("px-3 py-1 text-xs rounded-full transition-colors",
-                    selectedCategory === cat ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  )}
-                >
+                <Chip key={cat} on={selectedCategory === cat} onClick={() => setSelectedCategory(cat)}>
                   {t(`external.category.${cat}`, { defaultValue: CATEGORY_LABELS[cat] || cat })} ({kpis.filter(k => (k.category || 'other') === cat).length})
-                </button>
+                </Chip>
               ))}
             </div>
           )}
 
           {filteredKpis.length === 0 ? (
-            <EmptyState text={t('external.noKpis')} />
+            <EmptyState icon={ChartBarIcon} title={t('external.noKpis')} />
           ) : (
-            <div className="space-y-3">
+            <div className="col" style={{ gap: 12 }}>
               {filteredKpis.map((kpi) => {
                 const gap = kpi.latest_gap
                 const intScore = gap?.internal_score
                 const extScore = gap?.external_score
                 return (
-                  <div key={kpi.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{kpi.name}</p>
-                        {kpi.description && <p className="text-sm text-gray-600 mt-1">{kpi.description}</p>}
-                        <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                          {kpi.category && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{t(`external.category.${kpi.category}`, { defaultValue: CATEGORY_LABELS[kpi.category] || kpi.category })}</span>}
-                          {kpi.target_value != null && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{t('external.target', { value: kpi.target_value })}</span>}
-                          {kpi.is_perception_based && <span className="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">{t('external.perceptionBased')}</span>}
+                  <div key={kpi.id} className="card card-p">
+                    <div className="row" style={{ alignItems: 'flex-start', gap: 14 }}>
+                      <div className="grow">
+                        <p style={{ fontWeight: 600 }}>{kpi.name}</p>
+                        {kpi.description && <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4 }}>{kpi.description}</p>}
+                        <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                          {kpi.category && <Tag><span className="capitalize">{t(`external.category.${kpi.category}`, { defaultValue: CATEGORY_LABELS[kpi.category] || kpi.category })}</span></Tag>}
+                          {kpi.target_value != null && <Pill tone="in" dot={false}>{t('external.target', { value: kpi.target_value })}</Pill>}
+                          {kpi.is_perception_based && <Pill tone="p" dot={false}>{t('external.perceptionBased')}</Pill>}
                         </div>
                       </div>
                       {gap && (
-                        <div className="text-right shrink-0 space-y-1">
-                          <div className="flex items-center gap-3 text-sm">
+                        <div className="col text-right" style={{ flexShrink: 0, gap: 4, alignItems: 'flex-end' }}>
+                          <div className="row" style={{ gap: 12 }}>
                             {intScore != null && (
                               <div>
-                                <p className="text-[10px] text-gray-400 uppercase">{t('external.internal')}</p>
-                                <p className="font-semibold text-gray-700">{intScore.toFixed(1)}</p>
+                                <p className="faint uppercase" style={{ fontSize: 'var(--fs-2xs)', letterSpacing: '.5px' }}>{t('external.internal')}</p>
+                                <p className="num" style={{ fontWeight: 600, color: 'var(--in)' }}>{intScore.toFixed(1)}</p>
                               </div>
                             )}
                             {extScore != null && (
                               <div>
-                                <p className="text-[10px] text-gray-400 uppercase">{t('external.external')}</p>
-                                <p className="font-semibold text-gray-700">{extScore.toFixed(1)}</p>
+                                <p className="faint uppercase" style={{ fontSize: 'var(--fs-2xs)', letterSpacing: '.5px' }}>{t('external.external')}</p>
+                                <p className="num" style={{ fontWeight: 600, color: 'var(--p)' }}>{extScore.toFixed(1)}</p>
                               </div>
                             )}
                           </div>
                           {gap.gap_severity && (
-                            <span className={cn("text-xs px-2 py-0.5 rounded capitalize inline-block",
-                              SEVERITY_COLORS[gap.gap_severity] || 'bg-gray-100 text-gray-600'
-                            )}>{t(`external.severity.${gap.gap_severity}`, { defaultValue: gap.gap_severity })}</span>
+                            <Pill tone={SEVERITY_TONE[gap.gap_severity] || 'n'}>
+                              <span className="capitalize">{t(`external.severity.${gap.gap_severity}`, { defaultValue: gap.gap_severity })}</span>
+                            </Pill>
                           )}
                         </div>
                       )}
@@ -1131,28 +1219,36 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
       {showSection === 'improvements' && (
         <>
           {improvements.length === 0 ? (
-            <EmptyState text={t('external.noImprovements')} />
+            <EmptyState icon={CheckCircleIcon} title={t('external.noImprovements')} />
           ) : (
-            <div className="space-y-3">
+            <div className="col" style={{ gap: 12 }}>
               {improvements.map((imp) => (
-                <div key={imp.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{imp.title}</p>
-                      {imp.description && <p className="text-sm text-gray-600 mt-1">{imp.description}</p>}
-                      <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                        {imp.priority && <span className={cn("px-2 py-0.5 rounded capitalize", PRIORITY_COLORS[imp.priority] || 'bg-gray-100 text-gray-600')}>{t(`risk.${imp.priority}`, { defaultValue: imp.priority })}</span>}
-                        {imp.status && <span className={cn("px-2 py-0.5 rounded capitalize", STATUS_COLORS[imp.status] || 'bg-gray-100 text-gray-600')}>{t(`external.status.${imp.status}`, { defaultValue: imp.status.replace(/_/g, ' ') })}</span>}
-                        {imp.source && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">{imp.source.replace(/_/g, ' ')}</span>}
-                        {imp.kpi_name && <span className="bg-primary-50 text-primary-700 px-2 py-0.5 rounded">{t('external.kpiLabel', { name: imp.kpi_name })}</span>}
+                <div key={imp.id} className="card card-p">
+                  <div className="row" style={{ alignItems: 'flex-start', gap: 14 }}>
+                    <div className="grow">
+                      <p style={{ fontWeight: 600 }}>{imp.title}</p>
+                      {imp.description && <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4 }}>{imp.description}</p>}
+                      <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                        {imp.priority && (
+                          <Pill tone={priorityTone(imp.priority)}>
+                            <span className="capitalize">{t(`risk.${imp.priority}`, { defaultValue: imp.priority })}</span>
+                          </Pill>
+                        )}
+                        {imp.status && (
+                          <Pill tone={STATUS_TONE[imp.status] || 'n'}>
+                            <span className="capitalize">{t(`external.status.${imp.status}`, { defaultValue: imp.status.replace(/_/g, ' ') })}</span>
+                          </Pill>
+                        )}
+                        {imp.source && <Tag><span className="capitalize">{imp.source.replace(/_/g, ' ')}</span></Tag>}
+                        {imp.kpi_name && <Pill tone="p" dot={false}>{t('external.kpiLabel', { name: imp.kpi_name })}</Pill>}
                       </div>
-                      {imp.target_outcome && <p className="text-xs text-gray-500 mt-2">{t('external.target', { value: imp.target_outcome })}</p>}
-                      {imp.actual_outcome && <p className="text-xs text-green-600 mt-1">{t('external.outcome', { text: imp.actual_outcome })}</p>}
+                      {imp.target_outcome && <p className="faint" style={{ fontSize: 'var(--fs-sm)', marginTop: 8 }}>{t('external.target', { value: imp.target_outcome })}</p>}
+                      {imp.actual_outcome && <p style={{ fontSize: 'var(--fs-sm)', marginTop: 4, color: 'var(--ok)' }}>{t('external.outcome', { text: imp.actual_outcome })}</p>}
                     </div>
-                    <div className="text-right shrink-0">
-                      {imp.due_date && <p className="text-sm text-gray-700">{formatDate(imp.due_date)}</p>}
+                    <div className="text-right" style={{ flexShrink: 0 }}>
+                      {imp.due_date && <p className="num" style={{ fontSize: 'var(--fs-md)' }}>{formatDate(imp.due_date)}</p>}
                       {imp.impact_score != null && (
-                        <p className="text-xs text-gray-500 mt-1">{t('external.impact', { score: imp.impact_score })}</p>
+                        <p className="faint" style={{ fontSize: 'var(--fs-sm)', marginTop: 4 }}>{t('external.impact', { score: imp.impact_score })}</p>
                       )}
                     </div>
                   </div>
@@ -1164,8 +1260,4 @@ function GovernanceSection({ data }: { data: GovernanceData }) {
       )}
     </div>
   )
-}
-
-function EmptyState({ text }: { text: string }) {
-  return <div className="text-center py-8 text-gray-500 text-sm">{text}</div>
 }
