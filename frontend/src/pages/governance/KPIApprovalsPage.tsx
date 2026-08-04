@@ -1,16 +1,39 @@
+/* KPI approvals — Direction B redesign.
+   Relationship picker → period chips → summary Stats → approval-queue Table
+   with internal/external inline score editing, gap coloring, status Pills and
+   approve/reject actions (comment captured in a Drawer). Data fetching,
+   grouping-by-KPI logic and every mutation (save/approve/reject/delete/bulk)
+   are unchanged from the pre-redesign page. */
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  CheckCircleIcon,
-  XCircleIcon,
-  TrashIcon,
-  XMarkIcon,
   BuildingOffice2Icon,
+  ChartBarIcon,
+  CheckCircleIcon,
+  CheckIcon,
+  ClockIcon,
+  ScaleIcon,
+  TrashIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn } from '@/lib/utils'
+import {
+  Button,
+  Chip,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  IconButton,
+  Pill,
+  Select,
+  Stat,
+  Table,
+  Tag,
+  useToast,
+} from '@/components/ui'
+import type { TableColumn } from '@/components/ui'
 import type { PendingApproval } from '@/types/fitgap'
 
 const CAT_LABEL: Record<string, string> = {
@@ -19,14 +42,30 @@ const CAT_LABEL: Record<string, string> = {
   satisfaction: 'Satisfaction', risk: 'Risk', other: 'Other',
 }
 
+interface KpiRow {
+  kpi_id: string
+  name: string
+  cat: string
+  int?: PendingApproval
+  ext?: PendingApproval
+  gap: number | null
+  pending: boolean
+}
+
+function gapTone(gap: number): string {
+  return gap < 0.8 ? 'var(--ok)' : gap <= 1.5 ? 'var(--wa)' : 'var(--da)'
+}
+
 export default function KPIApprovalsPage() {
   const { t } = useTranslation()
+  const { toast } = useToast()
   const qc = useQueryClient()
   const [relId, setRelId] = useState('')
   const [period, setPeriod] = useState('')
   const [editing, setEditing] = useState<Record<string, number>>({})
   const [modal, setModal] = useState<{ type: 'approve' | 'reject'; kpiId: string; scoreId: string; name: string } | null>(null)
   const [comment, setComment] = useState('')
+  const [del, setDel] = useState<{ kpiId: string; scoreId: string; name: string } | null>(null)
 
   const { data: rels = [] } = useQuery({
     queryKey: ['relationships'],
@@ -49,7 +88,7 @@ export default function KPIApprovalsPage() {
   useEffect(() => { setPeriod(''); setEditing({}) }, [relId])
 
   // Group by KPI for selected period — internal + external side by side
-  const rows = useMemo(() => {
+  const rows = useMemo<KpiRow[]>(() => {
     const filtered = scores.filter(s => s.period === period)
     const map = new Map<string, { int?: PendingApproval; ext?: PendingApproval }>()
     for (const s of filtered) {
@@ -73,7 +112,7 @@ export default function KPIApprovalsPage() {
   const pendingN = rows.filter(r => r.pending).length
   const avgGap = (() => { const g = rows.filter(r => r.gap !== null); return g.length ? g.reduce((a, r) => a + r.gap!, 0) / g.length : 0 })()
 
-  // Mutations
+  // Mutations — unchanged behavior
   const saveMut = useMutation({
     mutationFn: ({ kpiId, scoreId, score }: { kpiId: string; scoreId: string; score: number }) =>
       api.updateScore(kpiId, scoreId, { score }),
@@ -82,23 +121,35 @@ export default function KPIApprovalsPage() {
   const approveMut = useMutation({
     mutationFn: ({ kpiId, scoreId, comments }: { kpiId: string; scoreId: string; comments?: string }) =>
       api.approveScore(kpiId, scoreId, { comments }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['kpi-scores'] }); setModal(null); setComment('') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kpi-scores'] }); setModal(null); setComment('')
+      toast({ text: t('governance.scoreApproved', { defaultValue: 'Score approved' }) })
+    },
   })
   const rejectMut = useMutation({
     mutationFn: ({ kpiId, scoreId, comments }: { kpiId: string; scoreId: string; comments?: string }) =>
       api.rejectScore(kpiId, scoreId, { comments }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['kpi-scores'] }); setModal(null); setComment('') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kpi-scores'] }); setModal(null); setComment('')
+      toast({ text: t('governance.scoreRejected', { defaultValue: 'Score rejected' }) })
+    },
   })
   const delMut = useMutation({
     mutationFn: ({ kpiId, scoreId }: { kpiId: string; scoreId: string }) => api.deleteScore(kpiId, scoreId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['kpi-scores'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kpi-scores'] })
+      toast({ text: t('governance.scoreDeleted', { defaultValue: 'Score deleted' }) })
+    },
   })
   const bulkMut = useMutation({
     mutationFn: async () => {
       const p = scores.filter(s => s.approval_status === 'pending_approval' && s.period === period)
       await Promise.all(p.map(s => api.approveScore(s.kpi_id, s.score_id || s.id, {})))
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['kpi-scores'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kpi-scores'] })
+      toast({ text: t('governance.allApproved', { defaultValue: 'All pending scores approved' }) })
+    },
   })
 
   function sid(s: PendingApproval) { return s.score_id || s.id }
@@ -111,205 +162,321 @@ export default function KPIApprovalsPage() {
     })
   }
 
+  /** Inline-editable score: click the figure to edit, Enter saves, Escape cancels.
+      Called as a plain function (not a JSX component) so the input is never
+      remounted mid-edit by a changing component identity. */
+  function renderScore(s?: PendingApproval) {
+    if (!s) return <span className="faint">--</span>
+    const id = sid(s)
+    if (editing[id] !== undefined) {
+      return (
+        <span className="row" style={{ gap: 4, display: 'inline-flex' }}>
+          <input
+            type="number" min={1} max={10} step={0.1} value={editing[id]} autoFocus
+            onChange={e => setEditing(p => ({ ...p, [id]: parseFloat(e.target.value) }))}
+            onKeyDown={e => {
+              if (e.key === 'Enter') doSave(s)
+              if (e.key === 'Escape') setEditing(p => { const n = { ...p }; delete n[id]; return n })
+            }}
+            className="num"
+            style={{
+              width: 58, textAlign: 'center', height: 26, fontSize: 'var(--fs-sm)',
+              background: 'var(--s)', color: 'var(--t)',
+              border: '1px solid var(--p-b)', borderRadius: 'var(--r-sm)', outline: 'none',
+            }}
+          />
+          <IconButton icon={CheckIcon} label={t('common.save')} size="sm" style={{ color: 'var(--ok)' }} onClick={() => doSave(s)} />
+        </span>
+      )
+    }
+    const pending = s.approval_status === 'pending_approval'
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(p => ({ ...p, [id]: Number(s.score) }))}
+        className="num"
+        style={{
+          background: 'none', border: 0, padding: 0, cursor: 'pointer',
+          fontWeight: 600, fontSize: 'var(--fs-md)',
+          color: pending ? 'var(--wa)' : 'var(--t)',
+        }}
+        title={t('governance.clickToEdit', { defaultValue: 'Click to edit' })}
+      >
+        {Number(s.score).toFixed(1)}
+      </button>
+    )
+  }
+
+  function rowStatus(r: KpiRow): { label: string; tone: 'ok' | 'wa' | 'da' | 'n' } {
+    if (r.pending) return { label: t('status.pending'), tone: 'wa' }
+    const statuses = [r.int?.approval_status, r.ext?.approval_status].filter(Boolean)
+    if (statuses.includes('rejected')) return { label: t('governance.rejected', { defaultValue: 'Rejected' }), tone: 'da' }
+    if (statuses.includes('approved')) return { label: t('governance.approved', { defaultValue: 'Approved' }), tone: 'ok' }
+    return { label: t('status.draft'), tone: 'n' }
+  }
+
+  const columns: TableColumn<KpiRow>[] = [
+    {
+      key: 'name',
+      header: t('governance.kpi'),
+      sortable: true,
+      render: r => <span style={{ fontWeight: 500 }}>{r.name}</span>,
+    },
+    {
+      key: 'cat',
+      header: t('governance.categoryShort'),
+      width: 110,
+      render: r => <Tag>{t(`governance.kpiCategoriesShort.${r.cat}`, { defaultValue: CAT_LABEL[r.cat] || r.cat })}</Tag>,
+    },
+    {
+      key: 'int',
+      header: t('governance.internal'),
+      width: 110,
+      align: 'right',
+      sortable: true,
+      sortValue: r => (r.int ? Number(r.int.score) : null),
+      render: r => renderScore(r.int),
+    },
+    {
+      key: 'ext',
+      header: t('governance.external'),
+      width: 110,
+      align: 'right',
+      sortable: true,
+      sortValue: r => (r.ext ? Number(r.ext.score) : null),
+      render: r => renderScore(r.ext),
+    },
+    {
+      key: 'gap',
+      header: t('governance.gap'),
+      width: 80,
+      align: 'right',
+      sortable: true,
+      sortValue: r => r.gap,
+      render: r =>
+        r.gap !== null ? (
+          <span className="num" style={{ fontWeight: 600, color: gapTone(r.gap) }}>{r.gap.toFixed(1)}</span>
+        ) : (
+          <span className="faint">--</span>
+        ),
+    },
+    {
+      key: 'status',
+      header: t('common.status'),
+      width: 110,
+      sortable: true,
+      sortValue: r => (r.pending ? 0 : 1),
+      render: r => {
+        const s = rowStatus(r)
+        return <Pill tone={s.tone}>{s.label}</Pill>
+      },
+    },
+    {
+      key: 'actions',
+      header: t('common.actions'),
+      width: 110,
+      align: 'right',
+      render: r => (
+        <span className="row" style={{ gap: 2, display: 'inline-flex' }}>
+          {r.pending && (
+            <>
+              <IconButton
+                icon={CheckCircleIcon} label={t('governance.approve')} size="sm" style={{ color: 'var(--ok)' }}
+                onClick={() => {
+                  const s = r.int?.approval_status === 'pending_approval' ? r.int : r.ext!
+                  setModal({ type: 'approve', kpiId: r.kpi_id, scoreId: sid(s), name: r.name })
+                }}
+              />
+              <IconButton
+                icon={XCircleIcon} label={t('governance.reject')} size="sm" style={{ color: 'var(--da)' }}
+                onClick={() => {
+                  const s = r.int?.approval_status === 'pending_approval' ? r.int : r.ext!
+                  setModal({ type: 'reject', kpiId: r.kpi_id, scoreId: sid(s), name: r.name })
+                }}
+              />
+            </>
+          )}
+          <IconButton
+            icon={TrashIcon} label={t('common.delete')} size="sm"
+            onClick={() => {
+              const s = r.int || r.ext!
+              setDel({ kpiId: r.kpi_id, scoreId: sid(s), name: r.name })
+            }}
+          />
+        </span>
+      ),
+    },
+  ]
+
   const selectedRel = rels.find(r => r.id === relId)
 
   return (
-    <div className="space-y-4">
-      {/* Header row */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex-shrink-0">
-          <h1 className="text-lg font-bold text-gray-900">{t('governance.kpiScores')}</h1>
+    <div className="col" style={{ gap: 18 }}>
+      {/* Header: title + relationship picker + bulk approve */}
+      <div className="row" style={{ alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>{t('governance.kpiScores')}</h1>
+          {selectedRel?.name && (
+            <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>{selectedRel.name}</p>
+          )}
         </div>
-
-        {/* Relationship selector */}
-        <select value={relId} onChange={e => setRelId(e.target.value)}
-          className="input text-sm min-w-[240px]">
-          <option value="">{t('governance.selectRelationship')}</option>
-          {rels.map(r => <option key={r.id} value={r.id}>{r.org_a?.name && r.org_b?.name ? `${r.org_a.name} ↔ ${r.org_b.name}` : r.name || t('governance.unnamed')}</option>)}
-        </select>
-
-        {/* Period tabs */}
-        {relId && periods.length > 0 && (
-          <div className="flex bg-gray-100 rounded-lg p-0.5">
-            {periods.map(p => (
-              <button key={p} onClick={() => setPeriod(p)}
-                className={cn('px-3 py-1 text-xs font-medium rounded-md transition-colors',
-                  period === p ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
-                {p}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Bulk approve */}
-        {pendingN > 0 && (
-          <button onClick={() => bulkMut.mutate()} disabled={bulkMut.isPending}
-            className="btn-primary text-xs ml-auto">
-            {bulkMut.isPending ? t('governance.approving') : t('governance.approveAllCount', { count: pendingN })}
-          </button>
-        )}
+        <div className="row" style={{ gap: 8 }}>
+          <Select
+            aria-label={t('governance.selectRelationship')}
+            value={relId}
+            onChange={e => setRelId(e.target.value)}
+            containerStyle={{ minWidth: 260 }}
+            options={[
+              { value: '', label: t('governance.selectRelationship') },
+              ...rels.map(r => ({
+                value: r.id,
+                label: r.org_a?.name && r.org_b?.name ? `${r.org_a.name} ↔ ${r.org_b.name}` : r.name || t('governance.unnamed'),
+              })),
+            ]}
+          />
+          {pendingN > 0 && (
+            <Button variant="primary" icon={CheckIcon} onClick={() => bulkMut.mutate()} disabled={bulkMut.isPending}>
+              {bulkMut.isPending ? t('governance.approving') : t('governance.approveAllCount', { count: pendingN })}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* No relationship selected */}
       {!relId && (
-        <div className="card card-body py-16 text-center">
-          <BuildingOffice2Icon className="h-10 w-10 text-gray-200 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">{t('governance.selectRelationshipPrompt')}</p>
+        <div className="card">
+          <EmptyState
+            icon={BuildingOffice2Icon}
+            title={t('governance.kpiScores')}
+            body={t('governance.selectRelationshipPrompt')}
+          />
         </div>
       )}
 
       {/* Loading */}
       {relId && isLoading && (
-        <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
+        <div className="row" style={{ justifyContent: 'center', padding: '48px 0' }}>
+          <LoadingSpinner size="lg" />
+        </div>
       )}
 
       {/* Scorecard */}
       {relId && !isLoading && (
         <>
-          {/* Compact summary */}
-          <div className="flex items-center gap-6 text-sm">
-            <span className="font-medium text-gray-900">{selectedRel?.name}</span>
-            <span className="text-gray-400">|</span>
-            <span><span className="font-bold text-primary-600">{rows.length}</span> <span className="text-gray-500">{t('governance.kpis')}</span></span>
-            <span><span className="font-bold text-amber-600">{pendingN}</span> <span className="text-gray-500">{t('status.pending').toLowerCase()}</span></span>
-            <span>
-              <span className={cn('font-bold', avgGap > 1.5 ? 'text-red-600' : avgGap > 0.8 ? 'text-amber-600' : 'text-green-600')}>
-                {avgGap.toFixed(1)}
-              </span>
-              <span className="text-gray-500"> {t('governance.avgGap')}</span>
-            </span>
+          {/* Period chips */}
+          {periods.length > 0 && (
+            <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+              <span className="sec-t">{t('governance.period')}</span>
+              {periods.map(p => (
+                <Chip key={p} on={period === p} onClick={() => setPeriod(p)}>{p}</Chip>
+              ))}
+            </div>
+          )}
+
+          {/* Summary stats */}
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+            <Stat icon={ChartBarIcon} label={t('governance.kpis')} value={rows.length} />
+            <Stat
+              icon={ClockIcon}
+              label={t('status.pending')}
+              value={pendingN}
+              sub={pendingN > 0
+                ? t('governance.awaitingApproval', { defaultValue: 'submitted scores awaiting approval' })
+                : t('governance.queueClear', { defaultValue: 'nothing awaiting approval' })}
+              subTone={pendingN > 0 ? 'var(--wa)' : undefined}
+            />
+            <Stat
+              icon={ScaleIcon}
+              label={t('governance.avgGap')}
+              value={<span style={{ color: gapTone(avgGap) }}>{avgGap.toFixed(1)}</span>}
+              sub={t('governance.gapHint', { defaultValue: 'internal vs external perception' })}
+            />
           </div>
 
-          {/* Table */}
-          <div className="card">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-1/4">{t('governance.kpi')}</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-16">{t('governance.categoryShort')}</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{t('governance.internal')}</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{t('governance.external')}</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase w-16">{t('governance.gap')}</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase w-20">{t('common.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {rows.map(r => (
-                    <tr key={r.kpi_id} className={cn('hover:bg-gray-50', r.pending && 'bg-amber-50/40')}>
-                      <td className="px-3 py-2">
-                        <span className="font-medium text-gray-900">{r.name}</span>
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className="text-[10px] text-gray-400 uppercase">{t(`governance.kpiCategoriesShort.${r.cat}`, { defaultValue: CAT_LABEL[r.cat] || r.cat })}</span>
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        {r.int ? (
-                          editing[sid(r.int)] !== undefined ? (
-                            <span className="inline-flex items-center gap-1">
-                              <input type="number" min={1} max={10} step={0.1} value={editing[sid(r.int)]}
-                                onChange={e => { const id = sid(r.int!); setEditing(p => ({ ...p, [id]: parseFloat(e.target.value) })) }}
-                                onKeyDown={e => { if (e.key === 'Enter') doSave(r.int!); if (e.key === 'Escape') { const id = sid(r.int!); setEditing(p => { const n = { ...p }; delete n[id]; return n }) } }}
-                                className="w-14 text-center border border-primary-300 rounded text-sm py-0.5" autoFocus />
-                              <button onClick={() => doSave(r.int!)} className="text-primary-600"><CheckCircleIcon className="h-4 w-4" /></button>
-                            </span>
-                          ) : (
-                            <button onClick={() => { const id = sid(r.int!); setEditing(p => ({ ...p, [id]: Number(r.int!.score) })) }}
-                              className={cn('font-bold cursor-pointer', r.int.approval_status === 'pending_approval' ? 'text-amber-600' : 'text-gray-900 hover:text-primary-600')}>
-                              {Number(r.int.score).toFixed(1)}
-                            </button>
-                          )
-                        ) : <span className="text-gray-300">--</span>}
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        {r.ext ? (
-                          editing[sid(r.ext)] !== undefined ? (
-                            <span className="inline-flex items-center gap-1">
-                              <input type="number" min={1} max={10} step={0.1} value={editing[sid(r.ext)]}
-                                onChange={e => { const id = sid(r.ext!); setEditing(p => ({ ...p, [id]: parseFloat(e.target.value) })) }}
-                                onKeyDown={e => { if (e.key === 'Enter') doSave(r.ext!); if (e.key === 'Escape') { const id = sid(r.ext!); setEditing(p => { const n = { ...p }; delete n[id]; return n }) } }}
-                                className="w-14 text-center border border-primary-300 rounded text-sm py-0.5" autoFocus />
-                              <button onClick={() => doSave(r.ext!)} className="text-primary-600"><CheckCircleIcon className="h-4 w-4" /></button>
-                            </span>
-                          ) : (
-                            <button onClick={() => { const id = sid(r.ext!); setEditing(p => ({ ...p, [id]: Number(r.ext!.score) })) }}
-                              className={cn('font-bold cursor-pointer', r.ext.approval_status === 'pending_approval' ? 'text-amber-600' : 'text-gray-900 hover:text-primary-600')}>
-                              {Number(r.ext.score).toFixed(1)}
-                            </button>
-                          )
-                        ) : <span className="text-gray-300">--</span>}
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        {r.gap !== null ? (
-                          <span className={cn('text-sm font-bold',
-                            r.gap < 0.8 ? 'text-green-600' : r.gap <= 1.5 ? 'text-amber-600' : 'text-red-600')}>
-                            {r.gap.toFixed(1)}
-                          </span>
-                        ) : <span className="text-gray-300">--</span>}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center justify-center gap-0.5">
-                          {r.pending && (
-                            <>
-                              <button onClick={() => { const s = r.int?.approval_status === 'pending_approval' ? r.int : r.ext!; setModal({ type: 'approve', kpiId: r.kpi_id, scoreId: sid(s), name: r.name }) }}
-                                className="p-0.5 text-green-500 hover:bg-green-50 rounded" title={t('governance.approve')}>
-                                <CheckCircleIcon className="h-4 w-4" />
-                              </button>
-                              <button onClick={() => { const s = r.int?.approval_status === 'pending_approval' ? r.int : r.ext!; setModal({ type: 'reject', kpiId: r.kpi_id, scoreId: sid(s), name: r.name }) }}
-                                className="p-0.5 text-red-400 hover:bg-red-50 rounded" title={t('governance.reject')}>
-                                <XCircleIcon className="h-4 w-4" />
-                              </button>
-                            </>
-                          )}
-                          <button onClick={() => { const s = r.int || r.ext!; if (confirm(t('governance.confirmDelete'))) delMut.mutate({ kpiId: r.kpi_id, scoreId: sid(s) }) }}
-                            className="p-0.5 text-gray-300 hover:text-red-500 rounded" title={t('common.delete')}>
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && (
-                    <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-gray-400">{t('governance.noScoresForPeriod')}</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          {/* Approval queue table */}
+          <Table
+            columns={columns}
+            rows={rows}
+            rowKey={r => r.kpi_id}
+            minWidth={720}
+            empty={<EmptyState icon={ChartBarIcon} title={t('governance.noScoresForPeriod')} />}
+          />
         </>
       )}
 
-      {/* Modal */}
-      {modal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">{modal.type === 'approve' ? t('governance.approveScore') : t('governance.rejectScore')}</h2>
-              <button onClick={() => { setModal(null); setComment('') }} className="text-gray-400 hover:text-gray-600">
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="text-sm text-gray-600 mb-4">
-              {modal.type === 'approve' ? t('governance.approveConfirm', { name: modal.name }) : t('governance.rejectConfirm', { name: modal.name })}
+      {/* Approve / reject drawer with optional comment */}
+      <Drawer
+        open={!!modal}
+        title={modal?.type === 'approve' ? t('governance.approveScore') : t('governance.rejectScore')}
+        sub={modal?.name}
+        onClose={() => { setModal(null); setComment('') }}
+        footer={modal ? (
+          <>
+            <Button
+              variant={modal.type === 'approve' ? 'primary' : 'danger'}
+              className="grow"
+              icon={modal.type === 'approve' ? CheckCircleIcon : XCircleIcon}
+              disabled={approveMut.isPending || rejectMut.isPending}
+              onClick={() => {
+                const p = { kpiId: modal.kpiId, scoreId: modal.scoreId, comments: comment || undefined }
+                if (modal.type === 'approve') approveMut.mutate(p); else rejectMut.mutate(p)
+              }}
+            >
+              {approveMut.isPending || rejectMut.isPending
+                ? t('governance.approving')
+                : modal.type === 'approve' ? t('governance.approve') : t('governance.reject')}
+            </Button>
+            <Button variant="ghost" className="grow" onClick={() => { setModal(null); setComment('') }}>
+              {t('common.cancel')}
+            </Button>
+          </>
+        ) : undefined}
+      >
+        {modal && (
+          <div className="col" style={{ gap: 14 }}>
+            <p className="muted" style={{ fontSize: 'var(--fs-md)', lineHeight: 1.55 }}>
+              {modal.type === 'approve'
+                ? t('governance.approveConfirm', { name: modal.name })
+                : t('governance.rejectConfirm', { name: modal.name })}
             </p>
-            <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
-              placeholder={modal.type === 'reject' ? t('governance.reasonPlaceholder') : t('governance.commentsOptional')}
-              className="w-full border rounded-lg px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-primary-500" />
-            <div className="flex justify-end gap-3">
-              <button onClick={() => { setModal(null); setComment('') }} className="btn-secondary">{t('common.cancel')}</button>
-              <button onClick={() => {
-                  const p = { kpiId: modal.kpiId, scoreId: modal.scoreId, comments: comment || undefined }
-                  modal.type === 'approve' ? approveMut.mutate(p) : rejectMut.mutate(p)
-                }}
-                disabled={approveMut.isPending || rejectMut.isPending}
-                className={cn('px-4 py-2 rounded-lg text-sm font-medium text-white',
-                  modal.type === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700')}>
-                {approveMut.isPending || rejectMut.isPending ? '...' : modal.type === 'approve' ? t('governance.approve') : t('governance.reject')}
-              </button>
+            <div>
+              <label className="lbl">
+                {modal.type === 'reject' ? t('governance.reasonPlaceholder') : t('governance.commentsOptional')}
+              </label>
+              <div className="inp" style={{ height: 'auto', padding: '8px 10px' }}>
+                <textarea
+                  rows={3}
+                  autoFocus
+                  style={{ resize: 'vertical' }}
+                  value={comment}
+                  onChange={e => setComment(e.target.value)}
+                />
+              </div>
             </div>
+            {modal.type === 'approve' && (
+              <p className="faint" style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.5 }}>
+                {t('governance.approveHint', { defaultValue: 'Approved scores are folded into the relationship health score.' })}
+              </p>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </Drawer>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!del}
+        title={del ? t('governance.deleteScoreTitle', { defaultValue: 'Delete score for {{name}}?', name: del.name }) : ''}
+        body={t('governance.confirmDelete')}
+        affected={[t('governance.deleteScoreAffected', { defaultValue: 'The recorded score for this period' })]}
+        safe={[t('governance.deleteScoreSafe', { defaultValue: 'The KPI definition and every other period' })]}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setDel(null)}
+        onConfirm={() => {
+          if (del) delMut.mutate({ kpiId: del.kpiId, scoreId: del.scoreId })
+          setDel(null)
+        }}
+      />
     </div>
   )
 }

@@ -1,20 +1,49 @@
+/* Relationship detail — Direction B redesign (governance flagship).
+   Two-party header with health banding → ui Tabs (KPIs / Team / Improvements /
+   History / Overview) → gap-severity cards, KPI scorecard Table, prototype-style
+   perception GapRows with a severe-gap banner → team rows → improvement rows
+   with progress Bars → history trend + Table → Drawer forms for add-KPI,
+   score submission and status recording. All queries, mutations, the category
+   filter and lazy History fetching are unchanged from the pre-redesign page. */
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftIcon,
+  ArrowsRightLeftIcon,
+  ChartBarIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
   HeartIcon,
-  ChartBarSquareIcon,
-  UserGroupIcon,
   LightBulbIcon,
   PlusIcon,
-  XMarkIcon,
+  Squares2X2Icon,
+  SparklesIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn } from '@/lib/utils'
+import {
+  Avatar,
+  Bar,
+  Button,
+  Chip,
+  Drawer,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Select,
+  Table,
+  Tabs,
+  Tag,
+  Tooltip,
+  useToast,
+} from '@/components/ui'
+import type { PillTone, TableColumn } from '@/components/ui'
 import type {
+  KPI,
   KPICreate,
   PerceptionScoreCreate,
   GapSeverity,
@@ -23,25 +52,40 @@ import type {
 import type {
   PerformanceStatus,
   RelationshipHistoryCreate,
+  RelationshipHistoryEntry,
 } from '@/types/fitgap'
 
-const GAP_COLORS: Record<GapSeverity, string> = {
-  critical: 'bg-red-100 text-red-800 border-red-200',
-  significant: 'bg-orange-100 text-orange-800 border-orange-200',
-  moderate: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  minor: 'bg-blue-100 text-blue-800 border-blue-200',
-  aligned: 'bg-green-100 text-green-800 border-green-200',
+// ── Tone maps ────────────────────────────────────────────────────
+
+/** Live detail-page health banding: ≥70 ok, ≥40 warn, else danger. */
+function healthTone(score: number): string {
+  return score >= 70 ? 'var(--ok)' : score >= 40 ? 'var(--wa)' : 'var(--da)'
 }
 
-const TABS = ['KPIs', 'Team', 'Improvements', 'History', 'Overview'] as const
+const GAP_TONE: Record<GapSeverity, PillTone> = {
+  critical: 'da',
+  significant: 'wa',
+  moderate: 'wa',
+  minor: 'in',
+  aligned: 'ok',
+}
 
-const PERF_STATUS_COLORS: Record<PerformanceStatus, string> = {
-  excellent: 'bg-green-100 text-green-800',
-  good: 'bg-emerald-100 text-emerald-800',
-  acceptable: 'bg-blue-100 text-blue-800',
-  concerning: 'bg-yellow-100 text-yellow-800',
-  poor: 'bg-orange-100 text-orange-800',
-  critical: 'bg-red-100 text-red-800',
+const GAP_VAR: Record<GapSeverity, string> = {
+  critical: 'var(--da)',
+  significant: 'var(--wa)',
+  moderate: 'var(--wa)',
+  minor: 'var(--in)',
+  aligned: 'var(--ok)',
+}
+
+const PRIORITY_TONE: Record<string, PillTone> = { critical: 'da', high: 'wa', medium: 'wa', low: 'n' }
+
+const IMPROVEMENT_STATUS_TONE: Record<string, PillTone> = {
+  completed: 'ok', in_progress: 'in', blocked: 'da', open: 'n', cancelled: 'n',
+}
+
+const PERF_STATUS_TONE: Record<PerformanceStatus, PillTone> = {
+  excellent: 'ok', good: 'ok', acceptable: 'in', concerning: 'wa', poor: 'wa', critical: 'da',
 }
 
 const PERF_STATUS_LABELS: Record<PerformanceStatus, string> = {
@@ -52,12 +96,95 @@ const PERF_STATUS_LABELS: Record<PerformanceStatus, string> = {
   poor: 'Poor',
   critical: 'Critical',
 }
+
+const PERF_STATUS_ORDER: PerformanceStatus[] = ['critical', 'poor', 'concerning', 'acceptable', 'good', 'excellent']
+
+function perfBarTone(status: PerformanceStatus): string {
+  const i = PERF_STATUS_ORDER.indexOf(status)
+  return i >= 4 ? 'var(--ok)' : i >= 2 ? 'var(--wa)' : 'var(--da)'
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  service_delivery: 'Service Delivery',
+  timeliness: 'Timeliness',
+  quality: 'Quality',
+  compliance: 'Compliance',
+  communication: 'Communication',
+  innovation: 'Innovation',
+  cost_efficiency: 'Cost Efficiency',
+  satisfaction: 'Satisfaction',
+  other: 'Other',
+}
+
+const TABS = ['KPIs', 'Team', 'Improvements', 'History', 'Overview'] as const
 type Tab = typeof TABS[number]
+
+// ── Perception gap row (prototype GapRow, 0–10 scale) ────────────
+
+function GapRow({ kpi }: { kpi: KPI }) {
+  const { t } = useTranslation()
+  const internal = kpi.latest_internal_score != null ? Number(kpi.latest_internal_score) : null
+  const external = kpi.latest_external_score != null ? Number(kpi.latest_external_score) : null
+  const gap = kpi.latest_gap != null ? Number(kpi.latest_gap) : null
+  const severity = kpi.latest_gap_severity ?? null
+  const bad = severity === 'critical' || severity === 'significant'
+  const intPct = internal != null ? internal * 10 : null
+  const extPct = external != null ? external * 10 : null
+
+  return (
+    <div className="row" style={{ gap: 12, minHeight: 46, borderBottom: '1px solid var(--b)', padding: '0 2px' }}>
+      <span className="trunc" style={{ width: 170, flexShrink: 0, fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+        {kpi.name}
+      </span>
+      <span className="grow" style={{ position: 'relative', height: 26, minWidth: 120 }}>
+        <span style={{ position: 'absolute', top: 11, left: 0, right: 0, height: 4, borderRadius: 2, background: 'var(--s2)' }} />
+        {intPct != null && extPct != null && (
+          <span style={{
+            position: 'absolute', top: 11, height: 4, borderRadius: 2,
+            left: `${Math.min(intPct, extPct)}%`, width: `${Math.abs(intPct - extPct)}%`,
+            background: bad ? 'var(--da-b)' : 'var(--b)',
+          }} />
+        )}
+        {intPct != null && (
+          <Tooltip label={t('governance.intScore', { score: internal!.toFixed(1) })}>
+            <span style={{
+              position: 'absolute', top: 5, left: `calc(${intPct}% - 2px)`, width: 4, height: 16,
+              borderRadius: 2, background: 'var(--p)',
+            }} />
+          </Tooltip>
+        )}
+        {extPct != null && (
+          <Tooltip label={t('governance.extScore', { score: external!.toFixed(1) })}>
+            <span style={{
+              position: 'absolute', top: 5, left: `calc(${extPct}% - 2px)`, width: 4, height: 16,
+              borderRadius: 2, background: 'var(--wa)',
+            }} />
+          </Tooltip>
+        )}
+      </span>
+      <span className="mono num" style={{
+        width: 48, textAlign: 'right', fontSize: 'var(--fs-sm)', fontWeight: 600,
+        color: bad ? 'var(--da)' : 'var(--f)',
+      }}>
+        {gap != null ? `${gap > 0 ? '+' : ''}${gap.toFixed(1)}` : '—'}
+      </span>
+      {severity ? (
+        <Pill tone={GAP_TONE[severity]}>{t(`governance.gapSeverity.${severity}`, { defaultValue: severity })}</Pill>
+      ) : (
+        <span style={{ width: 60 }} />
+      )}
+    </div>
+  )
+}
+
+// ── Page ─────────────────────────────────────────────────────────
 
 export default function RelationshipDetailPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<Tab>('KPIs')
   const [showAddKPI, setShowAddKPI] = useState(false)
   const [showScore, setShowScore] = useState<string | null>(null)
@@ -106,6 +233,7 @@ export default function RelationshipDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['kpis', id] })
       setShowAddKPI(false)
       setKpiForm({ category: 'service_delivery', is_perception_based: true, weight: 1, frequency: 'quarterly' })
+      toast({ text: t('governance.kpiCreated', { defaultValue: 'KPI created' }) })
     },
   })
 
@@ -117,6 +245,7 @@ export default function RelationshipDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['gap-summary', id] })
       setShowScore(null)
       setScoreForm({ perspective: 'internal', score: 5 })
+      toast({ text: t('governance.scoreSubmitted', { defaultValue: 'Perception score submitted' }) })
     },
   })
 
@@ -124,10 +253,11 @@ export default function RelationshipDetailPage() {
     mutationFn: () => api.generateImprovementsFromGaps(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['improvements', id] })
+      toast({ text: t('governance.improvementsGenerated', { defaultValue: 'Improvement points generated from gaps' }) })
     },
   })
 
-  // Performance History
+  // Performance History (lazy — fetched when the History tab is open)
   const { data: perfTrend } = useQuery({
     queryKey: ['perf-trend', id],
     queryFn: () => api.getPerformanceTrend(id!),
@@ -154,444 +284,443 @@ export default function RelationshipDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['perf-trend', id] })
       setShowRecordStatus(false)
       setStatusForm({ status: 'good', period: new Date().toISOString().slice(0, 7) })
+      toast({ text: t('governance.statusRecorded', { defaultValue: 'Performance status recorded' }) })
     },
   })
 
   if (isLoading || !relationship) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
         <LoadingSpinner size="lg" />
       </div>
     )
   }
 
-  const healthColor = relationship.health_score >= 70 ? 'text-green-600' :
-    relationship.health_score >= 40 ? 'text-amber-600' : 'text-red-600'
+  const orgAName = relationship.org_a?.name || t('governance.orgA')
+  const orgBName = relationship.org_b?.name || t('governance.orgB')
+  const health = relationship.health_score
+
+  // KPI category filter
+  const categoryCounts: Record<string, number> = {}
+  kpis.forEach((k) => {
+    const cat = k.category || 'other'
+    categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+  })
+  const categories = Object.keys(categoryCounts).sort((a, b) => (categoryCounts[b] || 0) - (categoryCounts[a] || 0))
+  const filteredKpis = kpis.filter((kpi) => selectedCategory === 'all' || (kpi.category || 'other') === selectedCategory)
+  const scoredKpis = kpis.filter((k) => k.latest_internal_score != null || k.latest_external_score != null)
+  const severeGaps = (gapSummary?.gaps ?? []).filter(
+    (g) => g.gap.severity === 'critical' || g.gap.severity === 'significant'
+  )
+
+  const kpiColumns: TableColumn<KPI>[] = [
+    {
+      key: 'name',
+      header: t('governance.kpi'),
+      render: (kpi) => (
+        <span style={{ minWidth: 0, display: 'block' }}>
+          <span className="trunc" style={{ display: 'block', fontWeight: 500 }}>{kpi.name}</span>
+          {kpi.description && (
+            <span className="faint trunc" style={{ display: 'block', fontSize: 'var(--fs-sm)', marginTop: 1, maxWidth: 260 }}>
+              {kpi.description}
+            </span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'category',
+      header: t('governance.category'),
+      width: 130,
+      render: (kpi) => (
+        <Tag>{t(`governance.kpiCategories.${kpi.category}`, { defaultValue: (kpi.category || '').replace(/_/g, ' ') })}</Tag>
+      ),
+    },
+    {
+      key: 'internal',
+      header: t('governance.internal'),
+      width: 90,
+      align: 'right',
+      render: (kpi) => (
+        <span className="num" style={{ fontWeight: 600, color: 'var(--p)' }}>
+          {kpi.latest_internal_score != null ? Number(kpi.latest_internal_score).toFixed(1) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'external',
+      header: t('governance.external'),
+      width: 90,
+      align: 'right',
+      render: (kpi) => (
+        <span className="num" style={{ fontWeight: 600, color: 'var(--wa)' }}>
+          {kpi.latest_external_score != null ? Number(kpi.latest_external_score).toFixed(1) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'gap',
+      header: t('governance.gap'),
+      width: 80,
+      align: 'right',
+      render: (kpi) => {
+        const gap = kpi.latest_gap != null ? Number(kpi.latest_gap) : null
+        if (gap == null) return <span className="faint">—</span>
+        return (
+          <span className="mono num" style={{
+            fontWeight: 600,
+            color: gap > 0 ? 'var(--da)' : gap < 0 ? 'var(--in)' : 'var(--ok)',
+          }}>
+            {gap > 0 ? '+' : ''}{gap.toFixed(1)}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'severity',
+      header: t('governance.severity'),
+      width: 110,
+      render: (kpi) => kpi.latest_gap_severity
+        ? <Pill tone={GAP_TONE[kpi.latest_gap_severity]}>{t(`governance.gapSeverity.${kpi.latest_gap_severity}`, { defaultValue: kpi.latest_gap_severity })}</Pill>
+        : <span className="faint">—</span>,
+    },
+    {
+      key: 'actions',
+      header: t('common.actions'),
+      width: 90,
+      render: (kpi) => (
+        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setShowScore(kpi.id) }}>
+          {t('governance.score')}
+        </Button>
+      ),
+    },
+  ]
+
+  const historyColumns: TableColumn<RelationshipHistoryEntry>[] = [
+    { key: 'period', header: t('governance.period'), width: 100, render: (e) => <span className="num" style={{ fontWeight: 500 }}>{e.period}</span> },
+    {
+      key: 'status', header: t('common.status'), width: 130,
+      render: (e) => <Pill tone={PERF_STATUS_TONE[e.status]}>{t(`governance.perfStatus.${e.status}`, { defaultValue: PERF_STATUS_LABELS[e.status] })}</Pill>,
+    },
+    {
+      key: 'previous_status', header: t('governance.previous'), width: 130,
+      render: (e) => e.previous_status
+        ? <Pill tone={PERF_STATUS_TONE[e.previous_status]}>{t(`governance.perfStatus.${e.previous_status}`, { defaultValue: PERF_STATUS_LABELS[e.previous_status] })}</Pill>
+        : <span className="faint">—</span>,
+    },
+    {
+      key: 'overall_score', header: t('governance.score'), width: 70, align: 'right',
+      render: (e) => <span className="num" style={{ fontWeight: 600 }}>{e.overall_score != null ? e.overall_score : '—'}</span>,
+    },
+    { key: 'trigger', header: t('governance.trigger'), render: (e) => <span className="muted">{e.trigger || '—'}</span> },
+    {
+      key: 'notes', header: t('governance.notes'),
+      render: (e) => <span className="muted trunc" style={{ display: 'block', maxWidth: 220 }}>{e.notes || '—'}</span>,
+    },
+  ]
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start gap-4">
-        <Link to="/relationships" className="p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
-          <ArrowLeftIcon className="h-5 w-5" />
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold text-gray-900">
-            {relationship.org_a?.name || t('governance.orgA')} ↔ {relationship.org_b?.name || t('governance.orgB')}
-          </h1>
-          <div className="flex items-center gap-4 mt-2">
-            <span className="text-sm text-gray-500 capitalize">{t(`governance.relationshipTypes.${relationship.relationship_type}`, { defaultValue: relationship.relationship_type })}</span>
-            <span className="text-sm text-gray-500 capitalize">{t(`governance.tiers.${relationship.governance_tier}`, { defaultValue: relationship.governance_tier })}</span>
-            <div className={cn('flex items-center gap-1', healthColor)}>
-              <HeartIcon className="h-4 w-4" />
-              <span className="text-sm font-semibold">{t('governance.healthLabel', { score: relationship.health_score })}</span>
-            </div>
+    <div className="col" style={{ gap: 18 }}>
+      {/* Header — two-party pairing */}
+      <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+        <IconButton
+          icon={ArrowLeftIcon}
+          label={t('common.back', { defaultValue: 'Back' })}
+          onClick={() => navigate('/relationships')}
+        />
+        <div className="grow" style={{ minWidth: 0 }}>
+          <div className="row" style={{ gap: 8, minWidth: 0 }}>
+            <span className="row" style={{ gap: 4, flexShrink: 0 }}>
+              <Avatar name={orgAName} size={26} />
+              <ArrowsRightLeftIcon style={{ width: 14, height: 14, color: 'var(--f)' }} aria-hidden />
+              <Avatar name={orgBName} size={26} />
+            </span>
+            <h1 className="trunc" style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, letterSpacing: '-.5px' }}>
+              {orgAName} ↔ {orgBName}
+            </h1>
+          </div>
+          <div className="row" style={{ gap: 8, marginTop: 7, flexWrap: 'wrap' }}>
+            <Tag>
+              {t(`governance.relationshipTypes.${relationship.relationship_type}`, { defaultValue: relationship.relationship_type })}
+            </Tag>
+            <Tag>
+              {t(`governance.tiers.${relationship.governance_tier}`, { defaultValue: relationship.governance_tier })}
+            </Tag>
+            <span className="row" style={{ gap: 4, color: healthTone(health) }}>
+              <HeartIcon style={{ width: 14, height: 14 }} aria-hidden />
+              <span className="num" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
+                {t('governance.healthLabel', { score: health })}
+              </span>
+            </span>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-6">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                'pb-3 text-sm font-medium border-b-2 transition-colors',
-                activeTab === tab
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              )}
-            >
-              {t(`governance.tabs.${tab.toLowerCase()}`, { defaultValue: tab })}
-              {tab === 'KPIs' && kpis.length > 0 && (
-                <span className="ml-1.5 bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs">{kpis.length}</span>
-              )}
-              {tab === 'Improvements' && improvements.length > 0 && (
-                <span className="ml-1.5 bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs">{improvements.length}</span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <Tabs<Tab>
+        tabs={[
+          { value: 'KPIs', label: t('governance.tabs.kpis', { defaultValue: 'KPIs' }), icon: ChartBarIcon, count: kpis.length > 0 ? kpis.length : undefined },
+          { value: 'Team', label: t('governance.tabs.team', { defaultValue: 'Team' }), icon: UserGroupIcon },
+          { value: 'Improvements', label: t('governance.tabs.improvements', { defaultValue: 'Improvements' }), icon: LightBulbIcon, count: improvements.length > 0 ? improvements.length : undefined },
+          { value: 'History', label: t('governance.tabs.history', { defaultValue: 'History' }), icon: ClockIcon },
+          { value: 'Overview', label: t('governance.tabs.overview', { defaultValue: 'Overview' }), icon: Squares2X2Icon },
+        ]}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
 
-      {/* KPIs Tab — The Perception Scorecard */}
+      {/* KPIs tab — the perception scorecard */}
       {activeTab === 'KPIs' && (
-        <div className="space-y-4">
-          {/* Gap Summary Cards */}
+        <div className="col" style={{ gap: 14 }}>
+          {/* Gap severity summary */}
           {gapSummary && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {[
-                { label: t('governance.gapSeverity.critical'), count: gapSummary.critical_gaps, color: 'text-red-600 bg-red-50' },
-                { label: t('governance.gapSeverity.significant'), count: gapSummary.significant_gaps, color: 'text-orange-600 bg-orange-50' },
-                { label: t('governance.gapSeverity.moderate'), count: gapSummary.moderate_gaps, color: 'text-yellow-600 bg-yellow-50' },
-                { label: t('governance.gapSeverity.minor'), count: gapSummary.minor_gaps, color: 'text-blue-600 bg-blue-50' },
-                { label: t('governance.gapSeverity.aligned'), count: gapSummary.aligned, color: 'text-green-600 bg-green-50' },
-              ].map((item) => (
-                <div key={item.label} className={cn('rounded-lg p-3 text-center', item.color)}>
-                  <p className="text-2xl font-bold">{item.count}</p>
-                  <p className="text-xs font-medium">{item.label}</p>
+            <div className="grid gap-2 grid-cols-2 md:grid-cols-5">
+              {([
+                { severity: 'critical' as GapSeverity, count: gapSummary.critical_gaps },
+                { severity: 'significant' as GapSeverity, count: gapSummary.significant_gaps },
+                { severity: 'moderate' as GapSeverity, count: gapSummary.moderate_gaps },
+                { severity: 'minor' as GapSeverity, count: gapSummary.minor_gaps },
+                { severity: 'aligned' as GapSeverity, count: gapSummary.aligned },
+              ]).map((item) => (
+                <div key={item.severity} className="card card-p" style={{ textAlign: 'center' }}>
+                  <div className="num" style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, color: GAP_VAR[item.severity] }}>
+                    {item.count}
+                  </div>
+                  <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--m)', marginTop: 2 }}>
+                    {t(`governance.gapSeverity.${item.severity}`, { defaultValue: item.severity })}
+                  </div>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <ChartBarSquareIcon className="h-5 w-5 text-gray-400" />
-              {t('governance.kpiPerceptionScorecard')}
-            </h2>
-            <div className="flex items-center gap-2">
-              {gapSummary && gapSummary.critical_gaps + gapSummary.significant_gaps > 0 && (
-                <button
-                  onClick={() => generateImprovementsMutation.mutate()}
-                  disabled={generateImprovementsMutation.isPending}
-                  className="btn-secondary text-xs"
-                >
-                  {generateImprovementsMutation.isPending ? t('governance.generating') : t('governance.generateImprovementsFromGaps')}
-                </button>
-              )}
-              <button onClick={() => setShowAddKPI(true)} className="btn-primary text-xs flex items-center gap-1">
-                <PlusIcon className="h-3.5 w-3.5" /> {t('governance.addKpi')}
-              </button>
-            </div>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <span className="sec-t">{t('governance.kpiPerceptionScorecard')}</span>
+            <span className="grow" />
+            {gapSummary && gapSummary.critical_gaps + gapSummary.significant_gaps > 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={SparklesIcon}
+                disabled={generateImprovementsMutation.isPending}
+                onClick={() => generateImprovementsMutation.mutate()}
+              >
+                {generateImprovementsMutation.isPending ? t('governance.generating') : t('governance.generateImprovementsFromGaps')}
+              </Button>
+            )}
+            <Button variant="primary" size="sm" icon={PlusIcon} onClick={() => setShowAddKPI(true)}>
+              {t('governance.addKpi')}
+            </Button>
           </div>
 
-          {/* Category Tabs */}
-          {kpis.length > 0 && (() => {
-            const categoryCounts: Record<string, number> = {}
-            kpis.forEach((k) => {
-              const cat = k.category || 'other'
-              categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
-            })
-            const CATEGORY_LABELS: Record<string, string> = {
-              service_delivery: 'Service Delivery',
-              timeliness: 'Timeliness',
-              quality: 'Quality',
-              compliance: 'Compliance',
-              communication: 'Communication',
-              innovation: 'Innovation',
-              cost_efficiency: 'Cost Efficiency',
-              satisfaction: 'Satisfaction',
-              other: 'Other',
+          {/* Category filter */}
+          {kpis.length > 0 && (
+            <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+              <Chip on={selectedCategory === 'all'} onClick={() => setSelectedCategory('all')}>
+                {t('governance.allCount', { count: kpis.length })}
+              </Chip>
+              {categories.map((cat) => (
+                <Chip key={cat} on={selectedCategory === cat} onClick={() => setSelectedCategory(cat)}>
+                  {t(`governance.kpiCategories.${cat}`, { defaultValue: CATEGORY_LABELS[cat] || cat })} ({categoryCounts[cat]})
+                </Chip>
+              ))}
+            </div>
+          )}
+
+          {/* KPI scorecard table */}
+          <Table<KPI>
+            columns={kpiColumns}
+            rows={filteredKpis}
+            rowKey={(kpi) => kpi.id}
+            minWidth={760}
+            empty={
+              <EmptyState
+                icon={ChartBarIcon}
+                title={t('governance.noKpisYet')}
+                body={t('governance.kpisEmptyBody', { defaultValue: 'KPIs measure the relationship from both sides. Add one to start scoring.' })}
+                action={<Button variant="primary" icon={PlusIcon} onClick={() => setShowAddKPI(true)}>{t('governance.addKpi')}</Button>}
+              />
             }
-            const categories = Object.keys(categoryCounts).sort((a, b) =>
-              (categoryCounts[b] || 0) - (categoryCounts[a] || 0)
-            )
-            return (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSelectedCategory('all')}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                    selectedCategory === 'all'
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  )}
-                >
-                  {t('governance.allCount', { count: kpis.length })}
-                </button>
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                      selectedCategory === cat
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    )}
-                  >
-                    {t(`governance.kpiCategories.${cat}`, { defaultValue: CATEGORY_LABELS[cat] || cat })} ({categoryCounts[cat]})
-                  </button>
-                ))}
-              </div>
-            )
-          })()}
+          />
 
-          {/* KPI Table with Perception Scores */}
-          <div className="card">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.kpi')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.category')}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">{t('governance.internal')}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-purple-600 uppercase bg-purple-50">{t('governance.external')}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('governance.gap')}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('governance.severity')}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('common.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {kpis.filter((kpi) => selectedCategory === 'all' || (kpi.category || 'other') === selectedCategory).map((kpi) => {
-                    const internalScore = kpi.latest_internal_score != null ? Number(kpi.latest_internal_score) : null
-                    const externalScore = kpi.latest_external_score != null ? Number(kpi.latest_external_score) : null
-                    const gapValue = kpi.latest_gap != null ? Number(kpi.latest_gap) : null
-                    const gapSeverity = kpi.latest_gap_severity ?? null
-                    return (
-                      <tr key={kpi.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <p className="text-sm font-medium text-gray-900">{kpi.name}</p>
-                          {kpi.description && (
-                            <p className="text-xs text-gray-500 truncate max-w-[200px]">{kpi.description}</p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-500 capitalize">{t(`governance.kpiCategories.${kpi.category}`, { defaultValue: kpi.category.replace(/_/g, ' ') })}</td>
-                        <td className="px-4 py-3 text-center bg-blue-50/30">
-                          <span className="text-sm font-semibold text-blue-700">
-                            {internalScore != null ? internalScore.toFixed(1) : '—'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center bg-purple-50/30">
-                          <span className="text-sm font-semibold text-purple-700">
-                            {externalScore != null ? externalScore.toFixed(1) : '—'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {gapValue != null ? (
-                            <span className={cn(
-                              'text-sm font-bold',
-                              gapValue > 0 ? 'text-red-600' : gapValue < 0 ? 'text-blue-600' : 'text-green-600'
-                            )}>
-                              {gapValue > 0 ? '+' : ''}{gapValue.toFixed(1)}
-                            </span>
-                          ) : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {gapSeverity ? (
-                            <span className={cn(
-                              'px-2 py-0.5 rounded text-xs font-medium border',
-                              GAP_COLORS[gapSeverity]
-                            )}>
-                              {t(`governance.gapSeverity.${gapSeverity}`, { defaultValue: gapSeverity })}
-                            </span>
-                          ) : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => setShowScore(kpi.id)}
-                            className="text-xs text-primary-600 hover:text-primary-800 font-medium"
-                          >
-                            {t('governance.score')}
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                  {kpis.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
-                        {t('governance.noKpisYet')}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Perception Gap Visualization */}
-          {kpis.length > 0 && kpis.some(k => k.latest_internal_score != null || k.latest_external_score != null) && (
+          {/* Perception gap analysis */}
+          {scoredKpis.length > 0 && (
             <div className="card">
-              <div className="card-header">
-                <h3 className="text-sm font-medium text-gray-900">{t('governance.perceptionGapComparison')}</h3>
+              <div className="row" style={{ padding: '13px 16px', borderBottom: '1px solid var(--b)', gap: 14, flexWrap: 'wrap' }}>
+                <b style={{ fontSize: 'var(--fs-lg)' }}>{t('governance.perceptionGapComparison')}</b>
+                <span className="row" style={{ gap: 6, fontSize: 'var(--fs-sm)', color: 'var(--m)' }}>
+                  <span style={{ width: 4, height: 14, borderRadius: 2, background: 'var(--p)' }} />
+                  {t('governance.internal')}
+                </span>
+                <span className="row" style={{ gap: 6, fontSize: 'var(--fs-sm)', color: 'var(--m)' }}>
+                  <span style={{ width: 4, height: 14, borderRadius: 2, background: 'var(--wa)' }} />
+                  {t('governance.external')}
+                </span>
               </div>
-              <div className="card-body space-y-3">
-                {kpis.filter(k => k.latest_internal_score != null || k.latest_external_score != null).map((kpi) => {
-                  const intScore = Number(kpi.latest_internal_score) || 0
-                  const extScore = Number(kpi.latest_external_score) || 0
-                  const severity = kpi.latest_gap_severity ?? null
-                  return (
-                  <div key={kpi.id} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-600 w-32 truncate">{kpi.name}</span>
-                    <div className="flex-1 flex items-center gap-1">
-                      {/* Internal bar */}
-                      <div className="flex-1 bg-gray-100 rounded-full h-4 relative">
-                        <div
-                          className="bg-blue-500 h-4 rounded-full"
-                          style={{ width: `${(intScore / 10) * 100}%` }}
-                        />
-                        <span className="absolute right-2 top-0 text-[10px] font-bold text-blue-800 leading-4">
-                          {t('governance.intScore', { score: intScore ? intScore.toFixed(1) : '—' })}
-                        </span>
-                      </div>
-                      {/* External bar */}
-                      <div className="flex-1 bg-gray-100 rounded-full h-4 relative">
-                        <div
-                          className="bg-purple-500 h-4 rounded-full"
-                          style={{ width: `${(extScore / 10) * 100}%` }}
-                        />
-                        <span className="absolute right-2 top-0 text-[10px] font-bold text-purple-800 leading-4">
-                          {t('governance.extScore', { score: extScore ? extScore.toFixed(1) : '—' })}
-                        </span>
-                      </div>
-                    </div>
-                    {severity && (
-                      <span className={cn(
-                        'px-1.5 py-0.5 rounded text-[10px] font-medium border w-20 text-center',
-                        GAP_COLORS[severity]
-                      )}>
-                        {t(`governance.gapSeverity.${severity}`, { defaultValue: severity })}
-                      </span>
-                    )}
+              <div className="card-p" style={{ paddingTop: 4, paddingBottom: 4 }}>
+                {scoredKpis.map((kpi) => <GapRow key={kpi.id} kpi={kpi} />)}
+              </div>
+              {severeGaps.length > 0 && (
+                <div className="card-p" style={{ paddingTop: 12 }}>
+                  <div className="banner banner-wa">
+                    <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+                    <span>
+                      <b>{t('governance.severeGapsCount', { count: severeGaps.length, defaultValue: '{{count}} severe gaps.' })}</b>{' '}
+                      {severeGaps
+                        .map((g) => `${g.kpi_name} (${g.gap.gap_value > 0 ? '+' : ''}${Number(g.gap.gap_value).toFixed(1)})`)
+                        .join(', ')}
+                    </span>
                   </div>
-                  )
-                })}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Team Tab */}
+      {/* Team tab */}
       {activeTab === 'Team' && (
         <div className="card">
-          <div className="card-header flex items-center justify-between">
-            <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
-              <UserGroupIcon className="h-5 w-5 text-gray-400" />
-              {t('governance.teamMembersCount', { count: team.length })}
-            </h2>
+          <div className="row" style={{ padding: '13px 16px', borderBottom: '1px solid var(--b)', gap: 8 }}>
+            <UserGroupIcon style={{ width: 16, height: 16, color: 'var(--f)' }} aria-hidden />
+            <b style={{ fontSize: 'var(--fs-lg)' }}>{t('governance.teamMembersCount', { count: team.length })}</b>
           </div>
-          <div className="card-body p-0">
-            {team.length > 0 ? (
-              <div className="divide-y divide-gray-200">
-                {team.map((member) => (
-                  <div key={member.id} className="px-4 py-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {member.user_name || member.user?.full_name || member.user?.username || t('governance.unknown')}
-                      </p>
-                      <p className="text-xs text-gray-500 capitalize">{member.role.replace(/_/g, ' ')}</p>
-                      {member.responsibilities && Array.isArray(member.responsibilities) && (
-                        <p className="text-xs text-gray-400 mt-0.5">{member.responsibilities.join(' · ')}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {(member.is_primary || member.is_primary_contact) && (
-                        <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded">{t('governance.primary')}</span>
-                      )}
-                      {member.receives_alerts && (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{t('governance.alerts')}</span>
-                      )}
-                    </div>
+          {team.length > 0 ? (
+            <div>
+              {team.map((member, n) => {
+                const name = member.user_name || member.user?.full_name || member.user?.username || t('governance.unknown')
+                return (
+                  <div
+                    key={member.id}
+                    className="row"
+                    style={{ gap: 10, padding: '10px 16px', borderBottom: n < team.length - 1 ? '1px solid var(--b)' : 0 }}
+                  >
+                    <Avatar name={name} size={28} />
+                    <span className="grow" style={{ minWidth: 0 }}>
+                      <span className="trunc" style={{ display: 'block', fontSize: 'var(--fs-md)', fontWeight: 500 }}>{name}</span>
+                      <span className="faint" style={{ display: 'block', fontSize: 'var(--fs-sm)', textTransform: 'capitalize' }}>
+                        {member.role.replace(/_/g, ' ')}
+                        {member.responsibilities && Array.isArray(member.responsibilities) && member.responsibilities.length > 0 && (
+                          <> · {member.responsibilities.join(' · ')}</>
+                        )}
+                      </span>
+                    </span>
+                    {(member.is_primary || member.is_primary_contact) && (
+                      <Pill tone="p" dot={false}>{t('governance.primary')}</Pill>
+                    )}
+                    {member.receives_alerts && (
+                      <Pill tone="in" dot={false}>{t('governance.alerts')}</Pill>
+                    )}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="px-4 py-8 text-center text-sm text-gray-500">{t('governance.noTeamMembers')}</p>
+                )
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              icon={UserGroupIcon}
+              title={t('governance.noTeamMembers')}
+              body={t('governance.teamEmptyBody', { defaultValue: 'No one is assigned to this relationship yet.' })}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Improvements tab */}
+      {activeTab === 'Improvements' && (
+        <div className="col" style={{ gap: 12 }}>
+          <div className="row" style={{ gap: 8 }}>
+            <LightBulbIcon style={{ width: 16, height: 16, color: 'var(--f)' }} aria-hidden />
+            <span className="sec-t">{t('governance.improvementPointsCount', { count: improvements.length })}</span>
+          </div>
+          <div className="card">
+            {improvements.map((imp: ImprovementPoint, n: number) => {
+              const pct = imp.progress_percentage ?? imp.progress ?? 0
+              return (
+                <div
+                  key={imp.id}
+                  className="col"
+                  style={{ gap: 8, padding: '12px 16px', borderBottom: n < improvements.length - 1 ? '1px solid var(--b)' : 0 }}
+                >
+                  <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
+                    <span className="grow" style={{ minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 'var(--fs-md)', fontWeight: 500 }}>{imp.title}</span>
+                      {imp.description && (
+                        <span className="faint" style={{ display: 'block', fontSize: 'var(--fs-sm)', marginTop: 2, lineHeight: 1.5 }}>
+                          {imp.description}
+                        </span>
+                      )}
+                    </span>
+                    <Pill tone={PRIORITY_TONE[imp.priority] || 'n'}>
+                      {t(`risk.${imp.priority}`, { defaultValue: imp.priority })}
+                    </Pill>
+                    <Pill tone={IMPROVEMENT_STATUS_TONE[imp.status] || 'n'}>
+                      {t(`governance.improvementStatus.${imp.status}`, { defaultValue: imp.status.replace(/_/g, ' ') })}
+                    </Pill>
+                  </div>
+                  <div className="row" style={{ gap: 8 }}>
+                    <Bar value={pct} width={120} tone={pct === 100 ? 'var(--ok)' : undefined} />
+                    <span className="mono num faint" style={{ fontSize: 'var(--fs-sm)' }}>
+                      {pct}%
+                      {imp.action_count
+                        ? ` ${t('governance.actionsProgress', { completed: imp.completed_action_count ?? 0, total: imp.action_count })}`
+                        : ''}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+            {improvements.length === 0 && (
+              <EmptyState
+                icon={LightBulbIcon}
+                title={t('governance.noImprovementsYet')}
+                body={t('governance.improvementsEmptyBody', { defaultValue: 'Improvement points are generated from severe perception gaps, or raised by hand.' })}
+              />
             )}
           </div>
         </div>
       )}
 
-      {/* Improvements Tab */}
-      {activeTab === 'Improvements' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <LightBulbIcon className="h-5 w-5 text-gray-400" />
-              {t('governance.improvementPointsCount', { count: improvements.length })}
-            </h2>
-          </div>
-          <div className="card">
-            <div className="card-body p-0 divide-y divide-gray-200">
-              {improvements.map((imp: ImprovementPoint) => (
-                <div key={imp.id} className="px-4 py-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{imp.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{imp.description}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={cn(
-                        'px-2 py-0.5 rounded text-xs font-medium',
-                        imp.priority === 'critical' ? 'bg-red-100 text-red-800' :
-                        imp.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                        imp.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      )}>
-                        {t(`risk.${imp.priority}`, { defaultValue: imp.priority })}
-                      </span>
-                      <span className={cn(
-                        'px-2 py-0.5 rounded text-xs font-medium',
-                        imp.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        imp.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                        imp.status === 'blocked' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      )}>
-                        {t(`governance.improvementStatus.${imp.status}`, { defaultValue: imp.status.replace(/_/g, ' ') })}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Progress bar */}
-                  {(() => {
-                    const pct = imp.progress_percentage ?? imp.progress ?? 0
-                    return (
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                          <div className="bg-primary-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="text-[10px] text-gray-500">
-                          {pct}%{imp.action_count ? ` ${t('governance.actionsProgress', { completed: imp.completed_action_count ?? 0, total: imp.action_count })}` : ''}
-                        </span>
-                      </div>
-                    )
-                  })()}
-                </div>
-              ))}
-              {improvements.length === 0 && (
-                <p className="px-4 py-8 text-center text-sm text-gray-500">
-                  {t('governance.noImprovementsYet')}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* History Tab */}
+      {/* History tab */}
       {activeTab === 'History' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700">{t('governance.performanceHistory')}</h2>
-            <button onClick={() => setShowRecordStatus(true)} className="btn-primary text-xs flex items-center gap-1">
-              <PlusIcon className="h-3.5 w-3.5" /> {t('governance.recordStatus')}
-            </button>
+        <div className="col" style={{ gap: 14 }}>
+          <div className="row" style={{ gap: 8 }}>
+            <span className="sec-t">{t('governance.performanceHistory')}</span>
+            <span className="grow" />
+            <Button variant="primary" size="sm" icon={PlusIcon} onClick={() => setShowRecordStatus(true)}>
+              {t('governance.recordStatus')}
+            </Button>
           </div>
 
-          {/* Trend Visualization */}
+          {/* Trend visualization */}
           {perfTrend && perfTrend.trend.length > 0 && (
             <div className="card">
-              <div className="card-header flex items-center justify-between">
-                <h3 className="text-sm font-medium text-gray-900">{t('governance.performanceTrend')}</h3>
+              <div className="row" style={{ padding: '13px 16px', borderBottom: '1px solid var(--b)', gap: 8 }}>
+                <b style={{ fontSize: 'var(--fs-lg)' }}>{t('governance.performanceTrend')}</b>
+                <span className="grow" />
                 {perfTrend.current_status && (
-                  <span className={cn(
-                    'px-2 py-0.5 rounded text-xs font-medium capitalize',
-                    PERF_STATUS_COLORS[perfTrend.current_status]
-                  )}>
-                    {t('governance.currentStatus', { status: t(`governance.perfStatus.${perfTrend.current_status}`, { defaultValue: PERF_STATUS_LABELS[perfTrend.current_status] }) })}
-                  </span>
+                  <Pill tone={PERF_STATUS_TONE[perfTrend.current_status]}>
+                    {t('governance.currentStatus', {
+                      status: t(`governance.perfStatus.${perfTrend.current_status}`, { defaultValue: PERF_STATUS_LABELS[perfTrend.current_status] }),
+                    })}
+                  </Pill>
                 )}
               </div>
-              <div className="card-body">
-                <div className="flex items-end gap-1 h-32">
+              <div className="card-p">
+                <div className="row" style={{ alignItems: 'flex-end', gap: 4, height: 128 }}>
                   {perfTrend.trend.map((point, i) => {
-                    const scoreVal = point.overall_score ?? 50
-                    const heightPct = Math.max(10, scoreVal)
-                    const statusOrder: PerformanceStatus[] = ['critical', 'poor', 'concerning', 'acceptable', 'good', 'excellent']
-                    const barColor = statusOrder.indexOf(point.status) >= 4 ? 'bg-green-500' :
-                      statusOrder.indexOf(point.status) >= 2 ? 'bg-amber-500' : 'bg-red-500'
+                    const heightPct = Math.max(10, point.overall_score ?? 50)
                     return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <div key={i} className="col grow" style={{ alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
                         <div
-                          className={cn('w-full rounded-t', barColor)}
-                          style={{ height: `${heightPct}%` }}
+                          style={{
+                            width: '100%', borderRadius: '3px 3px 0 0', height: `${heightPct}%`,
+                            background: perfBarTone(point.status),
+                          }}
                           title={`${point.period}: ${t(`governance.perfStatus.${point.status}`, { defaultValue: PERF_STATUS_LABELS[point.status] })} (${point.overall_score ?? '—'})`}
                         />
-                        <span className="text-[9px] text-gray-400 truncate w-full text-center">{point.period}</span>
+                        <span className="faint trunc num" style={{ fontSize: 'var(--fs-xs)', width: '100%', textAlign: 'center' }}>
+                          {point.period}
+                        </span>
                       </div>
                     )
                   })}
@@ -600,373 +729,311 @@ export default function RelationshipDetailPage() {
             </div>
           )}
 
-          {/* History Table */}
-          <div className="card">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.period')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('common.status')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.previous')}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('governance.score')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.trigger')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.notes')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {historyEntries.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{entry.period}</td>
-                      <td className="px-4 py-3">
-                        <span className={cn(
-                          'px-2 py-0.5 rounded text-xs font-medium capitalize',
-                          PERF_STATUS_COLORS[entry.status]
-                        )}>
-                          {t(`governance.perfStatus.${entry.status}`, { defaultValue: PERF_STATUS_LABELS[entry.status] })}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {entry.previous_status ? (
-                          <span className={cn(
-                            'px-2 py-0.5 rounded text-xs font-medium capitalize',
-                            PERF_STATUS_COLORS[entry.previous_status]
-                          )}>
-                            {t(`governance.perfStatus.${entry.previous_status}`, { defaultValue: PERF_STATUS_LABELS[entry.previous_status] })}
-                          </span>
-                        ) : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-center text-sm font-semibold text-gray-900">
-                        {entry.overall_score != null ? entry.overall_score : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{entry.trigger || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">{entry.notes || '—'}</td>
-                    </tr>
-                  ))}
-                  {historyEntries.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
-                        {t('governance.noPerformanceHistory')}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          {/* History table */}
+          <Table<RelationshipHistoryEntry>
+            columns={historyColumns}
+            rows={historyEntries}
+            rowKey={(e) => e.id}
+            minWidth={760}
+            empty={
+              <EmptyState
+                icon={ClockIcon}
+                title={t('governance.noPerformanceHistory')}
+                body={t('governance.historyEmptyBody', { defaultValue: 'Record a periodic status to build the performance timeline.' })}
+                action={<Button variant="primary" icon={PlusIcon} onClick={() => setShowRecordStatus(true)}>{t('governance.recordStatus')}</Button>}
+              />
+            }
+          />
         </div>
       )}
 
-      {/* Record Status Modal */}
-      {showRecordStatus && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">{t('governance.recordPerformanceStatus')}</h2>
-              <button onClick={() => setShowRecordStatus(false)} className="text-gray-400 hover:text-gray-600">
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.status')} *</label>
-                <select
-                  value={statusForm.status || 'good'}
-                  onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value as PerformanceStatus })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  {Object.entries(PERF_STATUS_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{t(`governance.perfStatus.${value}`, { defaultValue: label })}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.period')} *</label>
-                  <input
-                    type="text"
-                    value={statusForm.period || ''}
-                    onChange={(e) => setStatusForm({ ...statusForm, period: e.target.value })}
-                    placeholder={t('governance.periodPlaceholder')}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.score')}</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={statusForm.overall_score ?? ''}
-                    onChange={(e) => setStatusForm({ ...statusForm, overall_score: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.trigger')}</label>
-                <input
-                  type="text"
-                  value={statusForm.trigger || ''}
-                  onChange={(e) => setStatusForm({ ...statusForm, trigger: e.target.value })}
-                  placeholder={t('governance.triggerPlaceholder')}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.notes')}</label>
-                <textarea
-                  value={statusForm.notes || ''}
-                  onChange={(e) => setStatusForm({ ...statusForm, notes: e.target.value })}
-                  rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowRecordStatus(false)} className="btn-secondary">{t('common.cancel')}</button>
-              <button
-                onClick={() => {
-                  if (statusForm.status && statusForm.period) {
-                    recordStatusMutation.mutate(statusForm as RelationshipHistoryCreate)
-                  }
-                }}
-                disabled={!statusForm.status || !statusForm.period || recordStatusMutation.isPending}
-                className="btn-primary"
-              >
-                {recordStatusMutation.isPending ? t('governance.recording') : t('governance.record')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Overview Tab */}
+      {/* Overview tab */}
       {activeTab === 'Overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="card">
-            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">{t('governance.details')}</h3></div>
-            <div className="card-body space-y-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+          <div className="card card-p col" style={{ gap: 12 }}>
+            <div className="sec-t">{t('governance.details')}</div>
+            <div className="col" style={{ gap: 10 }}>
               <div>
-                <p className="text-xs text-gray-500">{t('governance.type')}</p>
-                <p className="text-sm font-medium text-gray-900 capitalize">{t(`governance.relationshipTypes.${relationship.relationship_type}`, { defaultValue: relationship.relationship_type })}</p>
+                <div className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('governance.type')}</div>
+                <div style={{ fontSize: 'var(--fs-md)', fontWeight: 500, textTransform: 'capitalize' }}>
+                  {t(`governance.relationshipTypes.${relationship.relationship_type}`, { defaultValue: relationship.relationship_type })}
+                </div>
               </div>
               <div>
-                <p className="text-xs text-gray-500">{t('common.status')}</p>
-                <p className="text-sm font-medium text-gray-900 capitalize">{t(`governance.relationshipStatus.${relationship.status}`, { defaultValue: relationship.status })}</p>
+                <div className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('common.status')}</div>
+                <div style={{ marginTop: 2 }}>
+                  <Pill tone={relationship.status === 'active' ? 'ok' : relationship.status === 'at_risk' ? 'da' : relationship.status === 'on_hold' ? 'wa' : 'n'}>
+                    {t(`governance.relationshipStatus.${relationship.status}`, { defaultValue: relationship.status })}
+                  </Pill>
+                </div>
               </div>
               <div>
-                <p className="text-xs text-gray-500">{t('governance.governanceTier')}</p>
-                <p className="text-sm font-medium text-gray-900 capitalize">{t(`governance.tiers.${relationship.governance_tier}`, { defaultValue: relationship.governance_tier })}</p>
+                <div className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('governance.governanceTier')}</div>
+                <div style={{ fontSize: 'var(--fs-md)', fontWeight: 500, textTransform: 'capitalize' }}>
+                  {t(`governance.tiers.${relationship.governance_tier}`, { defaultValue: relationship.governance_tier })}
+                </div>
               </div>
               {relationship.annual_value && (
                 <div>
-                  <p className="text-xs text-gray-500">{t('governance.annualValue')}</p>
-                  <p className="text-sm font-medium text-gray-900">
+                  <div className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('governance.annualValue')}</div>
+                  <div className="num" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
                     {relationship.currency || '$'}{Number(relationship.annual_value).toLocaleString()}
-                  </p>
+                  </div>
                 </div>
               )}
               {relationship.description && (
                 <div>
-                  <p className="text-xs text-gray-500">{t('governance.description')}</p>
-                  <p className="text-sm text-gray-700">{relationship.description}</p>
+                  <div className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('governance.description')}</div>
+                  <div className="muted" style={{ fontSize: 'var(--fs-md)', lineHeight: 1.5 }}>{relationship.description}</div>
                 </div>
               )}
             </div>
           </div>
-          <div className="card">
-            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">{t('governance.summary')}</h3></div>
-            <div className="card-body space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">{t('governance.activeKpis')}</span>
-                <span className="text-sm font-medium">{kpis.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">{t('governance.teamMembers')}</span>
-                <span className="text-sm font-medium">{team.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">{t('governance.openImprovements')}</span>
-                <span className="text-sm font-medium">{improvements.filter(i => i.status !== 'completed' && i.status !== 'cancelled').length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">{t('governance.perceptionGaps')}</span>
-                <span className="text-sm font-medium">{gapSummary?.kpis_with_gaps || 0}</span>
-              </div>
+          <div className="card card-p col" style={{ gap: 12 }}>
+            <div className="sec-t">{t('governance.summary')}</div>
+            <div className="col" style={{ gap: 10 }}>
+              {[
+                { label: t('governance.activeKpis'), value: kpis.length },
+                { label: t('governance.teamMembers'), value: team.length },
+                {
+                  label: t('governance.openImprovements'),
+                  value: improvements.filter((i) => i.status !== 'completed' && i.status !== 'cancelled').length,
+                },
+                { label: t('governance.perceptionGaps'), value: gapSummary?.kpis_with_gaps || 0 },
+              ].map((row) => (
+                <div key={row.label} className="row" style={{ gap: 10 }}>
+                  <span className="muted" style={{ fontSize: 'var(--fs-md)' }}>{row.label}</span>
+                  <span className="grow" />
+                  <span className="num" style={{ fontSize: 'var(--fs-md)', fontWeight: 600 }}>{row.value}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Score Modal */}
-      {showScore && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">{t('governance.submitScore')}</h2>
-              <button onClick={() => setShowScore(null)} className="text-gray-400 hover:text-gray-600">
-                <XMarkIcon className="h-5 w-5" />
-              </button>
+      {/* Score drawer */}
+      <Drawer
+        open={!!showScore}
+        title={t('governance.submitScore')}
+        onClose={() => setShowScore(null)}
+        width={400}
+        footer={
+          <>
+            <span className="grow" />
+            <Button variant="ghost" onClick={() => setShowScore(null)}>{t('common.cancel')}</Button>
+            <Button
+              variant="primary"
+              disabled={submitScoreMutation.isPending}
+              onClick={() => {
+                if (showScore && scoreForm.perspective && scoreForm.score) {
+                  submitScoreMutation.mutate({ kpiId: showScore, data: scoreForm as PerceptionScoreCreate })
+                }
+              }}
+            >
+              {submitScoreMutation.isPending ? t('governance.submitting') : t('governance.submit')}
+            </Button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 14 }}>
+          <Select
+            label={t('governance.perspective')}
+            value={scoreForm.perspective || 'internal'}
+            onChange={(e) => setScoreForm({ ...scoreForm, perspective: e.target.value as PerceptionScoreCreate['perspective'] })}
+            options={[
+              { value: 'internal', label: t('governance.sides.internal') },
+              { value: 'external', label: t('governance.sides.external') },
+            ]}
+          />
+          <div>
+            <label className="lbl">
+              {t('governance.score')}{' '}
+              <span className="num" style={{ color: 'var(--p)', fontWeight: 700 }}>{scoreForm.score}/10</span>
+            </label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              value={scoreForm.score || 5}
+              onChange={(e) => setScoreForm({ ...scoreForm, score: Number(e.target.value) })}
+              style={{ width: '100%', accentColor: 'var(--p)' }}
+            />
+            <div className="row faint" style={{ fontSize: 'var(--fs-xs)' }}>
+              <span>{t('governance.perfStatus.poor')}</span>
+              <span className="grow" />
+              <span>{t('governance.perfStatus.excellent')}</span>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.perspective')}</label>
-                <select
-                  value={scoreForm.perspective || 'internal'}
-                  onChange={(e) => setScoreForm({ ...scoreForm, perspective: e.target.value as any })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="internal">{t('governance.sides.internal')}</option>
-                  <option value="external">{t('governance.sides.external')}</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('governance.score')}: <span className="text-primary-600 font-bold">{scoreForm.score}/10</span>
-                </label>
-                <input
-                  type="range"
-                  min={1}
-                  max={10}
-                  value={scoreForm.score || 5}
-                  onChange={(e) => setScoreForm({ ...scoreForm, score: Number(e.target.value) })}
-                  className="w-full accent-primary-600"
-                />
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>{t('governance.perfStatus.poor')}</span><span>{t('governance.perfStatus.excellent')}</span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.period')}</label>
-                <input
-                  type="text"
-                  value={scoreForm.period || ''}
-                  onChange={(e) => setScoreForm({ ...scoreForm, period: e.target.value })}
-                  placeholder={t('governance.periodPlaceholder')}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.comments')}</label>
-                <textarea
-                  value={scoreForm.comments || ''}
-                  onChange={(e) => setScoreForm({ ...scoreForm, comments: e.target.value })}
-                  rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowScore(null)} className="btn-secondary">{t('common.cancel')}</button>
-              <button
-                onClick={() => {
-                  if (showScore && scoreForm.perspective && scoreForm.score) {
-                    submitScoreMutation.mutate({
-                      kpiId: showScore,
-                      data: scoreForm as PerceptionScoreCreate,
-                    })
-                  }
-                }}
-                disabled={submitScoreMutation.isPending}
-                className="btn-primary"
-              >
-                {submitScoreMutation.isPending ? t('governance.submitting') : t('governance.submit')}
-              </button>
+          </div>
+          <Field
+            label={t('governance.period')}
+            value={scoreForm.period || ''}
+            onChange={(e) => setScoreForm({ ...scoreForm, period: e.target.value })}
+            placeholder={t('governance.periodPlaceholder')}
+          />
+          <div>
+            <label className="lbl">{t('governance.comments')}</label>
+            <div className="inp" style={{ height: 'auto', padding: '8px 10px' }}>
+              <textarea
+                rows={2}
+                style={{ resize: 'vertical' }}
+                value={scoreForm.comments || ''}
+                onChange={(e) => setScoreForm({ ...scoreForm, comments: e.target.value })}
+              />
             </div>
           </div>
         </div>
-      )}
+      </Drawer>
 
-      {/* Add KPI Modal */}
-      {showAddKPI && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">{t('governance.addKpi')}</h2>
-              <button onClick={() => setShowAddKPI(false)} className="text-gray-400 hover:text-gray-600">
-                <XMarkIcon className="h-5 w-5" />
-              </button>
+      {/* Add-KPI drawer */}
+      <Drawer
+        open={showAddKPI}
+        title={t('governance.addKpi')}
+        onClose={() => setShowAddKPI(false)}
+        width={420}
+        footer={
+          <>
+            <span className="grow" />
+            <Button variant="ghost" onClick={() => setShowAddKPI(false)}>{t('common.cancel')}</Button>
+            <Button
+              variant="primary"
+              disabled={!kpiForm.name || createKPIMutation.isPending}
+              onClick={() => {
+                if (kpiForm.name && id) {
+                  createKPIMutation.mutate({ ...kpiForm, relationship_id: id } as KPICreate)
+                }
+              }}
+            >
+              {createKPIMutation.isPending ? t('governance.creating') : t('governance.createKpi')}
+            </Button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 14 }}>
+          <Field
+            label={`${t('governance.name')} *`}
+            value={kpiForm.name || ''}
+            autoFocus
+            onChange={(e) => setKpiForm({ ...kpiForm, name: e.target.value })}
+            placeholder={t('governance.kpiNamePlaceholder')}
+          />
+          <Select
+            label={t('governance.category')}
+            value={kpiForm.category || 'service_delivery'}
+            onChange={(e) => setKpiForm({ ...kpiForm, category: e.target.value as KPICreate['category'] })}
+            options={[
+              { value: 'service_delivery', label: t('governance.kpiCategories.service_delivery') },
+              { value: 'quality', label: t('governance.kpiCategories.quality') },
+              { value: 'timeliness', label: t('governance.kpiCategories.timeliness') },
+              { value: 'communication', label: t('governance.kpiCategories.communication') },
+              { value: 'innovation', label: t('governance.kpiCategories.innovation') },
+              { value: 'cost_efficiency', label: t('governance.kpiCategories.cost_efficiency') },
+              { value: 'compliance', label: t('governance.kpiCategories.compliance') },
+              { value: 'satisfaction', label: t('governance.kpiCategories.satisfaction') },
+            ]}
+          />
+          <div>
+            <label className="lbl">{t('governance.description')}</label>
+            <div className="inp" style={{ height: 'auto', padding: '8px 10px' }}>
+              <textarea
+                rows={2}
+                style={{ resize: 'vertical' }}
+                value={kpiForm.description || ''}
+                onChange={(e) => setKpiForm({ ...kpiForm, description: e.target.value })}
+              />
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.name')} *</label>
-                <input
-                  type="text"
-                  value={kpiForm.name || ''}
-                  onChange={(e) => setKpiForm({ ...kpiForm, name: e.target.value })}
-                  placeholder={t('governance.kpiNamePlaceholder')}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.category')}</label>
-                <select
-                  value={kpiForm.category || 'service_delivery'}
-                  onChange={(e) => setKpiForm({ ...kpiForm, category: e.target.value as any })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="service_delivery">{t('governance.kpiCategories.service_delivery')}</option>
-                  <option value="quality">{t('governance.kpiCategories.quality')}</option>
-                  <option value="timeliness">{t('governance.kpiCategories.timeliness')}</option>
-                  <option value="communication">{t('governance.kpiCategories.communication')}</option>
-                  <option value="innovation">{t('governance.kpiCategories.innovation')}</option>
-                  <option value="cost_efficiency">{t('governance.kpiCategories.cost_efficiency')}</option>
-                  <option value="compliance">{t('governance.kpiCategories.compliance')}</option>
-                  <option value="satisfaction">{t('governance.kpiCategories.satisfaction')}</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.description')}</label>
-                <textarea
-                  value={kpiForm.description || ''}
-                  onChange={(e) => setKpiForm({ ...kpiForm, description: e.target.value })}
-                  rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.targetValue')}</label>
-                  <input
-                    type="number"
-                    value={kpiForm.target_value || ''}
-                    onChange={(e) => setKpiForm({ ...kpiForm, target_value: Number(e.target.value) })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.frequency')}</label>
-                  <select
-                    value={kpiForm.frequency || 'quarterly'}
-                    onChange={(e) => setKpiForm({ ...kpiForm, frequency: e.target.value as any })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  >
-                    <option value="weekly">{t('governance.frequencies.weekly')}</option>
-                    <option value="monthly">{t('governance.frequencies.monthly')}</option>
-                    <option value="quarterly">{t('governance.frequencies.quarterly')}</option>
-                    <option value="annual">{t('governance.frequencies.annual')}</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowAddKPI(false)} className="btn-secondary">{t('common.cancel')}</button>
-              <button
-                onClick={() => {
-                  if (kpiForm.name && id) {
-                    createKPIMutation.mutate({ ...kpiForm, relationship_id: id } as KPICreate)
-                  }
-                }}
-                disabled={!kpiForm.name || createKPIMutation.isPending}
-                className="btn-primary"
-              >
-                {createKPIMutation.isPending ? t('governance.creating') : t('governance.createKpi')}
-              </button>
+          </div>
+          <div className="grid gap-3 grid-cols-2">
+            <Field
+              label={t('governance.targetValue')}
+              type="number"
+              value={kpiForm.target_value ?? ''}
+              onChange={(e) => setKpiForm({ ...kpiForm, target_value: Number(e.target.value) })}
+            />
+            <Select
+              label={t('governance.frequency')}
+              value={kpiForm.frequency || 'quarterly'}
+              onChange={(e) => setKpiForm({ ...kpiForm, frequency: e.target.value as KPICreate['frequency'] })}
+              options={[
+                { value: 'weekly', label: t('governance.frequencies.weekly') },
+                { value: 'monthly', label: t('governance.frequencies.monthly') },
+                { value: 'quarterly', label: t('governance.frequencies.quarterly') },
+                { value: 'annual', label: t('governance.frequencies.annual') },
+              ]}
+            />
+          </div>
+        </div>
+      </Drawer>
+
+      {/* Record-status drawer */}
+      <Drawer
+        open={showRecordStatus}
+        title={t('governance.recordPerformanceStatus')}
+        onClose={() => setShowRecordStatus(false)}
+        width={400}
+        footer={
+          <>
+            <span className="grow" />
+            <Button variant="ghost" onClick={() => setShowRecordStatus(false)}>{t('common.cancel')}</Button>
+            <Button
+              variant="primary"
+              disabled={!statusForm.status || !statusForm.period || recordStatusMutation.isPending}
+              onClick={() => {
+                if (statusForm.status && statusForm.period) {
+                  recordStatusMutation.mutate(statusForm as RelationshipHistoryCreate)
+                }
+              }}
+            >
+              {recordStatusMutation.isPending ? t('governance.recording') : t('governance.record')}
+            </Button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 14 }}>
+          <Select
+            label={`${t('common.status')} *`}
+            value={statusForm.status || 'good'}
+            onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value as PerformanceStatus })}
+            options={Object.entries(PERF_STATUS_LABELS).map(([value, label]) => ({
+              value,
+              label: t(`governance.perfStatus.${value}`, { defaultValue: label }),
+            }))}
+          />
+          <div className="grid gap-3 grid-cols-2">
+            <Field
+              label={`${t('governance.period')} *`}
+              value={statusForm.period || ''}
+              onChange={(e) => setStatusForm({ ...statusForm, period: e.target.value })}
+              placeholder={t('governance.periodPlaceholder')}
+            />
+            <Field
+              label={t('governance.score')}
+              type="number"
+              min={0}
+              max={100}
+              value={statusForm.overall_score ?? ''}
+              onChange={(e) => setStatusForm({ ...statusForm, overall_score: e.target.value ? Number(e.target.value) : undefined })}
+            />
+          </div>
+          <Field
+            label={t('governance.trigger')}
+            value={statusForm.trigger || ''}
+            onChange={(e) => setStatusForm({ ...statusForm, trigger: e.target.value })}
+            placeholder={t('governance.triggerPlaceholder')}
+          />
+          <div>
+            <label className="lbl">{t('governance.notes')}</label>
+            <div className="inp" style={{ height: 'auto', padding: '8px 10px' }}>
+              <textarea
+                rows={2}
+                style={{ resize: 'vertical' }}
+                value={statusForm.notes || ''}
+                onChange={(e) => setStatusForm({ ...statusForm, notes: e.target.value })}
+              />
             </div>
           </div>
         </div>
-      )}
+      </Drawer>
     </div>
   )
 }

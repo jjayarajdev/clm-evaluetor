@@ -1,19 +1,52 @@
+/* Organization detail — Direction B redesign.
+   Back link + header (mono code, status Pill, type/industry/region Tags) →
+   Tabs (Overview / Officers / Hierarchy / Relationships). Officers get a
+   sortable Table with add-officer Drawer and a ConfirmDialog on removal;
+   hierarchy keeps the collapsible tree, relationships list health with Bars.
+   All queries (lazy per tab), mutations and navigation are unchanged from the
+   pre-redesign page. */
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftIcon,
+  ArrowTurnDownRightIcon,
   BuildingLibraryIcon,
-  UserGroupIcon,
-  ShareIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
   PlusIcon,
-  XMarkIcon,
+  ShareIcon,
+  Squares2X2Icon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn } from '@/lib/utils'
-import type { OfficerCreate, GovernanceRole, OfficerSide, OrganizationTreeNode } from '@/types/fitgap'
+import {
+  Avatar,
+  Bar,
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  Field,
+  Pill,
+  Select,
+  Stat,
+  Table,
+  Tabs,
+  Tag,
+  useToast,
+} from '@/components/ui'
+import type { TableColumn } from '@/components/ui'
+import type {
+  OfficerCreate,
+  GovernanceRole,
+  OfficerSide,
+  OrganizationOfficer,
+  OrganizationTreeNode,
+} from '@/types/fitgap'
 
 const ROLE_LABELS: Record<GovernanceRole, string> = {
   account_manager: 'Account Manager',
@@ -32,39 +65,68 @@ const SIDE_LABELS: Record<OfficerSide, string> = {
   external: 'External',
 }
 
-const SIDE_COLORS: Record<OfficerSide, string> = {
-  internal: 'bg-blue-100 text-blue-800',
-  external: 'bg-purple-100 text-purple-800',
+const SIDE_TONE: Record<OfficerSide, 'in' | 'p'> = {
+  internal: 'in',
+  external: 'p',
 }
 
 const TABS = ['Overview', 'Officers', 'Hierarchy', 'Relationships'] as const
 type Tab = typeof TABS[number]
 
+const TAB_ICONS: Record<Tab, typeof Squares2X2Icon> = {
+  Overview: Squares2X2Icon,
+  Officers: UserGroupIcon,
+  Hierarchy: BuildingLibraryIcon,
+  Relationships: ShareIcon,
+}
+
+/** Health banding shared with the relationships module: ≥70 ok, ≥40 warn. */
+function healthTone(score: number): string {
+  return score >= 70 ? 'var(--ok)' : score >= 40 ? 'var(--wa)' : 'var(--da)'
+}
+
+/** Label/value pair inside overview cards. */
+function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div>
+      <div className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{label}</div>
+      <div style={{ fontSize: 'var(--fs-md)', fontWeight: 500, marginTop: 1 }}>
+        {value || <span className="faint">—</span>}
+      </div>
+    </div>
+  )
+}
+
 function TreeNodeComponent({ node, depth = 0 }: { node: OrganizationTreeNode; depth?: number }) {
   const [expanded, setExpanded] = useState(depth < 2)
   const hasChildren = node.children && node.children.length > 0
+  const Chevron = expanded ? ChevronDownIcon : ChevronRightIcon
 
   return (
     <div>
       <div
-        className={cn(
-          'flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 cursor-pointer',
-        )}
-        style={{ paddingLeft: `${depth * 24 + 12}px` }}
+        className="row"
+        style={{
+          gap: 8,
+          padding: '7px 10px',
+          paddingLeft: depth * 24 + 10,
+          borderRadius: 'var(--r-md)',
+          cursor: hasChildren ? 'pointer' : undefined,
+        }}
         onClick={() => hasChildren && setExpanded(!expanded)}
       >
         {hasChildren ? (
-          <span className="text-gray-400 text-xs w-4 text-center">{expanded ? '\u25BC' : '\u25B6'}</span>
+          <Chevron style={{ width: 13, height: 13, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
         ) : (
-          <span className="w-4" />
+          <span style={{ width: 13, flexShrink: 0 }} />
         )}
-        <BuildingLibraryIcon className="h-4 w-4 text-primary-500 shrink-0" />
-        <span className="text-sm font-medium text-gray-900">{node.name}</span>
-        <span className="text-xs text-gray-400 font-mono">{node.code}</span>
+        <BuildingLibraryIcon style={{ width: 15, height: 15, flexShrink: 0, color: 'var(--p)' }} aria-hidden />
+        <span className="trunc" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>{node.name}</span>
+        <span className="faint mono" style={{ fontSize: 'var(--fs-xs)' }}>{node.code}</span>
         {node.organization_level && (
-          <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded capitalize">
-            {node.organization_level}
-          </span>
+          <Tag>
+            <span style={{ textTransform: 'capitalize' }}>{node.organization_level}</span>
+          </Tag>
         )}
       </div>
       {expanded && hasChildren && (
@@ -82,9 +144,11 @@ export default function OrganizationDetailPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<Tab>('Overview')
   const [showAddOfficer, setShowAddOfficer] = useState(false)
   const [officerForm, setOfficerForm] = useState<Partial<OfficerCreate>>({ side: 'internal' })
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null)
 
   const { data: org, isLoading } = useQuery({
     queryKey: ['organization', id],
@@ -124,10 +188,11 @@ export default function OrganizationDetailPage() {
 
   const createOfficerMutation = useMutation({
     mutationFn: (data: OfficerCreate) => api.createOfficer(id!, data),
-    onSuccess: () => {
+    onSuccess: (_res, variables) => {
       queryClient.invalidateQueries({ queryKey: ['officers', id] })
       setShowAddOfficer(false)
       setOfficerForm({ side: 'internal' })
+      toast({ text: t('governance.officerAdded', { name: variables.name, defaultValue: '{{name}} added' }) })
     },
   })
 
@@ -135,208 +200,257 @@ export default function OrganizationDetailPage() {
     mutationFn: (officerId: string) => api.deleteOfficer(id!, officerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['officers', id] })
+      toast({ text: t('governance.officerRemoved', { defaultValue: 'Officer removed' }) })
     },
   })
 
   if (isLoading || !org) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
         <LoadingSpinner size="lg" />
       </div>
     )
   }
 
+  const roleLabel = (role: GovernanceRole) =>
+    t(`governance.officerRoles.${role}`, { defaultValue: ROLE_LABELS[role] || role })
+
+  const officerColumns: TableColumn<OrganizationOfficer>[] = [
+    {
+      key: 'name',
+      header: t('governance.name'),
+      sortable: true,
+      sortValue: (o) => o.name,
+      render: (o) => (
+        <span className="row" style={{ gap: 9 }}>
+          <Avatar name={o.name} size={26} />
+          <span className="row" style={{ gap: 6, minWidth: 0 }}>
+            <span className="trunc" style={{ fontWeight: 500 }}>{o.name}</span>
+            {o.is_primary && <Tag>{t('governance.primary')}</Tag>}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'title',
+      header: t('governance.title'),
+      sortable: true,
+      sortValue: (o) => o.title,
+      render: (o) => (o.title ? <span className="muted">{o.title}</span> : <span className="faint">—</span>),
+    },
+    {
+      key: 'governance_role',
+      header: t('governance.role'),
+      sortable: true,
+      sortValue: (o) => o.governance_role,
+      render: (o) =>
+        o.governance_role ? <Tag>{roleLabel(o.governance_role)}</Tag> : <span className="faint">—</span>,
+    },
+    {
+      key: 'side',
+      header: t('governance.side'),
+      sortable: true,
+      sortValue: (o) => o.side,
+      width: 110,
+      render: (o) =>
+        o.side ? (
+          <Pill tone={SIDE_TONE[o.side]}>
+            {t(`governance.sides.${o.side}`, { defaultValue: SIDE_LABELS[o.side] })}
+          </Pill>
+        ) : (
+          <span className="faint">—</span>
+        ),
+    },
+    {
+      key: 'contact',
+      header: t('governance.contact'),
+      render: (o) =>
+        o.email || o.phone ? (
+          <span className="muted trunc" style={{ display: 'block' }}>{o.email || o.phone}</span>
+        ) : (
+          <span className="faint">—</span>
+        ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: 90,
+      align: 'right',
+      render: (o) => (
+        <Button
+          variant="danger-ghost"
+          size="sm"
+          onClick={() => setRemoveTarget({ id: o.id, name: o.name })}
+        >
+          {t('governance.remove')}
+        </Button>
+      ),
+    },
+  ]
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start gap-4">
-        <Link to="/organizations" className="p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
-          <ArrowLeftIcon className="h-5 w-5" />
+    <div className="col" style={{ gap: 18 }}>
+      {/* Back link + header */}
+      <div>
+        <Link
+          to="/organizations"
+          className="row"
+          style={{ gap: 4, width: 'fit-content', fontSize: 'var(--fs-sm)', color: 'var(--m)' }}
+        >
+          <ArrowLeftIcon style={{ width: 14, height: 14 }} aria-hidden />
+          {t('governance.backToOrganizations', { defaultValue: 'Back to organizations' })}
         </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <BuildingLibraryIcon className="h-6 w-6 text-primary-500" />
-            <h1 className="text-xl font-bold text-gray-900">{org.name}</h1>
-            <span className="text-sm text-gray-400 font-mono">{org.code}</span>
-          </div>
-          <div className="flex items-center gap-4 mt-2">
-            <span className="text-sm text-gray-500 capitalize">{t(`governance.orgTypes.${org.org_type}`, { defaultValue: org.org_type })}</span>
-            {org.industry && <span className="text-sm text-gray-500">{org.industry}</span>}
-            {org.region && <span className="text-sm text-gray-500">{org.region}</span>}
+        <div className="row" style={{ gap: 12, alignItems: 'flex-start', marginTop: 10, flexWrap: 'wrap' }}>
+          <Avatar name={org.name} size={40} />
+          <div className="grow" style={{ minWidth: 240 }}>
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, letterSpacing: '-.4px', lineHeight: 1.25 }}>
+                {org.name}
+              </h1>
+              <span className="mono faint" style={{ fontSize: 'var(--fs-xs)' }}>{org.code}</span>
+            </div>
+            <div className="row" style={{ gap: 7, marginTop: 7, flexWrap: 'wrap' }}>
+              <Pill tone={org.is_active ? 'ok' : 'n'}>
+                {org.is_active
+                  ? t('governance.statusActive', { defaultValue: 'Active' })
+                  : t('governance.statusInactive', { defaultValue: 'Inactive' })}
+              </Pill>
+              <Tag icon={BuildingLibraryIcon}>
+                {t(`governance.orgTypes.${org.org_type}`, { defaultValue: org.org_type })}
+              </Tag>
+              {org.industry && <Tag>{org.industry}</Tag>}
+              {org.region && <Tag>{org.region}</Tag>}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-6">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                'pb-3 text-sm font-medium border-b-2 transition-colors',
-                activeTab === tab
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              )}
-            >
-              {t(`governance.tabs.${tab.toLowerCase()}`, { defaultValue: tab })}
-              {tab === 'Officers' && officers.length > 0 && (
-                <span className="ml-1.5 bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs">{officers.length}</span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <Tabs<Tab>
+        tabs={TABS.map((tab) => ({
+          value: tab,
+          label: t(`governance.tabs.${tab.toLowerCase()}`, { defaultValue: tab }),
+          icon: TAB_ICONS[tab],
+          count: tab === 'Officers' && officers.length > 0 ? officers.length : undefined,
+        }))}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
 
-      {/* Overview Tab */}
+      {/* Overview */}
       {activeTab === 'Overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="card">
-            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">{t('governance.details')}</h3></div>
-            <div className="card-body space-y-3">
-              <div><p className="text-xs text-gray-500">{t('governance.type')}</p><p className="text-sm font-medium capitalize">{t(`governance.orgTypes.${org.org_type}`, { defaultValue: org.org_type })}</p></div>
-              <div><p className="text-xs text-gray-500">{t('governance.industry')}</p><p className="text-sm font-medium">{org.industry || '—'}</p></div>
-              <div><p className="text-xs text-gray-500">{t('governance.region')}</p><p className="text-sm font-medium">{org.region || '—'}</p></div>
-              <div><p className="text-xs text-gray-500">{t('governance.country')}</p><p className="text-sm font-medium">{org.country || '—'}</p></div>
-              <div><p className="text-xs text-gray-500">{t('governance.website')}</p><p className="text-sm font-medium">{org.website || '—'}</p></div>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <div className="card card-p col" style={{ gap: 12 }}>
+            <div className="sec-t">{t('governance.details')}</div>
+            <DetailRow
+              label={t('governance.type')}
+              value={t(`governance.orgTypes.${org.org_type}`, { defaultValue: org.org_type })}
+            />
+            <DetailRow label={t('governance.industry')} value={org.industry} />
+            <DetailRow label={t('governance.region')} value={org.region} />
+            <DetailRow label={t('governance.country')} value={org.country} />
+            <DetailRow label={t('governance.website')} value={org.website} />
           </div>
-          <div className="card">
-            <div className="card-header"><h3 className="text-sm font-medium text-gray-900">{t('governance.primaryContact')}</h3></div>
-            <div className="card-body space-y-3">
-              <div><p className="text-xs text-gray-500">{t('governance.name')}</p><p className="text-sm font-medium">{org.primary_contact_name || '—'}</p></div>
-              <div><p className="text-xs text-gray-500">{t('governance.email')}</p><p className="text-sm font-medium">{org.primary_contact_email || '—'}</p></div>
-              <div><p className="text-xs text-gray-500">{t('governance.phone')}</p><p className="text-sm font-medium">{org.primary_contact_phone || '—'}</p></div>
-            </div>
+          <div className="card card-p col" style={{ gap: 12 }}>
+            <div className="sec-t">{t('governance.primaryContact')}</div>
+            <DetailRow label={t('governance.name')} value={org.primary_contact_name} />
+            <DetailRow label={t('governance.email')} value={org.primary_contact_email} />
+            <DetailRow label={t('governance.phone')} value={org.primary_contact_phone} />
           </div>
         </div>
       )}
 
-      {/* Officers Tab */}
+      {/* Officers */}
       {activeTab === 'Officers' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <UserGroupIcon className="h-5 w-5 text-gray-400" />
-              {t('governance.organizationOfficersCount', { count: officers.length })}
-            </h2>
-            <button onClick={() => setShowAddOfficer(true)} className="btn-primary text-xs flex items-center gap-1">
-              <PlusIcon className="h-3.5 w-3.5" /> {t('governance.addOfficer')}
-            </button>
+        <div className="col" style={{ gap: 12 }}>
+          <div className="row" style={{ gap: 8 }}>
+            <span className="sec-t">{t('governance.organizationOfficersCount', { count: officers.length })}</span>
+            <span className="grow" />
+            <Button variant="primary" size="sm" icon={PlusIcon} onClick={() => setShowAddOfficer(true)}>
+              {t('governance.addOfficer')}
+            </Button>
           </div>
-          <div className="card">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.name')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.title')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.role')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.side')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('governance.contact')}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('common.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {officers.map((officer) => (
-                    <tr key={officer.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900">{officer.name}</span>
-                          {officer.is_primary && (
-                            <span className="text-[10px] bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded">{t('governance.primary')}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{officer.title || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {officer.governance_role ? t(`governance.officerRoles.${officer.governance_role}`, { defaultValue: ROLE_LABELS[officer.governance_role] || officer.governance_role }) : '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        {officer.side ? (
-                          <span className={cn('px-2 py-0.5 rounded text-xs font-medium', SIDE_COLORS[officer.side])}>
-                            {t(`governance.sides.${officer.side}`, { defaultValue: SIDE_LABELS[officer.side] })}
-                          </span>
-                        ) : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {officer.email || officer.phone || '—'}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => deleteOfficerMutation.mutate(officer.id)}
-                          className="text-xs text-red-600 hover:text-red-800"
-                        >
-                          {t('governance.remove')}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {officers.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
-                        {t('governance.noOfficers')}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <Table
+            columns={officerColumns}
+            rows={officers}
+            rowKey={(o) => o.id}
+            minWidth={680}
+            empty={
+              <EmptyState
+                icon={UserGroupIcon}
+                title={t('governance.noOfficers')}
+                action={
+                  <Button variant="primary" size="sm" icon={PlusIcon} onClick={() => setShowAddOfficer(true)}>
+                    {t('governance.addOfficer')}
+                  </Button>
+                }
+              />
+            }
+          />
         </div>
       )}
 
-      {/* Hierarchy Tab */}
+      {/* Hierarchy */}
       {activeTab === 'Hierarchy' && (
-        <div className="space-y-4">
+        <div className="col" style={{ gap: 12 }}>
           {hierarchy && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {hierarchy.parent && (
-                <div className="card card-body">
-                  <p className="text-xs text-gray-500 mb-1">{t('governance.parentOrganization')}</p>
-                  <Link to={`/organizations/${hierarchy.parent.id}`} className="text-sm font-medium text-primary-600 hover:text-primary-800">
+                <div className="card card-p col" style={{ gap: 4 }}>
+                  <div className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('governance.parentOrganization')}</div>
+                  <Link
+                    to={`/organizations/${hierarchy.parent.id}`}
+                    style={{ fontSize: 'var(--fs-md)', fontWeight: 500, color: 'var(--p)' }}
+                  >
                     {hierarchy.parent.name}
                   </Link>
-                  <p className="text-xs text-gray-400 font-mono">{hierarchy.parent.code}</p>
+                  <span className="faint mono" style={{ fontSize: 'var(--fs-xs)' }}>{hierarchy.parent.code}</span>
                 </div>
               )}
-              <div className="card card-body">
-                <p className="text-xs text-gray-500 mb-1">{t('governance.current')}</p>
-                <p className="text-sm font-bold text-gray-900">{hierarchy.organization.name}</p>
+              <div className="card card-p col" style={{ gap: 4 }}>
+                <div className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('governance.current')}</div>
+                <span style={{ fontSize: 'var(--fs-md)', fontWeight: 600 }}>{hierarchy.organization.name}</span>
                 {hierarchy.organization.organization_level && (
-                  <p className="text-xs text-gray-400 capitalize">{hierarchy.organization.organization_level}</p>
+                  <span className="faint" style={{ fontSize: 'var(--fs-xs)', textTransform: 'capitalize' }}>
+                    {hierarchy.organization.organization_level}
+                  </span>
                 )}
               </div>
-              <div className="card card-body">
-                <p className="text-xs text-gray-500 mb-1">{t('governance.subsidiaries')}</p>
-                <p className="text-2xl font-bold text-gray-900">{hierarchy.children?.length ?? 0}</p>
-              </div>
+              <Stat
+                icon={BuildingLibraryIcon}
+                label={t('governance.subsidiaries')}
+                value={hierarchy.children?.length ?? 0}
+              />
             </div>
           )}
 
           {hierarchy && hierarchy.children && hierarchy.children.length > 0 && (
             <div className="card">
-              <div className="card-header">
-                <h3 className="text-sm font-medium text-gray-900">{t('governance.directSubsidiaries')}</h3>
+              <div className="sec-t" style={{ padding: '11px 14px', borderBottom: '1px solid var(--b)' }}>
+                {t('governance.directSubsidiaries')}
               </div>
-              <div className="card-body p-0 divide-y divide-gray-200">
-                {hierarchy.children.map((sub) => (
+              <div>
+                {hierarchy.children.map((sub, n) => (
                   <Link
                     key={sub.id}
                     to={`/organizations/${sub.id}`}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
+                    className="row"
+                    style={{
+                      gap: 9,
+                      padding: '10px 14px',
+                      borderBottom: n < hierarchy.children.length - 1 ? '1px solid var(--b)' : undefined,
+                    }}
                   >
-                    <div className="flex items-center gap-2">
-                      <BuildingLibraryIcon className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-900">{sub.name}</span>
-                      <span className="text-xs text-gray-400 font-mono">{sub.code}</span>
-                    </div>
+                    <ArrowTurnDownRightIcon style={{ width: 13, height: 13, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
+                    <Avatar name={sub.name} size={24} />
+                    <span className="grow row" style={{ gap: 7, minWidth: 0 }}>
+                      <span className="trunc" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>{sub.name}</span>
+                      <span className="faint mono" style={{ fontSize: 'var(--fs-xs)' }}>{sub.code}</span>
+                    </span>
                     {sub.organization_level && (
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">
-                        {sub.organization_level}
-                      </span>
+                      <Tag>
+                        <span style={{ textTransform: 'capitalize' }}>{sub.organization_level}</span>
+                      </Tag>
                     )}
                   </Link>
                 ))}
@@ -344,13 +458,12 @@ export default function OrganizationDetailPage() {
             </div>
           )}
 
-          {/* Full Tree View */}
           {tree.length > 0 && (
             <div className="card">
-              <div className="card-header">
-                <h3 className="text-sm font-medium text-gray-900">{t('governance.organizationTree')}</h3>
+              <div className="sec-t" style={{ padding: '11px 14px', borderBottom: '1px solid var(--b)' }}>
+                {t('governance.organizationTree')}
               </div>
-              <div className="card-body">
+              <div style={{ padding: '6px 6px' }}>
                 {tree.map((node) => (
                   <TreeNodeComponent key={node.id} node={node} />
                 ))}
@@ -360,158 +473,185 @@ export default function OrganizationDetailPage() {
         </div>
       )}
 
-      {/* Relationships Tab */}
+      {/* Relationships */}
       {activeTab === 'Relationships' && (
         <div className="card">
-          <div className="card-header">
-            <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
-              <ShareIcon className="h-5 w-5 text-gray-400" />
-              {t('governance.businessRelationshipsCount', { count: orgRelationships.length })}
-            </h3>
+          <div className="row sec-t" style={{ padding: '11px 14px', borderBottom: '1px solid var(--b)', gap: 7 }}>
+            <ShareIcon style={{ width: 14, height: 14 }} aria-hidden />
+            {t('governance.businessRelationshipsCount', { count: orgRelationships.length })}
           </div>
-          <div className="card-body p-0 divide-y divide-gray-200">
-            {orgRelationships.map((rel) => (
+          <div>
+            {orgRelationships.map((rel, n) => (
               <Link
                 key={rel.id}
                 to={`/relationships/${rel.id}`}
-                className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
+                className="row"
+                style={{
+                  gap: 12,
+                  padding: '11px 14px',
+                  borderBottom: n < orgRelationships.length - 1 ? '1px solid var(--b)' : undefined,
+                }}
               >
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
+                <span className="grow" style={{ minWidth: 0 }}>
+                  <span className="trunc" style={{ display: 'block', fontSize: 'var(--fs-md)', fontWeight: 500 }}>
                     {rel.org_a?.name || rel.org_a_id} ↔ {rel.org_b?.name || rel.org_b_id}
-                  </p>
-                  <p className="text-xs text-gray-500 capitalize">{t(`governance.relationshipTypes.${rel.relationship_type}`, { defaultValue: rel.relationship_type })} · {t(`governance.tiers.${rel.governance_tier}`, { defaultValue: rel.governance_tier })}</p>
-                </div>
-                <div className={cn(
-                  'flex items-center gap-1 px-2 py-1 rounded-lg text-sm font-semibold',
-                  rel.health_score >= 70 ? 'text-green-600 bg-green-50' :
-                  rel.health_score >= 40 ? 'text-amber-600 bg-amber-50' :
-                  'text-red-600 bg-red-50'
-                )}>
-                  {rel.health_score}
-                </div>
+                  </span>
+                  <span className="row muted" style={{ gap: 6, marginTop: 3, fontSize: 'var(--fs-sm)', textTransform: 'capitalize' }}>
+                    {t(`governance.relationshipTypes.${rel.relationship_type}`, { defaultValue: rel.relationship_type })}
+                    <span className="faint">·</span>
+                    {t(`governance.tiers.${rel.governance_tier}`, { defaultValue: rel.governance_tier })}
+                  </span>
+                </span>
+                <span className="row" style={{ gap: 7, flexShrink: 0 }}>
+                  <Bar value={rel.health_score} width={56} tone={healthTone(rel.health_score)} />
+                  <span
+                    className="mono num"
+                    style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: healthTone(rel.health_score) }}
+                  >
+                    {rel.health_score}
+                  </span>
+                </span>
               </Link>
             ))}
             {orgRelationships.length === 0 && (
-              <p className="px-4 py-8 text-center text-sm text-gray-500">{t('governance.noRelationshipsForOrg')}</p>
+              <EmptyState
+                icon={ShareIcon}
+                title={t('governance.noRelationshipsForOrg')}
+                body={t('governance.noRelationshipsForOrgHint', {
+                  defaultValue: 'Relationships between this organization and others appear here once created.',
+                })}
+              />
             )}
           </div>
         </div>
       )}
 
-      {/* Add Officer Modal */}
-      {showAddOfficer && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">{t('governance.addOfficer')}</h2>
-              <button onClick={() => setShowAddOfficer(false)} className="text-gray-400 hover:text-gray-600">
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.name')} *</label>
-                  <input
-                    type="text"
-                    value={officerForm.name || ''}
-                    onChange={(e) => setOfficerForm({ ...officerForm, name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.title')}</label>
-                  <input
-                    type="text"
-                    value={officerForm.title || ''}
-                    onChange={(e) => setOfficerForm({ ...officerForm, title: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.governanceRole')}</label>
-                  <select
-                    value={officerForm.governance_role || ''}
-                    onChange={(e) => setOfficerForm({ ...officerForm, governance_role: (e.target.value || undefined) as GovernanceRole | undefined })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="">{t('governance.selectRole')}</option>
-                    {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{t(`governance.officerRoles.${value}`, { defaultValue: label })}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.side')}</label>
-                  <select
-                    value={officerForm.side || 'internal'}
-                    onChange={(e) => setOfficerForm({ ...officerForm, side: e.target.value as OfficerSide })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="internal">{t('governance.sides.internal')}</option>
-                    <option value="external">{t('governance.sides.external')}</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.email')}</label>
-                  <input
-                    type="email"
-                    value={officerForm.email || ''}
-                    onChange={(e) => setOfficerForm({ ...officerForm, email: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.phone')}</label>
-                  <input
-                    type="text"
-                    value={officerForm.phone || ''}
-                    onChange={(e) => setOfficerForm({ ...officerForm, phone: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('governance.department')}</label>
-                <input
-                  type="text"
-                  value={officerForm.department || ''}
-                  onChange={(e) => setOfficerForm({ ...officerForm, department: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={officerForm.is_primary || false}
-                  onChange={(e) => setOfficerForm({ ...officerForm, is_primary: e.target.checked })}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                {t('governance.primaryContact')}
-              </label>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowAddOfficer(false)} className="btn-secondary">{t('common.cancel')}</button>
-              <button
-                onClick={() => {
-                  if (officerForm.name) {
-                    createOfficerMutation.mutate(officerForm as OfficerCreate)
-                  }
-                }}
-                disabled={!officerForm.name || createOfficerMutation.isPending}
-                className="btn-primary"
-              >
-                {createOfficerMutation.isPending ? t('governance.adding') : t('governance.addOfficer')}
-              </button>
-            </div>
+      {/* Remove officer — states exactly what is and is not affected */}
+      <ConfirmDialog
+        open={!!removeTarget}
+        title={t('governance.removeOfficerTitle', {
+          name: removeTarget?.name ?? '',
+          defaultValue: 'Remove {{name}}?',
+        })}
+        body={t('governance.removeOfficerBody', {
+          defaultValue: 'This removes the officer contact from this organization.',
+        })}
+        affected={[
+          t('governance.removeOfficerAffected', {
+            defaultValue: 'The officer contact entry for this organization',
+          }),
+        ]}
+        safe={[
+          t('governance.removeOfficerSafeOrg', {
+            defaultValue: 'The organization itself and its relationships',
+          }),
+          t('governance.removeOfficerSafeContracts', {
+            defaultValue: 'Contracts — they are never deleted',
+          }),
+        ]}
+        confirmLabel={t('governance.remove')}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setRemoveTarget(null)}
+        onConfirm={() => {
+          if (removeTarget) deleteOfficerMutation.mutate(removeTarget.id)
+          setRemoveTarget(null)
+        }}
+      />
+
+      {/* Add officer drawer */}
+      <Drawer
+        open={showAddOfficer}
+        title={t('governance.addOfficer')}
+        sub={org.code}
+        onClose={() => setShowAddOfficer(false)}
+        width={440}
+        footer={
+          <>
+            <span className="grow" />
+            <Button variant="ghost" onClick={() => setShowAddOfficer(false)}>{t('common.cancel')}</Button>
+            <Button
+              variant="primary"
+              disabled={!officerForm.name || createOfficerMutation.isPending}
+              onClick={() => {
+                if (officerForm.name) createOfficerMutation.mutate(officerForm as OfficerCreate)
+              }}
+            >
+              {createOfficerMutation.isPending ? t('governance.adding') : t('governance.addOfficer')}
+            </Button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 14 }}>
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label={`${t('governance.name')} *`}
+              type="text"
+              autoFocus
+              value={officerForm.name || ''}
+              onChange={(e) => setOfficerForm({ ...officerForm, name: e.target.value })}
+            />
+            <Field
+              label={t('governance.title')}
+              type="text"
+              value={officerForm.title || ''}
+              onChange={(e) => setOfficerForm({ ...officerForm, title: e.target.value })}
+            />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label={t('governance.governanceRole')}
+              value={officerForm.governance_role || ''}
+              onChange={(e) =>
+                setOfficerForm({
+                  ...officerForm,
+                  governance_role: (e.target.value || undefined) as GovernanceRole | undefined,
+                })
+              }
+              options={[
+                { value: '', label: t('governance.selectRole') },
+                ...Object.entries(ROLE_LABELS).map(([value, label]) => ({
+                  value,
+                  label: t(`governance.officerRoles.${value}`, { defaultValue: label }),
+                })),
+              ]}
+            />
+            <Select
+              label={t('governance.side')}
+              value={officerForm.side || 'internal'}
+              onChange={(e) => setOfficerForm({ ...officerForm, side: e.target.value as OfficerSide })}
+              options={[
+                { value: 'internal', label: t('governance.sides.internal') },
+                { value: 'external', label: t('governance.sides.external') },
+              ]}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label={t('governance.email')}
+              type="email"
+              value={officerForm.email || ''}
+              onChange={(e) => setOfficerForm({ ...officerForm, email: e.target.value })}
+            />
+            <Field
+              label={t('governance.phone')}
+              type="text"
+              value={officerForm.phone || ''}
+              onChange={(e) => setOfficerForm({ ...officerForm, phone: e.target.value })}
+            />
+          </div>
+          <Field
+            label={t('governance.department')}
+            type="text"
+            value={officerForm.department || ''}
+            onChange={(e) => setOfficerForm({ ...officerForm, department: e.target.value })}
+          />
+          <Checkbox
+            checked={officerForm.is_primary || false}
+            onChange={(checked) => setOfficerForm({ ...officerForm, is_primary: checked })}
+            label={t('governance.primaryContact')}
+          />
         </div>
-      )}
+      </Drawer>
     </div>
   )
 }
