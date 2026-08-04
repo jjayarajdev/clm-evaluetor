@@ -7,6 +7,7 @@ import { SidebarProvider } from './contexts/SidebarContext'
 import { TenantConfigProvider } from './contexts/TenantConfigContext'
 import MainLayout from './components/layout/MainLayout'
 import LoginPage from './pages/LoginPage'
+import DesignGalleryPage from './pages/DesignGalleryPage'
 import ModernDashboardPage from './pages/ModernDashboardPage'
 import ContractsPage from './pages/ContractsPage'
 import ContractViewPage from './pages/ContractViewPage'
@@ -88,6 +89,8 @@ function App() {
       <Route path="/external/contracts/:token" element={<ExternalContractPage />} />
       <Route path="/external/contracts" element={<ExternalContractPage />} />
       <Route path="/external/governance" element={<ExternalGovernancePage />} />
+      {/* Dev-only primitives gallery (eval-redesign Phase 1; removed in Phase 7) */}
+      {import.meta.env.DEV && <Route path="/design" element={<DesignGalleryPage />} />}
 
       <Route
         path="/"
