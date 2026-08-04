@@ -1,27 +1,35 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+/* Upload page — Direction B redesign.
+   Dashed token-styled dropzone → queue card with per-file rows → live pipeline
+   visualization driven by the real per-stage processing status the backend
+   reports (/contracts/:id/processing-status/current). Upload flows, polling,
+   client/group selectors, retry and navigation are unchanged from the
+   pre-redesign page. */
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  ArrowPathIcon,
+  ArrowRightIcon,
+  BuildingOfficeIcon,
+  CheckCircleIcon,
+  ClockIcon,
   CloudArrowUpIcon,
   DocumentTextIcon,
-  XMarkIcon,
-  CheckCircleIcon,
   ExclamationCircleIcon,
-  ArrowPathIcon,
-  SparklesIcon,
-  BuildingOfficeIcon,
-  PlusIcon,
-  ChevronDownIcon,
+  ExclamationTriangleIcon,
+  FolderOpenIcon,
   LinkIcon,
+  PlusIcon,
+  SparklesIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import PageHeader from '@/components/ui/PageHeader'
-import { cn, formatFileSize } from '@/lib/utils'
+import { Button, IconButton, Pill, Tag, AiTag, Field, Select, Bar, useToast } from '@/components/ui'
+import { formatFileSize } from '@/lib/utils'
 
 interface FileUpload {
   file: File
@@ -63,7 +71,7 @@ const ACCEPTED_TYPES = {
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 
-// Ordered pipeline stages shown as the step-by-step agent progress
+// Ordered pipeline stages, matching the stage ids the processing worker reports.
 const PIPELINE_STAGES: Array<{ id: string; labelKey: string }> = [
   { id: 'parsing', labelKey: 'upload.stageParsing' },
   { id: 'chunking', labelKey: 'upload.stageChunking' },
@@ -82,32 +90,63 @@ const PIPELINE_STAGES: Array<{ id: string; labelKey: string }> = [
   { id: 'governance_bridge', labelKey: 'upload.stageGovernance' },
 ]
 
-function StageProgress({ stage, percent }: { stage?: string; percent?: number }) {
+/* Live pipeline: compact steps with done / active / pending states, driven by
+   the real stage id the worker reports. Before the worker picks the file up
+   (no stage yet) we only claim "queued" — a pulsing indeterminate bar. */
+function Pipeline({ stage, percent }: { stage?: string; percent?: number }) {
   const { t } = useTranslation()
-  if (!stage) return null
-  const idx = PIPELINE_STAGES.findIndex((s) => s.id === stage)
-  if (idx === -1) return null
-  const current = PIPELINE_STAGES[idx]
+  const idx = stage ? PIPELINE_STAGES.findIndex((s) => s.id === stage) : -1
+
+  if (idx === -1) {
+    return (
+      <div className="col" style={{ gap: 6 }}>
+        <div className="row" style={{ gap: 6 }}>
+          <ClockIcon style={{ width: 13, height: 13, color: 'var(--f)' }} aria-hidden />
+          <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
+            {t('upload.queuedForProcessing', { defaultValue: 'Queued — waiting for the processing worker' })}
+          </span>
+        </div>
+        <span className="pulse" style={{ display: 'block' }}>
+          <Bar value={6} width="100%" />
+        </span>
+      </div>
+    )
+  }
+
+  const pct = typeof percent === 'number' ? percent : Math.round(((idx + 1) / PIPELINE_STAGES.length) * 100)
   return (
-    <div className="mt-1.5">
-      <div className="flex items-center gap-2 text-xs text-blue-700">
-        <span className="font-medium">
+    <div className="col" style={{ gap: 7 }}>
+      <div className="row" style={{ gap: 8 }}>
+        <span className="muted" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
           {t('upload.stageOf', { current: idx + 1, total: PIPELINE_STAGES.length })}
         </span>
-        <span>{t(current.labelKey)}</span>
-        {typeof percent === 'number' && <span className="text-blue-400">{percent}%</span>}
+        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--p)', fontWeight: 600 }}>
+          {t(PIPELINE_STAGES[idx].labelKey)}
+        </span>
+        <span className="grow" />
+        <span className="mono num faint" style={{ fontSize: 'var(--fs-xs)' }}>{pct}%</span>
       </div>
-      <div className="mt-1 flex gap-0.5">
-        {PIPELINE_STAGES.map((s, i) => (
-          <div
-            key={s.id}
-            title={t(s.labelKey)}
-            className={cn(
-              'h-1 flex-1 rounded-full',
-              i < idx ? 'bg-blue-500' : i === idx ? 'bg-blue-400 animate-pulse' : 'bg-gray-200',
-            )}
-          />
-        ))}
+      <Bar value={pct} width="100%" />
+      <div className="row" style={{ flexWrap: 'wrap', gap: '4px 12px' }}>
+        {PIPELINE_STAGES.map((s, i) => {
+          const state = i < idx ? 'done' : i === idx ? 'active' : 'pending'
+          const color = state === 'done' ? 'var(--ok)' : state === 'active' ? 'var(--p)' : 'var(--f)'
+          const StepIcon = state === 'done' ? CheckCircleIcon : state === 'active' ? ArrowPathIcon : ClockIcon
+          return (
+            <span
+              key={s.id}
+              className="row"
+              style={{ gap: 4, fontSize: 'var(--fs-xs)', color, fontWeight: state === 'active' ? 600 : 500 }}
+            >
+              <StepIcon
+                className={state === 'active' ? 'spin' : undefined}
+                style={{ width: 12, height: 12, flexShrink: 0 }}
+                aria-hidden
+              />
+              {t(s.labelKey)}
+            </span>
+          )
+        })}
       </div>
     </div>
   )
@@ -117,27 +156,15 @@ export default function UploadPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const { user, isSuperAdmin } = useAuth()
   const { config } = useTenantConfig()
   const [files, setFiles] = useState<FileUpload[]>([])
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [groupName, setGroupName] = useState('')
-  const [showClientDropdown, setShowClientDropdown] = useState(false)
   const [showNewClientForm, setShowNewClientForm] = useState(false)
   const [newClientName, setNewClientName] = useState('')
   const [newClientCode, setNewClientCode] = useState('')
-  const dropdownRef = useRef<HTMLDivElement>(null)
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowClientDropdown(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   // Fetch clients for dropdown
   const { data: clients = [], refetch: refetchClients } = useQuery({
@@ -151,8 +178,6 @@ export default function UploadPage() {
     queryFn: () => api.getGroups({ page_size: 100 }),
   })
   const groups = groupsData?.items ?? []
-
-  const selectedClient = clients.find(c => c.id === selectedClientId)
 
   // Create new client mutation
   const createClientMutation = useMutation({
@@ -169,6 +194,7 @@ export default function UploadPage() {
       setNewClientName('')
       setNewClientCode('')
       refetchClients()
+      toast({ text: t('upload.clientCreated', { name: client.name, defaultValue: 'Client "{{name}}" created' }) })
     },
   })
 
@@ -340,7 +366,7 @@ export default function UploadPage() {
     setFiles((prev) => [...prev, ...accepted, ...rejected])
   }, [])
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: ACCEPTED_TYPES,
     maxSize: MAX_FILE_SIZE,
@@ -469,217 +495,137 @@ export default function UploadPage() {
 
   const pendingCount = files.filter((f) => f.status === 'pending').length
   const completedCount = files.filter((f) => f.status === 'completed').length
+  const totalSize = files.reduce((s, f) => s + f.file.size, 0)
+  const clientOptions = [
+    { value: '', label: t('upload.none') },
+    ...clients.map((c) => ({ value: c.id, label: `${c.name} (${c.code})` })),
+  ]
 
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 18, maxWidth: 1080 }}>
       {/* Header */}
-      <PageHeader
-        title={t('upload.title')}
-        description={t('upload.description')}
-        icon={CloudArrowUpIcon}
-        variant="bordered"
-      />
-
-      {/* Tenant context + optional Client Selector */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-        {/* Show tenant context for non-super-admin users */}
+      <div className="row" style={{ alignItems: 'flex-start' }}>
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>{t('upload.title')}</h1>
+          <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>{t('upload.description')}</p>
+        </div>
         {!isSuperAdmin && user?.tenant_name && (
-          <div className="flex items-center gap-3 mb-3">
-            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary-100">
-              <BuildingOfficeIcon className="h-5 w-5 text-primary-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-900">{user.tenant_name}</p>
-              <p className="text-xs text-gray-500">{t('upload.uploadingToOrg')}</p>
-            </div>
-          </div>
+          <Tag icon={BuildingOfficeIcon}>{user.tenant_name}</Tag>
         )}
+      </div>
 
-        {/* Industry profile context */}
-        {config?.industry_name && (
-          <div className="flex items-center gap-2.5 p-2.5 bg-violet-50 rounded-lg border border-violet-100 mb-3">
-            <SparklesIcon className="h-4 w-4 text-violet-500 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-violet-800">
-                {t('upload.profileActive', { name: config.industry_name })}
-              </p>
-              <p className="text-[10px] text-violet-600 mt-0.5">
-                {t('upload.profileStats', {
-                  types: config.contract_types?.length || 0,
-                  clauses: config.clause_types?.length || 0,
-                  slas: config.sla_metrics?.length || 0,
-                })}
-              </p>
-            </div>
-            <a
-              href="/admin/industry-profiles"
-              className="text-[10px] text-violet-500 hover:text-violet-700 font-medium whitespace-nowrap"
-            >
-              {t('upload.viewProfile')}
-            </a>
+      {/* Industry profile context — AI extraction is tenant-profile aware */}
+      {config?.industry_name && (
+        <div className="banner banner-p" style={{ alignItems: 'center' }}>
+          <SparklesIcon style={{ width: 16, height: 16, flexShrink: 0 }} aria-hidden />
+          <span className="grow">
+            <b>{t('upload.profileActive', { name: config.industry_name })}</b>{' '}
+            <span style={{ opacity: 0.8 }}>
+              {t('upload.profileStats', {
+                types: config.contract_types?.length || 0,
+                clauses: config.clause_types?.length || 0,
+                slas: config.sla_metrics?.length || 0,
+              })}
+            </span>
+          </span>
+          <AiTag />
+          <a href="/admin/industry-profiles" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--p)', whiteSpace: 'nowrap' }}>
+            {t('upload.viewProfile')}
+          </a>
+        </div>
+      )}
+
+      {/* Destination: group + optional client */}
+      <div className="card card-p col" style={{ gap: 12 }}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Field
+              label={t('upload.groupLabel')}
+              placeholder={t('upload.groupPlaceholder')}
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              list="upload-group-options"
+              hint={
+                user?.business_unit_name
+                  ? t('upload.defaultBuHint', { bu: user.business_unit_name })
+                  : undefined
+              }
+            />
+            <datalist id="upload-group-options">
+              {groups.map((g) => (
+                <option key={g.id} value={g.name} />
+              ))}
+            </datalist>
           </div>
-        )}
-
-        {/* Contract group (optional) — existing group name reuses it, new name creates one */}
-        <div className="mb-4">
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">
-            {t('upload.groupLabel')}
-          </label>
-          <input
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-            placeholder={t('upload.groupPlaceholder')}
-            value={groupName}
-            onChange={(e) => setGroupName(e.target.value)}
-            list="upload-group-options"
-          />
-          <datalist id="upload-group-options">
-            {groups.map((g) => (
-              <option key={g.id} value={g.name} />
-            ))}
-          </datalist>
-          {user?.business_unit_name && (
-            <p className="mt-1 text-[11px] text-gray-400">
-              {t('upload.defaultBuHint', { bu: user.business_unit_name })}
-            </p>
+          {clients.length > 0 && (
+            <div className="col" style={{ gap: 6 }}>
+              <Select
+                label={t('upload.groupUnderClient')}
+                value={selectedClientId ?? ''}
+                onChange={(e) => setSelectedClientId(e.target.value || null)}
+                options={clientOptions}
+              />
+              {!showNewClientForm && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={PlusIcon}
+                  style={{ alignSelf: 'flex-start' }}
+                  onClick={() => setShowNewClientForm(true)}
+                >
+                  {t('upload.createNewClient')}
+                </Button>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Client grouping - show as optional sub-grouping */}
-        {clients.length > 0 && (
-          <>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              {t('upload.groupUnderClient')}
-            </label>
-            <div className="relative" ref={dropdownRef}>
-              <button
-                type="button"
-                onClick={() => setShowClientDropdown(!showClientDropdown)}
-                className="w-full flex items-center justify-between px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  {selectedClient ? (
-                    <span className="text-gray-900">
-                      {selectedClient.name} <span className="text-gray-500">({selectedClient.code})</span>
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">{t('upload.none')}</span>
-                  )}
-                </div>
-                <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition-transform', showClientDropdown && 'rotate-180')} />
-              </button>
-
-              {showClientDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-auto">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedClientId(null)
-                      setShowClientDropdown(false)
-                    }}
-                    className={cn(
-                      'w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2',
-                      !selectedClientId && 'bg-primary-50'
-                    )}
-                  >
-                    <span className="text-gray-600">{t('upload.none')}</span>
-                  </button>
-
-                  {clients.map((client) => (
-                    <button
-                      key={client.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedClientId(client.id)
-                        setShowClientDropdown(false)
-                      }}
-                      className={cn(
-                        'w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center justify-between',
-                        selectedClientId === client.id && 'bg-primary-50'
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <BuildingOfficeIcon className="h-4 w-4 text-gray-400" />
-                        <span className="text-gray-900">{client.name}</span>
-                        <span className="text-gray-500 text-sm">({client.code})</span>
-                      </div>
-                      <span className="text-xs text-gray-400">{t('upload.contractCount', { count: client.contract_count })}</span>
-                    </button>
-                  ))}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowNewClientForm(true)
-                      setShowClientDropdown(false)
-                    }}
-                    className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2 border-t border-gray-200"
-                  >
-                    <PlusIcon className="h-4 w-4 text-primary-600" />
-                    <span className="text-primary-600 font-medium">{t('upload.createNewClient')}</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* New Client Form */}
+        {/* New client inline form */}
         {showNewClientForm && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">{t('upload.createNewClient')}</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  {t('upload.clientName')}
-                </label>
-                <input
-                  type="text"
-                  value={newClientName}
-                  onChange={(e) => setNewClientName(e.target.value)}
-                  placeholder="e.g., ING Bank N.V."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  {t('upload.clientCode')}
-                </label>
-                <input
-                  type="text"
-                  value={newClientCode}
-                  onChange={(e) => setNewClientCode(e.target.value.toUpperCase())}
-                  placeholder="e.g., ING"
-                  maxLength={50}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
+          <div className="col" style={{ gap: 12, padding: 14, background: 'var(--s3)', border: '1px solid var(--b)', borderRadius: 'var(--r-md)' }}>
+            <span className="sec-t">{t('upload.createNewClient')}</span>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label={t('upload.clientName')}
+                value={newClientName}
+                onChange={(e) => setNewClientName(e.target.value)}
+                placeholder="e.g., ING Bank N.V."
+              />
+              <Field
+                label={t('upload.clientCode')}
+                value={newClientCode}
+                onChange={(e) => setNewClientCode(e.target.value.toUpperCase())}
+                placeholder="e.g., ING"
+                maxLength={50}
+                className="mono"
+                error={
+                  createClientMutation.isError
+                    ? (createClientMutation.error as any)?.response?.data?.detail || t('upload.createClientFailed')
+                    : undefined
+                }
+              />
             </div>
-            <div className="mt-4 flex items-center gap-2">
-              <button
-                type="button"
+            <div className="row" style={{ gap: 8 }}>
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => createClientMutation.mutate()}
                 disabled={!newClientName.trim() || !newClientCode.trim() || createClientMutation.isPending}
-                className="btn-primary text-sm py-1.5 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {createClientMutation.isPending ? t('upload.creating') : t('upload.createClient')}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   setShowNewClientForm(false)
                   setNewClientName('')
                   setNewClientCode('')
                 }}
-                className="btn-secondary text-sm py-1.5 px-4"
               >
                 {t('common.cancel')}
-              </button>
+              </Button>
             </div>
-            {createClientMutation.isError && (
-              <p className="mt-2 text-xs text-red-600">
-                {(createClientMutation.error as any)?.response?.data?.detail || t('upload.createClientFailed')}
-              </p>
-            )}
           </div>
         )}
       </div>
@@ -687,41 +633,69 @@ export default function UploadPage() {
       {/* Dropzone */}
       <div
         {...getRootProps()}
-        className={cn(
-          'border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors',
-          isDragActive
-            ? 'border-primary-500 bg-primary-50'
-            : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50'
-        )}
+        className="card"
+        style={{
+          borderStyle: 'dashed',
+          borderWidth: 2,
+          borderColor: isDragActive ? 'var(--p)' : 'var(--p-b)',
+          background: isDragActive ? 'var(--p-f2)' : 'var(--p-f)',
+          padding: '38px 24px',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'border-color .12s var(--ease), background .12s var(--ease)',
+        }}
       >
         <input {...getInputProps()} />
-        <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-        <p className="mt-4 text-lg font-medium text-gray-900">
+        <span
+          style={{
+            width: 46, height: 46, borderRadius: 'var(--r-lg)', background: 'var(--s)',
+            color: 'var(--p)', display: 'inline-grid', placeItems: 'center', boxShadow: 'var(--sh-sm)',
+          }}
+        >
+          <CloudArrowUpIcon style={{ width: 24, height: 24 }} aria-hidden />
+        </span>
+        <h3 style={{ fontSize: 'var(--fs-xl)', fontWeight: 600, marginTop: 12 }}>
           {isDragActive ? t('upload.dropFilesHere') : t('upload.dragAndDrop')}
-        </p>
-        <p className="mt-2 text-sm text-gray-500">
-          {t('upload.orBrowse')}
-        </p>
-        <p className="mt-4 text-xs text-gray-400">
+        </h3>
+        <p className="muted" style={{ fontSize: 'var(--fs-md)', marginTop: 5, lineHeight: 1.55 }}>
           {t('upload.supportedFormats')}
         </p>
+        <Button
+          variant="primary"
+          size="lg"
+          icon={FolderOpenIcon}
+          style={{ marginTop: 16 }}
+          onClick={(e) => { e.stopPropagation(); open() }}
+        >
+          {t('upload.orBrowse')}
+        </Button>
       </div>
 
-      {/* File list */}
+      {/* File queue + live pipeline */}
       {files.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900">
-              {t('upload.filesCount', { count: files.length })}
-            </h2>
+        <div className="tbl-w">
+          <div className="row" style={{ padding: '11px 14px', background: 'var(--s3)', borderBottom: '1px solid var(--b)' }}>
+            <b style={{ fontSize: 'var(--fs-md)' }}>{t('upload.filesCount', { count: files.length })}</b>
+            <span className="faint" style={{ fontSize: 'var(--fs-sm)', marginLeft: 8 }}>
+              {formatFileSize(totalSize)}
+            </span>
+            <span className="grow" />
             {pendingCount > 0 && (
-              <button onClick={uploadAll} className="btn-primary text-sm">
+              <Button variant="primary" size="sm" icon={CloudArrowUpIcon} onClick={uploadAll}>
                 {t('upload.uploadAll', { count: pendingCount })}
-              </button>
+              </Button>
             )}
           </div>
+
+          {/* Queue depth + position while the worker is busy */}
           {queueStatus && processingContractIds.length > 0 && queueStatus.queue_depth > 0 && (
-            <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 text-xs text-blue-700 flex flex-wrap gap-4">
+            <div
+              className="row"
+              style={{
+                flexWrap: 'wrap', gap: '4px 16px', padding: '8px 14px', fontSize: 'var(--fs-sm)',
+                background: 'var(--in-f)', color: 'var(--in)', borderBottom: '1px solid var(--b)',
+              }}
+            >
               <span>{t('upload.queueDepth', { count: queueStatus.queue_depth })}</span>
               <span>{t('upload.queueProcessing', { count: queueStatus.processing })}</span>
               {myQueuedJobs.length > 0 && (
@@ -734,149 +708,158 @@ export default function UploadPage() {
               )}
             </div>
           )}
-          <div className="divide-y divide-gray-200">
-            {files.map((fileUpload, index) => (
-              <div key={index} className="px-4 py-3 flex items-center gap-4">
-                <DocumentTextIcon className="h-8 w-8 text-gray-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {fileUpload.file.name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {formatFileSize(fileUpload.file.size)}
-                  </p>
-                  {fileUpload.error && (
-                    <p className="text-xs text-red-600 mt-1">{fileUpload.error}</p>
-                  )}
-                  {fileUpload.warning && (
-                    <p className="text-xs text-amber-600 mt-1">⚠ {fileUpload.warning}</p>
-                  )}
-                  {(fileUpload.status === 'uploaded' || fileUpload.status === 'processing') && (
-                    <StageProgress stage={fileUpload.stage} percent={fileUpload.progressPercent} />
-                  )}
-                  {fileUpload.status === 'completed' && (
-                    <p className="text-xs text-green-600 mt-1">
-                      {t('upload.extractedSummary', { clauses: fileUpload.clauseCount, obligations: fileUpload.obligationCount })}
-                    </p>
-                  )}
-                </div>
-                <div className="shrink-0 flex items-center gap-2">
-                  {fileUpload.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => uploadFile(index)}
-                        className="btn-secondary text-sm py-1 px-3"
-                      >
-                        {t('nav.upload')}
-                      </button>
-                      <button
-                        onClick={() => removeFile(index)}
-                        className="p-1 text-gray-400 hover:text-gray-600"
-                      >
-                        <XMarkIcon className="h-5 w-5" />
-                      </button>
-                    </>
-                  )}
-                  {fileUpload.status === 'uploading' && (
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <LoadingSpinner size="sm" />
-                      <span className="text-xs">{t('upload.uploading')}</span>
-                    </div>
-                  )}
-                  {(fileUpload.status === 'uploaded' || fileUpload.status === 'processing') && (
-                    <div className="flex items-center gap-2 text-blue-600">
-                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
-                      <span className="text-xs">{t('upload.processing')}</span>
-                    </div>
-                  )}
-                  {fileUpload.status === 'completed' && (
-                    <div className="flex items-center gap-2">
-                      <SparklesIcon className="h-5 w-5 text-green-500" />
-                      <button
-                        onClick={() => navigate(`/contracts/${fileUpload.contractId}`)}
-                        className="text-sm text-primary-600 hover:text-primary-800 font-medium"
-                      >
-                        {t('upload.view')}
-                      </button>
-                      {fileUpload.hasSuggestions && fileUpload.suggestionCount && (
-                        <span className="inline-flex items-center gap-1 bg-primary-100 text-primary-700 text-xs px-2 py-0.5 rounded-full">
-                          <LinkIcon className="h-3 w-3" />
-                          {t('upload.linkCount', { count: fileUpload.suggestionCount })}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {fileUpload.status === 'error' && (
-                    <div className="flex items-center gap-2">
-                      <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
-                      {fileUpload.contractId && (
-                        <button
-                          onClick={() => retryProcessing(index)}
-                          className="btn-secondary text-sm py-1 px-3"
-                        >
-                          {t('upload.retry')}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => removeFile(index)}
-                        className="p-1 text-gray-400 hover:text-gray-600"
-                      >
-                        <XMarkIcon className="h-5 w-5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
+
+          {files.map((fileUpload, index) => (
+            <div key={index} className="col" style={{ borderBottom: '1px solid var(--b)' }}>
+              <div className="row" style={{ gap: 10, padding: '11px 14px' }}>
+                <DocumentTextIcon style={{ width: 17, height: 17, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
+                <span className="mono trunc grow" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                  {fileUpload.file.name}
+                </span>
+                {fileUpload.warning && (
+                  <Pill tone="wa">{t('upload.alreadyUploaded', { defaultValue: 'Duplicate' })}</Pill>
+                )}
+                <span className="faint num" style={{ fontSize: 'var(--fs-sm)', whiteSpace: 'nowrap' }}>
+                  {formatFileSize(fileUpload.file.size)}
+                </span>
+
+                {fileUpload.status === 'pending' && (
+                  <>
+                    <Button variant="secondary" size="sm" onClick={() => uploadFile(index)}>
+                      {t('nav.upload')}
+                    </Button>
+                    <IconButton
+                      icon={XMarkIcon}
+                      size="sm"
+                      label={t('upload.removeFromQueue', { defaultValue: 'Remove from queue' })}
+                      onClick={() => removeFile(index)}
+                    />
+                  </>
+                )}
+                {fileUpload.status === 'uploading' && (
+                  <span className="row muted" style={{ gap: 6, fontSize: 'var(--fs-sm)' }}>
+                    <ArrowPathIcon className="spin" style={{ width: 14, height: 14, color: 'var(--p)' }} aria-hidden />
+                    {t('upload.uploading')}
+                  </span>
+                )}
+                {(fileUpload.status === 'uploaded' || fileUpload.status === 'processing') && (
+                  <Pill tone="p">{t('upload.processing')}</Pill>
+                )}
+                {fileUpload.status === 'completed' && (
+                  <>
+                    <CheckCircleIcon style={{ width: 17, height: 17, color: 'var(--ok)', flexShrink: 0 }} aria-hidden />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      iconRight={ArrowRightIcon}
+                      onClick={() => navigate(`/contracts/${fileUpload.contractId}`)}
+                    >
+                      {t('upload.view')}
+                    </Button>
+                  </>
+                )}
+                {fileUpload.status === 'error' && (
+                  <>
+                    <Pill tone="da">{t('status.failed', { defaultValue: 'Failed' })}</Pill>
+                    <IconButton
+                      icon={XMarkIcon}
+                      size="sm"
+                      label={t('upload.removeFromQueue', { defaultValue: 'Remove from queue' })}
+                      onClick={() => removeFile(index)}
+                    />
+                  </>
+                )}
               </div>
-            ))}
-          </div>
+
+              {/* Duplicate-content warning detail */}
+              {fileUpload.warning && (
+                <div className="row" style={{ gap: 6, padding: '0 14px 10px 41px', fontSize: 'var(--fs-sm)', color: 'var(--wa)' }}>
+                  <ExclamationTriangleIcon style={{ width: 13, height: 13, flexShrink: 0 }} aria-hidden />
+                  <span className="trunc">{fileUpload.warning}</span>
+                </div>
+              )}
+
+              {/* Live pipeline while the worker runs */}
+              {(fileUpload.status === 'uploaded' || fileUpload.status === 'processing') && (
+                <div style={{ padding: '0 14px 12px 41px' }}>
+                  <Pipeline stage={fileUpload.stage} percent={fileUpload.progressPercent} />
+                </div>
+              )}
+
+              {/* Success detail: extraction counts + suggested links */}
+              {fileUpload.status === 'completed' && (
+                <div className="row" style={{ flexWrap: 'wrap', gap: 8, padding: '0 14px 10px 41px' }}>
+                  <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--ok)' }}>
+                    {t('upload.extractedSummary', { clauses: fileUpload.clauseCount, obligations: fileUpload.obligationCount })}
+                  </span>
+                  {fileUpload.hasSuggestions && fileUpload.suggestionCount ? (
+                    <Tag icon={LinkIcon}>{t('upload.linkCount', { count: fileUpload.suggestionCount })}</Tag>
+                  ) : null}
+                </div>
+              )}
+
+              {/* Failure detail: danger banner + retry when processing can be re-run */}
+              {fileUpload.status === 'error' && fileUpload.error && (
+                <div style={{ padding: '0 14px 12px 41px' }}>
+                  <div className="banner banner-da" style={{ alignItems: 'center' }}>
+                    <ExclamationCircleIcon style={{ width: 16, height: 16, flexShrink: 0 }} aria-hidden />
+                    <span className="grow">{fileUpload.error}</span>
+                    {fileUpload.contractId && (
+                      <Button variant="secondary" size="sm" icon={ArrowPathIcon} onClick={() => retryProcessing(index)}>
+                        {t('upload.retry')}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
       {/* Completed summary */}
       {completedCount > 0 && (
-        <div className="rounded-lg bg-green-50 border border-green-200 p-4">
-          <div className="flex items-center gap-3">
-            <CheckCircleIcon className="h-5 w-5 text-green-500" />
-            <div>
-              <p className="text-sm font-medium text-green-800">
-                {t('upload.processedSuccessfully', { count: completedCount })}
-              </p>
-              <p className="text-xs text-green-600 mt-0.5">
-                {t('upload.analysisComplete')}
-              </p>
-            </div>
-          </div>
+        <div
+          className="banner"
+          style={{ alignItems: 'center', background: 'var(--ok-f)', borderColor: 'var(--ok-b)', color: 'var(--ok)' }}
+        >
+          <CheckCircleIcon style={{ width: 16, height: 16, flexShrink: 0 }} aria-hidden />
+          <span className="grow">
+            <b>{t('upload.processedSuccessfully', { count: completedCount })}</b>{' '}
+            <span style={{ opacity: 0.85 }}>{t('upload.analysisComplete')}</span>
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            iconRight={ArrowRightIcon}
+            onClick={() => navigate('/contracts')}
+          >
+            {t('nav.contracts')}
+          </Button>
         </div>
       )}
 
       {/* Related contracts found notification */}
       {files.some(f => f.hasSuggestions) && (
-        <div className="rounded-lg bg-primary-50 border border-primary-200 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <LinkIcon className="h-5 w-5 text-primary-500" />
-              <div>
-                <p className="text-sm font-medium text-primary-800">
-                  {t('upload.relatedContractsFound')}
-                </p>
-                <p className="text-xs text-primary-600 mt-0.5">
-                  {t('upload.relatedContractsDesc')}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                // Navigate to the first contract with suggestions
-                const fileWithSuggestions = files.find(f => f.hasSuggestions && f.contractId)
-                if (fileWithSuggestions?.contractId) {
-                  navigate(`/contracts/${fileWithSuggestions.contractId}`)
-                }
-              }}
-              className="btn-primary text-sm py-1.5 px-4"
-            >
-              {t('upload.review')}
-            </button>
-          </div>
+        <div className="banner banner-p" style={{ alignItems: 'center' }}>
+          <LinkIcon style={{ width: 16, height: 16, flexShrink: 0 }} aria-hidden />
+          <span className="grow">
+            <b>{t('upload.relatedContractsFound')}</b>{' '}
+            <span style={{ opacity: 0.8 }}>{t('upload.relatedContractsDesc')}</span>
+          </span>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              // Navigate to the first contract with suggestions
+              const fileWithSuggestions = files.find(f => f.hasSuggestions && f.contractId)
+              if (fileWithSuggestions?.contractId) {
+                navigate(`/contracts/${fileWithSuggestions.contractId}`)
+              }
+            }}
+          >
+            {t('upload.review')}
+          </Button>
         </div>
       )}
     </div>

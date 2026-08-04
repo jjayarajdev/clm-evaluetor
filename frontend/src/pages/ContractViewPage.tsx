@@ -1,32 +1,60 @@
+/* Contract detail — Direction B redesign.
+   Pinned header (back + id/status/tags + title + actions) → Tabs primitive →
+   scrollable tab panels. The overview tab renders extracted metadata as labeled
+   rows with the core AI pattern: a Confidence bar whose hover shows a rich
+   provenance tooltip, plus a source Drawer with per-field re-extraction.
+   Data fetching, mutations, permissions and tab behavior are unchanged from
+   the pre-redesign page. */
 import { useState, useMemo } from 'react'
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftIcon,
-  DocumentTextIcon,
-  ShieldExclamationIcon,
   ArrowPathIcon,
-  TrashIcon,
   ChartBarIcon,
-  LinkIcon,
-  InformationCircleIcon,
-  ShareIcon,
-  DocumentMagnifyingGlassIcon,
+  ChatBubbleLeftRightIcon,
+  CheckCircleIcon,
+  CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  PencilIcon,
-  CheckIcon,
-  XMarkIcon,
-  CheckCircleIcon,
+  DocumentMagnifyingGlassIcon,
+  DocumentTextIcon,
   ExclamationTriangleIcon,
+  InformationCircleIcon,
+  LinkIcon,
   MinusCircleIcon,
+  PencilIcon,
+  ShareIcon,
+  ShieldExclamationIcon,
+  SparklesIcon,
   Square3Stack3DIcon,
+  TrashIcon,
+  TruckIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
-import type { ExtractionStageOutcome } from '@/types'
+import type { ExtractionStageOutcome, MetadataProvenance } from '@/types'
 import api from '@/lib/api'
 import { client as apiClient } from '@/lib/api/client'
 import { reExtractMetadataField, type ReExtractableField } from '@/lib/api/contracts'
 import { getIndustryProfiles } from '@/lib/api/admin'
+import type { HighlightRect } from '@/lib/api/contracts'
+import {
+  AiTag,
+  Button,
+  Confidence,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  IconButton,
+  Pill,
+  Select,
+  Stat,
+  Tabs,
+  Tag,
+  Tooltip,
+  useToast,
+} from '@/components/ui'
+import type { IconType, PillTone, TabDef } from '@/components/ui'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import SLASummary from '@/components/dashboard/SLASummary'
 import CustomFieldsDisplay from '@/components/contracts/CustomFieldsDisplay'
@@ -35,14 +63,36 @@ import ContractSharing from '@/components/contracts/ContractSharing'
 import ContractDocumentsTab from '@/components/contracts/ContractDocumentsTab'
 import ContractReviewPane from '@/components/contracts/ContractReviewPane'
 import ContractPdfViewer from '@/components/contracts/ContractPdfViewer'
-import type { HighlightRect } from '@/lib/api/contracts'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
-import { cn, formatDate, formatCurrency, formatFileSize, getRiskColor, getStatusColor } from '@/lib/utils'
+import { cn, formatDate, formatCurrency, formatFileSize } from '@/lib/utils'
+
+// ── Tone maps ────────────────────────────────────────────────────
+
+const STATUS_TONE: Record<string, PillTone> = {
+  completed: 'ok',
+  processing: 'in',
+  pending: 'n',
+  failed: 'da',
+}
+
+const RISK_TONE: Record<string, PillTone> = {
+  low: 'ok',
+  medium: 'wa',
+  high: 'da',
+  critical: 'da',
+}
+
+function riskCssTone(level: string | null | undefined): string {
+  const key = (level || '').toLowerCase()
+  if (key === 'high' || key === 'critical') return 'var(--da)'
+  if (key === 'medium') return 'var(--wa)'
+  return 'var(--ok)'
+}
 
 // Map config icon names to Heroicon components
-const TAB_ICON_MAP: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+const TAB_ICON_MAP: Record<string, IconType> = {
   document: InformationCircleIcon,
   eye: DocumentMagnifyingGlassIcon,
   chart: ChartBarIcon,
@@ -50,7 +100,7 @@ const TAB_ICON_MAP: Record<string, React.ComponentType<React.SVGProps<SVGSVGElem
   folder: DocumentTextIcon,
   share: ShareIcon,
   shield: ShieldExclamationIcon,
-  truck: DocumentTextIcon,
+  truck: TruckIcon,
   graph: Square3Stack3DIcon,
 }
 
@@ -63,6 +113,12 @@ const DEFAULT_TABS = [
   { id: 'documents', label: 'Documents', icon: 'folder' },
   { id: 'sharing', label: 'Sharing', icon: 'share' },
 ]
+
+const PROCUREMENT_TYPES = new Set([
+  'procurement', 'procurement_agreement', 'hardware_procurement_contract',
+  'supply_agreement', 'quality_agreement', 'blanket_po', 'manufacturing_supply',
+  'annual_maintenance', 'rate_contract', 'distribution', 'vendor',
+])
 
 // Display order for extraction pipeline stages; labels resolved via i18n
 // under contract.stages.<key> with the English default as fallback
@@ -86,6 +142,18 @@ const STAGE_DISPLAY: { key: string; label: string }[] = [
   { key: 'graph_verification', label: 'Graph Verification' },
 ]
 
+/** Confidence figure as a toned pill (prototype ConfBand). */
+function ConfBand({ v }: { v: number }) {
+  const tone: PillTone = v >= 0.9 ? 'ok' : v >= 0.6 ? 'wa' : 'da'
+  return (
+    <Pill tone={tone} dot={false}>
+      <span className="mono num">{v.toFixed(2)}</span>
+    </Pill>
+  )
+}
+
+// ── Extraction health ────────────────────────────────────────────
+
 function ExtractionHealthPanel({
   health,
 }: {
@@ -105,17 +173,17 @@ function ExtractionHealthPanel({
   )
 
   const headlineColor =
-    counts.failed > 0 ? 'text-red-700' : counts.skipped > 0 ? 'text-amber-700' : 'text-green-700'
+    counts.failed > 0 ? 'var(--da)' : counts.skipped > 0 ? 'var(--wa)' : 'var(--ok)'
 
   return (
-    <div className="card">
-      <div className="card-header flex items-center justify-between">
-        <h2 className="text-sm font-medium text-gray-900">{t('contract.extractionHealth')}</h2>
-        <span className={cn('text-xs font-medium', headlineColor)}>
+    <div className="card card-p col" style={{ gap: 10 }}>
+      <div className="row" style={{ gap: 8 }}>
+        <span className="sec-t grow">{t('contract.extractionHealth')}</span>
+        <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: headlineColor }}>
           {t('contract.healthCounts', { success: counts.success, failed: counts.failed, skipped: counts.skipped })}
         </span>
       </div>
-      <div className="card-body space-y-1.5">
+      <div className="col" style={{ gap: 6 }}>
         {stages.map((s) => {
           const outcome = health[s.key]
           const status = outcome.status
@@ -126,11 +194,7 @@ function ExtractionHealthPanel({
                 ? ExclamationTriangleIcon
                 : MinusCircleIcon
           const iconColor =
-            status === 'success'
-              ? 'text-green-500'
-              : status === 'failed'
-                ? 'text-red-500'
-                : 'text-gray-400'
+            status === 'success' ? 'var(--ok)' : status === 'failed' ? 'var(--da)' : 'var(--f)'
           const note = outcome.error || outcome.reason
           const dropped = (outcome.details?.dropped_fields as Array<{
             field: string
@@ -138,20 +202,25 @@ function ExtractionHealthPanel({
             threshold: number
           }> | undefined)
           return (
-            <div key={s.key} className="flex items-start gap-2 text-xs">
-              <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', iconColor)} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-gray-900">{t(`contract.stages.${s.key}`, { defaultValue: s.label })}</span>
-                  <span className="text-gray-400 capitalize">{t(`contract.stageStatus.${status}`, { defaultValue: status.replace('_', ' ') })}</span>
+            <div key={s.key} className="row" style={{ gap: 8, alignItems: 'flex-start', fontSize: 'var(--fs-sm)' }}>
+              <Icon style={{ width: 15, height: 15, marginTop: 1, flexShrink: 0, color: iconColor }} aria-hidden />
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div className="row" style={{ gap: 8 }}>
+                  <span className="grow trunc">{t(`contract.stages.${s.key}`, { defaultValue: s.label })}</span>
+                  <span className="faint" style={{ textTransform: 'capitalize', flexShrink: 0 }}>
+                    {t(`contract.stageStatus.${status}`, { defaultValue: status.replace('_', ' ') })}
+                  </span>
                 </div>
                 {note && (
-                  <p className="text-gray-500 truncate" title={note}>
+                  <p className="faint trunc" title={note} style={{ fontSize: 'var(--fs-xs)' }}>
                     {note}
                   </p>
                 )}
                 {dropped && dropped.length > 0 && (
-                  <p className="text-amber-600" title={dropped.map(d => `${d.field}: ${d.confidence} < ${d.threshold}`).join('\n')}>
+                  <p
+                    style={{ fontSize: 'var(--fs-xs)', color: 'var(--wa)' }}
+                    title={dropped.map(d => `${d.field}: ${d.confidence} < ${d.threshold}`).join('\n')}
+                  >
                     {t('contract.fieldsBelowThreshold', { count: dropped.length })}
                     {' '}
                     {dropped.map(d => d.field).join(', ')}
@@ -166,6 +235,165 @@ function ExtractionHealthPanel({
   )
 }
 
+// ── Risk gauge ───────────────────────────────────────────────────
+
+function RiskGauge({ score, level }: { score: number; level: string | null }) {
+  const { t } = useTranslation()
+  const tone = riskCssTone(level)
+  const r = 34
+  const c = 2 * Math.PI * r
+  return (
+    <div className="row" style={{ gap: 16 }}>
+      <div style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
+        <svg width="80" height="80" style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx="40" cy="40" r={r} fill="none" stroke="var(--b)" strokeWidth="8" />
+          <circle
+            cx="40" cy="40" r={r} fill="none" stroke={tone} strokeWidth="8" strokeLinecap="round"
+            strokeDasharray={c} strokeDashoffset={c * (1 - Math.max(0, Math.min(100, score)) / 100)}
+          />
+        </svg>
+        <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
+          <span className="num" style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, color: tone }}>{score}</span>
+        </div>
+      </div>
+      <div>
+        <div className="row" style={{ gap: 8 }}>
+          <b style={{ fontSize: 'var(--fs-lg)', textTransform: 'capitalize' }}>
+            {t('contract.riskLabel', { level: t(`risk.${level}`, { defaultValue: level || '' }) })}
+          </b>
+          <AiTag />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Metadata row (the core Confidence + provenance pattern) ──────
+
+function MetaRow({
+  label,
+  rawValue,
+  displayValue,
+  type = 'text',
+  canEdit,
+  provenance,
+  onSave,
+  onViewSource,
+}: {
+  label: string
+  rawValue: string | null
+  displayValue?: string | null
+  type?: 'text' | 'date' | 'number'
+  canEdit: boolean
+  provenance?: MetadataProvenance | null
+  onSave: (val: string) => void
+  onViewSource?: () => void
+}) {
+  const { t } = useTranslation()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(rawValue || '')
+
+  const shown = displayValue !== undefined && displayValue !== null && displayValue !== ''
+    ? displayValue
+    : (rawValue || null)
+  const hasValue = shown != null && shown !== '-'
+  const conf = provenance?.confidence
+
+  const handleSave = () => {
+    if (draft !== (rawValue || '')) onSave(draft)
+    setEditing(false)
+  }
+  const handleCancel = () => {
+    setDraft(rawValue || '')
+    setEditing(false)
+  }
+
+  return (
+    <div
+      className="row"
+      style={{
+        gap: 12, minHeight: 46, padding: '8px 14px', borderBottom: '1px solid var(--b)',
+        background: conf != null && conf < 0.6 ? 'var(--da-f)' : undefined,
+      }}
+    >
+      <span className="muted" style={{ width: 168, flexShrink: 0, fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+        {label}
+      </span>
+      <span className="grow row" style={{ gap: 8, minWidth: 0 }}>
+        {editing ? (
+          <span className="inp grow" style={{ height: 28 }}>
+            <input
+              type={type}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') handleCancel() }}
+              autoFocus
+            />
+          </span>
+        ) : (
+          <span
+            className="trunc"
+            style={{
+              fontSize: 'var(--fs-md)',
+              color: hasValue ? 'var(--t)' : 'var(--f)',
+              fontStyle: hasValue ? undefined : 'italic',
+              fontWeight: hasValue ? 500 : 400,
+            }}
+          >
+            {shown ?? t('contract.notFound2', { defaultValue: 'Not found' })}
+          </span>
+        )}
+        {!editing && provenance && <AiTag />}
+      </span>
+
+      {/* Confidence + rich provenance tooltip — only when the payload has it */}
+      {conf != null ? (
+        <Tooltip
+          rich
+          side="bottom"
+          subhead={t('contract.confidenceSubhead', { value: conf.toFixed(2), defaultValue: 'Confidence {{value}}' })}
+          label={provenance?.raw_text ? `"${provenance.raw_text}"` : t('contract.sourceQuoteNote')}
+          footer={t('contract.provenanceAgent', { defaultValue: 'metadata agent' })}
+        >
+          <span className="row" style={{ gap: 8, cursor: 'help' }}>
+            <Confidence value={conf} width={44} showNum={false} />
+            <ConfBand v={conf} />
+          </span>
+        </Tooltip>
+      ) : (
+        <span className="faint" style={{ fontSize: 'var(--fs-sm)', flexShrink: 0 }}>
+          {t('contract.manualEntry', { defaultValue: 'manual entry' })}
+        </span>
+      )}
+
+      {provenance?.raw_text && onViewSource && (
+        <IconButton
+          icon={DocumentMagnifyingGlassIcon}
+          label={`${t('contract.showExtractionSource')} — ${label}`}
+          size="sm"
+          onClick={onViewSource}
+        />
+      )}
+      {canEdit && !editing && (
+        <IconButton
+          icon={PencilIcon}
+          label={`${t('common.edit')} — ${label}`}
+          size="sm"
+          onClick={() => { setDraft(rawValue || ''); setEditing(true) }}
+        />
+      )}
+      {editing && (
+        <>
+          <IconButton icon={CheckIcon} label={t('common.save', { defaultValue: 'Save' })} size="sm" onClick={handleSave} />
+          <IconButton icon={XMarkIcon} label={t('common.cancel')} size="sm" onClick={handleCancel} />
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Page ─────────────────────────────────────────────────────────
+
 export default function ContractViewPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
@@ -173,8 +401,18 @@ export default function ContractViewPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { can } = useAuth()
+  const { toast } = useToast()
   const { config, contractTypeLabel, uiLabel } = useTenantConfig()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Source-provenance drawer state (which metadata field is open)
+  const [srcField, setSrcField] = useState<{
+    key: string
+    label: string
+    display: string
+    reExtractable: boolean
+  } | null>(null)
+  const [hint, setHint] = useState('')
 
   // Get active tab from URL or default to first tab
   const activeTab = searchParams.get('tab') || 'overview'
@@ -195,6 +433,7 @@ export default function ContractViewPage() {
     mutationFn: () => api.processContract(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract', id] })
+      toast({ text: t('contract.processQueued', { defaultValue: 'Processing started' }) })
     },
   })
 
@@ -202,6 +441,7 @@ export default function ContractViewPage() {
     mutationFn: () => api.analyzeContract(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract', id] })
+      toast({ text: t('contract.reanalyzeQueued', { defaultValue: 'Re-analysis queued' }) })
     },
   })
 
@@ -211,6 +451,9 @@ export default function ContractViewPage() {
       queryClient.invalidateQueries({ queryKey: ['contracts'] })
       queryClient.invalidateQueries({ queryKey: ['contracts-summary'] })
       navigate('/contracts')
+    },
+    onError: () => {
+      toast({ text: t('contracts.deleteFailed', { defaultValue: 'Delete failed. Please try again.' }), error: true })
     },
   })
 
@@ -224,17 +467,17 @@ export default function ContractViewPage() {
   })
 
   // #30 — Per-field re-extract state. Keyed by field name so multiple
-  // popovers can show their own pending/result state independently.
+  // fields can show their own pending/result state independently.
   const [reExtractPending, setReExtractPending] = useState<Record<string, boolean>>({})
   const [reExtractResult, setReExtractResult] = useState<
     Record<string, { applied: boolean; reason?: string | null } | null>
   >({})
 
-  const handleReExtract = (field: ReExtractableField, hint: string | undefined) => {
+  const handleReExtract = (field: ReExtractableField, hintText: string | undefined) => {
     if (!id) return
     setReExtractPending((p) => ({ ...p, [field]: true }))
     setReExtractResult((r) => ({ ...r, [field]: null }))
-    reExtractMetadataField(id, field, hint)
+    reExtractMetadataField(id, field, hintText)
       .then((resp) => {
         setReExtractResult((r) => ({
           ...r,
@@ -266,11 +509,6 @@ export default function ContractViewPage() {
   })
 
   // Build tabs dynamically based on contract type
-  const PROCUREMENT_TYPES = new Set([
-    'procurement', 'procurement_agreement', 'hardware_procurement_contract',
-    'supply_agreement', 'quality_agreement', 'blanket_po', 'manufacturing_supply',
-    'annual_maintenance', 'rate_contract', 'distribution', 'vendor',
-  ])
   const tabs = useMemo(() => {
     // Industry profiles can define arbitrary detail_tabs; only ids this page
     // can actually render are shown — unknown ids would be blank panels.
@@ -279,18 +517,18 @@ export default function ContractViewPage() {
       'related', 'documents', 'sharing',
     ])
     const mapped = (config?.ui?.detail_tabs || DEFAULT_TABS)
-      .filter((t) => RENDERED_TAB_IDS.has(t.id))
-      .map((t) => ({
-      id: t.id,
-      label: t.label,
-      iconComponent: TAB_ICON_MAP[t.icon || ''] || InformationCircleIcon,
-    }))
+      .filter((tb) => RENDERED_TAB_IDS.has(tb.id))
+      .map((tb) => ({
+        id: tb.id,
+        label: tb.label,
+        icon: TAB_ICON_MAP[tb.icon || ''] || InformationCircleIcon,
+      }))
     const ct = contract?.contract_type?.toLowerCase() || ''
     const needsProcurementTabs = PROCUREMENT_TYPES.has(ct) ||
       ct.includes('procurement') || ct.includes('supply') || ct.includes('manufacturing')
     if (needsProcurementTabs) {
-      const existingIds = new Set(mapped.map((t) => t.id))
-      const insertIdx = mapped.findIndex((t) => t.id === 'review') + 1 || 2
+      const existingIds = new Set(mapped.map((tb) => tb.id))
+      const insertIdx = mapped.findIndex((tb) => tb.id === 'review') + 1 || 2
       const extraTabs = [
         { id: 'quality', label: 'Quality', icon: 'shield' },
         { id: 'supply_chain', label: 'Supply Chain', icon: 'truck' },
@@ -301,18 +539,18 @@ export default function ContractViewPage() {
           mapped.splice(insertIdx + offset, 0, {
             id: pt.id,
             label: pt.label,
-            iconComponent: TAB_ICON_MAP[pt.icon] || InformationCircleIcon,
+            icon: TAB_ICON_MAP[pt.icon] || InformationCircleIcon,
           })
           offset++
         }
       }
       // Also ensure SLAs tab is present
       if (!existingIds.has('slas')) {
-        const relIdx = mapped.findIndex((t) => t.id === 'supply_chain')
+        const relIdx = mapped.findIndex((tb) => tb.id === 'supply_chain')
         mapped.splice(relIdx + 1, 0, {
           id: 'slas',
           label: 'SLAs',
-          iconComponent: ChartBarIcon,
+          icon: ChartBarIcon,
         })
       }
     }
@@ -321,7 +559,7 @@ export default function ContractViewPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
         <LoadingSpinner size="lg" />
       </div>
     )
@@ -329,461 +567,534 @@ export default function ContractViewPage() {
 
   if (error || !contract) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600">{t('contract.notFound')}</p>
-        <Link to="/contracts" className="text-primary-600 hover:underline mt-2 inline-block">
-          {t('contract.backToContracts')}
-        </Link>
-      </div>
+      <EmptyState
+        icon={DocumentTextIcon}
+        title={t('contract.notFound')}
+        action={
+          <Button variant="secondary" size="sm" icon={ArrowLeftIcon} onClick={() => navigate('/contracts')}>
+            {t('contract.backToContracts')}
+          </Button>
+        }
+      />
     )
   }
 
   const isCompleted = contract.status === 'completed'
+  const provenance = contract.metadata_provenance || {}
+
+  // Extracted metadata rows. Fields with provenance in the payload get the
+  // Confidence + provenance pattern; the rest render as plain fields.
+  const metaFields: Array<{
+    key: string
+    label: string
+    rawValue: string | null
+    displayValue?: string | null
+    type?: 'text' | 'date' | 'number'
+    save: (val: string) => void
+    reExtractable: boolean
+  }> = [
+    {
+      key: 'counterparty',
+      label: uiLabel('counterparty', t('contracts.counterparty')),
+      rawValue: contract.counterparty,
+      save: (val) => updateMetadataMutation.mutate({ counterparty: val }),
+      reExtractable: true,
+    },
+    {
+      key: 'contract_value',
+      label: uiLabel('contract_value', t('contract.contractValue')),
+      rawValue: contract.contract_value != null ? String(contract.contract_value) : null,
+      displayValue: contract.contract_value != null
+        ? formatCurrency(contract.contract_value, contract.currency || 'USD')
+        : null,
+      type: 'number',
+      save: (val) => updateMetadataMutation.mutate({ contract_value: Number(val) }),
+      reExtractable: true,
+    },
+    {
+      key: 'contract_type',
+      label: t('contract.contractType'),
+      rawValue: contract.contract_type || null,
+      displayValue: contract.contract_type ? contractTypeLabel(contract.contract_type) : null,
+      save: (val) => updateMetadataMutation.mutate({ contract_type: val }),
+      reExtractable: true,
+    },
+    {
+      key: 'effective_date',
+      label: t('contract.effectiveDate'),
+      rawValue: contract.effective_date || null,
+      displayValue: contract.effective_date ? formatDate(contract.effective_date) : null,
+      type: 'date',
+      save: (val) => updateMetadataMutation.mutate({ effective_date: val }),
+      reExtractable: true,
+    },
+    {
+      key: 'expiration_date',
+      label: t('contract.expirationDate'),
+      rawValue: contract.expiration_date || null,
+      displayValue: contract.expiration_date ? formatDate(contract.expiration_date) : null,
+      type: 'date',
+      save: (val) => updateMetadataMutation.mutate({ expiration_date: val }),
+      reExtractable: true,
+    },
+    {
+      key: 'jurisdiction',
+      label: t('contract.jurisdiction'),
+      rawValue: contract.jurisdiction,
+      save: (val) => updateMetadataMutation.mutate({ jurisdiction: val }),
+      reExtractable: true,
+    },
+  ]
+
+  const srcProvenance = srcField ? provenance[srcField.key] : undefined
+  const srcResult = srcField ? reExtractResult[srcField.key] : undefined
+  const srcPending = srcField ? !!reExtractPending[srcField.key] : false
+
+  const tabDefs: TabDef[] = tabs
+    // Hide analysis tabs for non-completed contracts; overview and sharing stay.
+    .filter((tab) => isCompleted || tab.id === 'overview' || tab.id === 'sharing')
+    .map((tab) => ({
+      value: tab.id,
+      label: t(`contract.tabs.${tab.id}`, { defaultValue: tab.label }),
+      icon: tab.icon,
+      count: isCompleted && tab.id === 'slas' && contract.sla_count
+        ? contract.sla_count
+        : undefined,
+    }))
+
+  const isFullBleed = (activeTab === 'review' || activeTab === 'quality' || activeTab === 'supply_chain') && isCompleted
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Compact Header */}
-      <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 min-w-0">
-            <Link
-              to="/contracts"
-              className="p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg flex-shrink-0"
-            >
-              <ArrowLeftIcon className="h-5 w-5" />
-            </Link>
-            <div className="min-w-0">
-              <h1 className="text-xl font-bold text-gray-900 truncate">{contract.filename}</h1>
-              <div className="flex items-center gap-3 mt-1">
-                <span className={cn(
-                  'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize',
-                  getStatusColor(contract.status)
-                )}>
-                  {t(`status.${contract.status}`, { defaultValue: contract.status })}
+    <div
+      className="-mx-4 sm:-mx-6 lg:-mx-8 -my-6 flex flex-col h-[calc(100vh-var(--top-h))]"
+      style={{ minHeight: 0 }}
+    >
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title={t('contract.deleteTitle', { defaultValue: 'Delete this contract?' })}
+        body={t('contract.deleteBody', { defaultValue: 'This permanently removes the document and everything the pipeline extracted from it.' })}
+        affected={[
+          contract.filename,
+          t('contract.deleteAffected', { defaultValue: 'All extracted clauses, obligations, SLAs and risk analysis' }),
+        ]}
+        confirmLabel={deleteMutation.isPending ? t('contracts.deleting') : t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => { if (!deleteMutation.isPending) setShowDeleteConfirm(false) }}
+        onConfirm={() => { if (!deleteMutation.isPending) deleteMutation.mutate() }}
+      />
+
+      {/* Header */}
+      <div style={{ padding: '18px 24px 0', flexShrink: 0 }}>
+        <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+          <IconButton
+            icon={ArrowLeftIcon}
+            label={t('contract.backToContracts')}
+            onClick={() => navigate('/contracts')}
+          />
+          <div className="grow" style={{ minWidth: 0 }}>
+            <div className="row" style={{ gap: 7, marginBottom: 5, flexWrap: 'wrap' }}>
+              <span className="mono faint" style={{ fontSize: 'var(--fs-xs)' }}>{contract.id.slice(0, 8)}</span>
+              <Pill tone={STATUS_TONE[contract.status] || 'n'}>
+                {t(`status.${contract.status}`, { defaultValue: contract.status })}
+              </Pill>
+              {contract.risk_level && (
+                <Pill tone={RISK_TONE[contract.risk_level.toLowerCase()] || 'n'}>
+                  {t('contract.riskLabel', { level: t(`risk.${contract.risk_level}`, { defaultValue: contract.risk_level }) })}
+                </Pill>
+              )}
+              {contract.contract_type && <Tag>{contractTypeLabel(contract.contract_type)}</Tag>}
+              {contract.file_size != null && (
+                <Tag icon={DocumentTextIcon}>{formatFileSize(contract.file_size)}</Tag>
+              )}
+            </div>
+            <h1 className="trunc" style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.8px', lineHeight: 1.15 }}>
+              {contract.filename}
+            </h1>
+            <div className="row muted" style={{ gap: 8, marginTop: 6, fontSize: 'var(--fs-md)', flexWrap: 'wrap' }}>
+              {contract.counterparty && <span>{contract.counterparty}</span>}
+              {contract.counterparty && (contract.effective_date || contract.expiration_date) && (
+                <span className="faint">·</span>
+              )}
+              {(contract.effective_date || contract.expiration_date) && (
+                <span className="num">
+                  {formatDate(contract.effective_date)} — {formatDate(contract.expiration_date)}
                 </span>
-                {contract.risk_level && (
-                  <span className={cn(
-                    'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize',
-                    getRiskColor(contract.risk_level)
-                  )}>
-                    {t('contract.riskLabel', { level: t(`risk.${contract.risk_level}`, { defaultValue: contract.risk_level }) })}
+              )}
+              {contract.contract_value != null && (
+                <>
+                  <span className="faint">·</span>
+                  <span className="num" style={{ fontWeight: 600, color: 'var(--t)' }}>
+                    {formatCurrency(contract.contract_value, contract.currency || 'USD')}
                   </span>
-                )}
-                {contract.contract_type && (
-                  <span className="text-sm text-gray-500">
-                    {contractTypeLabel(contract.contract_type)}
-                  </span>
-                )}
-                {contract.counterparty && (
-                  <span className="text-sm text-gray-500">
-                    • {contract.counterparty}
-                  </span>
-                )}
-              </div>
+                </>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="row" style={{ gap: 8, flexShrink: 0 }}>
             {contract.status === 'pending' && (
-              <button
-                onClick={() => processMutation.mutate()}
+              <Button
+                variant="secondary"
+                icon={ArrowPathIcon}
                 disabled={processMutation.isPending}
-                className="btn-secondary"
+                onClick={() => processMutation.mutate()}
               >
-                {processMutation.isPending ? (
-                  <LoadingSpinner size="sm" className="mr-2" />
-                ) : (
-                  <ArrowPathIcon className="h-4 w-4 mr-2" />
-                )}
                 {t('contract.process')}
-              </button>
+              </Button>
             )}
             {isCompleted && (
-              <button
-                onClick={() => analyzeMutation.mutate()}
+              <Button
+                variant="primary"
+                icon={SparklesIcon}
                 disabled={analyzeMutation.isPending}
-                className="btn-primary"
+                onClick={() => analyzeMutation.mutate()}
               >
-                {analyzeMutation.isPending ? (
-                  <LoadingSpinner size="sm" className="mr-2 border-white border-t-transparent" />
-                ) : (
-                  <ShieldExclamationIcon className="h-4 w-4 mr-2" />
-                )}
                 {t('contract.reanalyze')}
-              </button>
+              </Button>
             )}
-            <Link
-              to={`/query?contract=${contract.id}`}
-              className="btn-secondary"
+            <Button
+              variant="secondary"
+              icon={ChatBubbleLeftRightIcon}
+              onClick={() => navigate(`/query?contract=${contract.id}`)}
             >
               {t('dashboard.actions.askAi')}
-            </Link>
-            {!showDeleteConfirm ? (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <TrashIcon className="h-4 w-4" />
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="btn-secondary text-sm py-1"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  onClick={() => deleteMutation.mutate()}
-                  disabled={deleteMutation.isPending}
-                  className="btn-secondary text-sm py-1 bg-red-600 text-white hover:bg-red-700"
-                >
-                  {deleteMutation.isPending ? t('contracts.deleting') : t('common.delete')}
-                </button>
-              </div>
-            )}
+            </Button>
+            <Button
+              variant="danger-ghost"
+              icon={TrashIcon}
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              {t('common.delete')}
+            </Button>
           </div>
         </div>
-      </div>
 
-      {/* Tab Navigation */}
-      <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6">
-        <nav className="flex gap-6" aria-label="Tabs">
-          {tabs.map((tab) => {
-            // Hide analysis tabs for non-completed contracts
-            // overview and sharing are always visible
-            if (!isCompleted && tab.id !== 'overview' && tab.id !== 'sharing') {
-              return null
-            }
-            const Icon = tab.iconComponent
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-medium transition-colors',
-                  activeTab === tab.id
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {t(`contract.tabs.${tab.id}`, { defaultValue: tab.label })}
-              </button>
-            )
-          })}
-        </nav>
-      </div>
-
-      {/* Review Tab - full-bleed, no padding */}
-      {activeTab === 'review' && isCompleted && id && (
-        <div className="flex-1 overflow-hidden">
-          <ContractReviewPane contractId={id} contract={contract} />
-        </div>
-      )}
-
-      {/* Quality Tab (Manufacturing) - full-bleed with PDF viewer */}
-      {activeTab === 'quality' && isCompleted && id && (
-        <div className="flex-1 overflow-hidden">
-          <ClauseFilteredTab
-            contractId={id}
-            contract={contract}
-            title={t('contract.qualityClausesTitle')}
-            clauseTypes={['warranty', 'limitation_of_liability', 'governance', 'definitions', 'data_protection']}
-            emptyMessage={t('contract.qualityClausesEmpty')}
-          />
-        </div>
-      )}
-
-      {/* Supply Chain Tab (Manufacturing) - full-bleed with PDF viewer */}
-      {activeTab === 'supply_chain' && isCompleted && id && (
-        <div className="flex-1 overflow-hidden">
-          <ClauseFilteredTab
-            contractId={id}
-            contract={contract}
-            title={t('contract.supplyChainClausesTitle')}
-            clauseTypes={['scope', 'payment_terms', 'termination', 'confidentiality', 'intellectual_property']}
-            emptyMessage={t('contract.supplyChainClausesEmpty')}
-          />
-        </div>
-      )}
-
-      {/* Tab Content (all tabs except review, quality, supply_chain) */}
-      {activeTab !== 'review' && activeTab !== 'quality' && activeTab !== 'supply_chain' && (
-      <div className="flex-1 overflow-auto p-6 bg-gray-50">
         {/* Processing error banner */}
         {contract.processing_error && (
-          <div className="mb-6 p-4 rounded-lg border border-red-200 bg-red-50">
-            <p className="text-sm font-medium text-red-800">{t('contract.processingError')}</p>
-            <p className="text-sm text-red-700 mt-1">{contract.processing_error}</p>
+          <div className="banner banner-da" style={{ marginTop: 14 }}>
+            <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+            <span className="grow">
+              <b>{t('contract.processingError')}</b> — {contract.processing_error}
+            </span>
           </div>
         )}
 
-        {/* Overview Tab */}
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left column - Details */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Contract Details */}
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="text-sm font-medium text-gray-900">{t('contract.contractDetails')}</h2>
+        {/* Tab navigation */}
+        <Tabs tabs={tabDefs} value={activeTab} onChange={setActiveTab} style={{ marginTop: 16 }} />
+      </div>
+
+      {/* Full-bleed panes (review, quality, supply chain) */}
+      {isFullBleed && id && (
+        <div className="grow" style={{ minHeight: 0, overflow: 'hidden' }}>
+          {activeTab === 'review' && <ContractReviewPane contractId={id} contract={contract} />}
+          {activeTab === 'quality' && (
+            <ClauseFilteredTab
+              contractId={id}
+              contract={contract}
+              title={t('contract.qualityClausesTitle')}
+              clauseTypes={['warranty', 'limitation_of_liability', 'governance', 'definitions', 'data_protection']}
+              emptyMessage={t('contract.qualityClausesEmpty')}
+            />
+          )}
+          {activeTab === 'supply_chain' && (
+            <ClauseFilteredTab
+              contractId={id}
+              contract={contract}
+              title={t('contract.supplyChainClausesTitle')}
+              clauseTypes={['scope', 'payment_terms', 'termination', 'confidentiality', 'intellectual_property']}
+              emptyMessage={t('contract.supplyChainClausesEmpty')}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Scrolling panes */}
+      {!isFullBleed && (
+        <div className="scroll grow" style={{ padding: 24, minHeight: 0 }}>
+          {/* Overview Tab */}
+          {activeTab === 'overview' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Left column — extracted metadata */}
+              <div className="lg:col-span-2 col" style={{ gap: 14 }}>
+                {/* AI explainer + confidence legend */}
+                <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+                  <div className="banner banner-p grow" style={{ minWidth: 260 }}>
+                    <SparklesIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+                    <span>
+                      {t('contract.aiValuesExplainer', {
+                        defaultValue: 'Values marked AI were extracted by the pipeline and carry a confidence score and a source sentence. Hover any score to see the exact wording it came from.',
+                      })}
+                    </span>
+                  </div>
+                  <div className="card card-p row" style={{ gap: 14, flexShrink: 0, alignSelf: 'flex-start' }}>
+                    {([['≥ 0.90', 'var(--ok)'], ['0.60–0.89', 'var(--wa)'], ['< 0.60', 'var(--da)']] as const).map((l) => (
+                      <span key={l[0]} className="row" style={{ gap: 6, fontSize: 'var(--fs-sm)', color: 'var(--m)' }}>
+                        <span style={{ width: 18, height: 5, borderRadius: 3, background: l[1] }} />{l[0]}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="card-body grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <EditableField
-                    label={uiLabel('counterparty', t('contracts.counterparty'))}
-                    value={contract.counterparty}
-                    fieldName="counterparty"
-                    onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
-                    canEdit={canEditCustomFields}
-                    provenance={contract.metadata_provenance?.counterparty}
-                    onReExtract={canEditCustomFields ? (h) => handleReExtract('counterparty', h) : undefined}
-                    reExtracting={reExtractPending.counterparty}
-                    reExtractResult={reExtractResult.counterparty}
-                  />
-                  <EditableField
-                    label={uiLabel('contract_value', t('contract.contractValue'))}
-                    value={contract.contract_value ? String(contract.contract_value) : null}
-                    displayValue={contract.contract_value ? formatCurrency(contract.contract_value, contract.currency || 'USD') : null}
-                    fieldName="contract_value"
-                    type="number"
-                    onSave={(field, val) => updateMetadataMutation.mutate({ [field]: Number(val) })}
-                    canEdit={canEditCustomFields}
-                    provenance={contract.metadata_provenance?.contract_value}
-                    onReExtract={canEditCustomFields ? (h) => handleReExtract('contract_value', h) : undefined}
-                    reExtracting={reExtractPending.contract_value}
-                    reExtractResult={reExtractResult.contract_value}
-                  />
-                  <EditableField
-                    label={t('contract.contractType')}
-                    value={contract.contract_type || null}
-                    displayValue={contract.contract_type ? contractTypeLabel(contract.contract_type) : null}
-                    fieldName="contract_type"
-                    onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
-                    canEdit={canEditCustomFields}
-                    provenance={contract.metadata_provenance?.contract_type}
-                    onReExtract={canEditCustomFields ? (h) => handleReExtract('contract_type', h) : undefined}
-                    reExtracting={reExtractPending.contract_type}
-                    reExtractResult={reExtractResult.contract_type}
-                  />
-                  <EditableField
-                    label={t('contract.effectiveDate')}
-                    value={contract.effective_date || null}
-                    displayValue={formatDate(contract.effective_date)}
-                    fieldName="effective_date"
-                    type="date"
-                    onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
-                    canEdit={canEditCustomFields}
-                    provenance={contract.metadata_provenance?.effective_date}
-                    onReExtract={canEditCustomFields ? (h) => handleReExtract('effective_date', h) : undefined}
-                    reExtracting={reExtractPending.effective_date}
-                    reExtractResult={reExtractResult.effective_date}
-                  />
-                  <EditableField
-                    label={t('contract.expirationDate')}
-                    value={contract.expiration_date || null}
-                    displayValue={formatDate(contract.expiration_date)}
-                    fieldName="expiration_date"
-                    type="date"
-                    onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
-                    canEdit={canEditCustomFields}
-                    provenance={contract.metadata_provenance?.expiration_date}
-                    onReExtract={canEditCustomFields ? (h) => handleReExtract('expiration_date', h) : undefined}
-                    reExtracting={reExtractPending.expiration_date}
-                    reExtractResult={reExtractResult.expiration_date}
-                  />
-                  <EditableField
-                    label={t('contract.jurisdiction')}
-                    value={contract.jurisdiction}
-                    fieldName="jurisdiction"
-                    onSave={(field, val) => updateMetadataMutation.mutate({ [field]: val })}
-                    canEdit={canEditCustomFields}
-                    provenance={contract.metadata_provenance?.jurisdiction}
-                    onReExtract={canEditCustomFields ? (h) => handleReExtract('jurisdiction', h) : undefined}
-                    reExtracting={reExtractPending.jurisdiction}
-                    reExtractResult={reExtractResult.jurisdiction}
-                  />
-                  <div>
-                    <p className="text-xs text-gray-500">{t('contract.autoRenewal')}</p>
-                    <p className="text-sm font-medium text-gray-900">
+
+                {/* Contract details */}
+                <div className="tbl-w">
+                  <div
+                    className="row sec-t"
+                    style={{ padding: '10px 14px', background: 'var(--s3)', borderBottom: '1px solid var(--b)' }}
+                  >
+                    {t('contract.contractDetails')}
+                  </div>
+                  {metaFields.map((f) => (
+                    <MetaRow
+                      key={f.key}
+                      label={f.label}
+                      rawValue={f.rawValue}
+                      displayValue={f.displayValue}
+                      type={f.type}
+                      canEdit={canEditCustomFields}
+                      provenance={provenance[f.key]}
+                      onSave={f.save}
+                      onViewSource={
+                        provenance[f.key]?.raw_text
+                          ? () => {
+                              setHint('')
+                              setSrcField({
+                                key: f.key,
+                                label: f.label,
+                                display: f.displayValue || f.rawValue || '—',
+                                reExtractable: f.reExtractable,
+                              })
+                            }
+                          : undefined
+                      }
+                    />
+                  ))}
+                  {/* Plain fields — no confidence/source info in the payload */}
+                  <div className="row" style={{ gap: 12, minHeight: 46, padding: '8px 14px', borderBottom: '1px solid var(--b)' }}>
+                    <span className="muted" style={{ width: 168, flexShrink: 0, fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                      {t('contract.autoRenewal')}
+                    </span>
+                    <span className="grow" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
                       {contract.auto_renewal ? t('common.yes') : t('common.no')}
-                      {contract.notice_period_days && ` ${t('contract.noticeDays', { days: contract.notice_period_days })}`}
-                    </p>
+                      {contract.notice_period_days ? ` ${t('contract.noticeDays', { days: contract.notice_period_days })}` : ''}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500">{t('contract.renewalTerm')}</p>
-                    <p className="text-sm font-medium text-gray-900">
-                      {contract.renewal_term_months ? t('contract.months', { count: contract.renewal_term_months }) : '-'}
-                    </p>
+                  <div className="row" style={{ gap: 12, minHeight: 46, padding: '8px 14px', borderBottom: '1px solid var(--b)' }}>
+                    <span className="muted" style={{ width: 168, flexShrink: 0, fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                      {t('contract.renewalTerm')}
+                    </span>
+                    <span className="grow" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                      {contract.renewal_term_months ? t('contract.months', { count: contract.renewal_term_months }) : '—'}
+                    </span>
                   </div>
-                  {/* Industry Profile selector */}
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">{t('contract.industryProfile')}</p>
+                  <div className="row" style={{ gap: 12, minHeight: 46, padding: '8px 14px' }}>
+                    <span className="muted" style={{ width: 168, flexShrink: 0, fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                      {t('contract.industryProfile')}
+                    </span>
                     {canEditCustomFields ? (
-                      <select
+                      <Select
                         value={contract.industry_profile_id || ''}
                         onChange={(e) => updateMetadataMutation.mutate({ industry_profile_id: e.target.value || null })}
-                        className="w-full text-sm border border-gray-200 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
-                      >
-                        <option value="">{t('contract.inheritFromTenant')}</option>
-                        {industryProfiles.map((p: any) => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
+                        containerStyle={{ maxWidth: 260, flexGrow: 1 }}
+                        options={[
+                          { value: '', label: t('contract.inheritFromTenant') },
+                          ...industryProfiles.map((p: any) => ({ value: p.id, label: p.name })),
+                        ]}
+                      />
                     ) : (
-                      <p className="text-sm font-medium text-gray-900">
+                      <span className="grow" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
                         {industryProfiles.find((p: any) => p.id === contract.industry_profile_id)?.name || t('contract.tenantDefault')}
-                      </p>
+                      </span>
                     )}
                   </div>
                 </div>
+
+                {/* Custom Fields */}
+                <CustomFieldsDisplay contract={contract} canEdit={canEditCustomFields} />
+
+                {/* Risk Assessment - only show if analyzed */}
+                {contract.risk_score !== null && (
+                  <div className="card card-p col" style={{ gap: 12 }}>
+                    <div className="sec-t">{t('contract.riskAssessment')}</div>
+                    <RiskGauge score={contract.risk_score} level={contract.risk_level} />
+                    <p className="muted" style={{ fontSize: 'var(--fs-md)' }}>
+                      {t('contract.riskBasis', { clauses: contract.clause_count, obligations: contract.obligation_count })}
+                    </p>
+                    {isCompleted && (
+                      <div className="row">
+                        <Button variant="ghost" size="sm" icon={DocumentMagnifyingGlassIcon} onClick={() => setActiveTab('review')}>
+                          {t('contract.viewDetailedAnalysis')}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Custom Fields */}
-              <CustomFieldsDisplay contract={contract} canEdit={canEditCustomFields} />
-
-              {/* Risk Assessment - only show if analyzed */}
-              {contract.risk_score !== null && (
-                <div className="card">
-                  <div className="card-header">
-                    <h2 className="text-sm font-medium text-gray-900">{t('contract.riskAssessment')}</h2>
-                  </div>
-                  <div className="card-body">
-                    <div className="flex items-center gap-6">
-                      <div className={cn(
-                        'h-20 w-20 rounded-full flex items-center justify-center text-2xl font-bold',
-                        getRiskColor(contract.risk_level)
-                      )}>
-                        {contract.risk_score}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-lg font-medium text-gray-900 capitalize mb-1">
-                          {t('contract.riskLabel', { level: t(`risk.${contract.risk_level}`, { defaultValue: contract.risk_level }) })}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {t('contract.riskBasis', { clauses: contract.clause_count, obligations: contract.obligation_count })}
-                        </p>
-                        {isCompleted && (
-                          <button
-                            onClick={() => setActiveTab('review')}
-                            className="text-sm text-primary-600 hover:text-primary-700 mt-2"
-                          >
-                            {t('contract.viewDetailedAnalysis')}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Right column - File info & stats */}
-            <div className="space-y-6">
-              {/* File Information */}
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="text-sm font-medium text-gray-900">{t('contract.fileInformation')}</h2>
-                </div>
-                <div className="card-body space-y-4">
-                  <div className="flex items-center gap-3">
-                    <DocumentTextIcon className="h-10 w-10 text-gray-400" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {contract.filename}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatFileSize(contract.file_size)} • {contract.mime_type}
+              {/* Right column — file info & stats */}
+              <div className="col" style={{ gap: 14 }}>
+                {/* File Information */}
+                <div className="card card-p col" style={{ gap: 12 }}>
+                  <div className="sec-t">{t('contract.fileInformation')}</div>
+                  <div className="row" style={{ gap: 10 }}>
+                    <DocumentTextIcon style={{ width: 32, height: 32, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
+                    <div style={{ minWidth: 0 }}>
+                      <p className="trunc" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>{contract.filename}</p>
+                      <p className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
+                        {formatFileSize(contract.file_size)} · {contract.mime_type}
                       </p>
                     </div>
                   </div>
-                  <div className="pt-4 border-t border-gray-200 space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">{t('contract.uploaded')}</span>
-                      <span className="text-gray-900">{formatDate(contract.created_at)}</span>
+                  <div className="col" style={{ gap: 8, paddingTop: 10, borderTop: '1px solid var(--b)' }}>
+                    <div className="row" style={{ fontSize: 'var(--fs-sm)' }}>
+                      <span className="muted grow">{t('contract.uploaded')}</span>
+                      <span className="num">{formatDate(contract.created_at)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">{t('contract.lastUpdated')}</span>
-                      <span className="text-gray-900">{formatDate(contract.updated_at)}</span>
+                    <div className="row" style={{ fontSize: 'var(--fs-sm)' }}>
+                      <span className="muted grow">{t('contract.lastUpdated')}</span>
+                      <span className="num">{formatDate(contract.updated_at)}</span>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Extraction Health — surfaces silent pipeline failures */}
-              {isCompleted && contract.extraction_health && Object.keys(contract.extraction_health).length > 0 && (
-                <ExtractionHealthPanel health={contract.extraction_health} />
-              )}
+                {/* Extraction Health — surfaces silent pipeline failures */}
+                {isCompleted && contract.extraction_health && Object.keys(contract.extraction_health).length > 0 && (
+                  <ExtractionHealthPanel health={contract.extraction_health} />
+                )}
 
-              {/* Extraction Stats */}
-              {isCompleted && (
-                <div className="card">
-                  <div className="card-header">
-                    <h2 className="text-sm font-medium text-gray-900">{t('contract.extractionSummary')}</h2>
-                  </div>
-                  <div className="card-body">
-                    <div className="grid grid-cols-2 gap-4">
-                      <button
+                {/* Extraction Stats */}
+                {isCompleted && (
+                  <div className="col" style={{ gap: 8 }}>
+                    <div className="sec-t">{t('contract.extractionSummary')}</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Stat
+                        icon={DocumentTextIcon}
+                        label={t('contract.clauses')}
+                        value={contract.clause_count}
                         onClick={() => setActiveTab('review')}
-                        className="text-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
-                      >
-                        <p className="text-2xl font-bold text-gray-900">{contract.clause_count}</p>
-                        <p className="text-xs text-gray-500">{t('contract.clauses')}</p>
-                      </button>
-                      <button
+                      />
+                      <Stat
+                        icon={CheckCircleIcon}
+                        label={t('contract.obligations')}
+                        value={contract.obligation_count}
                         onClick={() => setActiveTab('review')}
-                        className="text-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
-                      >
-                        <p className="text-2xl font-bold text-gray-900">{contract.obligation_count}</p>
-                        <p className="text-xs text-gray-500">{t('contract.obligations')}</p>
-                      </button>
-                      <button
+                      />
+                      <Stat
+                        icon={ChartBarIcon}
+                        label={t('contract.slas')}
+                        value={contract.sla_count || 0}
                         onClick={() => setActiveTab('slas')}
-                        className="text-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
-                      >
-                        <p className="text-2xl font-bold text-gray-900">{contract.sla_count || 0}</p>
-                        <p className="text-xs text-gray-500">{t('contract.slas')}</p>
-                      </button>
-                      <button
+                      />
+                      <Stat
+                        icon={LinkIcon}
+                        label={t('contract.related')}
+                        value="→"
                         onClick={() => setActiveTab('related')}
-                        className="text-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
-                      >
-                        <p className="text-2xl font-bold text-primary-600">→</p>
-                        <p className="text-xs text-gray-500">{t('contract.related')}</p>
-                      </button>
+                      />
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
+          )}
+
+          {/* SLAs Tab */}
+          {activeTab === 'slas' && isCompleted && id && <SLASummary contractId={id} />}
+
+          {/* Related Docs Tab */}
+          {activeTab === 'related' && isCompleted && id && <SuggestedLinksPanel contractId={id} />}
+
+          {/* Documents Tab */}
+          {activeTab === 'documents' && id && <ContractDocumentsTab contractId={id} />}
+
+          {/* Sharing Tab */}
+          {activeTab === 'sharing' && id && <ContractSharing contractId={id} />}
+        </div>
+      )}
+
+      {/* Source-provenance drawer (with per-field re-extraction) */}
+      <Drawer
+        open={!!srcField}
+        title={t('contract.sourceProvenance', { defaultValue: 'Source provenance' })}
+        sub={srcField ? `${contract.id.slice(0, 8)} · ${srcField.label}` : ''}
+        onClose={() => setSrcField(null)}
+        footer={
+          srcField && srcField.reExtractable && canEditCustomFields ? (
+            <Button
+              variant="primary"
+              icon={ArrowPathIcon}
+              className="grow"
+              disabled={srcPending}
+              onClick={() => handleReExtract(srcField.key as ReExtractableField, hint.trim() || undefined)}
+            >
+              {srcPending ? t('contract.reExtracting') : t('contract.reExtractField')}
+            </Button>
+          ) : undefined
+        }
+      >
+        {srcField && (
+          <div className="col" style={{ gap: 18 }}>
+            <div>
+              <div className="sec-t" style={{ marginBottom: 7 }}>
+                {t('contract.extractedValue', { defaultValue: 'Extracted value' })}
+              </div>
+              <div className="row" style={{ gap: 10 }}>
+                <b style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600 }}>{srcField.display}</b>
+                {srcProvenance && <ConfBand v={srcProvenance.confidence} />}
+              </div>
+            </div>
+            <div>
+              <div className="sec-t" style={{ marginBottom: 7 }}>
+                {t('contract.aiExtractedFrom')}
+              </div>
+              <div
+                style={{
+                  padding: 14, borderRadius: 'var(--r-md)', background: 'var(--s2)',
+                  fontSize: 'var(--fs-md)', lineHeight: 1.65,
+                }}
+              >
+                "{srcProvenance?.raw_text}"
+              </div>
+              <div className="mono faint" style={{ fontSize: 'var(--fs-xs)', marginTop: 8 }}>
+                {t('contract.provenanceAgent', { defaultValue: 'metadata agent' })}
+              </div>
+              <p className="faint" style={{ fontSize: 'var(--fs-xs)', marginTop: 6 }}>
+                {t('contract.sourceQuoteNote')}
+              </p>
+            </div>
+            {srcField.reExtractable && canEditCustomFields && (
+              <div>
+                <div className="sec-t" style={{ marginBottom: 7 }}>{t('contract.reExtract')}</div>
+                <label className="lbl">{t('contract.hintLabel')}</label>
+                <div className="inp" style={{ height: 'auto', padding: 10, alignItems: 'flex-start' }}>
+                  <textarea
+                    rows={2}
+                    value={hint}
+                    onChange={(e) => setHint(e.target.value)}
+                    placeholder={t('contract.hintPlaceholder')}
+                    style={{ resize: 'vertical', lineHeight: 1.55, width: '100%', background: 'transparent', border: 0, outline: 'none', color: 'inherit', font: 'inherit', fontSize: 'var(--fs-md)' }}
+                  />
+                </div>
+                {srcResult && !srcPending && (
+                  <p
+                    style={{
+                      marginTop: 8, fontSize: 'var(--fs-sm)',
+                      color: srcResult.applied ? 'var(--ok)' : 'var(--wa)',
+                    }}
+                  >
+                    {srcResult.applied
+                      ? t('contract.reExtractApplied')
+                      : srcResult.reason || t('contract.reExtractNotApplied')}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
-
-        {/* SLAs Tab */}
-        {activeTab === 'slas' && isCompleted && id && (
-          <SLASummary contractId={id} />
-        )}
-
-        {/* Related Docs Tab */}
-        {activeTab === 'related' && isCompleted && id && (
-          <SuggestedLinksPanel contractId={id} />
-        )}
-
-        {/* Documents Tab */}
-        {activeTab === 'documents' && id && (
-          <ContractDocumentsTab contractId={id} />
-        )}
-
-        {/* Sharing Tab */}
-        {activeTab === 'sharing' && id && (
-          <ContractSharing contractId={id} />
-        )}
-      </div>
-      )}
+      </Drawer>
     </div>
   )
 }
-
 
 const CLAUSE_LABELS: Record<string, string> = {
   quality_assurance: 'Quality Assurance',
@@ -806,216 +1117,6 @@ const CLAUSE_LABELS: Record<string, string> = {
   other: 'Other',
 }
 
-const RISK_COLORS: Record<string, string> = {
-  low: 'bg-green-100 text-green-700',
-  medium: 'bg-amber-100 text-amber-700',
-  high: 'bg-red-100 text-red-700',
-  critical: 'bg-purple-100 text-purple-700',
-}
-
-/** Inline-editable metadata field with pencil icon */
-function EditableField({
-  label,
-  value,
-  displayValue,
-  fieldName,
-  onSave,
-  type = 'text',
-  canEdit,
-  provenance,
-  onReExtract,
-  reExtracting,
-  reExtractResult,
-}: {
-  label: string
-  value: string | null | undefined
-  displayValue?: string | null
-  fieldName: string
-  onSave: (field: string, val: string) => void
-  type?: 'text' | 'date' | 'number'
-  canEdit: boolean
-  provenance?: { raw_text: string; confidence: number } | null
-  /** When provided, the provenance popover gets a "Re-extract" button. */
-  onReExtract?: (hint: string | undefined) => void
-  reExtracting?: boolean
-  reExtractResult?: { applied: boolean; reason?: string | null } | null
-}) {
-  const { t } = useTranslation()
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value || '')
-  const [showProvenance, setShowProvenance] = useState(false)
-  const [showHint, setShowHint] = useState(false)
-  const [hint, setHint] = useState('')
-
-  const handleSave = () => {
-    if (draft !== (value || '')) {
-      onSave(fieldName, draft)
-    }
-    setEditing(false)
-  }
-
-  const handleCancel = () => {
-    setDraft(value || '')
-    setEditing(false)
-  }
-
-  const shown = displayValue !== undefined ? (displayValue || '-') : (value || '-')
-
-  if (editing) {
-    return (
-      <div>
-        <p className="text-xs text-gray-500 mb-1">{label}</p>
-        <div className="flex items-center gap-1">
-          <input
-            type={type}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') handleCancel() }}
-            autoFocus
-            className="text-sm font-medium text-gray-900 border border-primary-300 rounded px-2 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary-500"
-          />
-          <button onClick={handleSave} className="p-0.5 text-green-600 hover:text-green-700">
-            <CheckIcon className="h-4 w-4" />
-          </button>
-          <button onClick={handleCancel} className="p-0.5 text-gray-400 hover:text-gray-600">
-            <XMarkIcon className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="group relative">
-      <p className="text-xs text-gray-500">{label}</p>
-      <div className="flex items-center gap-1">
-        <p className="text-sm font-medium text-gray-900">{shown}</p>
-        {provenance && provenance.raw_text && (
-          <button
-            onClick={() => setShowProvenance((s) => !s)}
-            className={cn(
-              'p-0.5 text-gray-400 hover:text-primary-600 transition-colors',
-              showProvenance && 'text-primary-600'
-            )}
-            title={t('contract.showExtractionSource')}
-            aria-label={`${t('contract.showExtractionSource')} — ${label}`}
-          >
-            <InformationCircleIcon className="h-3.5 w-3.5" />
-          </button>
-        )}
-        {canEdit && (
-          <button
-            onClick={() => { setDraft(value || ''); setEditing(true) }}
-            className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-primary-600 transition-opacity"
-            title={`${t('common.edit')} — ${label}`}
-          >
-            <PencilIcon className="h-3 w-3" />
-          </button>
-        )}
-      </div>
-      {showProvenance && provenance && (
-        <div className="absolute z-20 left-0 top-full mt-1 w-80 rounded-md border border-gray-200 bg-white shadow-lg p-3 text-xs">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="font-medium text-gray-700">{t('contract.aiExtractedFrom')}</span>
-            <span
-              className={cn(
-                'px-1.5 py-0.5 rounded text-xs font-medium',
-                provenance.confidence >= 0.85 ? 'bg-green-50 text-green-700' :
-                provenance.confidence >= 0.6 ? 'bg-amber-50 text-amber-700' :
-                'bg-red-50 text-red-700'
-              )}
-              title={t('contract.extractionConfidence')}
-            >
-              {Math.round(provenance.confidence * 100)}%
-            </span>
-          </div>
-          <p className="text-gray-700 italic leading-snug">"{provenance.raw_text}"</p>
-          <p className="text-[10px] text-gray-400 mt-2">
-            {t('contract.sourceQuoteNote')}
-          </p>
-
-          {/* Re-extract action — only available for the 7 metadata fields */}
-          {onReExtract && (
-            <div className="mt-3 pt-2 border-t border-gray-100">
-              {!showHint ? (
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => onReExtract(undefined)}
-                    disabled={reExtracting}
-                    className={cn(
-                      'inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium',
-                      reExtracting
-                        ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                        : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
-                    )}
-                  >
-                    {reExtracting ? (
-                      <>
-                        <ArrowPathIcon className="h-3 w-3 animate-spin" />
-                        {t('contract.reExtracting')}
-                      </>
-                    ) : (
-                      <>
-                        <ArrowPathIcon className="h-3 w-3" />
-                        {t('contract.reExtractField')}
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setShowHint(true)}
-                    disabled={reExtracting}
-                    className="text-xs text-gray-500 hover:text-gray-700 underline"
-                  >
-                    {t('contract.addHint')}
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <label className="text-[11px] text-gray-600">
-                    {t('contract.hintLabel')}
-                  </label>
-                  <textarea
-                    value={hint}
-                    onChange={(e) => setHint(e.target.value)}
-                    placeholder={t('contract.hintPlaceholder')}
-                    rows={2}
-                    className="w-full text-xs border border-gray-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => { onReExtract(hint.trim() || undefined); setShowHint(false); setHint('') }}
-                      disabled={reExtracting}
-                      className="px-2 py-1 rounded text-xs font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
-                    >
-                      {t('contract.reExtract')}
-                    </button>
-                    <button
-                      onClick={() => { setShowHint(false); setHint('') }}
-                      className="text-xs text-gray-500 hover:text-gray-700"
-                    >
-                      {t('common.cancel')}
-                    </button>
-                  </div>
-                </div>
-              )}
-              {reExtractResult && !reExtracting && (
-                <p className={cn(
-                  'mt-1.5 text-[11px]',
-                  reExtractResult.applied ? 'text-green-700' : 'text-amber-700'
-                )}>
-                  {reExtractResult.applied
-                    ? t('contract.reExtractApplied')
-                    : reExtractResult.reason || t('contract.reExtractNotApplied')}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 /** Compact collapsible clause row — matches the Review tab style */
 function ClauseCompactRow({ clause, onViewSource, isActive }: { clause: any; onViewSource: () => void; isActive?: boolean }) {
   const { t } = useTranslation()
@@ -1029,48 +1130,68 @@ function ClauseCompactRow({ clause, onViewSource, isActive }: { clause: any; onV
   const displayText = showFull || !isLongText ? clause.text : clause.text.substring(0, 300) + '...'
 
   return (
-    <div className={cn('px-4 py-2.5 hover:bg-gray-50 cursor-pointer', isActive && 'bg-primary-50 border-l-2 border-primary-500')}>
-      <div className="flex items-center gap-2" onClick={onViewSource}>
-        <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded) }} className="flex-1 flex items-center gap-2 text-left min-w-0">
+    <div
+      className={cn('cursor-pointer', !isActive && 'hover:bg-[var(--s2)]')}
+      style={{
+        padding: '10px 14px',
+        borderBottom: '1px solid var(--b)',
+        borderLeft: isActive ? '2px solid var(--p)' : '2px solid transparent',
+        background: isActive ? 'var(--p-f)' : undefined,
+      }}
+    >
+      <div className="row" style={{ gap: 8 }} onClick={onViewSource}>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded) }}
+          className="grow row text-left"
+          style={{ gap: 8, minWidth: 0, background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'inherit' }}
+        >
           {expanded
-            ? <ChevronDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
-            : <ChevronRightIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+            ? <ChevronDownIcon style={{ width: 12, height: 12, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
+            : <ChevronRightIcon style={{ width: 12, height: 12, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
           }
-          <span className="text-xs font-medium text-primary-600 flex-shrink-0">{label}</span>
+          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--p)', flexShrink: 0 }}>{label}</span>
           {clause.section_number && (
-            <span className="text-xs text-gray-400 flex-shrink-0">{clause.section_number}</span>
+            <span className="mono faint" style={{ fontSize: 'var(--fs-xs)', flexShrink: 0 }}>{clause.section_number}</span>
           )}
-          <span className="text-xs text-gray-600 truncate">{preview}...</span>
+          <span className="muted trunc" style={{ fontSize: 'var(--fs-sm)' }}>{preview}...</span>
         </button>
         {clause.risk_level && (
-          <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0', RISK_COLORS[clause.risk_level] || 'bg-gray-100 text-gray-600')}>
+          <Pill tone={RISK_TONE[String(clause.risk_level).toLowerCase()] || 'n'}>
             {t(`risk.${clause.risk_level}`, { defaultValue: clause.risk_level })}
-          </span>
+          </Pill>
         )}
         {clause.page_number && (
-          <span className="text-[10px] text-gray-400 flex-shrink-0">p.{clause.page_number}</span>
+          <span className="mono faint" style={{ fontSize: 'var(--fs-xs)', flexShrink: 0 }}>p.{clause.page_number}</span>
         )}
-        <button
+        <IconButton
+          icon={DocumentMagnifyingGlassIcon}
+          label={clause.page_number ? t('contract.viewOnPage', { page: clause.page_number }) : t('contract.highlightInPdf')}
+          size="sm"
           onClick={(e) => { e.stopPropagation(); onViewSource() }}
-          title={clause.page_number ? t('contract.viewOnPage', { page: clause.page_number }) : t('contract.highlightInPdf')}
-          className="p-1 rounded hover:bg-primary-100 text-primary-600 flex-shrink-0"
-        >
-          <DocumentMagnifyingGlassIcon className="h-4 w-4" />
-        </button>
+        />
       </div>
       {expanded && (
-        <div className="mt-2 ml-5 space-y-2">
-          <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{displayText}</p>
+        <div className="col" style={{ marginTop: 8, marginLeft: 20, gap: 8 }}>
+          <p style={{ fontSize: 'var(--fs-sm)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{displayText}</p>
           {isLongText && (
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); setShowFull(!showFull) }}
-              className="text-[10px] font-medium text-primary-600 hover:text-primary-700"
+              style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', alignSelf: 'flex-start', fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--p)' }}
             >
               {showFull ? t('contract.showLess') : t('contract.showFullText')}
             </button>
           )}
           {clause.risk_reason && (
-            <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">{clause.risk_reason}</p>
+            <p
+              style={{
+                fontSize: 'var(--fs-sm)', padding: '6px 10px', borderRadius: 'var(--r-sm)',
+                background: 'var(--wa-f)', color: 'var(--wa)',
+              }}
+            >
+              {clause.risk_reason}
+            </p>
           )}
         </div>
       )}
@@ -1133,27 +1254,32 @@ function ClauseFilteredTab({
   return (
     <div className="flex h-full">
       {/* Left Pane: Clause List */}
-      <div className="flex-shrink-0 overflow-y-auto border-r border-gray-200 bg-gray-50" style={{ width: '45%' }}>
-        <div className="sticky top-0 bg-gray-50 border-b border-gray-200 px-4 py-3 z-10">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-            <span className="text-xs text-gray-500">
+      <div
+        className="flex-shrink-0 overflow-y-auto scroll"
+        style={{ width: '45%', borderRight: '1px solid var(--b)', background: 'var(--s3)' }}
+      >
+        <div
+          style={{
+            position: 'sticky', top: 0, zIndex: 10, padding: '10px 14px',
+            background: 'var(--s3)', borderBottom: '1px solid var(--b)',
+          }}
+        >
+          <div className="row" style={{ gap: 8 }}>
+            <span className="sec-t grow">{title}</span>
+            <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>
               {t('contract.relevantTotal', { relevant: filtered.length, total: allClauses?.length || 0 })}
             </span>
           </div>
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-8"><LoadingSpinner size="lg" /></div>
+          <div className="row" style={{ justifyContent: 'center', padding: 32 }}><LoadingSpinner size="lg" /></div>
         ) : !allClauses || allClauses.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">
-            <DocumentTextIcon className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-            <p className="text-sm">{emptyMessage}</p>
-          </div>
+          <EmptyState icon={DocumentTextIcon} title={emptyMessage} />
         ) : (
           <>
             {filtered.length > 0 ? (
-              <div className="divide-y divide-gray-100">
+              <div>
                 {filtered.map((clause) => (
                   <ClauseCompactRow
                     key={clause.id}
@@ -1164,17 +1290,20 @@ function ClauseFilteredTab({
                 ))}
               </div>
             ) : (
-              <div className="p-6 text-center text-gray-400 text-sm">
+              <div className="faint" style={{ padding: 24, textAlign: 'center', fontSize: 'var(--fs-md)' }}>
                 {t('contract.noMatchingClauses')}
               </div>
             )}
 
             {others.length > 0 && (
-              <details className="border-t border-gray-200">
-                <summary className="text-xs font-medium text-gray-500 cursor-pointer hover:text-gray-700 px-4 py-2 bg-gray-100">
+              <details style={{ borderTop: '1px solid var(--b)' }}>
+                <summary
+                  className="sec-t cursor-pointer"
+                  style={{ padding: '8px 14px', background: 'var(--s2)' }}
+                >
                   {t('contract.otherClauses', { count: others.length })}
                 </summary>
-                <div className="divide-y divide-gray-100 opacity-75">
+                <div style={{ opacity: 0.75 }}>
                   {others.map((clause) => (
                     <ClauseCompactRow
                       key={clause.id}
