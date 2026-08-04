@@ -59,13 +59,24 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown."""
     logger.info("Application starting up", app_name=settings.app_name)
 
-    if (
-        settings.security_profile == "enterprise"
-        and settings.jwt_secret_key == "CHANGE-THIS-SECRET-IN-PRODUCTION"
-    ):
-        raise RuntimeError(
-            "SECURITY_PROFILE=enterprise requires a real JWT_SECRET_KEY "
-            "(generate with: openssl rand -hex 32)"
+    # JWT secret hygiene. The default is a well-known public placeholder — if it
+    # ever signs real tokens, anyone can forge them. Enterprise must fail hard;
+    # every other profile gets an ephemeral random secret for this process so the
+    # known string is never used to sign (tokens simply don't survive a restart,
+    # which is fine for demo/dev).
+    if settings.jwt_secret_key == "CHANGE-THIS-SECRET-IN-PRODUCTION":
+        if settings.security_profile == "enterprise":
+            raise RuntimeError(
+                "SECURITY_PROFILE=enterprise requires a real JWT_SECRET_KEY "
+                "(generate with: openssl rand -hex 32)"
+            )
+        import secrets
+
+        settings.jwt_secret_key = secrets.token_hex(32)
+        logger.warning(
+            "JWT_SECRET_KEY is unset — using an ephemeral per-process secret. "
+            "Sessions will not survive a restart. Set JWT_SECRET_KEY for a stable "
+            "secret (required under SECURITY_PROFILE=enterprise)."
         )
 
     # Startup: Initialize agents and load schemas

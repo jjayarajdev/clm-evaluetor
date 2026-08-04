@@ -5,9 +5,23 @@ from typing import Any
 
 import bcrypt
 from jose import JWTError, jwt
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.config import settings
+
+# Tokens minted by create_access_token carry this type. Decoding rejects any
+# other type so a token issued for a different purpose (e.g. a future refresh or
+# password-reset token signed with the same secret) can never be presented as an
+# access token.
+ACCESS_TOKEN_TYPE = "access"
+
+# Clock-skew tolerance (seconds) applied to exp/iat validation so minor drift
+# between hosts doesn't spuriously reject a valid token at the boundary.
+_LEEWAY_SECONDS = 10
+
+# python-jose validation options: reject a token missing exp or sub outright
+# (raising JWTError rather than KeyError→500 downstream).
+_DECODE_OPTIONS = {"require_exp": True, "require_sub": True, "leeway": _LEEWAY_SECONDS}
 
 
 class TokenData(BaseModel):
@@ -117,6 +131,28 @@ def create_access_token(
     )
 
 
+def _decode_and_verify(token: str) -> dict[str, Any] | None:
+    """Decode a JWT, pinning the algorithm and enforcing required claims + type.
+
+    Returns the raw payload dict, or None for any invalid/expired/wrong-type
+    token. Signature is verified against a single pinned algorithm (no alg=none
+    or HS/RS confusion), exp/sub are required, and the token ``type`` must be an
+    access token.
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options=_DECODE_OPTIONS,
+        )
+    except JWTError:
+        return None
+    if payload.get("type") != ACCESS_TOKEN_TYPE:
+        return None
+    return payload
+
+
 def decode_token(token: str) -> TokenPayload | None:
     """Decode and validate a JWT token.
 
@@ -124,14 +160,12 @@ def decode_token(token: str) -> TokenPayload | None:
         token: JWT token string.
 
     Returns:
-        TokenPayload if valid, None if invalid or expired.
+        TokenPayload if valid, None if invalid, expired, or the wrong type.
     """
+    payload = _decode_and_verify(token)
+    if payload is None:
+        return None
     try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret_key,
-            algorithms=[settings.jwt_algorithm],
-        )
         return TokenPayload(
             sub=payload["sub"],
             username=payload["username"],
@@ -140,12 +174,14 @@ def decode_token(token: str) -> TokenPayload | None:
             business_unit_id=payload.get("business_unit_id"),
             exp=payload["exp"],
         )
-    except JWTError:
+    except (KeyError, ValidationError):
+        # A signature-valid token missing non-required claims (username/role) is
+        # still unusable — treat as invalid rather than 500.
         return None
 
 
 def verify_token(token: str) -> dict[str, Any] | None:
-    """Verify a JWT token and return its payload.
+    """Verify a JWT token and return its raw payload.
 
     Args:
         token: JWT token string.
@@ -153,15 +189,7 @@ def verify_token(token: str) -> dict[str, Any] | None:
     Returns:
         Token payload dict if valid, None if invalid.
     """
-    try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret_key,
-            algorithms=[settings.jwt_algorithm],
-        )
-        return payload
-    except JWTError:
-        return None
+    return _decode_and_verify(token)
 
 
 def is_token_expired(token: str) -> bool:
