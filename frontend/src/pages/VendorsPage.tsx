@@ -29,9 +29,14 @@ type PartyFilter = 'all' | 'vendor' | 'client'
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-/** Live-page performance banding: ≥80 ok, ≥60 warn, else danger. */
-function scoreTone(score: number): string {
-  return score >= 80 ? 'var(--ok)' : score >= 60 ? 'var(--wa)' : 'var(--da)'
+/** Performance banding thresholds, from the tenant/BU-resolved scoring config
+    on GET /api/vendors (fallback to backend defaults on older payloads). */
+interface ScoreBands { low: number; medium: number }
+const DEFAULT_BANDS: ScoreBands = { low: 80, medium: 60 }
+
+/** Live-page performance banding: ≥ low ok, ≥ medium warn, else danger. */
+function scoreTone(score: number, bands: ScoreBands): string {
+  return score >= bands.low ? 'var(--ok)' : score >= bands.medium ? 'var(--wa)' : 'var(--da)'
 }
 
 const RISK_TONE: Record<string, PillTone> = { low: 'ok', medium: 'wa', high: 'da', critical: 'da' }
@@ -68,7 +73,7 @@ function RateBar({ value, okAt, warnAt, suffix = '' }: { value: number | null; o
 
 // ── Table row ────────────────────────────────────────────────────
 
-function VendorRow({ vendor, onClick, showType }: { vendor: VendorListItem; onClick: () => void; showType: boolean }) {
+function VendorRow({ vendor, onClick, showType, bands }: { vendor: VendorListItem; onClick: () => void; showType: boolean; bands: ScoreBands }) {
   const { t } = useTranslation()
   return (
     <tr className="click" onClick={onClick}>
@@ -89,8 +94,8 @@ function VendorRow({ vendor, onClick, showType }: { vendor: VendorListItem; onCl
       <td>
         {vendor.performance_score != null ? (
           <span className="row" style={{ gap: 7 }}>
-            <Bar value={vendor.performance_score} width={56} tone={scoreTone(vendor.performance_score)} />
-            <span className="mono num" style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: scoreTone(vendor.performance_score) }}>
+            <Bar value={vendor.performance_score} width={56} tone={scoreTone(vendor.performance_score, bands)} />
+            <span className="mono num" style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: scoreTone(vendor.performance_score, bands) }}>
               {vendor.performance_score.toFixed(1)}
             </span>
           </span>
@@ -139,7 +144,7 @@ function MiniStat({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-function VendorDrawer({ vendorName, onClose }: { vendorName: string; onClose: () => void }) {
+function VendorDrawer({ vendorName, onClose, bands }: { vendorName: string; onClose: () => void; bands: ScoreBands }) {
   const { t } = useTranslation()
   const { data: vendor, isLoading } = useQuery({
     queryKey: ['vendor-detail', vendorName],
@@ -168,7 +173,7 @@ function VendorDrawer({ vendorName, onClose }: { vendorName: string; onClose: ()
                 fontSize: 'var(--fs-3xl)',
                 fontWeight: 600,
                 letterSpacing: '-1px',
-                color: vendor.performance_score != null ? scoreTone(vendor.performance_score) : 'var(--f)',
+                color: vendor.performance_score != null ? scoreTone(vendor.performance_score, bands) : 'var(--f)',
               }}
             >
               {vendor.performance_score != null ? vendor.performance_score.toFixed(1) : t('vendors.notRated')}
@@ -180,7 +185,7 @@ function VendorDrawer({ vendorName, onClose }: { vendorName: string; onClose: ()
             <RiskPill level={vendor.risk_level} />
           </div>
           {vendor.performance_score != null && (
-            <Bar value={vendor.performance_score} width="100%" tone={scoreTone(vendor.performance_score)} />
+            <Bar value={vendor.performance_score} width="100%" tone={scoreTone(vendor.performance_score, bands)} />
           )}
 
           {/* Score breakdown */}
@@ -296,6 +301,12 @@ export default function VendorsPage() {
   }
 
   const showType = partyFilter === 'all'
+
+  // Band scores using the resolved scoring config; at_risk_count is server-computed.
+  const bands: ScoreBands = {
+    low: data.scoring?.low_threshold ?? DEFAULT_BANDS.low,
+    medium: data.scoring?.medium_threshold ?? DEFAULT_BANDS.medium,
+  }
 
   /** Server-sorted column header with direction chevron. */
   const SortableTh = ({ column, label, width, align }: { column: string; label: string; width?: number; align?: 'r' }) => (
@@ -424,6 +435,7 @@ export default function VendorsPage() {
                         vendor={vendor}
                         onClick={() => setSelectedVendor(vendor.vendor_name)}
                         showType={showType}
+                        bands={bands}
                       />
                     )),
                   ])
@@ -434,6 +446,7 @@ export default function VendorsPage() {
                     vendor={vendor}
                     onClick={() => setSelectedVendor(vendor.vendor_name)}
                     showType={showType}
+                    bands={bands}
                   />
                 ))
               )}
@@ -447,6 +460,7 @@ export default function VendorsPage() {
         <VendorDrawer
           vendorName={selectedVendor}
           onClose={() => setSelectedVendor(null)}
+          bands={bands}
         />
       )}
     </div>

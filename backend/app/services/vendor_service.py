@@ -23,22 +23,49 @@ from app.schemas.vendor import (
     VendorObligationSummary,
     VendorSLASummary,
 )
+from app.services.scoring_config import DEFAULT_SCORING_CONFIG
 
 # Party roles that indicate VENDOR (you buy from them)
 VENDOR_ROLES = {PartyRole.PROVIDER, PartyRole.VENDOR}
 # Party roles that indicate CLIENT (you deliver to them)
 CLIENT_ROLES = {PartyRole.CLIENT, PartyRole.CUSTOMER}
 
-# Score weights
-OBLIGATION_WEIGHT = 0.40
-SLA_WEIGHT = 0.30
-RESPONSIVENESS_WEIGHT = 0.20
-ISSUE_RATE_WEIGHT = 0.10
+# Default score weights / thresholds. Request paths should resolve the
+# tenant+BU "vendor" scoring config (resolve_vendor_scoring) instead; these
+# remain for callers that don't have a config in hand.
+OBLIGATION_WEIGHT = DEFAULT_SCORING_CONFIG["vendor"]["obligation_weight"]
+SLA_WEIGHT = DEFAULT_SCORING_CONFIG["vendor"]["sla_weight"]
+RESPONSIVENESS_WEIGHT = DEFAULT_SCORING_CONFIG["vendor"]["responsiveness_weight"]
+ISSUE_RATE_WEIGHT = DEFAULT_SCORING_CONFIG["vendor"]["issue_rate_weight"]
 
-# Risk thresholds
-AT_RISK_THRESHOLD = 60
-HIGH_RISK_THRESHOLD = 40
-CRITICAL_RISK_THRESHOLD = 25
+AT_RISK_THRESHOLD = DEFAULT_SCORING_CONFIG["vendor"]["at_risk_threshold"]
+HIGH_RISK_THRESHOLD = DEFAULT_SCORING_CONFIG["vendor"]["high_threshold"]
+
+
+async def resolve_vendor_scoring(
+    db: AsyncSession,
+    tenant_id=None,
+    business_unit_id=None,
+) -> dict:
+    """Resolved "vendor" scoring block: default -> tenant -> BU overrides.
+
+    Same resolution chain as the post-signing dashboard and reports, so the
+    Vendors page never disagrees with them about weights or risk bands.
+    """
+    from app.models.tenant import Tenant
+    from app.models.business_unit import BusinessUnit
+    from app.services.scoring_config import resolve_scoring_config
+
+    sources: list[dict] = []
+    if tenant_id:
+        t = await db.get(Tenant, tenant_id)
+        if t and t.config_overrides:
+            sources.append(t.config_overrides)
+    if business_unit_id:
+        bu = await db.get(BusinessUnit, business_unit_id)
+        if bu and bu.config_overrides:
+            sources.append(bu.config_overrides)
+    return resolve_scoring_config(*sources)["vendor"]
 
 
 def normalize_vendor_name(name: str | None) -> str:
@@ -52,15 +79,20 @@ def normalize_vendor_name(name: str | None) -> str:
     return normalized
 
 
-def determine_risk_level(score: float | None) -> str:
-    """Determine risk level from score; 'unrated' when there is no score."""
+def determine_risk_level(score: float | None, config: dict | None = None) -> str:
+    """Determine risk level from score; 'unrated' when there is no score.
+
+    ``config`` is a resolved "vendor" scoring block (resolve_vendor_scoring);
+    defaults keep existing callers working.
+    """
     if score is None:
         return "unrated"
-    if score >= 80:
+    cfg = config or DEFAULT_SCORING_CONFIG["vendor"]
+    if score >= cfg["low_threshold"]:
         return "low"
-    elif score >= 60:
+    elif score >= cfg["medium_threshold"]:
         return "medium"
-    elif score >= 40:
+    elif score >= cfg["high_threshold"]:
         return "high"
     else:
         return "critical"
@@ -85,6 +117,7 @@ def score_to_grade(score: float | None) -> str:
 def calculate_composite_score(
     obligation_compliance: float | None,
     sla_compliance: float | None,
+    config: dict | None = None,
 ) -> VendorScoreBreakdown:
     """Composite vendor score from real signals only.
 
@@ -93,28 +126,33 @@ def calculate_composite_score(
     and issue-rate are not captured anywhere yet, so they are omitted rather
     than faked with hardcoded values. ``weighted_total`` is None (unrated) when
     there is no real signal at all.
+
+    ``config`` is a resolved "vendor" scoring block (resolve_vendor_scoring);
+    the breakdown reports the weights actually used.
     """
+    cfg = config or DEFAULT_SCORING_CONFIG["vendor"]
+
     signals: list[tuple[float, float]] = []
     if obligation_compliance is not None:
-        signals.append((obligation_compliance, OBLIGATION_WEIGHT))
+        signals.append((obligation_compliance, cfg["obligation_weight"]))
     if sla_compliance is not None:
-        signals.append((sla_compliance, SLA_WEIGHT))
+        signals.append((sla_compliance, cfg["sla_weight"]))
 
-    if signals:
-        weight_sum = sum(w for _, w in signals)
+    weight_sum = sum(w for _, w in signals)
+    if weight_sum > 0:  # all-zero override weights would divide by zero
         weighted_total = round(sum(v * w for v, w in signals) / weight_sum, 2)
     else:
         weighted_total = None
 
     return VendorScoreBreakdown(
         obligation_compliance_score=obligation_compliance,
-        obligation_compliance_weight=OBLIGATION_WEIGHT,
+        obligation_compliance_weight=cfg["obligation_weight"],
         sla_compliance_score=sla_compliance,
-        sla_compliance_weight=SLA_WEIGHT,
+        sla_compliance_weight=cfg["sla_weight"],
         responsiveness_score=None,
-        responsiveness_weight=RESPONSIVENESS_WEIGHT,
+        responsiveness_weight=cfg["responsiveness_weight"],
         issue_rate_score=None,
-        issue_rate_weight=ISSUE_RATE_WEIGHT,
+        issue_rate_weight=cfg["issue_rate_weight"],
         weighted_total=weighted_total,
     )
 
@@ -290,8 +328,16 @@ async def calculate_sla_compliance(db: AsyncSession, contract_ids: list[uuid.UUI
     }
 
 
-async def build_vendor_metrics(db: AsyncSession, vendor_name: str, contracts: list[Contract]) -> dict:
-    """Build all metrics for a vendor."""
+async def build_vendor_metrics(
+    db: AsyncSession,
+    vendor_name: str,
+    contracts: list[Contract],
+    scoring: dict | None = None,
+) -> dict:
+    """Build all metrics for a vendor.
+
+    ``scoring`` is a resolved "vendor" scoring block (resolve_vendor_scoring).
+    """
     contract_ids = [c.id for c in contracts]
 
     total_value = sum(float(c.contract_value) for c in contracts if c.contract_value)
@@ -338,7 +384,7 @@ async def build_vendor_metrics(db: AsyncSession, vendor_name: str, contracts: li
         by_metric_type=sla_data["by_metric"],
     )
 
-    score_breakdown = calculate_composite_score(obligation_rate, sla_rate)
+    score_breakdown = calculate_composite_score(obligation_rate, sla_rate, scoring)
 
     return {
         "contracts": contract_summary,

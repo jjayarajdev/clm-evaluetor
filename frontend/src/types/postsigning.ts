@@ -168,6 +168,19 @@ export interface VendorScore {
 
 export type CounterpartyType = 'vendor' | 'client' | 'unknown'
 
+/** Resolved vendor-scorecard scoring config (DEFAULT → tenant → BU) returned
+    additively on GET /api/vendors. Optional — absent on older payloads. */
+export interface VendorScoringConfig {
+  obligation_weight: number
+  sla_weight: number
+  responsiveness_weight: number
+  issue_rate_weight: number
+  low_threshold: number
+  medium_threshold: number
+  high_threshold: number
+  at_risk_threshold: number
+}
+
 export interface VendorListItem {
   vendor_name: string
   normalized_name: string

@@ -515,6 +515,16 @@ const DEFAULT_SCORING = {
     risk_levels: ['high', 'critical'] as string[],
   },
   compliance: { obligation_weight: 0.6, sla_weight: 0.4 },
+  vendor: {
+    obligation_weight: 0.4,
+    sla_weight: 0.3,
+    responsiveness_weight: 0.2, // reserved — signal not measured yet
+    issue_rate_weight: 0.1, // reserved — signal not measured yet
+    low_threshold: 80,
+    medium_threshold: 60,
+    high_threshold: 40,
+    at_risk_threshold: 60,
+  },
 }
 const RISK_LEVEL_OPTIONS = ['low', 'medium', 'high', 'critical']
 const DEFINITION_OPTIONS: Array<'obligations' | 'risk_level' | 'both'> = ['obligations', 'risk_level', 'both']
@@ -548,12 +558,13 @@ function ScoringRulesSection() {
 
   // Merge stored override onto defaults so every field is editable; unset fields
   // show the inherited default. `hasOverride` drives the "inherited vs custom" hint.
-  const hasOverride = !!current && (!!current.at_risk || !!current.compliance)
+  const hasOverride = !!current && (!!current.at_risk || !!current.compliance || !!current.vendor)
   useEffect(() => {
     const s = current || {}
     setDraft({
       at_risk: { ...DEFAULT_SCORING.at_risk, ...(s.at_risk || {}) },
       compliance: { ...DEFAULT_SCORING.compliance, ...(s.compliance || {}) },
+      vendor: { ...DEFAULT_SCORING.vendor, ...(s.vendor || {}) },
     })
     setError(null)
   }, [current, scope])
@@ -562,6 +573,8 @@ function ScoringRulesSection() {
     setDraft((d: typeof draft) => ({ ...d, at_risk: { ...d.at_risk, ...patch } }))
   const setCompliance = (patch: Record<string, unknown>) =>
     setDraft((d: typeof draft) => ({ ...d, compliance: { ...d.compliance, ...patch } }))
+  const setVendor = (patch: Record<string, unknown>) =>
+    setDraft((d: typeof draft) => ({ ...d, vendor: { ...d.vendor, ...patch } }))
 
   const save = async (payload: typeof DEFAULT_SCORING | Record<string, never>) => {
     setSaving(true)
@@ -585,6 +598,7 @@ function ScoringRulesSection() {
 
   const ar = draft.at_risk
   const comp = draft.compliance
+  const vend = draft.vendor
 
   return (
     <div className="col" style={{ gap: 22, maxWidth: 620 }}>
@@ -694,6 +708,85 @@ function ScoringRulesSection() {
             value={comp.sla_weight}
             onChange={(e) => setCompliance({ sla_weight: Number(e.target.value) })}
           />
+        </div>
+      </div>
+
+      <div className="divider" />
+
+      {/* Vendor scorecard */}
+      <div className="col" style={{ gap: 12 }}>
+        <div>
+          <span className="sec-t">{t('settings.scoring.vendorTitle', { defaultValue: 'Vendor scorecard' })}</span>
+          <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4, lineHeight: 1.5 }}>
+            {t('settings.scoring.vendorDesc', { defaultValue: 'How counterparty performance scores are blended and banded. Only measured signals (obligations, SLAs) enter the blend; weights are renormalized.' })}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4" style={{ maxWidth: 420 }}>
+          <Field
+            label={t('settings.scoring.obligationWeight', { defaultValue: 'Obligation weight' })}
+            type="number" min={0} step={0.05}
+            value={vend.obligation_weight}
+            onChange={(e) => setVendor({ obligation_weight: Number(e.target.value) })}
+          />
+          <Field
+            label={t('settings.scoring.slaWeight', { defaultValue: 'SLA weight' })}
+            type="number" min={0} step={0.05}
+            value={vend.sla_weight}
+            onChange={(e) => setVendor({ sla_weight: Number(e.target.value) })}
+          />
+          <div style={{ opacity: 0.6 }}>
+            <Field
+              label={t('settings.scoring.responsivenessWeight', { defaultValue: 'Responsiveness weight' })}
+              type="number" min={0} step={0.05}
+              value={vend.responsiveness_weight}
+              onChange={(e) => setVendor({ responsiveness_weight: Number(e.target.value) })}
+            />
+            <Tag>{t('settings.scoring.reservedSignal', { defaultValue: 'not yet measured' })}</Tag>
+          </div>
+          <div style={{ opacity: 0.6 }}>
+            <Field
+              label={t('settings.scoring.issueRateWeight', { defaultValue: 'Issue-rate weight' })}
+              type="number" min={0} step={0.05}
+              value={vend.issue_rate_weight}
+              onChange={(e) => setVendor({ issue_rate_weight: Number(e.target.value) })}
+            />
+            <Tag>{t('settings.scoring.reservedSignal', { defaultValue: 'not yet measured' })}</Tag>
+          </div>
+        </div>
+
+        <div>
+          <span className="lbl">{t('settings.scoring.vendorBands', { defaultValue: 'Risk bands' })}</span>
+          <p className="muted" style={{ fontSize: 'var(--fs-sm)', marginBottom: 8, lineHeight: 1.5 }}>
+            {t('settings.scoring.vendorBandsHint', { defaultValue: 'Score at or above "low" is low risk, above "medium" is medium, above "high" is high — anything lower is critical.' })}
+          </p>
+          <div className="grid grid-cols-2 gap-4" style={{ maxWidth: 420 }}>
+            <Field
+              label={t('settings.scoring.lowThreshold', { defaultValue: 'Low risk ≥' })}
+              type="number" min={0} max={100} step={5}
+              value={vend.low_threshold}
+              onChange={(e) => setVendor({ low_threshold: Number(e.target.value) })}
+            />
+            <Field
+              label={t('settings.scoring.mediumThreshold', { defaultValue: 'Medium risk ≥' })}
+              type="number" min={0} max={100} step={5}
+              value={vend.medium_threshold}
+              onChange={(e) => setVendor({ medium_threshold: Number(e.target.value) })}
+            />
+            <Field
+              label={t('settings.scoring.highThreshold', { defaultValue: 'High risk ≥' })}
+              type="number" min={0} max={100} step={5}
+              value={vend.high_threshold}
+              onChange={(e) => setVendor({ high_threshold: Number(e.target.value) })}
+            />
+            <Field
+              label={t('settings.scoring.atRiskThreshold', { defaultValue: '"At risk" below' })}
+              type="number" min={0} max={100} step={5}
+              value={vend.at_risk_threshold}
+              onChange={(e) => setVendor({ at_risk_threshold: Number(e.target.value) })}
+              hint={t('settings.scoring.atRiskThresholdHint', { defaultValue: 'Composite score below this counts the vendor as at risk.' })}
+            />
+          </div>
         </div>
       </div>
 

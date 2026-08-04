@@ -28,10 +28,29 @@ DEFAULT_SCORING_CONFIG: dict = {
         "obligation_weight": 0.6,
         "sla_weight": 0.4,
     },
+    "vendor": {
+        # Composite vendor score weights. Responsiveness and issue-rate are
+        # reserved — those signals aren't measured anywhere yet, so the blend
+        # only includes measured signals with their weights renormalized.
+        "obligation_weight": 0.40,
+        "sla_weight": 0.30,
+        "responsiveness_weight": 0.20,
+        "issue_rate_weight": 0.10,
+        # Risk bands: score >= low_threshold -> low, >= medium_threshold ->
+        # medium, >= high_threshold -> high, else critical.
+        "low_threshold": 80,
+        "medium_threshold": 60,
+        "high_threshold": 40,
+        # A vendor counts as "at risk" when its composite score is below this.
+        "at_risk_threshold": 60,
+    },
 }
 
 _NUMERIC_KEYS = {"overdue_count_threshold", "overdue_ratio_threshold",
-                 "obligation_weight", "sla_weight"}
+                 "obligation_weight", "sla_weight",
+                 "responsiveness_weight", "issue_rate_weight",
+                 "low_threshold", "medium_threshold", "high_threshold",
+                 "at_risk_threshold"}
 
 
 def resolve_scoring_config(*override_sources: dict | None) -> dict:
@@ -45,7 +64,7 @@ def resolve_scoring_config(*override_sources: dict | None) -> dict:
         scoring = ((src or {}).get("scoring")) or {}
         if not isinstance(scoring, dict):
             continue
-        for section in ("at_risk", "compliance"):
+        for section in cfg:
             override = scoring.get(section)
             if not isinstance(override, dict):
                 continue

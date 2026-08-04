@@ -20,6 +20,7 @@ from app.schemas.vendor import (
     AtRiskVendor,
     AtRiskVendorsResponse,
     VendorScorecard,
+    VendorScoringConfig,
 )
 from app.services.vendor_service import (
     normalize_vendor_name,
@@ -28,9 +29,7 @@ from app.services.vendor_service import (
     determine_counterparty_type,
     get_vendor_contracts,
     build_vendor_metrics,
-    AT_RISK_THRESHOLD,
-    HIGH_RISK_THRESHOLD,
-    CRITICAL_RISK_THRESHOLD,
+    resolve_vendor_scoring,
 )
 
 router = APIRouter(prefix="/api/vendors", tags=["vendors"])
@@ -59,6 +58,7 @@ async def list_vendors(
     from app.models import Contract, ContractStatus
 
     bu_id, role = _bu_args(current_user)
+    scoring = await resolve_vendor_scoring(db, tenant_id, bu_id)
 
     from collections import defaultdict
 
@@ -137,14 +137,14 @@ async def list_vendors(
             if cp_type == CounterpartyType.VENDOR:
                 continue
 
-        metrics = await build_vendor_metrics(db, counterparty, contracts)
+        metrics = await build_vendor_metrics(db, counterparty, contracts, scoring=scoring)
 
         score = metrics["score_breakdown"].weighted_total
         exposure = metrics["contracts"].total_value
         total_exposure += exposure
 
         # An unrated vendor (no tracked obligations / measured SLAs) is not "at risk".
-        is_at_risk = score is not None and score < AT_RISK_THRESHOLD
+        is_at_risk = score is not None and score < scoring["at_risk_threshold"]
         if is_at_risk:
             at_risk_count += 1
 
@@ -154,7 +154,7 @@ async def list_vendors(
             tenant_name=g["tenant"] if show_tenant else None,
             party_type=cp_type,
             performance_score=score,
-            risk_level=determine_risk_level(score),
+            risk_level=determine_risk_level(score, scoring),
             is_at_risk=is_at_risk,
             contract_count=metrics["contracts"].total_contracts,
             total_exposure=exposure,
@@ -181,6 +181,7 @@ async def list_vendors(
         at_risk_count=at_risk_count,
         total_exposure=total_exposure,
         vendors=vendors,
+        scoring=VendorScoringConfig(**scoring),
     )
 
 
@@ -190,10 +191,12 @@ async def get_at_risk_vendors(
     current_user: CurrentUser = None,
     tenant_id: CurrentTenantId = None,
 ):
-    """Get vendors with performance score below threshold (< 60)."""
+    """Get vendors with performance score below the configured at-risk threshold."""
     vendor_response = await list_vendors(sort_by="score", sort_order="asc", include_inactive=False, db=db, current_user=current_user, tenant_id=tenant_id)
 
     bu_id, role = _bu_args(current_user)
+    # Same resolved config list_vendors used — keeps breakdown weights consistent.
+    scoring = vendor_response.scoring.model_dump()
 
     at_risk_vendors = []
     total_exposure = 0.0
@@ -205,7 +208,7 @@ async def get_at_risk_vendors(
             continue
 
         contracts = await get_vendor_contracts(db, vendor.vendor_name, tenant_id=tenant_id, business_unit_id=bu_id, user_role=role)
-        metrics = await build_vendor_metrics(db, vendor.vendor_name, contracts)
+        metrics = await build_vendor_metrics(db, vendor.vendor_name, contracts, scoring=scoring)
 
         issues = []
         obl_rate = metrics["obligations"].compliance_rate
@@ -221,11 +224,12 @@ async def get_at_risk_vendors(
         if metrics["slas"].total_penalties > 0:
             issues.append(f"${metrics['slas'].total_penalties:,.2f} in penalties")
 
-        vscore = vendor.performance_score
-        if vscore is not None and vscore < CRITICAL_RISK_THRESHOLD:
+        # Tier off the configured risk bands so counts and actions always agree
+        # with the risk_level label already computed from the resolved config.
+        if vendor.risk_level == "critical":
             recommended_action = "Immediate contract review and potential termination"
             critical_count += 1
-        elif vscore is not None and vscore < HIGH_RISK_THRESHOLD:
+        elif vendor.risk_level == "high":
             recommended_action = "Escalate to vendor management for remediation plan"
             high_count += 1
         else:
@@ -272,6 +276,7 @@ async def compare_vendors(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Maximum 5 vendors can be compared at once")
 
     bu_id, role = _bu_args(current_user)
+    scoring = await resolve_vendor_scoring(db, tenant_id, bu_id)
     compare_items = []
 
     for vendor_name in vendor_names:
@@ -279,7 +284,7 @@ async def compare_vendors(
         if not contracts:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Vendor '{vendor_name}' not found")
 
-        metrics = await build_vendor_metrics(db, vendor_name, contracts)
+        metrics = await build_vendor_metrics(db, vendor_name, contracts, scoring=scoring)
 
         item = VendorCompareItem(
             vendor_name=vendor_name,
@@ -289,7 +294,7 @@ async def compare_vendors(
             total_exposure=metrics["contracts"].total_value,
             contract_count=metrics["contracts"].total_contracts,
             active_breaches=metrics["slas"].total_breaches,
-            risk_level=determine_risk_level(metrics["score_breakdown"].weighted_total),
+            risk_level=determine_risk_level(metrics["score_breakdown"].weighted_total, scoring),
         )
         compare_items.append(item)
 
@@ -376,12 +381,13 @@ async def get_vendor_performance(
 ):
     """Get detailed performance profile for a specific vendor (all name variants)."""
     bu_id, role = _bu_args(current_user)
+    scoring = await resolve_vendor_scoring(db, tenant_id, bu_id)
     contracts = await _get_org_contracts(db, vendor_name, tenant_id, bu_id, role)
 
     if not contracts:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Vendor '{vendor_name}' not found")
 
-    metrics = await build_vendor_metrics(db, vendor_name, contracts)
+    metrics = await build_vendor_metrics(db, vendor_name, contracts, scoring=scoring)
     score = metrics["score_breakdown"].weighted_total
 
     risk_factors = []
@@ -417,8 +423,8 @@ async def get_vendor_performance(
         vendor_name=vendor_name,
         normalized_name=normalize_vendor_name(vendor_name),
         performance_score=score,
-        risk_level=determine_risk_level(score),
-        is_at_risk=score is not None and score < AT_RISK_THRESHOLD,
+        risk_level=determine_risk_level(score, scoring),
+        is_at_risk=score is not None and score < scoring["at_risk_threshold"],
         score_breakdown=metrics["score_breakdown"],
         contracts=metrics["contracts"],
         obligations=metrics["obligations"],

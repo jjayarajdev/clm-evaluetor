@@ -24,6 +24,7 @@ from app.schemas.postsigning import (
     ComplianceWidget,
     PostSigningDashboard,
 )
+from app.services.scoring_config import resolve_scoring_config
 
 
 class PostSigningService:
@@ -40,6 +41,9 @@ class PostSigningService:
         self.tenant_id = tenant_id
         self.business_unit_id = business_unit_id
         self.user_role = user_role
+        # Defaults until get_dashboard resolves tenant/BU overrides; keeps
+        # widget builders usable standalone (e.g. in tests).
+        self.scoring = resolve_scoring_config()
 
     def _apply_filters(self, query, model=Contract):
         """Apply tenant + BU filters to a query."""
@@ -410,7 +414,8 @@ class PostSigningService:
 
         rated = [v for v in vendor_scores if v["score"] is not None]
         rated.sort(key=lambda v: v["score"], reverse=True)
-        at_risk_vendors = sum(1 for v in rated if v["score"] < 60)
+        at_risk_threshold = self.scoring["vendor"]["at_risk_threshold"]
+        at_risk_vendors = sum(1 for v in rated if v["score"] < at_risk_threshold)
         avg_score = round(sum(v["score"] for v in rated) / len(rated), 2) if rated else None
 
         return VendorWidget(
@@ -467,7 +472,6 @@ class PostSigningService:
         """Resolve At-Risk/Compliance scoring rules: default -> tenant -> BU."""
         from app.models.tenant import Tenant
         from app.models.business_unit import BusinessUnit
-        from app.services.scoring_config import resolve_scoring_config
 
         sources: list[dict] = []
         if self.tenant_id:

@@ -4,6 +4,7 @@ import type {
   RenewalCalendar,
   VendorListItem,
   VendorPerformanceDetail,
+  VendorScoringConfig,
   MilestoneHealth,
   ComplianceReport,
   ComplianceTrend,
@@ -74,6 +75,8 @@ export async function getVendors(params?: {
   at_risk_count: number
   total_exposure: number
   vendors: VendorListItem[]
+  /** Resolved scoring config — optional, absent on older payloads. */
+  scoring?: VendorScoringConfig
 }> {
   const response = await client.get('/vendors', { params })
   return response.data

@@ -13,6 +13,25 @@ class CounterpartyType(str, Enum):
     UNKNOWN = "unknown"    # Not determined
 
 
+class VendorScoringConfig(BaseModel):
+    """Resolved vendor scoring rules (default -> tenant -> BU overrides).
+
+    Server truth for score weights and risk banding, so the UI never hardcodes
+    thresholds like 80/60.
+    """
+
+    obligation_weight: float
+    sla_weight: float
+    responsiveness_weight: float  # reserved — signal not measured yet
+    issue_rate_weight: float      # reserved — signal not measured yet
+    # score >= low -> low risk, >= medium -> medium, >= high -> high, else critical
+    low_threshold: float
+    medium_threshold: float
+    high_threshold: float
+    # vendor is "at risk" when composite score < this
+    at_risk_threshold: float
+
+
 class VendorScoreBreakdown(BaseModel):
     """Breakdown of how vendor score is calculated."""
 
@@ -78,7 +97,7 @@ class VendorListItem(BaseModel):
     party_type: CounterpartyType = CounterpartyType.UNKNOWN  # vendor or client
     performance_score: float | None  # 0-100 composite score; None = unrated
     risk_level: Literal["low", "medium", "high", "critical", "unrated"]
-    is_at_risk: bool  # Score < 60
+    is_at_risk: bool  # score below the configured at_risk_threshold
 
     # Quick stats
     contract_count: int
@@ -97,6 +116,8 @@ class VendorListResponse(BaseModel):
     at_risk_count: int
     total_exposure: float
     vendors: list[VendorListItem]
+    # Additive: resolved scoring config used to compute the scores above.
+    scoring: VendorScoringConfig | None = None
 
 
 class VendorPerformanceDetail(BaseModel):
@@ -155,7 +176,7 @@ class VendorCompareResponse(BaseModel):
 
 
 class AtRiskVendor(BaseModel):
-    """Vendor that is at risk (score < 60)."""
+    """Vendor whose score is below the configured at-risk threshold."""
 
     vendor_name: str
     performance_score: float | None
