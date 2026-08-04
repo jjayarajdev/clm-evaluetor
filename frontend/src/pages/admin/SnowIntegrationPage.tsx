@@ -1,3 +1,9 @@
+/* ServiceNow integration — Direction B restyle.
+   Connection card (health Pill, instance info, request stats) → credentials
+   form on Field/Select primitives → SLA mappings in the Table primitive with
+   link Selects, status Pills and a sync Button that reports through toasts.
+   All queries, mutations, connection tests, field mappings and sync flows are
+   unchanged from the pre-redesign page. */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -5,7 +11,6 @@ import {
   ArrowPathIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationTriangleIcon,
   SignalIcon,
   CloudArrowUpIcon,
   EyeIcon,
@@ -13,21 +18,23 @@ import {
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn, formatDateTime } from '@/lib/utils'
+import { formatDateTime } from '@/lib/utils'
+import { Button, EmptyState, Field, IconButton, Pill, Select, Table, useToast } from '@/components/ui'
+import type { PillTone, TableColumn } from '@/components/ui'
 import type { SnowConfig, SnowConfigCreate, SnowSLAMapping } from '@/types/snow-integration'
 
-const HEALTH_CONFIG: Record<string, { color: string; icon: typeof CheckCircleIcon; label: string }> = {
-  healthy: { color: 'bg-green-100 text-green-700', icon: CheckCircleIcon, label: 'Healthy' },
-  degraded: { color: 'bg-yellow-100 text-yellow-700', icon: ExclamationTriangleIcon, label: 'Degraded' },
-  unhealthy: { color: 'bg-red-100 text-red-700', icon: XCircleIcon, label: 'Unhealthy' },
-  unknown: { color: 'bg-gray-100 text-gray-600', icon: SignalIcon, label: 'Unknown' },
+const HEALTH_CONFIG: Record<string, { tone: PillTone; label: string }> = {
+  healthy: { tone: 'ok', label: 'Healthy' },
+  degraded: { tone: 'wa', label: 'Degraded' },
+  unhealthy: { tone: 'da', label: 'Unhealthy' },
+  unknown: { tone: 'n', label: 'Unknown' },
 }
 
-const MAPPING_STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-700',
-  mapped: 'bg-green-100 text-green-700',
-  ignored: 'bg-gray-100 text-gray-600',
-  error: 'bg-red-100 text-red-700',
+const MAPPING_STATUS_TONE: Record<string, PillTone> = {
+  pending: 'wa',
+  mapped: 'ok',
+  ignored: 'n',
+  error: 'da',
 }
 
 interface ConfigFormData {
@@ -52,9 +59,24 @@ const emptyFormData: ConfigFormData = {
   token_url: '',
 }
 
+/* Token-coloured result strip for connection tests. */
+function ResultBanner({ result }: { result: { healthy: boolean; message: string } }) {
+  const Icon = result.healthy ? CheckCircleIcon : XCircleIcon
+  return (
+    <div
+      className={result.healthy ? 'banner' : 'banner banner-da'}
+      style={result.healthy ? { background: 'var(--ok-f)', borderColor: 'var(--ok-b)', color: 'var(--ok)' } : undefined}
+    >
+      <Icon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+      <span>{result.message}</span>
+    </div>
+  )
+}
+
 export default function SnowIntegrationPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<ConfigFormData>(emptyFormData)
   const [showPassword, setShowPassword] = useState(false)
@@ -87,9 +109,11 @@ export default function SnowIntegrationPage() {
     mutationFn: () => api.testSnowConnection(),
     onSuccess: (result) => {
       setTestResult(result)
+      toast({ text: result.message, error: !result.healthy })
     },
     onError: () => {
       setTestResult({ healthy: false, message: t('integrations.snow.testFailed') })
+      toast({ text: t('integrations.snow.testFailed'), error: true })
     },
   })
 
@@ -99,6 +123,10 @@ export default function SnowIntegrationPage() {
       setSyncResult(result)
       queryClient.invalidateQueries({ queryKey: ['snow-mappings'] })
       queryClient.invalidateQueries({ queryKey: ['snow-config'] })
+      toast({
+        text: t('integrations.snow.syncSummary', { fetched: result.fetched, created: result.created, updated: result.updated }),
+        error: result.errors > 0,
+      })
     },
   })
 
@@ -150,11 +178,97 @@ export default function SnowIntegrationPage() {
   }
 
   const healthInfo = config ? HEALTH_CONFIG[config.health_status] || HEALTH_CONFIG.unknown : HEALTH_CONFIG.unknown
-  const HealthIcon = healthInfo.icon
+
+  const mappingColumns: TableColumn<SnowSLAMapping>[] = [
+    {
+      key: 'snow_sla_name',
+      header: t('integrations.snow.slaName'),
+      sortable: true,
+      render: (m) => (
+        <span className="col" style={{ gap: 2, minWidth: 0 }}>
+          <span className="trunc" style={{ fontWeight: 500 }}>{m.snow_sla_name}</span>
+          <span className="mono faint trunc" style={{ fontSize: 'var(--fs-xs)' }}>{m.snow_sys_id}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'snow_metric_type',
+      header: t('integrations.snow.metricType'),
+      nowrap: true,
+      render: (m) => <span className="muted">{m.snow_metric_type || '—'}</span>,
+    },
+    {
+      key: 'snow_target',
+      header: t('integrations.snow.target'),
+      nowrap: true,
+      render: (m) => <span className="muted">{m.snow_target || '—'}</span>,
+    },
+    {
+      key: 'platform_sla_id',
+      header: t('integrations.snow.platformSla', { defaultValue: 'Platform SLA' }),
+      render: (m) => (
+        <Select
+          value={m.platform_sla_id || ''}
+          onChange={(e) => updateMappingMutation.mutate({
+            id: m.id,
+            platform_sla_id: e.target.value || null,
+            status: e.target.value ? 'mapped' : 'pending',
+          })}
+          disabled={updateMappingMutation.isPending}
+          containerStyle={{ maxWidth: 220 }}
+          options={[
+            { value: '', label: t('integrations.snow.notLinked', { defaultValue: '— not linked —' }) },
+            ...(platformSlas || []).map((s) => ({ value: s.id, label: s.sla_name })),
+          ]}
+        />
+      ),
+    },
+    {
+      key: 'mapping_status',
+      header: t('common.status'),
+      nowrap: true,
+      sortable: true,
+      render: (m) => (
+        <Pill tone={MAPPING_STATUS_TONE[m.mapping_status] || 'n'}>
+          {t(`integrations.snow.mappingStatus.${m.mapping_status}`, { defaultValue: t(`status.${m.mapping_status}`, { defaultValue: m.mapping_status }) })}
+        </Pill>
+      ),
+    },
+    {
+      key: 'last_synced_at',
+      header: t('integrations.snow.lastSynced'),
+      nowrap: true,
+      sortable: true,
+      render: (m) => (
+        <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
+          {m.last_synced_at ? formatDateTime(m.last_synced_at) : t('integrations.never')}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: t('common.actions'),
+      align: 'right',
+      nowrap: true,
+      render: (m) => (
+        <Select
+          value={m.mapping_status}
+          onChange={(e) => updateMappingMutation.mutate({ id: m.id, status: e.target.value })}
+          disabled={updateMappingMutation.isPending}
+          containerStyle={{ minWidth: 120 }}
+          options={[
+            { value: 'pending', label: t('status.pending') },
+            { value: 'mapped', label: t('integrations.snow.mappingStatus.mapped') },
+            { value: 'ignored', label: t('integrations.snow.mappingStatus.ignored') },
+          ]}
+        />
+      ),
+    },
+  ]
 
   if (configLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
         <LoadingSpinner size="lg" />
       </div>
     )
@@ -162,96 +276,98 @@ export default function SnowIntegrationPage() {
 
   if (configError) {
     return (
-      <div className="rounded-lg bg-red-50 p-4 text-red-700">
-        {t('integrations.snow.loadError')}
+      <div className="banner banner-da">
+        <XCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+        <span>{t('integrations.snow.loadError')}</span>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 18 }}>
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">{t('integrations.snow.title')}</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>
+          {t('integrations.snow.title')}
+        </h1>
+        <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>
           {t('integrations.snow.subtitle')}
         </p>
       </div>
 
       {/* Connection Configuration Section */}
-      <div className="card overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CloudArrowUpIcon className="h-5 w-5 text-primary-600" />
-            <h3 className="text-sm font-medium text-gray-900">{t('integrations.snow.connectionConfiguration')}</h3>
-          </div>
+      <div className="card">
+        <div className="card-header row" style={{ gap: 8 }}>
+          <CloudArrowUpIcon style={{ width: 16, height: 16, flexShrink: 0, color: 'var(--p)' }} aria-hidden />
+          <span className="sec-t grow">{t('integrations.snow.connectionConfiguration')}</span>
           {config && !isEditing && (
-            <button onClick={() => openEditForm(config)} className="btn-secondary text-sm py-1 px-3">
+            <Button size="sm" onClick={() => openEditForm(config)}>
               {t('integrations.snow.editConfiguration')}
-            </button>
+            </Button>
           )}
         </div>
 
-        {/* No config yet - show setup prompt or form */}
+        {/* No config yet - show setup prompt */}
         {!config && !isEditing && (
-          <div className="p-8 text-center">
-            <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-3 text-sm font-semibold text-gray-900">{t('integrations.snow.noConnectionTitle')}</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {t('integrations.snow.noConnectionSubtitle')}
-            </p>
-            <button onClick={() => openEditForm()} className="btn-primary mt-4">
-              {t('integrations.snow.configureConnection')}
-            </button>
-          </div>
+          <EmptyState
+            icon={CloudArrowUpIcon}
+            title={t('integrations.snow.noConnectionTitle')}
+            body={t('integrations.snow.noConnectionSubtitle')}
+            action={
+              <Button variant="primary" onClick={() => openEditForm()}>
+                {t('integrations.snow.configureConnection')}
+              </Button>
+            }
+          />
         )}
 
         {/* Existing config status card */}
         {config && !isEditing && (
-          <div className="p-4 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="card-body col" style={{ gap: 14 }}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Health Status */}
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">{t('integrations.snow.connectionStatus')}</p>
-                <div className="flex items-center gap-2">
-                  <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium', healthInfo.color)}>
-                    <HealthIcon className="h-3 w-3" />
+              <div style={{ padding: 12, background: 'var(--s3)', border: '1px solid var(--b)', borderRadius: 'var(--r-md)' }}>
+                <span className="sec-t">{t('integrations.snow.connectionStatus')}</span>
+                <div className="row" style={{ marginTop: 8 }}>
+                  <Pill tone={healthInfo.tone}>
                     {t(`integrations.health.${config.health_status}`, { defaultValue: healthInfo.label })}
-                  </span>
+                  </Pill>
                 </div>
                 {config.last_health_check && (
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="faint" style={{ fontSize: 'var(--fs-xs)', marginTop: 8 }}>
                     {t('integrations.snow.lastChecked', { date: formatDateTime(config.last_health_check) })}
                   </p>
                 )}
                 {config.last_health_message && (
-                  <p className="text-xs text-gray-500 mt-1">{config.last_health_message}</p>
+                  <p className="faint" style={{ fontSize: 'var(--fs-xs)', marginTop: 4 }}>{config.last_health_message}</p>
                 )}
               </div>
 
               {/* Instance Info */}
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">{t('integrations.snow.instance')}</p>
-                <p className="text-sm font-medium text-gray-900 truncate">{config.name}</p>
-                <p className="text-xs text-gray-500 mt-1 truncate">{config.base_url}</p>
-                <p className="text-xs text-gray-500 mt-1">{t('integrations.snow.auth')}: {config.auth_type === 'basic' ? t('integrations.snow.basicAuth') : t('integrations.snow.oauth2')}</p>
+              <div style={{ padding: 12, background: 'var(--s3)', border: '1px solid var(--b)', borderRadius: 'var(--r-md)' }}>
+                <span className="sec-t">{t('integrations.snow.instance')}</span>
+                <p className="trunc" style={{ fontWeight: 500, fontSize: 'var(--fs-md)', marginTop: 8 }}>{config.name}</p>
+                <p className="faint mono trunc" style={{ fontSize: 'var(--fs-xs)', marginTop: 4 }}>{config.base_url}</p>
+                <p className="faint" style={{ fontSize: 'var(--fs-xs)', marginTop: 4 }}>
+                  {t('integrations.snow.auth')}: {config.auth_type === 'basic' ? t('integrations.snow.basicAuth') : t('integrations.snow.oauth2')}
+                </p>
               </div>
 
               {/* Request Stats */}
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">{t('integrations.snow.requestStatistics')}</p>
-                <div className="flex items-end gap-3">
+              <div style={{ padding: 12, background: 'var(--s3)', border: '1px solid var(--b)', borderRadius: 'var(--r-md)' }}>
+                <span className="sec-t">{t('integrations.snow.requestStatistics')}</span>
+                <div className="row" style={{ gap: 14, alignItems: 'flex-end', marginTop: 8 }}>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{config.total_requests}</p>
-                    <p className="text-xs text-gray-500">{t('integrations.snow.total')}</p>
+                    <p className="num" style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, lineHeight: 1.1 }}>{config.total_requests}</p>
+                    <p className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('integrations.snow.total')}</p>
                   </div>
                   <div>
-                    <p className="text-lg font-semibold text-red-600">{config.failed_requests}</p>
-                    <p className="text-xs text-gray-500">{t('integrations.failed')}</p>
+                    <p className="num" style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, lineHeight: 1.1, color: 'var(--da)' }}>{config.failed_requests}</p>
+                    <p className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('integrations.failed')}</p>
                   </div>
                 </div>
                 {config.last_used_at && (
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="faint" style={{ fontSize: 'var(--fs-xs)', marginTop: 8 }}>
                     {t('integrations.snow.lastUsed', { date: formatDateTime(config.last_used_at) })}
                   </p>
                 )}
@@ -259,29 +375,25 @@ export default function SnowIntegrationPage() {
             </div>
 
             {/* Test & Sync Actions */}
-            <div className="flex items-center gap-3 pt-2 border-t border-gray-200">
-              <button
+            <div className="row" style={{ gap: 12, paddingTop: 12, borderTop: '1px solid var(--b)' }}>
+              <Button
+                icon={SignalIcon}
                 onClick={() => testMutation.mutate()}
                 disabled={testMutation.isPending}
-                className="btn-secondary"
               >
-                {testMutation.isPending ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <SignalIcon className="h-4 w-4 mr-2" />
-                )}
+                {testMutation.isPending ? <LoadingSpinner size="sm" /> : null}
                 {t('integrations.snow.testConnection')}
-              </button>
+              </Button>
 
               {testResult && (
-                <span className={cn(
-                  'inline-flex items-center gap-1 text-sm',
-                  testResult.healthy ? 'text-green-600' : 'text-red-600'
-                )}>
+                <span
+                  className="row"
+                  style={{ gap: 6, fontSize: 'var(--fs-md)', color: testResult.healthy ? 'var(--ok)' : 'var(--da)' }}
+                >
                   {testResult.healthy ? (
-                    <CheckCircleIcon className="h-4 w-4" />
+                    <CheckCircleIcon style={{ width: 15, height: 15, flexShrink: 0 }} aria-hidden />
                   ) : (
-                    <XCircleIcon className="h-4 w-4" />
+                    <XCircleIcon style={{ width: 15, height: 15, flexShrink: 0 }} aria-hidden />
                   )}
                   {testResult.message}
                 </span>
@@ -292,65 +404,52 @@ export default function SnowIntegrationPage() {
 
         {/* Edit/Create Form */}
         {isEditing && (
-          <div className="p-4">
-            <form onSubmit={handleSave} className="space-y-4 max-w-lg">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('integrations.snow.connectionName')} *
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder={t('integrations.snow.connectionNamePlaceholder')}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                  required
-                />
-              </div>
+          <div className="card-body">
+            <form onSubmit={handleSave} className="col" style={{ gap: 14, maxWidth: 512 }}>
+              <Field
+                label={`${t('integrations.snow.connectionName')} *`}
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder={t('integrations.snow.connectionNamePlaceholder')}
+                required
+              />
+
+              <Field
+                label={`${t('integrations.snow.instanceUrl')} *`}
+                type="url"
+                className="mono"
+                value={formData.base_url}
+                onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
+                placeholder="https://dev12345.service-now.com"
+                hint={t('integrations.snow.instanceUrlHint')}
+                required
+              />
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('integrations.snow.instanceUrl')} *
-                </label>
-                <input
-                  type="url"
-                  value={formData.base_url}
-                  onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
-                  placeholder="https://dev12345.service-now.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {t('integrations.snow.instanceUrlHint')}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('integrations.snow.authenticationType')} *
-                </label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
+                <label className="lbl">{t('integrations.snow.authenticationType')} *</label>
+                <div className="row" style={{ gap: 18 }}>
+                  <label className="row" style={{ gap: 6, cursor: 'pointer', fontSize: 'var(--fs-md)' }}>
                     <input
                       type="radio"
                       name="auth_type"
                       value="basic"
                       checked={formData.auth_type === 'basic'}
                       onChange={() => setFormData({ ...formData, auth_type: 'basic' })}
-                      className="text-primary-600 focus:ring-primary-500"
+                      style={{ accentColor: 'var(--p)' }}
                     />
-                    <span className="text-sm text-gray-700">{t('integrations.snow.basicAuth')}</span>
+                    {t('integrations.snow.basicAuth')}
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="row" style={{ gap: 6, cursor: 'pointer', fontSize: 'var(--fs-md)' }}>
                     <input
                       type="radio"
                       name="auth_type"
                       value="oauth2"
                       checked={formData.auth_type === 'oauth2'}
                       onChange={() => setFormData({ ...formData, auth_type: 'oauth2' })}
-                      className="text-primary-600 focus:ring-primary-500"
+                      style={{ accentColor: 'var(--p)' }}
                     />
-                    <span className="text-sm text-gray-700">{t('integrations.snow.oauth2')}</span>
+                    {t('integrations.snow.oauth2')}
                   </label>
                 </div>
               </div>
@@ -358,43 +457,30 @@ export default function SnowIntegrationPage() {
               {/* Basic Auth Fields */}
               {formData.auth_type === 'basic' && (
                 <>
+                  <Field
+                    label={`${t('integrations.snow.username')} *`}
+                    type="text"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    placeholder={t('integrations.snow.usernamePlaceholder')}
+                    required
+                  />
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('integrations.snow.username')} *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.username}
-                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      placeholder={t('integrations.snow.usernamePlaceholder')}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('integrations.snow.password')} *
-                    </label>
-                    <div className="relative">
+                    <label className="lbl">{t('integrations.snow.password')} *</label>
+                    <div className="inp">
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         placeholder={t('integrations.snow.passwordPlaceholder')}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-primary-500"
                         required
                       />
-                      <button
-                        type="button"
+                      <IconButton
+                        icon={showPassword ? EyeSlashIcon : EyeIcon}
+                        size="sm"
+                        label={t('integrations.snow.toggleSecret', { defaultValue: 'Toggle visibility' })}
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? (
-                          <EyeSlashIcon className="h-4 w-4" />
-                        ) : (
-                          <EyeIcon className="h-4 w-4" />
-                        )}
-                      </button>
+                      />
                     </div>
                   </div>
                 </>
@@ -403,126 +489,87 @@ export default function SnowIntegrationPage() {
               {/* OAuth2 Fields */}
               {formData.auth_type === 'oauth2' && (
                 <>
+                  <Field
+                    label={`${t('integrations.snow.clientId')} *`}
+                    type="text"
+                    className="mono"
+                    value={formData.client_id}
+                    onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                    placeholder={t('integrations.snow.clientIdPlaceholder')}
+                    required
+                  />
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('integrations.snow.clientId')} *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.client_id}
-                      onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                      placeholder={t('integrations.snow.clientIdPlaceholder')}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('integrations.snow.clientSecret')} *
-                    </label>
-                    <div className="relative">
+                    <label className="lbl">{t('integrations.snow.clientSecret')} *</label>
+                    <div className="inp">
                       <input
+                        className="mono"
                         type={showPassword ? 'text' : 'password'}
                         value={formData.client_secret}
                         onChange={(e) => setFormData({ ...formData, client_secret: e.target.value })}
                         placeholder={t('integrations.snow.clientSecretPlaceholder')}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-primary-500"
                         required
                       />
-                      <button
-                        type="button"
+                      <IconButton
+                        icon={showPassword ? EyeSlashIcon : EyeIcon}
+                        size="sm"
+                        label={t('integrations.snow.toggleSecret', { defaultValue: 'Toggle visibility' })}
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? (
-                          <EyeSlashIcon className="h-4 w-4" />
-                        ) : (
-                          <EyeIcon className="h-4 w-4" />
-                        )}
-                      </button>
+                      />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('integrations.snow.tokenUrl')} *
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.token_url}
-                      onChange={(e) => setFormData({ ...formData, token_url: e.target.value })}
-                      placeholder="https://dev12345.service-now.com/oauth_token.do"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
-                      required
-                    />
-                  </div>
+                  <Field
+                    label={`${t('integrations.snow.tokenUrl')} *`}
+                    type="url"
+                    className="mono"
+                    value={formData.token_url}
+                    onChange={(e) => setFormData({ ...formData, token_url: e.target.value })}
+                    placeholder="https://dev12345.service-now.com/oauth_token.do"
+                    required
+                  />
                 </>
               )}
 
               {/* Save Error */}
               {saveMutation.isError && (
-                <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                  {t('integrations.snow.saveError')}
+                <div className="banner banner-da">
+                  <XCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+                  <span>{t('integrations.snow.saveError')}</span>
                 </div>
               )}
 
               {/* Test Result in Form */}
-              {testResult && (
-                <div className={cn(
-                  'rounded-lg p-3 text-sm flex items-center gap-2',
-                  testResult.healthy ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                )}>
-                  {testResult.healthy ? (
-                    <CheckCircleIcon className="h-4 w-4 shrink-0" />
-                  ) : (
-                    <XCircleIcon className="h-4 w-4 shrink-0" />
-                  )}
-                  {testResult.message}
-                </div>
-              )}
+              {testResult && <ResultBanner result={testResult} />}
 
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                <div>
-                  {config && (
-                    <button
-                      type="button"
-                      onClick={() => testMutation.mutate()}
-                      disabled={testMutation.isPending}
-                      className="btn-secondary"
-                    >
-                      {testMutation.isPending ? (
-                        <LoadingSpinner size="sm" />
-                      ) : (
-                        <SignalIcon className="h-4 w-4 mr-2" />
-                      )}
-                      {t('integrations.snow.testConnection')}
-                    </button>
+              <div className="row" style={{ gap: 8, paddingTop: 14, borderTop: '1px solid var(--b)' }}>
+                {config && (
+                  <Button
+                    icon={SignalIcon}
+                    onClick={() => testMutation.mutate()}
+                    disabled={testMutation.isPending}
+                  >
+                    {testMutation.isPending ? <LoadingSpinner size="sm" /> : null}
+                    {t('integrations.snow.testConnection')}
+                  </Button>
+                )}
+                <span className="grow" />
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setIsEditing(false)
+                    setTestResult(null)
+                  }}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button variant="primary" type="submit" disabled={saveMutation.isPending}>
+                  {saveMutation.isPending ? (
+                    <LoadingSpinner size="sm" />
+                  ) : config ? (
+                    t('integrations.snow.updateConfiguration')
+                  ) : (
+                    t('integrations.snow.saveConfiguration')
                   )}
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditing(false)
-                      setTestResult(null)
-                    }}
-                    className="btn-secondary"
-                  >
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={saveMutation.isPending}
-                    className="btn-primary"
-                  >
-                    {saveMutation.isPending ? (
-                      <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                    ) : config ? (
-                      t('integrations.snow.updateConfiguration')
-                    ) : (
-                      t('integrations.snow.saveConfiguration')
-                    )}
-                  </button>
-                </div>
+                </Button>
               </div>
             </form>
           </div>
@@ -531,140 +578,56 @@ export default function SnowIntegrationPage() {
 
       {/* SLA Mappings Section */}
       {config && (
-        <div className="card overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-900">{t('integrations.snow.slaMappings')}</h3>
-            <div className="flex items-center gap-3">
-              {syncResult && (
-                <span className="text-xs text-gray-500">
-                  {t('integrations.snow.syncSummary', { fetched: syncResult.fetched, created: syncResult.created, updated: syncResult.updated })}
-                  {(syncResult.auto_mapped || syncResult.measurements) ? (
-                    <span> · {t('integrations.snow.syncLinked', { defaultValue: '{{n}} auto-linked', n: syncResult.auto_mapped || 0 })} · {t('integrations.snow.syncMeasured', { defaultValue: '{{n}} measurements', n: syncResult.measurements || 0 })}</span>
-                  ) : null}
-                  {syncResult.errors > 0 && (
-                    <span className="text-red-600"> | {t('integrations.snow.syncErrorCount', { count: syncResult.errors })}</span>
-                  )}
-                </span>
-              )}
-              <button
-                onClick={() => syncMutation.mutate()}
-                disabled={syncMutation.isPending}
-                className="btn-primary text-sm py-1 px-3"
-              >
-                {syncMutation.isPending ? (
-                  <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                ) : (
-                  <ArrowPathIcon className="h-4 w-4 mr-2" />
+        <div className="col" style={{ gap: 10 }}>
+          <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+            <span className="sec-t grow">{t('integrations.snow.slaMappings')}</span>
+            {syncResult && (
+              <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>
+                {t('integrations.snow.syncSummary', { fetched: syncResult.fetched, created: syncResult.created, updated: syncResult.updated })}
+                {(syncResult.auto_mapped || syncResult.measurements) ? (
+                  <span> · {t('integrations.snow.syncLinked', { defaultValue: '{{n}} auto-linked', n: syncResult.auto_mapped || 0 })} · {t('integrations.snow.syncMeasured', { defaultValue: '{{n}} measurements', n: syncResult.measurements || 0 })}</span>
+                ) : null}
+                {syncResult.errors > 0 && (
+                  <span style={{ color: 'var(--da)' }}> | {t('integrations.snow.syncErrorCount', { count: syncResult.errors })}</span>
                 )}
-                {t('integrations.snow.syncNow')}
-              </button>
-            </div>
+              </span>
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              icon={ArrowPathIcon}
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+            >
+              {syncMutation.isPending ? <LoadingSpinner size="sm" /> : null}
+              {t('integrations.snow.syncNow')}
+            </Button>
           </div>
 
           {syncMutation.isError && (
-            <div className="mx-4 mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-              {t('integrations.snow.syncFailed')}
+            <div className="banner banner-da">
+              <XCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+              <span>{t('integrations.snow.syncFailed')}</span>
             </div>
           )}
 
           {mappingsLoading ? (
-            <div className="flex items-center justify-center h-32">
+            <div className="row" style={{ justifyContent: 'center', height: 128 }}>
               <LoadingSpinner size="lg" />
             </div>
           ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('integrations.snow.slaName')}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('integrations.snow.metricType')}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('integrations.snow.target')}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('integrations.snow.platformSla', { defaultValue: 'Platform SLA' })}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('common.status')}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('integrations.snow.lastSynced')}
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('common.actions')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {mappings?.map((mapping: SnowSLAMapping) => (
-                      <tr key={mapping.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <div className="text-sm font-medium text-gray-900">{mapping.snow_sla_name}</div>
-                          <div className="text-xs text-gray-500 font-mono">{mapping.snow_sys_id}</div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {mapping.snow_metric_type || '-'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {mapping.snow_target || '-'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <select
-                            value={mapping.platform_sla_id || ''}
-                            onChange={(e) => updateMappingMutation.mutate({
-                              id: mapping.id,
-                              platform_sla_id: e.target.value || null,
-                              status: e.target.value ? 'mapped' : 'pending',
-                            })}
-                            disabled={updateMappingMutation.isPending}
-                            className="text-sm border border-gray-300 rounded-lg px-2 py-1 max-w-[220px] focus:ring-2 focus:ring-primary-500"
-                          >
-                            <option value="">{t('integrations.snow.notLinked', { defaultValue: '— not linked —' })}</option>
-                            {(platformSlas || []).map((s) => (
-                              <option key={s.id} value={s.id}>{s.sla_name}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={cn(
-                            'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-                            MAPPING_STATUS_COLORS[mapping.mapping_status] || 'bg-gray-100 text-gray-600'
-                          )}>
-                            {t(`integrations.snow.mappingStatus.${mapping.mapping_status}`, { defaultValue: t(`status.${mapping.mapping_status}`, { defaultValue: mapping.mapping_status }) })}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                          {mapping.last_synced_at ? formatDateTime(mapping.last_synced_at) : t('integrations.never')}
-                        </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
-                          <select
-                            value={mapping.mapping_status}
-                            onChange={(e) => updateMappingMutation.mutate({ id: mapping.id, status: e.target.value })}
-                            disabled={updateMappingMutation.isPending}
-                            className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-primary-500"
-                          >
-                            <option value="pending">{t('status.pending')}</option>
-                            <option value="mapped">{t('integrations.snow.mappingStatus.mapped')}</option>
-                            <option value="ignored">{t('integrations.snow.mappingStatus.ignored')}</option>
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {(!mappings || mappings.length === 0) && (
-                <div className="text-center py-12 text-gray-500">
-                  <p className="text-sm">{t('integrations.snow.noMappings')}</p>
-                  <p className="text-xs mt-1">{t('integrations.snow.noMappingsHint')}</p>
-                </div>
-              )}
-            </>
+            <Table
+              columns={mappingColumns}
+              rows={mappings ?? []}
+              rowKey={(m) => m.id}
+              empty={
+                <EmptyState
+                  icon={ArrowPathIcon}
+                  title={t('integrations.snow.noMappings')}
+                  body={t('integrations.snow.noMappingsHint')}
+                />
+              }
+            />
           )}
         </div>
       )}

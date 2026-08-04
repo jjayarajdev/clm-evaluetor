@@ -1,3 +1,6 @@
+/* Login — Direction B restyle. Centered token-styled card on var(--pg):
+   wordmark, Field inputs, primary submit, SSO as secondary buttons, error as
+   banner-da. Auth flow, SSO auto-init/callback, validation and i18n unchanged. */
 import { useState, useEffect, useMemo } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -5,10 +8,10 @@ import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
-import { DocumentTextIcon, ExclamationCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, ExclamationCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
 import { client } from '@/lib/api/client'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { Button, Field } from '@/components/ui'
 
 type LoginForm = { username: string; password: string }
 
@@ -94,115 +97,98 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Logo and title */}
-        <div className="text-center">
-          <div className="mx-auto h-16 w-16 rounded-xl bg-primary-600 flex items-center justify-center">
-            <DocumentTextIcon className="h-10 w-10 text-white" />
-          </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Evaluetor
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            {t('auth.subtitle')}
-          </p>
-        </div>
-
-        {/* Login form */}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          {error && (
-            <div className="rounded-lg bg-red-50 p-4 flex items-start gap-3">
-              <ExclamationCircleIcon className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="username" className="label">
-                {t('auth.username')}
-              </label>
-              <input
-                id="username"
-                type="text"
-                autoComplete="username"
-                className="input"
-                placeholder={t('auth.usernamePlaceholder')}
-                {...register('username')}
-              />
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="password" className="label">
-                {t('auth.password')}
-              </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                className="input"
-                placeholder={t('auth.passwordPlaceholder')}
-                {...register('password')}
-              />
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-              )}
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+    <div
+      className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
+      style={{ background: 'var(--pg)' }}
+    >
+      <div className="w-full" style={{ maxWidth: 400 }}>
+        {/* Wordmark */}
+        <div className="row" style={{ justifyContent: 'center', gap: 9 }}>
+          <span
+            aria-hidden
+            style={{
+              width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+              background: 'var(--p)', color: 'var(--on-p)',
+              display: 'grid', placeItems: 'center',
+              fontSize: 14, fontWeight: 700, lineHeight: 1,
+            }}
           >
-            {isSubmitting ? (
-              <div className="flex items-center justify-center gap-2">
-                <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                <span>{t('auth.signingIn')}</span>
+            E
+          </span>
+          <span style={{ fontSize: 'var(--fs-xl)', fontWeight: 600, letterSpacing: '-.3px' }}>
+            Evaluetor
+          </span>
+        </div>
+        <p className="muted text-center" style={{ marginTop: 8, fontSize: 'var(--fs-md)' }}>
+          {t('auth.subtitle')}
+        </p>
+
+        {/* Login card */}
+        <div className="card" style={{ marginTop: 24, padding: 24 }}>
+          <form className="col" style={{ gap: 14 }} onSubmit={handleSubmit(onSubmit)}>
+            {error && (
+              <div className="banner banner-da">
+                <ExclamationCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+                <span>{error}</span>
               </div>
-            ) : (
-              t('auth.signIn')
             )}
-          </button>
-        </form>
 
-        {/* SSO Login */}
-        {ssoProviders && ssoProviders.length > 0 && (
-          <>
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+            <Field
+              label={t('auth.username')}
+              type="text"
+              autoComplete="username"
+              placeholder={t('auth.usernamePlaceholder')}
+              error={errors.username?.message}
+              {...register('username')}
+            />
+
+            <Field
+              label={t('auth.password')}
+              type="password"
+              autoComplete="current-password"
+              placeholder={t('auth.passwordPlaceholder')}
+              error={errors.password?.message}
+              {...register('password')}
+            />
+
+            <Button variant="primary" size="lg" type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting && (
+                <ArrowPathIcon className="spin" style={{ width: 15, height: 15, flexShrink: 0 }} aria-hidden />
+              )}
+              {isSubmitting ? t('auth.signingIn') : t('auth.signIn')}
+            </Button>
+          </form>
+
+          {/* SSO Login */}
+          {ssoProviders && ssoProviders.length > 0 && (
+            <>
+              <div className="row" style={{ gap: 10, margin: '18px 0 14px' }}>
+                <span className="grow" style={{ height: 1, background: 'var(--b)' }} />
+                <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('auth.orContinueWith')}</span>
+                <span className="grow" style={{ height: 1, background: 'var(--b)' }} />
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-gray-50 px-2 text-gray-500">{t('auth.orContinueWith')}</span>
+
+              <div className="col" style={{ gap: 8 }}>
+                {ssoProviders.map((p) => (
+                  <Button
+                    key={p.tenant_slug}
+                    variant="secondary"
+                    className="w-full"
+                    disabled={ssoLoading === p.tenant_slug}
+                    onClick={() => handleSSOLogin(p.tenant_slug)}
+                  >
+                    {ssoLoading === p.tenant_slug ? (
+                      <ArrowPathIcon className="spin" style={{ width: 15, height: 15, flexShrink: 0 }} aria-hidden />
+                    ) : (
+                      <ShieldCheckIcon style={{ width: 15, height: 15, flexShrink: 0, color: 'var(--p)' }} aria-hidden />
+                    )}
+                    {t('auth.signInWithSso', { tenant: p.tenant_name })}
+                  </Button>
+                ))}
               </div>
-            </div>
-
-            <div className="space-y-2">
-              {ssoProviders.map((p) => (
-                <button
-                  key={p.tenant_slug}
-                  type="button"
-                  onClick={() => handleSSOLogin(p.tenant_slug)}
-                  disabled={ssoLoading === p.tenant_slug}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  {ssoLoading === p.tenant_slug ? (
-                    <LoadingSpinner size="sm" />
-                  ) : (
-                    <ShieldCheckIcon className="h-5 w-5 text-primary-500" />
-                  )}
-                  {t('auth.signInWithSso', { tenant: p.tenant_name })}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

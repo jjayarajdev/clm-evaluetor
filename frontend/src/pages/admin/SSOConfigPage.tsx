@@ -1,11 +1,15 @@
+/* SSO configuration — Direction B restyle.
+   Health Pill in the header → config card with token detail grid and role
+   mapping Tags → edit form on Field/Select/Switch primitives (secret stays
+   masked with an eye toggle) → disable now goes through ConfirmDialog instead
+   of window.confirm. All queries, mutations, the test flow, validation and
+   payload shapes are unchanged from the pre-redesign page. */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationTriangleIcon,
-  SignalIcon,
   EyeIcon,
   EyeSlashIcon,
   ArrowPathIcon,
@@ -15,7 +19,20 @@ import {
 } from '@heroicons/react/24/outline'
 import { client } from '@/lib/api/client'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn, formatDateTime } from '@/lib/utils'
+import { formatDateTime } from '@/lib/utils'
+import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Select,
+  Switch,
+  Tag,
+  useToast,
+} from '@/components/ui'
+import type { PillTone } from '@/components/ui'
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -68,11 +85,11 @@ const ROLES = [
   { value: 'bu_head', label: 'BU Head' },
 ]
 
-const HEALTH_CONFIG: Record<string, { color: string; icon: typeof CheckCircleIcon; label: string }> = {
-  healthy: { color: 'bg-green-100 text-green-700', icon: CheckCircleIcon, label: 'Connected' },
-  degraded: { color: 'bg-yellow-100 text-yellow-700', icon: ExclamationTriangleIcon, label: 'Degraded' },
-  unhealthy: { color: 'bg-red-100 text-red-700', icon: XCircleIcon, label: 'Unhealthy' },
-  unknown: { color: 'bg-gray-100 text-gray-600', icon: SignalIcon, label: 'Not Tested' },
+const HEALTH_CONFIG: Record<string, { tone: PillTone; label: string }> = {
+  healthy: { tone: 'ok', label: 'Connected' },
+  degraded: { tone: 'wa', label: 'Degraded' },
+  unhealthy: { tone: 'da', label: 'Unhealthy' },
+  unknown: { tone: 'n', label: 'Not Tested' },
 }
 
 const emptyForm: SSOConfigForm = {
@@ -155,10 +172,12 @@ function ProviderHelp({ provider }: { provider: string }) {
   const helpKey = provider in hints ? provider : 'generic'
 
   return (
-    <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm">
-      <p className="font-medium text-blue-800 mb-1">{t('ssoConfig.setupGuide')}</p>
-      <p className="text-blue-700 mb-2">{t(`ssoConfig.help.${helpKey}`, { defaultValue: h.note })}</p>
-      <p className="text-blue-600 text-xs font-mono">{t('ssoConfig.exampleIssuer')} {h.issuer}</p>
+    <div className="banner banner-in" style={{ flexDirection: 'column', gap: 4 }}>
+      <b>{t('ssoConfig.setupGuide')}</b>
+      <span>{t(`ssoConfig.help.${helpKey}`, { defaultValue: h.note })}</span>
+      <span className="mono" style={{ fontSize: 'var(--fs-xs)' }}>
+        {t('ssoConfig.exampleIssuer')} {h.issuer}
+      </span>
     </div>
   )
 }
@@ -168,10 +187,12 @@ function ProviderHelp({ provider }: { provider: string }) {
 export default function SSOConfigPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
   const [form, setForm] = useState<SSOConfigForm>(emptyForm)
   const [showSecret, setShowSecret] = useState(false)
   const [testResult, setTestResult] = useState<{ healthy: boolean; message: string } | null>(null)
+  const [confirmDisable, setConfirmDisable] = useState(false)
 
   const { data: config, isLoading } = useQuery({
     queryKey: ['sso-config'],
@@ -192,6 +213,7 @@ export default function SSOConfigPage() {
     onSuccess: (data) => {
       setTestResult(data)
       queryClient.invalidateQueries({ queryKey: ['sso-config'] })
+      toast({ text: data.message, error: !data.healthy })
     },
   })
 
@@ -232,117 +254,131 @@ export default function SSOConfigPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
         <LoadingSpinner size="lg" />
       </div>
     )
   }
 
   const health = HEALTH_CONFIG[config?.health_status || 'unknown'] || HEALTH_CONFIG.unknown
-  const HealthIcon = health.icon
 
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 18 }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('ssoConfig.title')}</h1>
-          <p className="mt-1 text-sm text-gray-500">
+      <div className="row" style={{ alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>
+            {t('ssoConfig.title')}
+          </h1>
+          <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>
             {t('ssoConfig.subtitle')}
           </p>
         </div>
         {config && !isEditing && (
-          <div className="flex items-center gap-3">
-            <span className={cn('inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium', health.color)}>
-              <HealthIcon className="h-4 w-4" />
-              {t(`ssoConfig.health.${config?.health_status || 'unknown'}`, { defaultValue: health.label })}
-            </span>
-          </div>
+          <Pill tone={health.tone}>
+            {t(`ssoConfig.health.${config?.health_status || 'unknown'}`, { defaultValue: health.label })}
+          </Pill>
         )}
       </div>
 
       {/* Current Config Display */}
       {config && !isEditing && (
-        <div className="card p-6 space-y-6">
+        <div className="card card-p col" style={{ gap: 16 }}>
           {/* Status bar */}
-          <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary-100 flex items-center justify-center">
-                <ShieldCheckIcon className="h-5 w-5 text-primary-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">{config.name}</p>
-                <p className="text-xs text-gray-500">
-                  {PROVIDERS.find((p) => p.value === config.provider)?.label || config.provider}
-                </p>
-              </div>
+          <div className="row" style={{ gap: 12, paddingBottom: 14, borderBottom: '1px solid var(--b)', flexWrap: 'wrap' }}>
+            <span
+              style={{
+                width: 40, height: 40, borderRadius: 'var(--r-lg)', flexShrink: 0,
+                background: 'var(--p-f)', color: 'var(--p)', display: 'grid', placeItems: 'center',
+              }}
+            >
+              <ShieldCheckIcon style={{ width: 20, height: 20 }} aria-hidden />
+            </span>
+            <div className="grow" style={{ minWidth: 0 }}>
+              <p style={{ fontWeight: 600, fontSize: 'var(--fs-md)' }}>{config.name}</p>
+              <p className="faint" style={{ fontSize: 'var(--fs-xs)' }}>
+                {PROVIDERS.find((p) => p.value === config.provider)?.label || config.provider}
+              </p>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => testMutation.mutate()} disabled={testMutation.isPending} className="btn-secondary text-sm">
-                {testMutation.isPending ? <LoadingSpinner size="sm" /> : <ArrowPathIcon className="h-4 w-4" />}
-                {t('ssoConfig.testConnection')}
-              </button>
-              <button onClick={startEditing} className="btn-secondary text-sm">
-                {t('common.edit')}
-              </button>
-              <button
-                onClick={() => {
-                  if (confirm(t('ssoConfig.confirmDisable'))) deleteMutation.mutate()
-                }}
-                className="btn-secondary text-sm text-red-600 hover:text-red-700"
+            <div className="row" style={{ gap: 6 }}>
+              <Button
+                size="sm"
+                icon={ArrowPathIcon}
+                onClick={() => testMutation.mutate()}
+                disabled={testMutation.isPending}
               >
+                {testMutation.isPending ? <LoadingSpinner size="sm" /> : null}
+                {t('ssoConfig.testConnection')}
+              </Button>
+              <Button size="sm" onClick={startEditing}>
+                {t('common.edit')}
+              </Button>
+              <Button size="sm" variant="danger-ghost" onClick={() => setConfirmDisable(true)}>
                 {t('ssoConfig.disable')}
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* Test result */}
           {testResult && (
-            <div className={cn('rounded-lg p-4 text-sm', testResult.healthy ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800')}>
-              <div className="flex items-center gap-2">
-                {testResult.healthy ? <CheckCircleIcon className="h-5 w-5" /> : <XCircleIcon className="h-5 w-5" />}
-                <span className="font-medium">{testResult.healthy ? t('ssoConfig.connectionSuccessful') : t('ssoConfig.connectionFailed')}</span>
-              </div>
-              <p className="mt-1 ml-7">{testResult.message}</p>
+            <div
+              className={testResult.healthy ? 'banner' : 'banner banner-da'}
+              style={testResult.healthy ? { background: 'var(--ok-f)', borderColor: 'var(--ok-b)', color: 'var(--ok)' } : undefined}
+            >
+              {testResult.healthy ? (
+                <CheckCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+              ) : (
+                <XCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+              )}
+              <span>
+                <b>{testResult.healthy ? t('ssoConfig.connectionSuccessful') : t('ssoConfig.connectionFailed')}</b>
+                <span style={{ display: 'block', marginTop: 2 }}>{testResult.message}</span>
+              </span>
             </div>
           )}
 
           {/* Config details */}
-          <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
-            <div>
-              <p className="text-gray-500">{t('ssoConfig.issuerUrl')}</p>
-              <p className="font-mono text-gray-900 truncate">{config.issuer_url}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+            <div style={{ minWidth: 0 }}>
+              <span className="sec-t">{t('ssoConfig.issuerUrl')}</span>
+              <p className="mono trunc" style={{ fontSize: 'var(--fs-sm)', marginTop: 3 }}>{config.issuer_url}</p>
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <span className="sec-t">{t('ssoConfig.clientId')}</span>
+              <p className="mono trunc" style={{ fontSize: 'var(--fs-sm)', marginTop: 3 }}>{config.client_id}</p>
             </div>
             <div>
-              <p className="text-gray-500">{t('ssoConfig.clientId')}</p>
-              <p className="font-mono text-gray-900 truncate">{config.client_id}</p>
+              <span className="sec-t">{t('ssoConfig.scopes')}</span>
+              <p style={{ fontSize: 'var(--fs-md)', marginTop: 3 }}>{config.scopes.join(', ')}</p>
             </div>
             <div>
-              <p className="text-gray-500">{t('ssoConfig.scopes')}</p>
-              <p className="text-gray-900">{config.scopes.join(', ')}</p>
+              <span className="sec-t">{t('ssoConfig.defaultRole')}</span>
+              <p style={{ fontSize: 'var(--fs-md)', marginTop: 3, textTransform: 'capitalize' }}>
+                {t(`roles.${config.default_role}`, { defaultValue: config.default_role })}
+              </p>
             </div>
             <div>
-              <p className="text-gray-500">{t('ssoConfig.defaultRole')}</p>
-              <p className="text-gray-900 capitalize">{t(`roles.${config.default_role}`, { defaultValue: config.default_role })}</p>
+              <span className="sec-t">{t('ssoConfig.autoProvisionUsers')}</span>
+              <div style={{ marginTop: 4 }}>
+                <Pill tone={config.auto_provision ? 'ok' : 'n'}>
+                  {config.auto_provision ? t('ssoConfig.enabled') : t('ssoConfig.disabled')}
+                </Pill>
+              </div>
             </div>
             <div>
-              <p className="text-gray-500">{t('ssoConfig.autoProvisionUsers')}</p>
-              <p className="text-gray-900">{config.auto_provision ? t('ssoConfig.enabled') : t('ssoConfig.disabled')}</p>
-            </div>
-            <div>
-              <p className="text-gray-500">{t('ssoConfig.lastHealthCheck')}</p>
-              <p className="text-gray-900">{config.last_health_check ? formatDateTime(config.last_health_check) : t('ssoConfig.never')}</p>
+              <span className="sec-t">{t('ssoConfig.lastHealthCheck')}</span>
+              <p style={{ fontSize: 'var(--fs-md)', marginTop: 3 }}>
+                {config.last_health_check ? formatDateTime(config.last_health_check) : t('ssoConfig.never')}
+              </p>
             </div>
             {config.role_mapping && Object.keys(config.role_mapping).length > 0 && (
-              <div className="col-span-2">
-                <p className="text-gray-500 mb-2">{t('ssoConfig.roleMapping')}</p>
-                <div className="flex flex-wrap gap-2">
+              <div className="sm:col-span-2">
+                <span className="sec-t">{t('ssoConfig.roleMapping')}</span>
+                <div className="row" style={{ gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                   {Object.entries(config.role_mapping).map(([group, role]) => (
-                    <span key={group} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs">
-                      <span className="font-medium">{group}</span>
-                      <span className="text-gray-400">&rarr;</span>
-                      <span className="capitalize">{t(`roles.${role}`, { defaultValue: role })}</span>
-                    </span>
+                    <Tag key={group}>
+                      {group} &rarr; {t(`roles.${role}`, { defaultValue: role })}
+                    </Tag>
                   ))}
                 </div>
               </div>
@@ -351,9 +387,10 @@ export default function SSOConfigPage() {
 
           {/* Tenant slug info */}
           {config.tenant_slug && (
-            <div className="pt-4 border-t border-gray-200">
-              <p className="text-xs text-gray-500">
-                {t('ssoConfig.ssoLoginUrl')} <span className="font-mono text-gray-700">{window.location.origin}/login?sso={config.tenant_slug}</span>
+            <div style={{ paddingTop: 14, borderTop: '1px solid var(--b)' }}>
+              <p className="faint" style={{ fontSize: 'var(--fs-xs)' }}>
+                {t('ssoConfig.ssoLoginUrl')}{' '}
+                <span className="mono muted">{window.location.origin}/login?sso={config.tenant_slug}</span>
               </p>
             </div>
           )}
@@ -362,231 +399,200 @@ export default function SSOConfigPage() {
 
       {/* No config state */}
       {!config && !isEditing && (
-        <div className="card p-12 text-center">
-          <ShieldCheckIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('ssoConfig.notConfigured')}</h3>
-          <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-            {t('ssoConfig.notConfiguredHint')}
-          </p>
-          <button onClick={startEditing} className="btn-primary">
-            {t('ssoConfig.configureSso')}
-          </button>
+        <div className="card">
+          <EmptyState
+            icon={ShieldCheckIcon}
+            title={t('ssoConfig.notConfigured')}
+            body={t('ssoConfig.notConfiguredHint')}
+            action={
+              <Button variant="primary" onClick={startEditing}>
+                {t('ssoConfig.configureSso')}
+              </Button>
+            }
+          />
         </div>
       )}
 
       {/* Edit / Create Form */}
       {isEditing && (
-        <form onSubmit={handleSubmit} className="card p-6 space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">
+        <form onSubmit={handleSubmit} className="card card-p col" style={{ gap: 16 }}>
+          <div style={{ paddingBottom: 14, borderBottom: '1px solid var(--b)' }}>
+            <h3 style={{ fontSize: 'var(--fs-lg)', fontWeight: 600 }}>
               {config ? t('ssoConfig.editConfiguration') : t('ssoConfig.setUpSso')}
             </h3>
           </div>
 
           {saveMutation.isError && (
-            <div className="rounded-lg bg-red-50 p-4 text-sm text-red-800">
-              {saveMutation.error instanceof Error ? saveMutation.error.message : t('ssoConfig.failedToSave')}
+            <div className="banner banner-da">
+              <XCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+              <span>{saveMutation.error instanceof Error ? saveMutation.error.message : t('ssoConfig.failedToSave')}</span>
             </div>
           )}
 
           {/* Provider */}
-          <div>
-            <label className="label">{t('ssoConfig.identityProvider')}</label>
-            <select
-              className="input"
-              value={form.provider}
-              onChange={(e) => setForm({ ...form, provider: e.target.value })}
-            >
-              {PROVIDERS.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label={t('ssoConfig.identityProvider')}
+            value={form.provider}
+            onChange={(e) => setForm({ ...form, provider: e.target.value })}
+            options={PROVIDERS}
+          />
 
           <ProviderHelp provider={form.provider} />
 
           {/* Name */}
-          <div>
-            <label className="label">{t('ssoConfig.displayName')}</label>
-            <input
-              className="input"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={t('ssoConfig.displayNamePlaceholder')}
-            />
-          </div>
+          <Field
+            label={t('ssoConfig.displayName')}
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder={t('ssoConfig.displayNamePlaceholder')}
+          />
 
           {/* OIDC Settings */}
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <label className="label">{t('ssoConfig.issuerUrl')}</label>
-              <input
-                className="input font-mono text-sm"
-                value={form.issuer_url}
-                onChange={(e) => setForm({ ...form, issuer_url: e.target.value })}
-                placeholder="https://login.microsoftonline.com/{tenant-id}/v2.0"
-                required
-              />
-              <p className="mt-1 text-xs text-gray-400">
-                {t('ssoConfig.discoveryHint')}
-              </p>
-            </div>
+          <Field
+            label={t('ssoConfig.issuerUrl')}
+            type="text"
+            className="mono"
+            value={form.issuer_url}
+            onChange={(e) => setForm({ ...form, issuer_url: e.target.value })}
+            placeholder="https://login.microsoftonline.com/{tenant-id}/v2.0"
+            hint={t('ssoConfig.discoveryHint')}
+            required
+          />
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="label">{t('ssoConfig.clientId')}</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field
+              label={t('ssoConfig.clientId')}
+              type="text"
+              className="mono"
+              value={form.client_id}
+              onChange={(e) => setForm({ ...form, client_id: e.target.value })}
+              placeholder={t('ssoConfig.clientIdPlaceholder')}
+              required
+            />
+            <div>
+              <label className="lbl">{t('ssoConfig.clientSecret')}</label>
+              <div className="inp">
                 <input
-                  className="input font-mono text-sm"
-                  value={form.client_id}
-                  onChange={(e) => setForm({ ...form, client_id: e.target.value })}
-                  placeholder={t('ssoConfig.clientIdPlaceholder')}
-                  required
+                  className="mono"
+                  type={showSecret ? 'text' : 'password'}
+                  value={form.client_secret}
+                  onChange={(e) => setForm({ ...form, client_secret: e.target.value })}
+                  placeholder={config ? t('ssoConfig.secretUnchangedPlaceholder') : t('ssoConfig.secretValuePlaceholder')}
+                  required={!config}
+                />
+                <IconButton
+                  icon={showSecret ? EyeSlashIcon : EyeIcon}
+                  size="sm"
+                  label={t('ssoConfig.toggleSecret', { defaultValue: 'Toggle visibility' })}
+                  onClick={() => setShowSecret(!showSecret)}
                 />
               </div>
-              <div>
-                <label className="label">{t('ssoConfig.clientSecret')}</label>
-                <div className="relative">
-                  <input
-                    className="input font-mono text-sm pr-10"
-                    type={showSecret ? 'text' : 'password'}
-                    value={form.client_secret}
-                    onChange={(e) => setForm({ ...form, client_secret: e.target.value })}
-                    placeholder={config ? t('ssoConfig.secretUnchangedPlaceholder') : t('ssoConfig.secretValuePlaceholder')}
-                    required={!config}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowSecret(!showSecret)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
-                  >
-                    {showSecret ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="label">{t('ssoConfig.scopes')}</label>
-              <input
-                className="input text-sm"
-                value={form.scopes}
-                onChange={(e) => setForm({ ...form, scopes: e.target.value })}
-                placeholder="openid email profile"
-              />
-              <p className="mt-1 text-xs text-gray-400">{t('ssoConfig.scopesHint')}</p>
             </div>
           </div>
 
+          <Field
+            label={t('ssoConfig.scopes')}
+            type="text"
+            value={form.scopes}
+            onChange={(e) => setForm({ ...form, scopes: e.target.value })}
+            placeholder="openid email profile"
+            hint={t('ssoConfig.scopesHint')}
+          />
+
           {/* User Provisioning */}
-          <div className="pt-4 border-t border-gray-200">
-            <h4 className="font-medium text-gray-900 mb-4">{t('ssoConfig.userProvisioning')}</h4>
+          <div className="col" style={{ gap: 14, paddingTop: 14, borderTop: '1px solid var(--b)' }}>
+            <span className="sec-t">{t('ssoConfig.userProvisioning')}</span>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="auto_provision"
-                  checked={form.auto_provision}
-                  onChange={(e) => setForm({ ...form, auto_provision: e.target.checked })}
-                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <label htmlFor="auto_provision" className="text-sm text-gray-700">
-                  {t('ssoConfig.autoCreateUsers')}
-                </label>
-              </div>
+            <Switch
+              checked={form.auto_provision}
+              onChange={(checked) => setForm({ ...form, auto_provision: checked })}
+              label={t('ssoConfig.autoCreateUsers')}
+            />
 
-              <div>
-                <label className="label">{t('ssoConfig.defaultRoleForNewUsers')}</label>
-                <select
-                  className="input"
-                  value={form.default_role}
-                  onChange={(e) => setForm({ ...form, default_role: e.target.value })}
+            <Select
+              label={t('ssoConfig.defaultRoleForNewUsers')}
+              value={form.default_role}
+              onChange={(e) => setForm({ ...form, default_role: e.target.value })}
+              options={ROLES.map((r) => ({ value: r.value, label: t(`roles.${r.value}`, { defaultValue: r.label }) }))}
+            />
+
+            <div>
+              <div className="row" style={{ marginBottom: 5 }}>
+                <label className="lbl grow" style={{ marginBottom: 0 }}>{t('ssoConfig.roleMapping')}</label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={PlusIcon}
+                  onClick={() => setForm({ ...form, role_mappings: [...form.role_mappings, { idp_group: '', app_role: 'legal' }] })}
                 >
-                  {ROLES.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {t(`roles.${r.value}`, { defaultValue: r.label })}
-                    </option>
-                  ))}
-                </select>
+                  {t('ssoConfig.addMapping')}
+                </Button>
               </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="label mb-0">{t('ssoConfig.roleMapping')}</label>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, role_mappings: [...form.role_mappings, { idp_group: '', app_role: 'legal' }] })}
-                    className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
-                  >
-                    <PlusIcon className="h-3.5 w-3.5" />
-                    {t('ssoConfig.addMapping')}
-                  </button>
+              <p className="faint" style={{ fontSize: 'var(--fs-xs)', marginBottom: 10 }}>
+                {t('ssoConfig.roleMappingHint')}
+              </p>
+              {form.role_mappings.length === 0 ? (
+                <div
+                  style={{
+                    padding: '14px 12px', textAlign: 'center', background: 'var(--s3)',
+                    border: '1px dashed var(--b2)', borderRadius: 'var(--r-md)',
+                  }}
+                >
+                  <p className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('ssoConfig.noMappings')}</p>
                 </div>
-                <p className="text-xs text-gray-400 mb-3">
-                  {t('ssoConfig.roleMappingHint')}
-                </p>
-                {form.role_mappings.length === 0 ? (
-                  <div className="text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                    <p className="text-xs text-gray-500">{t('ssoConfig.noMappings')}</p>
+              ) : (
+                <div className="col" style={{ gap: 8 }}>
+                  <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-center" style={{ padding: '0 2px' }}>
+                    <span className="sec-t">{t('ssoConfig.idpGroupName')}</span>
+                    <span></span>
+                    <span className="sec-t">{t('ssoConfig.appRole')}</span>
+                    <span></span>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-center text-xs font-medium text-gray-500 px-1">
-                      <span>{t('ssoConfig.idpGroupName')}</span>
-                      <span></span>
-                      <span>{t('ssoConfig.appRole')}</span>
-                      <span></span>
+                  {form.role_mappings.map((mapping, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-center">
+                      <Field
+                        type="text"
+                        value={mapping.idp_group}
+                        onChange={(e) => {
+                          const updated = [...form.role_mappings]
+                          updated[idx] = { ...updated[idx], idp_group: e.target.value }
+                          setForm({ ...form, role_mappings: updated })
+                        }}
+                        placeholder={t('ssoConfig.idpGroupPlaceholder')}
+                      />
+                      <span className="faint" style={{ padding: '0 2px' }}>&rarr;</span>
+                      <Select
+                        value={mapping.app_role}
+                        onChange={(e) => {
+                          const updated = [...form.role_mappings]
+                          updated[idx] = { ...updated[idx], app_role: e.target.value }
+                          setForm({ ...form, role_mappings: updated })
+                        }}
+                        options={ROLES.map((r) => ({ value: r.value, label: t(`roles.${r.value}`, { defaultValue: r.label }) }))}
+                      />
+                      <IconButton
+                        icon={TrashIcon}
+                        size="sm"
+                        label={t('common.delete', { defaultValue: 'Delete' })}
+                        onClick={() => setForm({ ...form, role_mappings: form.role_mappings.filter((_, i) => i !== idx) })}
+                      />
                     </div>
-                    {form.role_mappings.map((mapping, idx) => (
-                      <div key={idx} className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-center">
-                        <input
-                          className="input text-sm"
-                          value={mapping.idp_group}
-                          onChange={(e) => {
-                            const updated = [...form.role_mappings]
-                            updated[idx] = { ...updated[idx], idp_group: e.target.value }
-                            setForm({ ...form, role_mappings: updated })
-                          }}
-                          placeholder={t('ssoConfig.idpGroupPlaceholder')}
-                        />
-                        <span className="text-gray-400 text-sm px-1">&rarr;</span>
-                        <select
-                          className="input text-sm"
-                          value={mapping.app_role}
-                          onChange={(e) => {
-                            const updated = [...form.role_mappings]
-                            updated[idx] = { ...updated[idx], app_role: e.target.value }
-                            setForm({ ...form, role_mappings: updated })
-                          }}
-                        >
-                          {ROLES.map((r) => <option key={r.value} value={r.value}>{t(`roles.${r.value}`, { defaultValue: r.label })}</option>)}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => setForm({ ...form, role_mappings: form.role_mappings.filter((_, i) => i !== idx) })}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-            <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary">
+          <div className="row" style={{ justifyContent: 'flex-end', gap: 8, paddingTop: 14, borderTop: '1px solid var(--b)' }}>
+            <Button variant="ghost" onClick={() => setIsEditing(false)}>
               {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={saveMutation.isPending} className="btn-primary">
+            </Button>
+            <Button variant="primary" type="submit" disabled={saveMutation.isPending}>
               {saveMutation.isPending ? (
-                <span className="flex items-center gap-2">
-                  <LoadingSpinner size="sm" className="border-white border-t-transparent" />
+                <span className="row" style={{ gap: 8 }}>
+                  <LoadingSpinner size="sm" />
                   {t('ssoConfig.saving')}
                 </span>
               ) : config ? (
@@ -594,10 +600,25 @@ export default function SSOConfigPage() {
               ) : (
                 t('ssoConfig.enableSso')
               )}
-            </button>
+            </Button>
           </div>
         </form>
       )}
+
+      {/* Disable — replaces window.confirm; same deleteConfig call */}
+      <ConfirmDialog
+        open={confirmDisable}
+        tone="danger"
+        title={t('ssoConfig.disable')}
+        body={t('ssoConfig.confirmDisable')}
+        confirmLabel={t('ssoConfig.disable')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => {
+          setConfirmDisable(false)
+          deleteMutation.mutate()
+        }}
+        onCancel={() => setConfirmDisable(false)}
+      />
     </div>
   )
 }

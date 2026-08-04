@@ -1,3 +1,8 @@
+/* SharePoint integration — Direction B restyle.
+   Config card (health Pill, request stats, credential Fields) → site/drive
+   browser with token-coloured rows → import progress with a Bar and status
+   Pill. All queries, mutations, connection tests, browse navigation and the
+   import flow are unchanged from the pre-redesign page. */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -5,8 +10,6 @@ import {
   ArrowPathIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationTriangleIcon,
-  SignalIcon,
   FolderIcon,
   FolderOpenIcon,
   DocumentIcon,
@@ -18,6 +21,8 @@ import {
 import { client } from '@/lib/api/client'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { cn } from '@/lib/utils'
+import { Bar, Button, Field, Pill, useToast } from '@/components/ui'
+import type { PillTone } from '@/components/ui'
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -125,22 +130,34 @@ const spApi = {
 
 // ── Health Badge ──────────────────────────────────────────────────────
 
-const HEALTH_CONFIG: Record<string, { color: string; icon: typeof CheckCircleIcon; label: string }> = {
-  healthy: { color: 'bg-green-100 text-green-700', icon: CheckCircleIcon, label: 'Connected' },
-  degraded: { color: 'bg-yellow-100 text-yellow-700', icon: ExclamationTriangleIcon, label: 'Degraded' },
-  unhealthy: { color: 'bg-red-100 text-red-700', icon: XCircleIcon, label: 'Unhealthy' },
-  unknown: { color: 'bg-gray-100 text-gray-600', icon: SignalIcon, label: 'Not tested' },
+const HEALTH_CONFIG: Record<string, { tone: PillTone; label: string }> = {
+  healthy: { tone: 'ok', label: 'Connected' },
+  degraded: { tone: 'wa', label: 'Degraded' },
+  unhealthy: { tone: 'da', label: 'Unhealthy' },
+  unknown: { tone: 'n', label: 'Not tested' },
 }
 
 function HealthBadge({ status }: { status: string }) {
   const { t } = useTranslation()
   const cfg = HEALTH_CONFIG[status] || HEALTH_CONFIG.unknown
-  const Icon = cfg.icon
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium', cfg.color)}>
-      <Icon className="h-3.5 w-3.5" />
+    <Pill tone={cfg.tone}>
       {t(`integrations.sharepoint.health.${status}`, { defaultValue: cfg.label })}
-    </span>
+    </Pill>
+  )
+}
+
+/* Token-coloured result strip for connection tests. */
+function ResultBanner({ result }: { result: { healthy: boolean; message: string } }) {
+  const Icon = result.healthy ? CheckCircleIcon : XCircleIcon
+  return (
+    <div
+      className={result.healthy ? 'banner' : 'banner banner-da'}
+      style={result.healthy ? { background: 'var(--ok-f)', borderColor: 'var(--ok-b)', color: 'var(--ok)' } : undefined}
+    >
+      <Icon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+      <span>{result.message}</span>
+    </div>
   )
 }
 
@@ -151,6 +168,7 @@ type View = 'config' | 'browse' | 'importing'
 export default function SharePointIntegrationPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [view, setView] = useState<View>('config')
   const [isEditing, setIsEditing] = useState(false)
   const [testResult, setTestResult] = useState<{ healthy: boolean; message: string } | null>(null)
@@ -230,6 +248,7 @@ export default function SharePointIntegrationPage() {
     onSuccess: (result) => {
       setTestResult(result)
       queryClient.invalidateQueries({ queryKey: ['sp-config'] })
+      toast({ text: result.message, error: !result.healthy })
     },
   })
 
@@ -281,7 +300,7 @@ export default function SharePointIntegrationPage() {
 
   if (configLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
         <LoadingSpinner size="lg" />
       </div>
     )
@@ -296,60 +315,52 @@ export default function SharePointIntegrationPage() {
     const isDone = importStatus.status === 'completed' || importStatus.status === 'failed'
 
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <CloudArrowDownIcon className="h-6 w-6 text-primary-600" />
-          <h1 className="text-xl font-semibold text-gray-900">{t('integrations.sharepoint.importTitle')}</h1>
+      <div className="col" style={{ gap: 18 }}>
+        <div className="row" style={{ gap: 10 }}>
+          <CloudArrowDownIcon style={{ width: 22, height: 22, flexShrink: 0, color: 'var(--p)' }} aria-hidden />
+          <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, letterSpacing: '-.3px' }}>
+            {t('integrations.sharepoint.importTitle')}
+          </h1>
         </div>
 
-        <div className="bg-white rounded-lg border p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">{t('common.status')}</span>
-            <span className={cn(
-              'text-sm font-medium px-2.5 py-0.5 rounded-full',
-              importStatus.status === 'completed' ? 'bg-green-100 text-green-700' :
-              importStatus.status === 'failed' ? 'bg-red-100 text-red-700' :
-              'bg-blue-100 text-blue-700'
-            )}>
+        <div className="card card-p col" style={{ gap: 14 }}>
+          <div className="row">
+            <span className="sec-t grow">{t('common.status')}</span>
+            <Pill tone={importStatus.status === 'completed' ? 'ok' : importStatus.status === 'failed' ? 'da' : 'in'}>
               {importStatus.status === 'running' ? t('integrations.sharepoint.importing') : t(`status.${importStatus.status}`, { defaultValue: importStatus.status })}
-            </span>
+            </Pill>
           </div>
 
           {/* Progress bar */}
-          <div>
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
+          <div className="col" style={{ gap: 5 }}>
+            <div className="row faint" style={{ justifyContent: 'space-between', fontSize: 'var(--fs-xs)' }}>
               <span>{t('integrations.sharepoint.filesProgress', { done: importStatus.imported + importStatus.skipped + importStatus.failed, total: importStatus.total_files })}</span>
-              <span>{pct}%</span>
+              <span className="num">{pct}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className={cn('h-2 rounded-full transition-all', isDone ? 'bg-green-500' : 'bg-primary-500')}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
+            <Bar value={pct} width="100%" tone={isDone ? 'var(--ok)' : undefined} />
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 pt-2">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{importStatus.imported}</div>
-              <div className="text-xs text-gray-500">{t('integrations.sharepoint.imported')}</div>
+          <div className="grid grid-cols-3 gap-3" style={{ paddingTop: 6 }}>
+            <div className="col" style={{ alignItems: 'center', gap: 2 }}>
+              <span className="num" style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, color: 'var(--ok)' }}>{importStatus.imported}</span>
+              <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('integrations.sharepoint.imported')}</span>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-400">{importStatus.skipped}</div>
-              <div className="text-xs text-gray-500">{t('integrations.sharepoint.skipped')}</div>
+            <div className="col" style={{ alignItems: 'center', gap: 2 }}>
+              <span className="num" style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, color: 'var(--f)' }}>{importStatus.skipped}</span>
+              <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('integrations.sharepoint.skipped')}</span>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-500">{importStatus.failed}</div>
-              <div className="text-xs text-gray-500">{t('integrations.failed')}</div>
+            <div className="col" style={{ alignItems: 'center', gap: 2 }}>
+              <span className="num" style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, color: 'var(--da)' }}>{importStatus.failed}</span>
+              <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('integrations.failed')}</span>
             </div>
           </div>
 
           {/* Errors */}
           {importStatus.errors.length > 0 && (
-            <div className="mt-3 bg-red-50 rounded-md p-3">
-              <p className="text-xs font-medium text-red-700 mb-1">{t('integrations.sharepoint.errorsLabel')}</p>
-              <ul className="text-xs text-red-600 space-y-0.5">
+            <div className="banner banner-da" style={{ flexDirection: 'column', gap: 6 }}>
+              <b style={{ fontSize: 'var(--fs-sm)' }}>{t('integrations.sharepoint.errorsLabel')}</b>
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 'var(--fs-sm)' }}>
                 {importStatus.errors.slice(0, 10).map((err, i) => (
                   <li key={i}>{err}</li>
                 ))}
@@ -361,17 +372,11 @@ export default function SharePointIntegrationPage() {
           )}
 
           {isDone && (
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => { setView('browse'); setImportJobId(null) }}
-                className="px-4 py-2 text-sm font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700"
-              >
+            <div className="row" style={{ gap: 8, paddingTop: 6 }}>
+              <Button variant="primary" onClick={() => { setView('browse'); setImportJobId(null) }}>
                 {t('integrations.sharepoint.importMore')}
-              </button>
-              <a
-                href="/contracts"
-                className="px-4 py-2 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
+              </Button>
+              <a href="/contracts" className="btn btn-s">
                 {t('integrations.sharepoint.viewContracts')}
               </a>
             </div>
@@ -385,80 +390,88 @@ export default function SharePointIntegrationPage() {
 
   if (view === 'browse') {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setView('config')} className="text-gray-500 hover:text-gray-700">
-              <ArrowLeftIcon className="h-5 w-5" />
-            </button>
-            <FolderOpenIcon className="h-6 w-6 text-primary-600" />
-            <h1 className="text-xl font-semibold text-gray-900">{t('integrations.sharepoint.browseTitle')}</h1>
-          </div>
+      <div className="col" style={{ gap: 14 }}>
+        <div className="row" style={{ gap: 10 }}>
+          <Button variant="ghost" size="sm" icon={ArrowLeftIcon} onClick={() => setView('config')}>
+            {t('common.back', { defaultValue: 'Back' })}
+          </Button>
+          <FolderOpenIcon style={{ width: 22, height: 22, flexShrink: 0, color: 'var(--p)' }} aria-hidden />
+          <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, letterSpacing: '-.3px' }}>
+            {t('integrations.sharepoint.browseTitle')}
+          </h1>
         </div>
 
         {/* Step 1: Search for site */}
         {!selectedSite && (
-          <div className="bg-white rounded-lg border p-6 space-y-4">
-            <h3 className="text-sm font-medium text-gray-700">{t('integrations.sharepoint.findSite')}</h3>
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder={t('integrations.sharepoint.searchSitesPlaceholder')}
-                value={siteSearch}
-                onChange={(e) => setSiteSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
+          <div className="card card-p col" style={{ gap: 12 }}>
+            <span className="sec-t">{t('integrations.sharepoint.findSite')}</span>
+            <Field
+              icon={MagnifyingGlassIcon}
+              type="text"
+              placeholder={t('integrations.sharepoint.searchSitesPlaceholder')}
+              value={siteSearch}
+              onChange={(e) => setSiteSearch(e.target.value)}
+            />
             {sitesLoading && <LoadingSpinner size="sm" />}
             {sites && sites.length > 0 && (
-              <div className="space-y-1">
+              <div className="col" style={{ gap: 2 }}>
                 {sites.map((site) => (
                   <button
                     key={site.id}
                     onClick={() => setSelectedSite(site)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-md hover:bg-primary-50 transition-colors"
+                    className="row w-full text-left rounded-md hover:bg-[var(--s2)] transition-colors"
+                    style={{ gap: 10, padding: '9px 10px' }}
                   >
-                    <FolderIcon className="h-5 w-5 text-primary-500 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{site.display_name || site.name}</p>
-                      {site.web_url && <p className="text-xs text-gray-500 truncate">{site.web_url}</p>}
-                    </div>
-                    <ChevronRightIcon className="h-4 w-4 text-gray-400 ml-auto shrink-0" />
+                    <FolderIcon style={{ width: 18, height: 18, flexShrink: 0, color: 'var(--p)' }} aria-hidden />
+                    <span className="grow col" style={{ minWidth: 0 }}>
+                      <span className="trunc" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                        {site.display_name || site.name}
+                      </span>
+                      {site.web_url && (
+                        <span className="faint trunc" style={{ fontSize: 'var(--fs-xs)' }}>{site.web_url}</span>
+                      )}
+                    </span>
+                    <ChevronRightIcon style={{ width: 14, height: 14, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
                   </button>
                 ))}
               </div>
             )}
             {sites && sites.length === 0 && siteSearch.length >= 2 && (
-              <p className="text-sm text-gray-500">{t('integrations.sharepoint.noSitesFound', { query: siteSearch })}</p>
+              <p className="muted" style={{ fontSize: 'var(--fs-md)' }}>
+                {t('integrations.sharepoint.noSitesFound', { query: siteSearch })}
+              </p>
             )}
           </div>
         )}
 
         {/* Step 2: Select document library */}
         {selectedSite && !selectedDrive && (
-          <div className="bg-white rounded-lg border p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <button onClick={() => setSelectedSite(null)} className="text-gray-400 hover:text-gray-600">
-                <ArrowLeftIcon className="h-4 w-4" />
-              </button>
-              <h3 className="text-sm font-medium text-gray-700">
-                {t('integrations.sharepoint.documentLibrariesIn')} <span className="text-primary-600">{selectedSite.display_name || selectedSite.name}</span>
-              </h3>
+          <div className="card card-p col" style={{ gap: 12 }}>
+            <div className="row" style={{ gap: 8 }}>
+              <Button variant="ghost" size="sm" icon={ArrowLeftIcon} onClick={() => setSelectedSite(null)}>
+                {t('common.back', { defaultValue: 'Back' })}
+              </Button>
+              <span className="sec-t">
+                {t('integrations.sharepoint.documentLibrariesIn')}{' '}
+                <span style={{ color: 'var(--p)' }}>{selectedSite.display_name || selectedSite.name}</span>
+              </span>
             </div>
             {drivesLoading && <LoadingSpinner size="sm" />}
             {drives && drives.map((drive) => (
               <button
                 key={drive.id}
                 onClick={() => { setSelectedDrive(drive); setFolderPath('root'); setFolderHistory([]) }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-md hover:bg-primary-50 border border-gray-100"
+                className="row w-full text-left rounded-md hover:bg-[var(--s2)] transition-colors"
+                style={{ gap: 10, padding: '9px 10px', border: '1px solid var(--b)' }}
               >
-                <FolderIcon className="h-5 w-5 text-amber-500 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{drive.name}</p>
-                  {drive.description && <p className="text-xs text-gray-500 truncate">{drive.description}</p>}
-                </div>
-                <ChevronRightIcon className="h-4 w-4 text-gray-400 ml-auto shrink-0" />
+                <FolderIcon style={{ width: 18, height: 18, flexShrink: 0, color: 'var(--wa)' }} aria-hidden />
+                <span className="grow col" style={{ minWidth: 0 }}>
+                  <span className="trunc" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>{drive.name}</span>
+                  {drive.description && (
+                    <span className="faint trunc" style={{ fontSize: 'var(--fs-xs)' }}>{drive.description}</span>
+                  )}
+                </span>
+                <ChevronRightIcon style={{ width: 14, height: 14, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
               </button>
             ))}
           </div>
@@ -466,63 +479,65 @@ export default function SharePointIntegrationPage() {
 
         {/* Step 3: Browse folder contents */}
         {selectedDrive && (
-          <div className="bg-white rounded-lg border p-4 space-y-3">
+          <div className="card card-p col" style={{ gap: 10 }}>
             {/* Breadcrumb */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm">
-                <button
-                  onClick={() => { setSelectedDrive(null); setFolderPath('root'); setFolderHistory([]) }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <ArrowLeftIcon className="h-4 w-4" />
-                </button>
-                <span className="text-gray-500">{selectedDrive.name}</span>
-                {folderPath !== 'root' && (
-                  <>
-                    <span className="text-gray-300">/</span>
-                    <span className="text-gray-900 font-medium">{folderPath}</span>
-                  </>
-                )}
-              </div>
-              <button
+            <div className="row" style={{ gap: 8 }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={ArrowLeftIcon}
+                onClick={() => { setSelectedDrive(null); setFolderPath('root'); setFolderHistory([]) }}
+              >
+                {t('common.back', { defaultValue: 'Back' })}
+              </Button>
+              <span className="muted" style={{ fontSize: 'var(--fs-md)' }}>{selectedDrive.name}</span>
+              {folderPath !== 'root' && (
+                <>
+                  <span className="faint">/</span>
+                  <span className="trunc" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>{folderPath}</span>
+                </>
+              )}
+              <span className="grow" />
+              <Button
+                variant="primary"
+                size="sm"
+                icon={CloudArrowDownIcon}
                 onClick={() => importMutation.mutate()}
                 disabled={importMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
               >
-                <CloudArrowDownIcon className="h-4 w-4" />
                 {importMutation.isPending ? t('integrations.sharepoint.starting') : t('integrations.sharepoint.importThisFolder')}
-              </button>
+              </Button>
             </div>
 
             {/* Back button when in subfolder */}
             {folderPath !== 'root' && (
-              <button
-                onClick={navigateBack}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-50"
-              >
-                <ArrowLeftIcon className="h-3.5 w-3.5" />
+              <Button variant="ghost" size="sm" icon={ArrowLeftIcon} onClick={navigateBack} style={{ alignSelf: 'flex-start' }}>
                 {t('integrations.sharepoint.back')}
-              </button>
+              </Button>
             )}
 
             {folderLoading && <LoadingSpinner size="sm" />}
 
             {/* Items list */}
             {folderItems && (
-              <div className="divide-y">
+              <div className="divide-y divide-[var(--b)]">
                 {/* Folders first */}
                 {folderItems.filter(i => i.is_folder).map((item) => (
                   <button
                     key={item.id}
                     onClick={() => navigateToFolder(item.name)}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50"
+                    className="row w-full text-left hover:bg-[var(--s2)] transition-colors"
+                    style={{ gap: 10, padding: '8px 10px' }}
                   >
-                    <FolderIcon className="h-5 w-5 text-amber-400 shrink-0" />
-                    <span className="text-sm text-gray-900 truncate">{item.name}</span>
+                    <FolderIcon style={{ width: 18, height: 18, flexShrink: 0, color: 'var(--wa)' }} aria-hidden />
+                    <span className="trunc" style={{ fontSize: 'var(--fs-md)' }}>{item.name}</span>
+                    <span className="grow" />
                     {item.child_count != null && (
-                      <span className="text-xs text-gray-400 ml-auto">{t('integrations.sharepoint.itemsCount', { count: item.child_count })}</span>
+                      <span className="faint num" style={{ fontSize: 'var(--fs-xs)', flexShrink: 0 }}>
+                        {t('integrations.sharepoint.itemsCount', { count: item.child_count })}
+                      </span>
                     )}
-                    <ChevronRightIcon className="h-4 w-4 text-gray-300 shrink-0" />
+                    <ChevronRightIcon style={{ width: 14, height: 14, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
                   </button>
                 ))}
                 {/* Then files */}
@@ -532,18 +547,25 @@ export default function SharePointIntegrationPage() {
                   return (
                     <div
                       key={item.id}
-                      className={cn('flex items-center gap-3 px-3 py-2', !isSupported && 'opacity-40')}
+                      className={cn('row', !isSupported && 'opacity-40')}
+                      style={{ gap: 10, padding: '8px 10px' }}
                     >
-                      <DocumentIcon className={cn('h-5 w-5 shrink-0', isSupported ? 'text-blue-400' : 'text-gray-300')} />
-                      <span className="text-sm text-gray-700 truncate">{item.name}</span>
-                      <span className="text-xs text-gray-400 ml-auto whitespace-nowrap">
+                      <DocumentIcon
+                        style={{ width: 18, height: 18, flexShrink: 0, color: isSupported ? 'var(--in)' : 'var(--f)' }}
+                        aria-hidden
+                      />
+                      <span className="muted trunc" style={{ fontSize: 'var(--fs-md)' }}>{item.name}</span>
+                      <span className="grow" />
+                      <span className="faint num" style={{ fontSize: 'var(--fs-xs)', whiteSpace: 'nowrap' }}>
                         {item.size ? `${(item.size / 1024).toFixed(0)} KB` : ''}
                       </span>
                     </div>
                   )
                 })}
                 {folderItems.length === 0 && (
-                  <p className="text-sm text-gray-500 py-4 text-center">{t('integrations.sharepoint.emptyFolder')}</p>
+                  <p className="muted" style={{ fontSize: 'var(--fs-md)', padding: '16px 0', textAlign: 'center' }}>
+                    {t('integrations.sharepoint.emptyFolder')}
+                  </p>
                 )}
               </div>
             )}
@@ -556,19 +578,24 @@ export default function SharePointIntegrationPage() {
   // ── Config View (default) ────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 18 }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary-100 flex items-center justify-center">
-            <svg className="h-6 w-6 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">{t('integrations.sharepoint.title')}</h1>
-            <p className="text-sm text-gray-500">{t('integrations.sharepoint.subtitle')}</p>
-          </div>
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+        <span
+          style={{
+            width: 40, height: 40, borderRadius: 'var(--r-lg)', flexShrink: 0,
+            background: 'var(--p-f)', color: 'var(--p)', display: 'grid', placeItems: 'center',
+          }}
+        >
+          <svg style={{ width: 22, height: 22 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+          </svg>
+        </span>
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 600, letterSpacing: '-.3px' }}>
+            {t('integrations.sharepoint.title')}
+          </h1>
+          <p className="muted" style={{ fontSize: 'var(--fs-md)' }}>{t('integrations.sharepoint.subtitle')}</p>
         </div>
         {config && config.is_active && (
           <HealthBadge status={config.health_status} />
@@ -576,180 +603,154 @@ export default function SharePointIntegrationPage() {
       </div>
 
       {/* Connection Card */}
-      <div className="bg-white rounded-lg border p-6">
+      <div className="card card-p">
         {!config || !config.is_active || isEditing ? (
           // Setup / Edit form
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700">
+          <div className="col" style={{ gap: 14 }}>
+            <span className="sec-t">
               {config ? t('integrations.sharepoint.updateConnection') : t('integrations.sharepoint.connectTitle')}
-            </h3>
-            <p className="text-xs text-gray-500">
-              {t('integrations.sharepoint.setupHintPrefix')} <code className="bg-gray-100 px-1 rounded">Sites.Read.All</code> {t('integrations.sharepoint.setupHintSuffix')}
+            </span>
+            <p className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
+              {t('integrations.sharepoint.setupHintPrefix')}{' '}
+              <code className="mono" style={{ background: 'var(--s2)', padding: '1px 4px', borderRadius: 'var(--r-xs)' }}>Sites.Read.All</code>{' '}
+              {t('integrations.sharepoint.setupHintSuffix')}
             </p>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">{t('integrations.sharepoint.connectionName')}</label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="SharePoint"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{t('integrations.sharepoint.azureTenantId')}</label>
-                <input
-                  type="text"
-                  value={formAzureTenant}
-                  onChange={(e) => setFormAzureTenant(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 font-mono"
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{t('integrations.sharepoint.appClientId')}</label>
-                <input
-                  type="text"
-                  value={formClientId}
-                  onChange={(e) => setFormClientId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 font-mono"
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">{t('integrations.sharepoint.clientSecret')}</label>
-                <input
-                  type="password"
-                  value={formClientSecret}
-                  onChange={(e) => setFormClientSecret(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 font-mono"
-                  placeholder={t('integrations.sharepoint.clientSecretPlaceholder')}
-                />
-              </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field
+                containerClassName="sm:col-span-2"
+                label={t('integrations.sharepoint.connectionName')}
+                type="text"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="SharePoint"
+              />
+              <Field
+                label={t('integrations.sharepoint.azureTenantId')}
+                type="text"
+                className="mono"
+                value={formAzureTenant}
+                onChange={(e) => setFormAzureTenant(e.target.value)}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              />
+              <Field
+                label={t('integrations.sharepoint.appClientId')}
+                type="text"
+                className="mono"
+                value={formClientId}
+                onChange={(e) => setFormClientId(e.target.value)}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              />
+              <Field
+                containerClassName="sm:col-span-2"
+                label={t('integrations.sharepoint.clientSecret')}
+                type="password"
+                className="mono"
+                value={formClientSecret}
+                onChange={(e) => setFormClientSecret(e.target.value)}
+                placeholder={t('integrations.sharepoint.clientSecretPlaceholder')}
+              />
             </div>
 
-            {testResult && (
-              <div className={cn(
-                'flex items-center gap-2 p-3 rounded-md text-sm',
-                testResult.healthy ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-              )}>
-                {testResult.healthy ? <CheckCircleIcon className="h-5 w-5" /> : <XCircleIcon className="h-5 w-5" />}
-                {testResult.message}
-              </div>
-            )}
+            {testResult && <ResultBanner result={testResult} />}
 
-            <div className="flex gap-2 pt-2">
-              <button
+            <div className="row" style={{ gap: 8, paddingTop: 6 }}>
+              <Button
+                variant="primary"
                 onClick={() => saveMutation.mutate()}
                 disabled={saveMutation.isPending || !formAzureTenant || !formClientId || !formClientSecret}
-                className="px-4 py-2 text-sm font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
               >
                 {saveMutation.isPending ? t('integrations.saving') : t('integrations.sharepoint.saveAndConnect')}
-              </button>
+              </Button>
               {isEditing && (
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="px-4 py-2 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-                >
+                <Button variant="ghost" onClick={() => setIsEditing(false)}>
                   {t('common.cancel')}
-                </button>
+                </Button>
               )}
             </div>
           </div>
         ) : (
           // Connected state
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">{config.name}</h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {t('integrations.sharepoint.azureTenant')}: <span className="font-mono">{config.azure_tenant_id}</span>
+          <div className="col" style={{ gap: 14 }}>
+            <div className="row" style={{ gap: 12 }}>
+              <div className="grow" style={{ minWidth: 0 }}>
+                <h3 style={{ fontSize: 'var(--fs-md)', fontWeight: 600 }}>{config.name}</h3>
+                <p className="faint" style={{ fontSize: 'var(--fs-xs)', marginTop: 2 }}>
+                  {t('integrations.sharepoint.azureTenant')}: <span className="mono">{config.azure_tenant_id}</span>
                 </p>
               </div>
               <HealthBadge status={config.health_status} />
             </div>
 
-            <div className="grid grid-cols-3 gap-4 py-2">
-              <div className="text-center">
-                <div className="text-lg font-semibold text-gray-900">{config.total_requests}</div>
-                <div className="text-xs text-gray-500">{t('integrations.sharepoint.apiCalls')}</div>
+            <div className="grid grid-cols-3 gap-3" style={{ padding: '6px 0' }}>
+              <div className="col" style={{ alignItems: 'center', gap: 2 }}>
+                <span className="num" style={{ fontSize: 'var(--fs-xl)', fontWeight: 600 }}>{config.total_requests}</span>
+                <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('integrations.sharepoint.apiCalls')}</span>
               </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold text-gray-900">{config.total_requests - config.failed_requests}</div>
-                <div className="text-xs text-gray-500">{t('integrations.sharepoint.successful')}</div>
+              <div className="col" style={{ alignItems: 'center', gap: 2 }}>
+                <span className="num" style={{ fontSize: 'var(--fs-xl)', fontWeight: 600 }}>{config.total_requests - config.failed_requests}</span>
+                <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('integrations.sharepoint.successful')}</span>
               </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold text-red-500">{config.failed_requests}</div>
-                <div className="text-xs text-gray-500">{t('integrations.failed')}</div>
+              <div className="col" style={{ alignItems: 'center', gap: 2 }}>
+                <span className="num" style={{ fontSize: 'var(--fs-xl)', fontWeight: 600, color: 'var(--da)' }}>{config.failed_requests}</span>
+                <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{t('integrations.failed')}</span>
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2 border-t">
-              <button
-                onClick={() => setView('browse')}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700"
-              >
-                <FolderOpenIcon className="h-4 w-4" />
+            <div className="row" style={{ gap: 8, paddingTop: 12, borderTop: '1px solid var(--b)', flexWrap: 'wrap' }}>
+              <Button variant="primary" icon={FolderOpenIcon} onClick={() => setView('browse')}>
                 {t('integrations.sharepoint.browseAndImport')}
-              </button>
-              <button
+              </Button>
+              <Button
+                icon={ArrowPathIcon}
                 onClick={() => testMutation.mutate()}
                 disabled={testMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                className={cn(testMutation.isPending && '[&>svg]:animate-spin')}
               >
-                <ArrowPathIcon className={cn('h-4 w-4', testMutation.isPending && 'animate-spin')} />
                 {t('integrations.test')}
-              </button>
-              <button
-                onClick={() => startEditing()}
-                className="px-4 py-2 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
+              </Button>
+              <Button onClick={() => startEditing()}>
                 {t('common.edit')}
-              </button>
-              <button
+              </Button>
+              <span className="grow" />
+              <Button
+                variant="danger-ghost"
                 onClick={() => { if (confirm(t('integrations.sharepoint.disconnectConfirm'))) disconnectMutation.mutate() }}
-                className="px-4 py-2 text-sm font-medium rounded-md border border-red-200 text-red-600 hover:bg-red-50 ml-auto"
               >
                 {t('integrations.sharepoint.disconnect')}
-              </button>
+              </Button>
             </div>
 
-            {testResult && (
-              <div className={cn(
-                'flex items-center gap-2 p-3 rounded-md text-sm',
-                testResult.healthy ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-              )}>
-                {testResult.healthy ? <CheckCircleIcon className="h-5 w-5" /> : <XCircleIcon className="h-5 w-5" />}
-                {testResult.message}
-              </div>
-            )}
+            {testResult && <ResultBanner result={testResult} />}
           </div>
         )}
       </div>
 
       {/* How it works */}
       {(!config || !config.is_active) && (
-        <div className="bg-primary-50 rounded-lg border border-primary-100 p-5">
-          <h3 className="text-sm font-semibold text-primary-900 mb-3">{t('integrations.sharepoint.howItWorks')}</h3>
-          <ol className="space-y-2 text-sm text-primary-800">
-            <li className="flex gap-2">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary-200 text-primary-700 text-xs flex items-center justify-center font-bold">1</span>
-              {t('integrations.sharepoint.step1Prefix')} <strong>Sites.Read.All</strong> {t('integrations.sharepoint.step1Suffix')}
-            </li>
-            <li className="flex gap-2">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary-200 text-primary-700 text-xs flex items-center justify-center font-bold">2</span>
-              {t('integrations.sharepoint.step2')}
-            </li>
-            <li className="flex gap-2">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary-200 text-primary-700 text-xs flex items-center justify-center font-bold">3</span>
-              {t('integrations.sharepoint.step3')}
-            </li>
-            <li className="flex gap-2">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary-200 text-primary-700 text-xs flex items-center justify-center font-bold">4</span>
-              {t('integrations.sharepoint.step4')}
-            </li>
+        <div className="banner banner-p" style={{ flexDirection: 'column', gap: 10, padding: 16 }}>
+          <b style={{ fontSize: 'var(--fs-md)' }}>{t('integrations.sharepoint.howItWorks')}</b>
+          <ol className="col" style={{ gap: 8, margin: 0, padding: 0, listStyle: 'none', fontSize: 'var(--fs-md)' }}>
+            {[
+              <>{t('integrations.sharepoint.step1Prefix')} <strong>Sites.Read.All</strong> {t('integrations.sharepoint.step1Suffix')}</>,
+              t('integrations.sharepoint.step2'),
+              t('integrations.sharepoint.step3'),
+              t('integrations.sharepoint.step4'),
+            ].map((step, i) => (
+              <li key={i} className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
+                <span
+                  className="num"
+                  style={{
+                    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                    background: 'var(--p-f2)', color: 'var(--p)', display: 'grid', placeItems: 'center',
+                    fontSize: 'var(--fs-2xs)', fontWeight: 700,
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <span>{step}</span>
+              </li>
+            ))}
           </ol>
         </div>
       )}

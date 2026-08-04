@@ -1,18 +1,51 @@
+/* External users admin — Direction B redesign.
+   Header + search Field → Table (Avatar rows, company Tags, status Pills,
+   access activity) → invite/edit in a Drawer → deactivation via ConfirmDialog
+   stating exactly what is and is not affected. Queries, mutations
+   (create/update/deactivate), search behavior and i18n are unchanged from the
+   pre-redesign page. */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  PlusIcon,
-  PencilSquareIcon,
-  TrashIcon,
-  MagnifyingGlassIcon,
-  UserIcon,
-  EnvelopeIcon,
   BuildingOfficeIcon,
+  ExclamationCircleIcon,
+  MagnifyingGlassIcon,
+  PencilSquareIcon,
+  PlusIcon,
+  TrashIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn } from '@/lib/utils'
+import {
+  Avatar,
+  Button,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Table,
+  Tag,
+  useToast,
+} from '@/components/ui'
+import type { TableColumn } from '@/components/ui'
+
+interface ExternalUser {
+  id: string
+  email: string
+  full_name?: string
+  company_name?: string
+  title?: string
+  phone?: string
+  is_active: boolean
+  invited_at?: string
+  last_access_at?: string
+  access_count: number
+  created_at: string
+}
 
 interface FormData {
   email: string
@@ -30,13 +63,17 @@ const emptyFormData: FormData = {
   phone: '',
 }
 
+const FORM_ID = 'external-user-form'
+
 export default function ExternalUsersPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const { toast } = useToast()
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<FormData>(emptyFormData)
   const [search, setSearch] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<ExternalUser | null>(null)
 
   // Fetch external users
   const { data, isLoading, error: fetchError } = useQuery({
@@ -49,10 +86,11 @@ export default function ExternalUsersPage() {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: (data: FormData) => api.createExternalUser(data),
-    onSuccess: () => {
+    onSuccess: (_res, variables) => {
       queryClient.invalidateQueries({ queryKey: ['external-users'] })
-      closeModal()
+      closeDrawer()
       setFormError(null)
+      toast({ text: t('externalUsers.createdToast', { defaultValue: '{{name}} added', name: variables.full_name || variables.email }) })
     },
     onError: (err: Error) => {
       setFormError(err.message || t('externalUsers.createFailed'))
@@ -65,8 +103,9 @@ export default function ExternalUsersPage() {
       api.updateExternalUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['external-users'] })
-      closeModal()
+      closeDrawer()
       setFormError(null)
+      toast({ text: t('externalUsers.updatedToast', { defaultValue: 'External user updated' }) })
     },
     onError: (err: Error) => {
       setFormError(err.message || t('externalUsers.updateFailed'))
@@ -78,27 +117,24 @@ export default function ExternalUsersPage() {
     mutationFn: (id: string) => api.deleteExternalUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['external-users'] })
+      const name = deleteTarget ? deleteTarget.full_name || deleteTarget.email : ''
+      setDeleteTarget(null)
+      toast({ text: t('externalUsers.deactivatedToast', { defaultValue: '{{name}} deactivated', name }) })
     },
     onError: (err: Error) => {
-      alert(err.message || t('externalUsers.deleteFailed'))
+      setDeleteTarget(null)
+      toast({ text: err.message || t('externalUsers.deleteFailed'), error: true })
     },
   })
 
-  const openCreateModal = () => {
+  const openCreateDrawer = () => {
     setEditingId(null)
     setFormData(emptyFormData)
     setFormError(null)
-    setIsModalOpen(true)
+    setIsDrawerOpen(true)
   }
 
-  const openEditModal = (user: {
-    id: string
-    email: string
-    full_name?: string
-    company_name?: string
-    title?: string
-    phone?: string
-  }) => {
+  const openEditDrawer = (user: ExternalUser) => {
     setEditingId(user.id)
     setFormData({
       email: user.email,
@@ -108,11 +144,11 @@ export default function ExternalUsersPage() {
       phone: user.phone || '',
     })
     setFormError(null)
-    setIsModalOpen(true)
+    setIsDrawerOpen(true)
   }
 
-  const closeModal = () => {
-    setIsModalOpen(false)
+  const closeDrawer = () => {
+    setIsDrawerOpen(false)
     setEditingId(null)
     setFormData(emptyFormData)
     setFormError(null)
@@ -127,15 +163,105 @@ export default function ExternalUsersPage() {
     }
   }
 
-  const handleDelete = (user: { id: string; email: string; full_name?: string }) => {
-    if (confirm(t('externalUsers.confirmDeactivate', { name: user.full_name || user.email }))) {
-      deleteMutation.mutate(user.id)
-    }
-  }
+  const isSaving = createMutation.isPending || updateMutation.isPending
+
+  const columns: TableColumn<ExternalUser>[] = [
+    {
+      key: 'user',
+      header: t('externalUsers.user'),
+      sortable: true,
+      sortValue: (u) => u.full_name || u.email,
+      render: (u) => (
+        <span className="row" style={{ gap: 10 }}>
+          <Avatar name={u.full_name || u.email} size={28} />
+          <span style={{ minWidth: 0 }}>
+            <span className="trunc" style={{ display: 'block', fontWeight: 500 }}>
+              {u.full_name || t('externalUsers.noName')}
+            </span>
+            <span className="faint trunc" style={{ display: 'block', fontSize: 'var(--fs-sm)' }}>
+              {u.email}
+            </span>
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'company',
+      header: t('externalUsers.company'),
+      sortable: true,
+      sortValue: (u) => u.company_name ?? '',
+      render: (u) => (
+        <span style={{ minWidth: 0 }}>
+          {u.company_name ? (
+            <Tag icon={BuildingOfficeIcon}>{u.company_name}</Tag>
+          ) : (
+            <span className="faint">-</span>
+          )}
+          {u.title && (
+            <span className="faint trunc" style={{ display: 'block', fontSize: 'var(--fs-sm)', marginTop: 2 }}>
+              {u.title}
+            </span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: t('common.status'),
+      width: 104,
+      sortable: true,
+      sortValue: (u) => (u.is_active ? 0 : 1),
+      render: (u) => (
+        <Pill tone={u.is_active ? 'ok' : 'da'}>
+          {u.is_active ? t('status.active') : t('status.inactive')}
+        </Pill>
+      ),
+    },
+    {
+      key: 'activity',
+      header: t('externalUsers.activity'),
+      width: 140,
+      sortable: true,
+      sortValue: (u) => u.access_count,
+      render: (u) =>
+        u.access_count > 0 ? (
+          <span className="muted num" style={{ fontSize: 'var(--fs-sm)' }}>
+            {t('externalUsers.accessCount', { count: u.access_count })}
+          </span>
+        ) : (
+          <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
+            {t('externalUsers.neverAccessed')}
+          </span>
+        ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: 80,
+      align: 'right',
+      render: (u) => (
+        <span className="row" style={{ gap: 4, justifyContent: 'flex-end' }}>
+          <IconButton
+            icon={PencilSquareIcon}
+            size="sm"
+            label={t('common.edit')}
+            onClick={() => openEditDrawer(u)}
+          />
+          <IconButton
+            icon={TrashIcon}
+            size="sm"
+            label={t('common.delete')}
+            disabled={deleteMutation.isPending}
+            onClick={() => setDeleteTarget(u)}
+          />
+        </span>
+      ),
+    },
+  ]
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
         <LoadingSpinner size="lg" />
       </div>
     )
@@ -143,258 +269,157 @@ export default function ExternalUsersPage() {
 
   if (fetchError) {
     return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700">{t('externalUsers.loadFailed')}</p>
-        </div>
+      <div className="banner banner-da">
+        <ExclamationCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+        <span>{t('externalUsers.loadFailed')}</span>
       </div>
     )
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="col" style={{ gap: 18 }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('nav.externalUsers')}</h1>
-          <p className="text-gray-500 mt-1">
+      <div className="row" style={{ alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>
+            {t('nav.externalUsers')}
+          </h1>
+          <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>
             {t('externalUsers.subtitle')}
           </p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-        >
-          <PlusIcon className="w-5 h-5" />
+        <Button variant="primary" icon={PlusIcon} onClick={openCreateDrawer}>
           {t('externalUsers.addExternalUser')}
-        </button>
+        </Button>
       </div>
 
       {/* Search */}
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder={t('externalUsers.searchPlaceholder')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          />
-        </div>
-      </div>
+      <Field
+        type="text"
+        icon={MagnifyingGlassIcon}
+        placeholder={t('externalUsers.searchPlaceholder')}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        containerStyle={{ maxWidth: 380 }}
+      />
 
       {/* Users list */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {!data?.items.length ? (
-          <div className="text-center py-12 text-gray-500">
-            <UserIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">{t('externalUsers.noUsers')}</p>
-            <p className="mt-1">{t('externalUsers.noUsersHint')}</p>
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('externalUsers.user')}
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('externalUsers.company')}
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('common.status')}
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('externalUsers.activity')}
-                </th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('common.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {data.items.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-primary-700">
-                          {(user.full_name || user.email).charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {user.full_name || t('externalUsers.noName')}
-                        </p>
-                        <p className="text-sm text-gray-500 flex items-center gap-1">
-                          <EnvelopeIcon className="w-3 h-3" />
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {user.company_name ? (
-                      <div className="flex items-center gap-1 text-gray-700">
-                        <BuildingOfficeIcon className="w-4 h-4 text-gray-400" />
-                        {user.company_name}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                    {user.title && (
-                      <p className="text-sm text-gray-500">{user.title}</p>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={cn(
-                      "inline-flex px-2 py-1 text-xs font-medium rounded-full",
-                      user.is_active
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-600"
-                    )}>
-                      {user.is_active ? t('status.active') : t('status.inactive')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {user.access_count > 0 ? (
-                      <span>{t('externalUsers.accessCount', { count: user.access_count })}</span>
-                    ) : (
-                      <span className="text-gray-400">{t('externalUsers.neverAccessed')}</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => openEditModal(user)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                        title={t('common.edit')}
-                      >
-                        <PencilSquareIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                        title={t('common.delete')}
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <Table
+        columns={columns}
+        rows={data?.items ?? []}
+        rowKey={(u) => u.id}
+        minWidth={720}
+        empty={
+          <EmptyState
+            icon={UserIcon}
+            title={t('externalUsers.noUsers')}
+            body={t('externalUsers.noUsersHint')}
+            action={
+              <Button variant="primary" size="sm" icon={PlusIcon} onClick={openCreateDrawer}>
+                {t('externalUsers.addExternalUser')}
+              </Button>
+            }
+          />
+        }
+      />
 
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold">
-                {editingId ? t('externalUsers.editExternalUser') : t('externalUsers.addExternalUser')}
-              </h2>
+      {/* Invite / edit drawer */}
+      <Drawer
+        open={isDrawerOpen}
+        title={editingId ? t('externalUsers.editExternalUser') : t('externalUsers.addExternalUser')}
+        onClose={closeDrawer}
+        width={440}
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeDrawer}>
+              {t('common.cancel')}
+            </Button>
+            <span className="grow" />
+            <Button variant="primary" type="submit" form={FORM_ID} disabled={isSaving}>
+              {isSaving
+                ? t('externalUsers.saving')
+                : editingId
+                  ? t('externalUsers.update')
+                  : t('externalUsers.create')}
+            </Button>
+          </>
+        }
+      >
+        <form id={FORM_ID} onSubmit={handleSubmit} className="col" style={{ gap: 14 }}>
+          {formError && (
+            <div className="banner banner-da">
+              <ExclamationCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+              <span>{formError}</span>
             </div>
+          )}
+          <Field
+            label={`${t('externalUsers.email')} *`}
+            type="email"
+            autoFocus
+            required
+            value={formData.email}
+            placeholder={t('externalUsers.emailPlaceholder')}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          />
+          <Field
+            label={t('externalUsers.fullName')}
+            type="text"
+            value={formData.full_name}
+            placeholder={t('externalUsers.fullNamePlaceholder')}
+            onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+          />
+          <Field
+            label={t('externalUsers.company')}
+            type="text"
+            value={formData.company_name}
+            placeholder={t('externalUsers.companyPlaceholder')}
+            onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+          />
+          <Field
+            label={t('externalUsers.title')}
+            type="text"
+            value={formData.title}
+            placeholder={t('externalUsers.titlePlaceholder')}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          />
+          <Field
+            label={t('externalUsers.phone')}
+            type="tel"
+            value={formData.phone}
+            placeholder={t('externalUsers.phonePlaceholder')}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          />
+        </form>
+      </Drawer>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {formError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
-                  {formError}
-                </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('externalUsers.email')} *
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder={t('externalUsers.emailPlaceholder')}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('externalUsers.fullName')}
-                </label>
-                <input
-                  type="text"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder={t('externalUsers.fullNamePlaceholder')}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('externalUsers.company')}
-                </label>
-                <input
-                  type="text"
-                  value={formData.company_name}
-                  onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder={t('externalUsers.companyPlaceholder')}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('externalUsers.title')}
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder={t('externalUsers.titlePlaceholder')}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('externalUsers.phone')}
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder={t('externalUsers.phonePlaceholder')}
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
-                >
-                  {createMutation.isPending || updateMutation.isPending
-                    ? t('externalUsers.saving')
-                    : editingId
-                    ? t('externalUsers.update')
-                    : t('externalUsers.create')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Deactivation — replaces the old window.confirm, states consequences */}
+      <ConfirmDialog
+        open={deleteTarget != null}
+        tone="warn"
+        title={t('externalUsers.confirmDeactivate', {
+          name: deleteTarget ? deleteTarget.full_name || deleteTarget.email : '',
+        })}
+        body={t('externalUsers.deactivateBody', {
+          defaultValue: 'This external user loses access to everything shared with them.',
+        })}
+        affected={[
+          t('externalUsers.deactivateAffectsAccess', {
+            defaultValue: 'Their share links stop working — they can no longer open contracts shared with them',
+          }),
+        ]}
+        safe={[
+          t('externalUsers.deactivateSafeData', {
+            defaultValue: 'Their record, access history and existing share entries stay intact',
+          }),
+          t('externalUsers.deactivateSafeReinvite', {
+            defaultValue: 'Nothing permanently — they can be invited again at any time',
+          }),
+        ]}
+        confirmLabel={t('externalUsers.deactivate', { defaultValue: 'Deactivate' })}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

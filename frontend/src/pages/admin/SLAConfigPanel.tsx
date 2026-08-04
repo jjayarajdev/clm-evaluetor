@@ -1,3 +1,7 @@
+/* SLA master-data panel — Direction B restyle. Chip filters + seed/add
+   actions, Table primitive with status Pills, create/edit in a Drawer,
+   delete via ConfirmDialog (was window.confirm), seed result as a toast
+   (was alert). Queries, mutations and payload shapes unchanged. */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -6,12 +10,24 @@ import {
   PencilSquareIcon,
   TrashIcon,
   ArrowPathIcon,
-  CheckCircleIcon,
-  XCircleIcon,
+  CircleStackIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn } from '@/lib/utils'
+import {
+  Button,
+  Chip,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Switch,
+  Table,
+  useToast,
+} from '@/components/ui'
+import type { TableColumn } from '@/components/ui'
 import type { SLAMasterData, SLAMasterDataCreate, SLAMasterDataUpdate } from '@/types/admin'
 
 interface FormData {
@@ -40,11 +56,15 @@ const emptyFormData: FormData = {
   is_active: true,
 }
 
+const FORM_ID = 'sla-config-form'
+
 export default function SLAConfigPanel() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<SLAMasterData | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<SLAMasterData | null>(null)
   const [formData, setFormData] = useState<FormData>(emptyFormData)
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined)
 
@@ -81,7 +101,7 @@ export default function SLAConfigPanel() {
     mutationFn: () => api.seedSLAMasterData(),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['sla-master-data'] })
-      alert(t('masterdata.sla.seedResult', { seeded: result.seeded, skipped: result.skipped }))
+      toast({ text: t('masterdata.sla.seedResult', { seeded: result.seeded, skipped: result.skipped }) })
     },
   })
 
@@ -136,345 +156,272 @@ export default function SLAConfigPanel() {
     }
   }
 
-  const handleDelete = (item: SLAMasterData) => {
-    if (window.confirm(t('masterdata.confirmDelete', { name: item.name }))) {
-      deleteMutation.mutate(item.id)
-    }
-  }
-
   const formatPercentage = (value: number | null) => {
     if (value === null) return '-'
     return `${(value * 100).toFixed(2)}%`
   }
 
+  const isSaving = createMutation.isPending || updateMutation.isPending
+
+  const columns: TableColumn<SLAMasterData>[] = [
+    {
+      key: 'reference_code',
+      header: t('masterdata.sla.reference'),
+      width: 130,
+      nowrap: true,
+      sortable: true,
+      sortValue: (i) => i.reference_code,
+      render: (i) => (
+        <span className="mono" style={{ fontSize: 'var(--fs-sm)', fontWeight: 500 }}>{i.reference_code}</span>
+      ),
+    },
+    {
+      key: 'name',
+      header: t('masterdata.name'),
+      sortable: true,
+      sortValue: (i) => i.name,
+      render: (i) => (
+        <span style={{ minWidth: 0, display: 'block' }}>
+          <span className="trunc" style={{ display: 'block' }}>{i.name}</span>
+          {i.service_tower && (
+            <span className="faint trunc" style={{ display: 'block', fontSize: 'var(--fs-xs)' }}>
+              {i.service_tower}
+            </span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'target_value',
+      header: t('masterdata.sla.target'),
+      width: 100,
+      nowrap: true,
+      sortable: true,
+      sortValue: (i) => i.target_value,
+      render: (i) => <span className="num">{formatPercentage(i.target_value)}</span>,
+    },
+    {
+      key: 'minimum_value',
+      header: t('masterdata.sla.minimum'),
+      width: 100,
+      nowrap: true,
+      sortable: true,
+      sortValue: (i) => i.minimum_value,
+      render: (i) => <span className="num muted">{formatPercentage(i.minimum_value)}</span>,
+    },
+    {
+      key: 'category',
+      header: t('masterdata.sla.category'),
+      width: 130,
+      nowrap: true,
+      sortable: true,
+      sortValue: (i) => i.category,
+      render: (i) => <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>{i.category || '-'}</span>,
+    },
+    {
+      key: 'status',
+      header: t('common.status'),
+      width: 104,
+      sortable: true,
+      sortValue: (i) => (i.is_active ? 0 : 1),
+      render: (i) => (
+        <Pill tone={i.is_active ? 'ok' : 'da'}>
+          {i.is_active ? t('status.active') : t('status.inactive')}
+        </Pill>
+      ),
+    },
+    {
+      key: 'actions',
+      header: t('common.actions'),
+      width: 80,
+      align: 'right',
+      render: (i) => (
+        <span className="row" style={{ gap: 4, justifyContent: 'flex-end' }}>
+          <IconButton
+            icon={PencilSquareIcon}
+            size="sm"
+            label={t('common.edit', { defaultValue: 'Edit' })}
+            onClick={() => openEditModal(i)}
+          />
+          <IconButton
+            icon={TrashIcon}
+            size="sm"
+            label={t('common.delete')}
+            disabled={deleteMutation.isPending}
+            onClick={() => setDeleteTarget(i)}
+          />
+        </span>
+      ),
+    },
+  ]
+
   return (
-    <div className="space-y-4">
+    <div className="col" style={{ gap: 14 }}>
       {/* Actions & Filters */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">{t('masterdata.filter')}</span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setActiveFilter(undefined)}
-              className={cn(
-                'px-3 py-1 text-sm rounded-full',
-                activeFilter === undefined
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              )}
-            >
-              {t('masterdata.all')}
-            </button>
-            <button
-              onClick={() => setActiveFilter(true)}
-              className={cn(
-                'px-3 py-1 text-sm rounded-full',
-                activeFilter === true
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              )}
-            >
-              {t('status.active')}
-            </button>
-            <button
-              onClick={() => setActiveFilter(false)}
-              className={cn(
-                'px-3 py-1 text-sm rounded-full',
-                activeFilter === false
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              )}
-            >
-              {t('status.inactive')}
-            </button>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => seedMutation.mutate()}
-            disabled={seedMutation.isPending}
-            className="btn-secondary"
-          >
-            {seedMutation.isPending ? (
-              <LoadingSpinner size="sm" />
-            ) : (
-              <ArrowPathIcon className="h-4 w-4 mr-2" />
-            )}
-            {t('masterdata.seedFromStubs')}
-          </button>
-          <button onClick={openCreateModal} className="btn-primary">
-            <PlusIcon className="h-4 w-4 mr-2" />
-            {t('masterdata.sla.addSlaConfig')}
-          </button>
-        </div>
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>{t('masterdata.filter')}</span>
+        <Chip on={activeFilter === undefined} onClick={() => setActiveFilter(undefined)}>
+          {t('masterdata.all')}
+        </Chip>
+        <Chip on={activeFilter === true} onClick={() => setActiveFilter(true)}>
+          {t('status.active')}
+        </Chip>
+        <Chip on={activeFilter === false} onClick={() => setActiveFilter(false)}>
+          {t('status.inactive')}
+        </Chip>
+        <span className="grow" />
+        <Button
+          variant="secondary"
+          icon={ArrowPathIcon}
+          disabled={seedMutation.isPending}
+          onClick={() => seedMutation.mutate()}
+        >
+          {t('masterdata.seedFromStubs')}
+        </Button>
+        <Button variant="primary" icon={PlusIcon} onClick={openCreateModal}>
+          {t('masterdata.sla.addSlaConfig')}
+        </Button>
       </div>
 
       {/* Error state */}
       {error && (
-        <div className="rounded-lg bg-red-50 p-4 text-red-700">
-          {t('masterdata.sla.loadError')}
+        <div className="banner banner-da">
+          <span>{t('masterdata.sla.loadError')}</span>
         </div>
       )}
 
       {/* Table */}
       {isLoading ? (
-        <div className="flex items-center justify-center h-64">
+        <div className="row" style={{ justifyContent: 'center', height: 256 }}>
           <LoadingSpinner size="lg" />
         </div>
       ) : (
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('masterdata.sla.reference')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('masterdata.name')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('masterdata.sla.target')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('masterdata.sla.minimum')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('masterdata.sla.category')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('common.status')}
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('common.actions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {data?.items.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="text-sm font-mono font-medium text-gray-900">
-                        {item.reference_code}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900">{item.name}</div>
-                      {item.service_tower && (
-                        <div className="text-xs text-gray-500">{item.service_tower}</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                      {formatPercentage(item.target_value)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {formatPercentage(item.minimum_value)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {item.category || '-'}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {item.is_active ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
-                          <CheckCircleIcon className="h-3 w-3" />
-                          {t('status.active')}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                          <XCircleIcon className="h-3 w-3" />
-                          {t('status.inactive')}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditModal(item)}
-                          className="p-1 text-gray-400 hover:text-gray-600"
-                        >
-                          <PencilSquareIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item)}
-                          className="p-1 text-gray-400 hover:text-red-600"
-                          disabled={deleteMutation.isPending}
-                        >
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {data?.items.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              {t('masterdata.sla.empty')}
-            </div>
-          )}
-        </div>
+        <Table
+          columns={columns}
+          rows={data?.items ?? []}
+          rowKey={(i) => i.id}
+          minWidth={760}
+          empty={<EmptyState icon={CircleStackIcon} title={t('masterdata.sla.empty')} />}
+        />
       )}
 
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={closeModal} />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingItem ? t('masterdata.sla.editTitle') : t('masterdata.sla.createTitle')}
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('masterdata.sla.referenceCode')} *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.reference_code}
-                      onChange={(e) => setFormData({ ...formData, reference_code: e.target.value })}
-                      placeholder={t('masterdata.sla.referencePlaceholder')}
-                      className="input"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('masterdata.sla.targetValue')} *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      value={formData.target_value}
-                      onChange={(e) => setFormData({ ...formData, target_value: e.target.value })}
-                      placeholder={t('masterdata.sla.targetPlaceholder')}
-                      className="input"
-                      required
-                    />
-                  </div>
-                </div>
+      {/* Create / edit drawer */}
+      <Drawer
+        open={isModalOpen}
+        title={editingItem ? t('masterdata.sla.editTitle') : t('masterdata.sla.createTitle')}
+        sub={editingItem?.reference_code}
+        onClose={closeModal}
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeModal}>
+              {t('common.cancel')}
+            </Button>
+            <span className="grow" />
+            <Button variant="primary" type="submit" form={FORM_ID} disabled={isSaving}>
+              {editingItem ? t('masterdata.update') : t('masterdata.create')}
+            </Button>
+          </>
+        }
+      >
+        <form id={FORM_ID} onSubmit={handleSubmit} className="col" style={{ gap: 14 }}>
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label={`${t('masterdata.sla.referenceCode')} *`}
+              type="text"
+              value={formData.reference_code}
+              onChange={(e) => setFormData({ ...formData, reference_code: e.target.value })}
+              placeholder={t('masterdata.sla.referencePlaceholder')}
+              required
+            />
+            <Field
+              label={`${t('masterdata.sla.targetValue')} *`}
+              type="number"
+              step="0.0001"
+              value={formData.target_value}
+              onChange={(e) => setFormData({ ...formData, target_value: e.target.value })}
+              placeholder={t('masterdata.sla.targetPlaceholder')}
+              required
+            />
+          </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('masterdata.name')} *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder={t('masterdata.sla.namePlaceholder')}
-                    className="input"
-                    required
-                  />
-                </div>
+          <Field
+            label={`${t('masterdata.name')} *`}
+            type="text"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder={t('masterdata.sla.namePlaceholder')}
+            required
+          />
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('masterdata.description')}
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder={t('masterdata.descriptionPlaceholder')}
-                    className="input"
-                    rows={2}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('masterdata.sla.minimumValue')}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      value={formData.minimum_value}
-                      onChange={(e) => setFormData({ ...formData, minimum_value: e.target.value })}
-                      placeholder={t('masterdata.sla.minimumPlaceholder')}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('masterdata.sla.typicalPerformance')}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      value={formData.typical_performance}
-                      onChange={(e) => setFormData({ ...formData, typical_performance: e.target.value })}
-                      placeholder={t('masterdata.sla.typicalPlaceholder')}
-                      className="input"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('masterdata.sla.category')}
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      placeholder={t('masterdata.sla.categoryPlaceholder')}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('masterdata.sla.serviceTower')}
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.service_tower}
-                      onChange={(e) => setFormData({ ...formData, service_tower: e.target.value })}
-                      placeholder={t('masterdata.sla.serviceTowerPlaceholder')}
-                      className="input"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="sla_is_active"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label htmlFor="sla_is_active" className="text-sm text-gray-700">
-                    {t('status.active')}
-                  </label>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <button type="button" onClick={closeModal} className="btn-secondary">
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                    className="btn-primary"
-                  >
-                    {createMutation.isPending || updateMutation.isPending ? (
-                      <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                    ) : editingItem ? (
-                      t('masterdata.update')
-                    ) : (
-                      t('masterdata.create')
-                    )}
-                  </button>
-                </div>
-              </form>
+          <div>
+            <label className="lbl">{t('masterdata.description')}</label>
+            <div className="inp" style={{ height: 'auto', padding: 10, alignItems: 'flex-start' }}>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder={t('masterdata.descriptionPlaceholder')}
+                rows={2}
+                style={{ resize: 'vertical' }}
+              />
             </div>
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label={t('masterdata.sla.minimumValue')}
+              type="number"
+              step="0.0001"
+              value={formData.minimum_value}
+              onChange={(e) => setFormData({ ...formData, minimum_value: e.target.value })}
+              placeholder={t('masterdata.sla.minimumPlaceholder')}
+            />
+            <Field
+              label={t('masterdata.sla.typicalPerformance')}
+              type="number"
+              step="0.0001"
+              value={formData.typical_performance}
+              onChange={(e) => setFormData({ ...formData, typical_performance: e.target.value })}
+              placeholder={t('masterdata.sla.typicalPlaceholder')}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label={t('masterdata.sla.category')}
+              type="text"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              placeholder={t('masterdata.sla.categoryPlaceholder')}
+            />
+            <Field
+              label={t('masterdata.sla.serviceTower')}
+              type="text"
+              value={formData.service_tower}
+              onChange={(e) => setFormData({ ...formData, service_tower: e.target.value })}
+              placeholder={t('masterdata.sla.serviceTowerPlaceholder')}
+            />
+          </div>
+
+          <Switch
+            checked={formData.is_active}
+            onChange={(checked) => setFormData({ ...formData, is_active: checked })}
+            label={t('status.active')}
+          />
+        </form>
+      </Drawer>
+
+      {/* Delete confirmation — replaces the old window.confirm */}
+      <ConfirmDialog
+        open={deleteTarget != null}
+        title={t('masterdata.confirmDelete', { name: deleteTarget?.name ?? '' })}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }
