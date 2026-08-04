@@ -1,43 +1,29 @@
+/* Obligation detail — Direction B redesign.
+   Back link + header with mono id, status/RAG Pills and type Tag → overdue
+   banner → parties/deadline/consequence cards → AI-extracted source card →
+   sidebar with contract, RAG, evidence and review (write roles). Evidence
+   upload moved from a modal to a Drawer; queries, mutations, the derived
+   overdue rule and the permission gate are unchanged. */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftIcon,
-  DocumentTextIcon,
-  CalendarIcon,
-  UserGroupIcon,
-  ExclamationTriangleIcon,
-  ClipboardDocumentListIcon,
-  BuildingOfficeIcon,
-  HashtagIcon,
-  DocumentArrowUpIcon,
+  ChatBubbleLeftRightIcon,
   CheckCircleIcon,
-  ShieldCheckIcon,
+  DocumentArrowUpIcon,
+  DocumentTextIcon,
+  ExclamationTriangleIcon,
+  HashtagIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn, formatDate } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { getUsers } from '@/lib/api/admin'
-
-const OBLIGATION_TYPE_COLORS: Record<string, string> = {
-  payment: 'bg-green-100 text-green-800 border-green-200',
-  delivery: 'bg-blue-100 text-blue-800 border-blue-200',
-  reporting: 'bg-purple-100 text-purple-800 border-purple-200',
-  compliance: 'bg-amber-100 text-amber-800 border-amber-200',
-  notification: 'bg-cyan-100 text-cyan-800 border-cyan-200',
-  performance: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  other: 'bg-gray-100 text-gray-800 border-gray-200',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  in_progress: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  overdue: 'bg-red-100 text-red-800',
-  waived: 'bg-gray-100 text-gray-800',
-}
+import { Button, Chip, Drawer, EmptyState, Field, Pill, Select, Tag, AiTag, useToast } from '@/components/ui'
+import type { PillTone } from '@/components/ui'
 
 const OBLIGATION_TYPE_LABELS: Record<string, string> = {
   payment: 'Payment',
@@ -49,59 +35,38 @@ const OBLIGATION_TYPE_LABELS: Record<string, string> = {
   other: 'Other',
 }
 
-const RISK_COLORS: Record<string, string> = {
-  low: 'bg-green-100 text-green-800',
-  medium: 'bg-amber-100 text-amber-800',
-  high: 'bg-red-100 text-red-800',
-  critical: 'bg-purple-100 text-purple-800',
+const STATUS_TONE: Record<string, PillTone> = {
+  pending: 'wa',
+  in_progress: 'in',
+  completed: 'ok',
+  overdue: 'da',
+  waived: 'n',
 }
 
-// RAG Status visual indicators with polished styling
-const RAG_STATUS_CONFIG: Record<string, {
-  bg: string
-  text: string
-  icon: string
-  label: string
-  description: string
-}> = {
-  green: {
-    bg: 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300',
-    text: 'text-green-700',
-    icon: '🟢',
-    label: 'On Track',
-    description: 'Compliance fully met',
-  },
-  amber: {
-    bg: 'bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-300',
-    text: 'text-amber-700',
-    icon: '🟡',
-    label: 'At Risk',
-    description: 'Needs attention soon',
-  },
-  red: {
-    bg: 'bg-gradient-to-r from-red-50 to-rose-50 border-red-300',
-    text: 'text-red-700',
-    icon: '🔴',
-    label: 'Overdue',
-    description: 'Immediate action required',
-  },
-  not_assessed: {
-    bg: 'bg-gradient-to-r from-gray-50 to-slate-50 border-gray-300',
-    text: 'text-gray-600',
-    icon: '⚪',
-    label: 'Not Assessed',
-    description: 'Status pending review',
-  },
+const RISK_TONE: Record<string, PillTone> = {
+  low: 'ok',
+  medium: 'wa',
+  high: 'da',
+  critical: 'da',
+}
+
+const RAG_META: Record<string, { tone: PillTone; label: string; description: string }> = {
+  green: { tone: 'ok', label: 'On Track', description: 'Compliance fully met' },
+  amber: { tone: 'wa', label: 'At Risk', description: 'Needs attention soon' },
+  red: { tone: 'da', label: 'Overdue', description: 'Immediate action required' },
+  not_assessed: { tone: 'n', label: 'Not Assessed', description: 'Status pending review' },
 }
 
 export default function ObligationDetailPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { toast } = useToast()
   // Reviewers (write roles) can close out / assess obligations; viewers cannot.
   const canReview = ['super_admin', 'admin', 'legal', 'procurement', 'bu_head'].includes(user?.role || '')
-  const [showEvidenceModal, setShowEvidenceModal] = useState(false)
+  const [showEvidenceDrawer, setShowEvidenceDrawer] = useState(false)
   const [evidenceDescription, setEvidenceDescription] = useState('')
   const [evidenceDate, setEvidenceDate] = useState('')
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null)
@@ -118,11 +83,12 @@ export default function ObligationDetailPage() {
       api.uploadObligationEvidence(id!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['obligation', id] })
-      setShowEvidenceModal(false)
+      setShowEvidenceDrawer(false)
       setEvidenceDescription('')
       setEvidenceDate('')
       setEvidenceFile(null)
       setEvidenceError(null)
+      toast({ text: t('obligation.evidenceAddedToast', { defaultValue: 'Evidence recorded.' }) })
     },
     onError: (e: unknown) => {
       setEvidenceError(e instanceof Error ? e.message : t('obligation.evidenceUploadFailed', { defaultValue: 'Upload failed. Please try again.' }))
@@ -142,17 +108,26 @@ export default function ObligationDetailPage() {
     })
   }
 
+  const mutationError = (e: unknown) =>
+    toast({
+      text: e instanceof Error ? e.message : t('obligation.updateFailed', { defaultValue: 'Update failed. Please try again.' }),
+      error: true,
+    })
+
   const statusMutation = useMutation({
     mutationFn: (status: string) => api.updateObligationStatus(id!, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['obligation', id] }),
+    onError: mutationError,
   })
   const ragMutation = useMutation({
     mutationFn: (rag_status: string) => api.updateObligationRAG(id!, { rag_status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['obligation', id] }),
+    onError: mutationError,
   })
   const assignMutation = useMutation({
     mutationFn: (userId: string | null) => api.assignObligation(id!, userId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['obligation', id] }),
+    onError: mutationError,
   })
   const reviewBusy = statusMutation.isPending || ragMutation.isPending || assignMutation.isPending
 
@@ -172,13 +147,16 @@ export default function ObligationDetailPage() {
       window.open(url, '_blank', 'noopener')
       setTimeout(() => URL.revokeObjectURL(url), 60000)
     } catch {
-      setEvidenceError(t('obligation.evidenceViewFailed', { defaultValue: 'Could not open the attached file.' }))
+      toast({
+        text: t('obligation.evidenceViewFailed', { defaultValue: 'Could not open the attached file.' }),
+        error: true,
+      })
     }
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
         <LoadingSpinner size="lg" />
       </div>
     )
@@ -186,19 +164,15 @@ export default function ObligationDetailPage() {
 
   if (error || !obligation) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600">{t('obligation.notFound')}</p>
-        <Link to="/dashboard" className="text-primary-600 hover:underline mt-2 inline-block">
-          {t('obligation.backToDashboard')}
-        </Link>
+      <div className="col" style={{ alignItems: 'center', gap: 8, padding: '48px 0' }}>
+        <p style={{ color: 'var(--da)' }}>{t('obligation.notFound')}</p>
+        <Link to="/dashboard">{t('obligation.backToDashboard')}</Link>
       </div>
     )
   }
 
   const ragKey: string =
-    obligation.rag_status && RAG_STATUS_CONFIG[obligation.rag_status]
-      ? obligation.rag_status
-      : 'not_assessed'
+    obligation.rag_status && RAG_META[obligation.rag_status] ? obligation.rag_status : 'not_assessed'
 
   // Mirror the backend's dynamic rule (_effective_status): a passed deadline on a
   // not-completed/waived obligation is overdue, regardless of the stored default
@@ -211,517 +185,533 @@ export default function ObligationDetailPage() {
     obligation.status !== 'waived'
   const displayStatus = isOverdue ? 'overdue' : obligation.status
 
+  const evidenceEntries = obligation.compliance_evidence
+    ? obligation.compliance_evidence.split('\n').filter((e: string) => e.trim())
+    : []
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start gap-4">
+    <div className="col" style={{ gap: 18 }}>
+      {/* Back link + header */}
+      <div>
         <Link
           to="/dashboard"
-          className="p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+          className="row"
+          style={{ gap: 4, width: 'fit-content', fontSize: 'var(--fs-sm)', color: 'var(--m)' }}
         >
-          <ArrowLeftIcon className="h-5 w-5" />
+          <ArrowLeftIcon style={{ width: 14, height: 14 }} aria-hidden />
+          {t('obligation.backToDashboard')}
         </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2 flex-wrap">
-            <span className={cn(
-              'px-3 py-1 rounded-full text-sm font-medium border',
-              OBLIGATION_TYPE_COLORS[obligation.obligation_type] || OBLIGATION_TYPE_COLORS.other
-            )}>
-              {t(`obligation.type.${obligation.obligation_type}`, {
-                defaultValue: OBLIGATION_TYPE_LABELS[obligation.obligation_type] || obligation.obligation_type,
-              })}
-            </span>
-            <span className={cn(
-              'px-2 py-0.5 rounded text-xs font-medium',
-              STATUS_COLORS[displayStatus] || STATUS_COLORS.pending
-            )}>
-              {t(`obligation.status.${displayStatus}`, { defaultValue: displayStatus })}
-            </span>
-            {/* RAG Status Indicator */}
-            {obligation.rag_status && (
-              <span className={cn(
-                'px-3 py-1 rounded-lg text-sm font-medium border-2 flex items-center gap-2 shadow-sm',
-                RAG_STATUS_CONFIG[obligation.rag_status]?.bg || RAG_STATUS_CONFIG.not_assessed.bg,
-                RAG_STATUS_CONFIG[obligation.rag_status]?.text || RAG_STATUS_CONFIG.not_assessed.text
-              )}>
-                <span className="text-base">{RAG_STATUS_CONFIG[obligation.rag_status]?.icon || '⚪'}</span>
-                {t(`obligation.rag.${ragKey}.label`, { defaultValue: RAG_STATUS_CONFIG[ragKey].label })}
-              </span>
-            )}
-            {obligation.is_critical && (
-              <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 text-xs font-bold uppercase tracking-wider">
-                {t('risk.critical')}
-              </span>
-            )}
+        <div className="row" style={{ gap: 12, alignItems: 'flex-start', marginTop: 10, flexWrap: 'wrap' }}>
+          <div className="grow" style={{ minWidth: 260 }}>
+            <div className="row" style={{ gap: 7, marginBottom: 5, flexWrap: 'wrap' }}>
+              <span className="mono faint" style={{ fontSize: 'var(--fs-xs)' }}>{obligation.id.slice(0, 8)}</span>
+              <Pill tone={STATUS_TONE[displayStatus] || 'wa'}>
+                {t(`obligation.status.${displayStatus}`, { defaultValue: displayStatus })}
+              </Pill>
+              {obligation.rag_status && (
+                <Pill tone={RAG_META[ragKey].tone}>
+                  {t(`obligation.rag.${ragKey}.label`, { defaultValue: RAG_META[ragKey].label })}
+                </Pill>
+              )}
+              {obligation.is_critical && <Pill tone="p">{t('risk.critical')}</Pill>}
+              <Tag>
+                {t(`obligation.type.${obligation.obligation_type}`, {
+                  defaultValue: OBLIGATION_TYPE_LABELS[obligation.obligation_type] || obligation.obligation_type,
+                })}
+              </Tag>
+            </div>
+            <h1 style={{ fontSize: 'var(--fs-xl)', fontWeight: 600, lineHeight: 1.4 }}>
+              {obligation.description}
+            </h1>
+            <div className="row muted" style={{ gap: 8, marginTop: 8, fontSize: 'var(--fs-md)', flexWrap: 'wrap' }}>
+              <Tag icon={DocumentTextIcon}>{obligation.contract_filename}</Tag>
+              {obligation.counterparty && <Tag>{obligation.counterparty}</Tag>}
+              {obligation.deadline && (
+                <Tag>
+                  {t('obligation.deadline')}: {formatDate(obligation.deadline)}
+                </Tag>
+              )}
+            </div>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 leading-relaxed">
-            {obligation.description}
-          </h1>
+          <div className="row" style={{ gap: 8, flexShrink: 0 }}>
+            <Button
+              variant="secondary"
+              icon={ChatBubbleLeftRightIcon}
+              onClick={() => navigate(`/query?obligation=${obligation.id}`)}
+            >
+              {t('obligation.askAi')}
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Overdue banner — derived, matches the list view */}
+      {isOverdue && (
+        <div className="banner banner-da">
+          <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+          <span className="grow">
+            <b>{t('obligation.status.overdue', { defaultValue: 'Overdue' })}</b>
+            {' — '}
+            {t('obligation.overdueBanner', {
+              defaultValue: 'the deadline of {{date}} has passed and this obligation is not completed or waived.',
+              date: formatDate(obligation.deadline!),
+            })}
+          </span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 col" style={{ gap: 16 }}>
           {/* Parties */}
-          <div className="card">
-            <div className="card-header">
-              <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                <UserGroupIcon className="h-5 w-5 text-gray-400" />
-                {t('obligation.partiesInvolved')}
-              </h2>
-            </div>
-            <div className="card-body grid grid-cols-2 gap-6">
+          <div className="card card-p">
+            <div className="sec-t" style={{ marginBottom: 12 }}>{t('obligation.partiesInvolved')}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('obligation.obligatedParty')}</p>
-                <p className="text-lg font-semibold text-gray-900">
+                <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 2 }}>
+                  {t('obligation.obligatedParty')}
+                </div>
+                <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 600 }}>
                   {obligation.obligated_party || '—'}
-                </p>
-                <p className="text-sm text-gray-500">{t('obligation.obligatedPartyDesc')}</p>
+                </div>
+                <div className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 2 }}>
+                  {t('obligation.obligatedPartyDesc')}
+                </div>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('obligation.beneficiary')}</p>
-                <p className="text-lg font-semibold text-gray-900">
+                <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 2 }}>
+                  {t('obligation.beneficiary')}
+                </div>
+                <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 600 }}>
                   {obligation.beneficiary_party || '—'}
-                </p>
-                <p className="text-sm text-gray-500">{t('obligation.beneficiaryDesc')}</p>
+                </div>
+                <div className="muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 2 }}>
+                  {t('obligation.beneficiaryDesc')}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Deadline Info */}
-          <div className="card">
-            <div className="card-header">
-              <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5 text-gray-400" />
-                {t('obligation.deadlineInformation')}
-              </h2>
-            </div>
-            <div className="card-body">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">{t('obligation.deadline')}</p>
-                  <p className="text-base font-medium text-gray-900">
-                    {obligation.deadline ? formatDate(obligation.deadline) : t('obligation.noFixedDeadline')}
-                  </p>
+          {/* Deadline */}
+          <div className="card card-p">
+            <div className="sec-t" style={{ marginBottom: 12 }}>{t('obligation.deadlineInformation')}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 2 }}>
+                  {t('obligation.deadline')}
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">{t('obligation.deadlineType')}</p>
-                  <p className="text-base font-medium text-gray-900 capitalize">
-                    {obligation.deadline_type?.replace('_', ' ') || t('obligation.notSpecified')}
-                  </p>
+                <div className="num" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                  {obligation.deadline ? formatDate(obligation.deadline) : t('obligation.noFixedDeadline')}
                 </div>
-                {obligation.recurrence_pattern && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">{t('obligation.recurrence')}</p>
-                    <p className="text-base font-medium text-gray-900">
-                      {obligation.recurrence_pattern}
-                    </p>
-                  </div>
-                )}
-                {obligation.relative_deadline_text && (
-                  <div className="col-span-2">
-                    <p className="text-xs text-gray-500 mb-1">{t('obligation.relativeDeadline')}</p>
-                    <p className="text-base font-medium text-gray-900">
-                      {obligation.relative_deadline_text}
-                    </p>
-                  </div>
-                )}
               </div>
+              <div>
+                <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 2 }}>
+                  {t('obligation.deadlineType')}
+                </div>
+                <div className="capitalize" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                  {obligation.deadline_type?.replace('_', ' ') || t('obligation.notSpecified')}
+                </div>
+              </div>
+              {obligation.recurrence_pattern && (
+                <div>
+                  <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 2 }}>
+                    {t('obligation.recurrence')}
+                  </div>
+                  <div style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                    {obligation.recurrence_pattern}
+                  </div>
+                </div>
+              )}
+              {obligation.relative_deadline_text && (
+                <div className="sm:col-span-2">
+                  <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 2 }}>
+                    {t('obligation.relativeDeadline')}
+                  </div>
+                  <div style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                    {obligation.relative_deadline_text}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Trigger & Consequences */}
           {(obligation.trigger_condition || obligation.consequence_of_breach) && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                  <ExclamationTriangleIcon className="h-5 w-5 text-gray-400" />
-                  {t('obligation.triggersConsequences')}
-                </h2>
-              </div>
-              <div className="card-body space-y-4">
+            <div className="card card-p">
+              <div className="sec-t" style={{ marginBottom: 12 }}>{t('obligation.triggersConsequences')}</div>
+              <div className="col" style={{ gap: 12 }}>
                 {obligation.trigger_condition && (
                   <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
+                    <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 4 }}>
                       {t('obligation.triggerCondition')}
-                    </p>
-                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+                    </div>
+                    <div
+                      style={{
+                        padding: 12,
+                        borderRadius: 'var(--r-md)',
+                        background: 'var(--s2)',
+                        fontSize: 'var(--fs-md)',
+                        lineHeight: 1.55,
+                      }}
+                    >
                       {obligation.trigger_condition}
-                    </p>
+                    </div>
                   </div>
                 )}
                 {obligation.consequence_of_breach && (
                   <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
+                    <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 4 }}>
                       {t('obligation.consequenceOfBreach')}
-                    </p>
-                    <p className="text-sm text-red-700 bg-red-50 p-3 rounded-lg">
-                      {obligation.consequence_of_breach}
-                    </p>
+                    </div>
+                    <div className="banner banner-da">
+                      <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+                      <span className="grow">{obligation.consequence_of_breach}</span>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Source Text from Contract */}
+          {/* Source from contract — AI-extracted */}
           {(obligation.source_text || obligation.clause_text) && (
-            <div className="card">
-              <div className="card-header flex items-center justify-between">
-                <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                  <ClipboardDocumentListIcon className="h-5 w-5 text-gray-400" />
-                  {t('obligation.sourceFromContract')}
-                </h2>
-                <div className="flex items-center gap-2">
-                  {obligation.clause_type && (
-                    <span className="text-xs text-gray-500 capitalize">
-                      {t(`clauses.${obligation.clause_type}`, {
-                        defaultValue: obligation.clause_type.replace('_', ' '),
-                      })}
-                    </span>
-                  )}
-                  {obligation.clause_risk_level && (
-                    <span className={cn(
-                      'px-2 py-0.5 rounded text-xs font-medium',
-                      RISK_COLORS[obligation.clause_risk_level] || RISK_COLORS.low
-                    )}>
-                      {t('contract.riskLabel', {
-                        level: t(`risk.${obligation.clause_risk_level}`, {
-                          defaultValue: obligation.clause_risk_level,
-                        }),
-                      })}
-                    </span>
-                  )}
-                </div>
+            <div className="card card-p">
+              <div className="row" style={{ gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                <span className="sec-t">{t('obligation.sourceFromContract')}</span>
+                <AiTag />
+                <span className="grow" />
+                {obligation.clause_type && (
+                  <Tag>
+                    {t(`clauses.${obligation.clause_type}`, {
+                      defaultValue: obligation.clause_type.replace('_', ' '),
+                    })}
+                  </Tag>
+                )}
+                {obligation.clause_risk_level && (
+                  <Pill tone={RISK_TONE[obligation.clause_risk_level] || 'n'}>
+                    {t('contract.riskLabel', {
+                      level: t(`risk.${obligation.clause_risk_level}`, {
+                        defaultValue: obligation.clause_risk_level,
+                      }),
+                    })}
+                  </Pill>
+                )}
               </div>
-              <div className="card-body">
-                <div className="flex items-center gap-4 mb-3 text-xs text-gray-500">
+              <p
+                className="muted"
+                style={{
+                  fontSize: 'var(--fs-md)',
+                  lineHeight: 1.6,
+                  paddingLeft: 12,
+                  borderLeft: '2px solid var(--b)',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                "{obligation.source_text || obligation.clause_text}"
+              </p>
+              {(obligation.clause_page_number || obligation.clause_section_number) && (
+                <div className="row mono faint" style={{ gap: 10, marginTop: 8, fontSize: 'var(--fs-xs)' }}>
                   {obligation.clause_page_number && (
-                    <span className="flex items-center gap-1">
-                      <DocumentTextIcon className="h-4 w-4" />
+                    <span className="row" style={{ gap: 4 }}>
+                      <DocumentTextIcon style={{ width: 12, height: 12 }} aria-hidden />
                       {t('obligation.page', { number: obligation.clause_page_number })}
                     </span>
                   )}
                   {obligation.clause_section_number && (
-                    <span className="flex items-center gap-1">
-                      <HashtagIcon className="h-4 w-4" />
+                    <span className="row" style={{ gap: 4 }}>
+                      <HashtagIcon style={{ width: 12, height: 12 }} aria-hidden />
                       {t('obligation.section', { number: obligation.clause_section_number })}
                     </span>
                   )}
                 </div>
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed italic">
-                    "{obligation.source_text || obligation.clause_text}"
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Contract Info */}
-          <div className="card">
-            <div className="card-header">
-              <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
-                {t('obligation.sourceContract')}
-              </h2>
-            </div>
-            <div className="card-body space-y-4">
+        <div className="col" style={{ gap: 16 }}>
+          {/* Source contract */}
+          <div className="card card-p">
+            <div className="sec-t" style={{ marginBottom: 10 }}>{t('obligation.sourceContract')}</div>
+            <div className="col" style={{ gap: 12 }}>
               <div>
-                <p className="text-xs text-gray-500 mb-1">{t('obligation.document')}</p>
-                <p className="text-sm font-medium text-gray-900 break-all">
+                <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 2 }}>
+                  {t('obligation.document')}
+                </div>
+                <div style={{ fontSize: 'var(--fs-md)', fontWeight: 500, overflowWrap: 'anywhere' }}>
                   {obligation.contract_filename}
-                </p>
+                </div>
               </div>
               {obligation.counterparty && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">{t('contracts.counterparty')}</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {obligation.counterparty}
-                  </p>
+                  <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 2 }}>
+                    {t('contracts.counterparty')}
+                  </div>
+                  <div style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>{obligation.counterparty}</div>
                 </div>
               )}
               {obligation.contract_type && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">{t('obligation.contractType')}</p>
-                  <p className="text-sm font-medium text-gray-900 uppercase">
-                    {obligation.contract_type}
-                  </p>
+                  <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 2 }}>
+                    {t('obligation.contractType')}
+                  </div>
+                  <div style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                    {obligation.contract_type.toUpperCase()}
+                  </div>
                 </div>
               )}
-              <div className="pt-4 border-t border-gray-200">
-                <Link
-                  to={`/contracts/${obligation.contract_id}`}
-                  className="btn-primary w-full justify-center"
-                >
-                  {t('obligation.viewFullContract')}
-                </Link>
-              </div>
+              <div className="divider" />
+              <Button
+                variant="primary"
+                style={{ width: '100%' }}
+                onClick={() => navigate(`/contracts/${obligation.contract_id}`)}
+              >
+                {t('obligation.viewFullContract')}
+              </Button>
             </div>
           </div>
 
-          {/* RAG Status Card */}
+          {/* RAG status */}
           {obligation.rag_status && (
-            <div className={cn(
-              'card border-2',
-              RAG_STATUS_CONFIG[obligation.rag_status]?.bg || RAG_STATUS_CONFIG.not_assessed.bg
-            )}>
-              <div className="card-body">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-2xl">{RAG_STATUS_CONFIG[obligation.rag_status]?.icon || '⚪'}</span>
-                  <div>
-                    <p className={cn(
-                      'font-semibold',
-                      RAG_STATUS_CONFIG[obligation.rag_status]?.text || RAG_STATUS_CONFIG.not_assessed.text
-                    )}>
-                      {t(`obligation.rag.${ragKey}.label`, { defaultValue: RAG_STATUS_CONFIG[ragKey].label })}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {t(`obligation.rag.${ragKey}.description`, { defaultValue: RAG_STATUS_CONFIG[ragKey].description })}
-                    </p>
-                  </div>
-                </div>
-                {obligation.last_compliance_date && (
-                  <p className="text-xs text-gray-500">
-                    {t('obligation.lastCompliance', { date: formatDate(obligation.last_compliance_date) })}
-                  </p>
-                )}
+            <div className="card card-p">
+              <div className="row" style={{ gap: 8 }}>
+                <Pill tone={RAG_META[ragKey].tone}>
+                  {t(`obligation.rag.${ragKey}.label`, { defaultValue: RAG_META[ragKey].label })}
+                </Pill>
+                <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                  {t(`obligation.rag.${ragKey}.description`, { defaultValue: RAG_META[ragKey].description })}
+                </span>
               </div>
+              {obligation.last_compliance_date && (
+                <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginTop: 8 }}>
+                  {t('obligation.lastCompliance', { date: formatDate(obligation.last_compliance_date) })}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Compliance Evidence */}
-          <div className="card">
-            <div className="card-header flex items-center justify-between">
-              <h2 className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                <ShieldCheckIcon className="h-5 w-5 text-gray-400" />
-                {t('obligation.complianceEvidence')}
-              </h2>
-              <button
-                onClick={() => setShowEvidenceModal(true)}
-                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-              >
+          {/* Compliance evidence */}
+          <div className="card card-p">
+            <div className="row" style={{ marginBottom: 10 }}>
+              <span className="sec-t grow">{t('obligation.complianceEvidence')}</span>
+              <Button variant="ghost" size="sm" icon={DocumentArrowUpIcon} onClick={() => setShowEvidenceDrawer(true)}>
                 {t('obligation.addEvidence')}
-              </button>
+              </Button>
             </div>
-            <div className="card-body">
-              {obligation.compliance_evidence ? (
-                <div className="space-y-2">
-                  {obligation.compliance_evidence.split('\n').map((entry: string, idx: number) => {
-                    const fileMatch = entry.match(/\[File:\s*(.+?)\]/)
-                    const fileName = fileMatch?.[1]
-                    const label = fileMatch ? entry.replace(fileMatch[0], '').trim() : entry
-                    return (
-                      <div key={idx} className="flex items-start gap-2 text-sm">
-                        <CheckCircleIcon className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">{label}</span>
-                        {fileName && (
-                          <button
-                            onClick={() => viewEvidenceFile(fileName)}
-                            className="text-primary-600 hover:underline whitespace-nowrap flex-shrink-0"
-                          >
-                            {t('obligation.viewFile', { defaultValue: 'View file' })}
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <DocumentArrowUpIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">{t('obligation.noEvidence')}</p>
-                  <button
-                    onClick={() => setShowEvidenceModal(true)}
-                    className="btn-primary mt-3"
-                  >
+            {evidenceEntries.length > 0 ? (
+              <div className="col">
+                {evidenceEntries.map((entry: string, idx: number) => {
+                  const fileMatch = entry.match(/\[File:\s*(.+?)\]/)
+                  const fileName = fileMatch?.[1]
+                  const label = fileMatch ? entry.replace(fileMatch[0], '').trim() : entry
+                  return (
+                    <div
+                      key={idx}
+                      className="row"
+                      style={{
+                        gap: 8,
+                        alignItems: 'flex-start',
+                        padding: '9px 0',
+                        borderBottom: idx < evidenceEntries.length - 1 ? '1px solid var(--b)' : 0,
+                        fontSize: 'var(--fs-md)',
+                      }}
+                    >
+                      <CheckCircleIcon
+                        style={{ width: 15, height: 15, flexShrink: 0, marginTop: 2, color: 'var(--ok)' }}
+                        aria-hidden
+                      />
+                      <span className="grow" style={{ lineHeight: 1.5 }}>{label}</span>
+                      {fileName && (
+                        <button
+                          type="button"
+                          onClick={() => viewEvidenceFile(fileName)}
+                          style={{
+                            border: 0,
+                            background: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--p)',
+                            fontSize: 'var(--fs-sm)',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                            padding: 0,
+                          }}
+                        >
+                          {t('obligation.viewFile', { defaultValue: 'View file' })}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                icon={DocumentArrowUpIcon}
+                title={t('obligation.noEvidence')}
+                action={
+                  <Button variant="secondary" size="sm" onClick={() => setShowEvidenceDrawer(true)}>
                     {t('obligation.uploadEvidence')}
-                  </button>
+                  </Button>
+                }
+              />
+            )}
+            {obligation.compliance_notes && (
+              <>
+                <div className="divider" style={{ margin: '12px 0' }} />
+                <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginBottom: 2 }}>
+                  {t('obligation.complianceNotes')}
                 </div>
-              )}
-              {obligation.compliance_notes && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-xs text-gray-500 mb-1">{t('obligation.complianceNotes')}</p>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{obligation.compliance_notes}</p>
-                </div>
-              )}
-            </div>
+                <p className="muted" style={{ fontSize: 'var(--fs-md)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                  {obligation.compliance_notes}
+                </p>
+              </>
+            )}
           </div>
 
           {/* Review — close out or assess the obligation (write roles only) */}
           {canReview && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="text-sm font-medium text-gray-900">{t('obligation.review')}</h2>
-                <p className="text-xs text-gray-500">{t('obligation.reviewHint')}</p>
+            <div className="card card-p">
+              <div className="sec-t">{t('obligation.review')}</div>
+              <div className="faint" style={{ fontSize: 'var(--fs-sm)', marginTop: 3, marginBottom: 12 }}>
+                {t('obligation.reviewHint')}
               </div>
-              <div className="card-body space-y-3">
+              <div className="col" style={{ gap: 14 }}>
+                <Select
+                  label={t('obligation.assignedTo')}
+                  hint={t('obligation.assignHint')}
+                  value={obligation.assigned_user_id || ''}
+                  disabled={reviewBusy}
+                  onChange={(e) => assignMutation.mutate(e.target.value || null)}
+                  options={[
+                    { value: '', label: t('obligation.unassigned', { defaultValue: 'Unassigned' }) },
+                    ...(assignableUsers || []).map((u) => ({
+                      value: u.id,
+                      label: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username,
+                    })),
+                  ]}
+                />
                 <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1.5">{t('obligation.assignedTo')}</p>
-                  <select
-                    className="input w-full text-sm"
-                    value={obligation.assigned_user_id || ''}
-                    disabled={reviewBusy}
-                    onChange={(e) => assignMutation.mutate(e.target.value || null)}
-                  >
-                    <option value="">{t('obligation.unassigned', { defaultValue: 'Unassigned' })}</option>
-                    {(assignableUsers || []).map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-gray-400">{t('obligation.assignHint')}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1.5">{t('obligation.setStatus')}</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
+                  <div className="lbl">{t('obligation.setStatus')}</div>
+                  <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => statusMutation.mutate('in_progress')}
                       disabled={reviewBusy || displayStatus === 'in_progress'}
-                      className="px-2 py-1.5 text-xs rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40"
                     >
                       {t('obligation.status.in_progress', { defaultValue: 'In progress' })}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={CheckCircleIcon}
                       onClick={() => statusMutation.mutate('completed')}
                       disabled={reviewBusy || obligation.status === 'completed'}
-                      className="px-2 py-1.5 text-xs rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-40"
                     >
                       {t('obligation.markFulfilled')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => statusMutation.mutate('waived')}
                       disabled={reviewBusy || obligation.status === 'waived'}
-                      className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-40"
                     >
                       {t('obligation.status.waived', { defaultValue: 'Waive' })}
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1.5">{t('obligation.assessRag')}</p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="lbl">{t('obligation.assessRag')}</div>
+                  <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                     {(['green', 'amber', 'red'] as const).map((rag) => (
-                      <button
+                      <Chip
                         key={rag}
-                        onClick={() => ragMutation.mutate(rag)}
+                        on={obligation.rag_status === rag}
                         disabled={reviewBusy || obligation.rag_status === rag}
-                        className={cn(
-                          'px-2 py-1.5 text-xs rounded-lg border disabled:opacity-40',
-                          rag === 'green' ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
-                          : rag === 'amber' ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                          : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
-                        )}
+                        onClick={() => ragMutation.mutate(rag)}
                       >
-                        {t(`obligation.rag.${rag}.label`)}
-                      </button>
+                        <i
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: '50%',
+                            background: rag === 'green' ? 'var(--ok)' : rag === 'amber' ? 'var(--wa)' : 'var(--da)',
+                            flexShrink: 0,
+                          }}
+                        />
+                        {t(`obligation.rag.${rag}.label`, { defaultValue: RAG_META[rag].label })}
+                      </Chip>
                     ))}
                   </div>
                 </div>
               </div>
             </div>
           )}
-
-          {/* Quick Actions */}
-          <div className="card">
-            <div className="card-header">
-              <h2 className="text-sm font-medium text-gray-900">{t('common.actions')}</h2>
-            </div>
-            <div className="card-body space-y-2">
-              <Link
-                to={`/query?obligation=${obligation.id}`}
-                className="btn-secondary w-full justify-center"
-              >
-                {t('obligation.askAi')}
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Evidence Upload Modal */}
-      {showEvidenceModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {t('obligation.uploadComplianceEvidence')}
-            </h3>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('obligation.evidenceDescription')}
-                </label>
-                <textarea
-                  value={evidenceDescription}
-                  onChange={(e) => setEvidenceDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  rows={3}
-                  placeholder={t('obligation.evidencePlaceholder')}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('obligation.evidenceDate')}
-                </label>
-                <input
-                  type="date"
-                  value={evidenceDate}
-                  onChange={(e) => setEvidenceDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('obligation.attachmentOptional')}
-                </label>
-                <input
-                  type="file"
-                  onChange={(e) => setEvidenceFile(e.target.files?.[0] || null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:bg-primary-50 file:text-primary-700"
-                />
-              </div>
-            </div>
-
-            {evidenceError && (
-              <p className="mt-4 text-sm text-red-600">{evidenceError}</p>
-            )}
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowEvidenceModal(false)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleEvidenceSubmit}
-                disabled={(!evidenceDescription.trim() && !evidenceFile) || uploadEvidenceMutation.isPending}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                {uploadEvidenceMutation.isPending ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    {t('obligation.uploading')}
-                  </>
-                ) : (
-                  <>
-                    <DocumentArrowUpIcon className="h-4 w-4" />
-                    {t('obligation.uploadEvidence')}
-                  </>
-                )}
-              </button>
+      {/* Evidence upload drawer */}
+      <Drawer
+        open={showEvidenceDrawer}
+        title={t('obligation.uploadComplianceEvidence')}
+        sub={obligation.contract_filename}
+        onClose={() => setShowEvidenceDrawer(false)}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setShowEvidenceDrawer(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              className="grow"
+              icon={DocumentArrowUpIcon}
+              disabled={(!evidenceDescription.trim() && !evidenceFile) || uploadEvidenceMutation.isPending}
+              onClick={handleEvidenceSubmit}
+            >
+              {uploadEvidenceMutation.isPending ? t('obligation.uploading') : t('obligation.uploadEvidence')}
+            </Button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 14 }}>
+          <div>
+            <label className="lbl">{t('obligation.evidenceDescription')}</label>
+            <div className="inp" style={{ height: 'auto', padding: 10, alignItems: 'flex-start' }}>
+              <textarea
+                rows={3}
+                value={evidenceDescription}
+                onChange={(e) => setEvidenceDescription(e.target.value)}
+                placeholder={t('obligation.evidencePlaceholder')}
+                style={{ resize: 'vertical', lineHeight: 1.55 }}
+              />
             </div>
           </div>
+          <Field
+            label={t('obligation.evidenceDate')}
+            type="date"
+            value={evidenceDate}
+            onChange={(e) => setEvidenceDate(e.target.value)}
+          />
+          <div>
+            <label className="lbl">{t('obligation.attachmentOptional')}</label>
+            <input
+              type="file"
+              className="input"
+              onChange={(e) => setEvidenceFile(e.target.files?.[0] || null)}
+            />
+            {evidenceFile && (
+              <div className="hint">{evidenceFile.name}</div>
+            )}
+          </div>
+          {evidenceError && (
+            <div className="banner banner-da">
+              <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+              <span className="grow">{evidenceError}</span>
+            </div>
+          )}
         </div>
-      )}
+      </Drawer>
     </div>
   )
 }

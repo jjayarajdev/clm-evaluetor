@@ -1,177 +1,145 @@
+/* Vendor scorecards — Direction B redesign.
+   Header + party-type filter → summary stats → scorecard table (avatar rows,
+   score/compliance Bars, risk Pills) → detail Drawer. Data fetching, role-based
+   default filter, server-side sorting and the super-admin tenant grouping are
+   unchanged from the pre-redesign page. A manual .tbl table is used (instead of
+   the Table primitive) because sorting is server-driven and the super-admin
+   view interleaves tenant group rows. */
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import {
   BuildingOfficeIcon,
-  ExclamationTriangleIcon,
   ChartBarIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
-  BuildingOffice2Icon,
-  UserGroupIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ExclamationTriangleIcon,
   TruckIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import PageHeader from '@/components/ui/PageHeader'
-import StatCard from '@/components/ui/StatCard'
+import { Avatar, Bar, Drawer, EmptyState, Pill, Select, Stat, Tag } from '@/components/ui'
+import type { PillTone } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import type { VendorListItem, CounterpartyType } from '@/types/postsigning'
 
 type PartyFilter = 'all' | 'vendor' | 'client'
 
-function ScoreGauge({ score, size = 'md' }: { score: number; size?: 'sm' | 'md' | 'lg' }) {
-  const getColor = () => {
-    if (score >= 80) return 'text-green-600'
-    if (score >= 60) return 'text-amber-600'
-    if (score >= 40) return 'text-orange-600'
-    return 'text-red-600'
-  }
+// ── Helpers ──────────────────────────────────────────────────────
 
-  const getGrade = () => {
-    if (score >= 90) return 'A'
-    if (score >= 80) return 'B'
-    if (score >= 70) return 'C'
-    if (score >= 60) return 'D'
-    return 'F'
-  }
-
-  const sizeClasses = {
-    sm: 'w-10 h-10 text-sm',
-    md: 'w-14 h-14 text-lg',
-    lg: 'w-20 h-20 text-2xl',
-  }
-
-  return (
-    <div className={cn(
-      'rounded-full border-4 flex items-center justify-center font-bold',
-      sizeClasses[size],
-      getColor(),
-      score >= 80 ? 'border-green-200 bg-green-50' :
-      score >= 60 ? 'border-amber-200 bg-amber-50' :
-      score >= 40 ? 'border-orange-200 bg-orange-50' :
-      'border-red-200 bg-red-50'
-    )}>
-      {getGrade()}
-    </div>
-  )
+/** Live-page performance banding: ≥80 ok, ≥60 warn, else danger. */
+function scoreTone(score: number): string {
+  return score >= 80 ? 'var(--ok)' : score >= 60 ? 'var(--wa)' : 'var(--da)'
 }
 
-function PartyTypeBadge({ type }: { type: CounterpartyType }) {
+const RISK_TONE: Record<string, PillTone> = { low: 'ok', medium: 'wa', high: 'da', critical: 'da' }
+
+function RiskPill({ level }: { level: string }) {
   const { t } = useTranslation()
-  if (type === 'vendor') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-        <TruckIcon className="h-3 w-3" />
-        {t('vendors.vendor')}
-      </span>
-    )
+  if (level === 'unrated') return <Pill tone="n">{t('vendors.notRated')}</Pill>
+  return <Pill tone={RISK_TONE[level] || 'n'}>{t(`risk.${level}`, { defaultValue: level })}</Pill>
+}
+
+function PartyTag({ type }: { type: CounterpartyType }) {
+  const { t } = useTranslation()
+  if (type === 'vendor') return <Tag icon={TruckIcon}>{t('vendors.vendor')}</Tag>
+  if (type === 'client') return <Tag icon={UserGroupIcon}>{t('vendors.client')}</Tag>
+  return <Tag>{t('vendors.unknown')}</Tag>
+}
+
+/** Score / compliance-rate bar with banded tone and numeric figure. */
+function RateBar({ value, okAt, warnAt, suffix = '' }: { value: number | null; okAt: number; warnAt: number; suffix?: string }) {
+  const { t } = useTranslation()
+  if (value == null) {
+    return <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('vendors.notRated')}</span>
   }
-  if (type === 'client') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-        <UserGroupIcon className="h-3 w-3" />
-        {t('vendors.client')}
-      </span>
-    )
-  }
+  const tone = value >= okAt ? 'var(--ok)' : value >= warnAt ? 'var(--wa)' : 'var(--da)'
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-      {t('vendors.unknown')}
+    <span className="row" style={{ gap: 7 }}>
+      <Bar value={value} width={56} tone={tone} />
+      <span className="mono num" style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: tone }}>
+        {value.toFixed(1)}{suffix}
+      </span>
     </span>
   )
 }
 
+// ── Table row ────────────────────────────────────────────────────
+
 function VendorRow({ vendor, onClick, showType }: { vendor: VendorListItem; onClick: () => void; showType: boolean }) {
   const { t } = useTranslation()
   return (
-    <tr
-      className="hover:bg-gray-50 cursor-pointer"
-      onClick={onClick}
-    >
-      <td className="px-4 py-4">
-        <div className="flex items-center gap-3">
-          {vendor.performance_score != null
-            ? <ScoreGauge score={vendor.performance_score} size="sm" />
-            : <div className="w-8 h-8 flex items-center justify-center text-xs text-gray-400">—</div>}
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="font-medium text-gray-900">{vendor.vendor_name}</p>
-              {showType && <PartyTypeBadge type={vendor.party_type} />}
-            </div>
-            <p className="text-xs text-gray-500">{t('vendors.contractsCount', { count: vendor.contract_count })}</p>
-          </div>
-        </div>
-      </td>
-      <td className="px-4 py-4 text-sm">
-        {vendor.performance_score != null ? (
-          <span className={cn(
-            'font-semibold',
-            vendor.performance_score >= 80 ? 'text-green-600' :
-            vendor.performance_score >= 60 ? 'text-amber-600' :
-            'text-red-600'
-          )}>
-            {vendor.performance_score.toFixed(1)}
+    <tr className="click" onClick={onClick}>
+      <td>
+        <span className="row" style={{ gap: 9 }}>
+          <Avatar name={vendor.vendor_name} size={26} />
+          <span style={{ minWidth: 0 }}>
+            <span className="row" style={{ gap: 6 }}>
+              <span className="trunc" style={{ fontWeight: 500 }}>{vendor.vendor_name}</span>
+              {showType && <PartyTag type={vendor.party_type} />}
+            </span>
+            <span className="faint" style={{ display: 'block', fontSize: 'var(--fs-sm)', marginTop: 1 }}>
+              {t('vendors.contractsCount', { count: vendor.contract_count })}
+            </span>
           </span>
-        ) : <span className="text-gray-400">{t('vendors.notRated')}</span>}
+        </span>
       </td>
-      <td className="px-4 py-4 text-sm">
-        {vendor.risk_level === 'unrated' ? (
-          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-            {t('vendors.notRated')}
+      <td>
+        {vendor.performance_score != null ? (
+          <span className="row" style={{ gap: 7 }}>
+            <Bar value={vendor.performance_score} width={56} tone={scoreTone(vendor.performance_score)} />
+            <span className="mono num" style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: scoreTone(vendor.performance_score) }}>
+              {vendor.performance_score.toFixed(1)}
+            </span>
           </span>
         ) : (
-          <span className={cn(
-            'px-2 py-0.5 rounded-full text-xs font-medium',
-            vendor.risk_level === 'low' ? 'bg-green-100 text-green-800' :
-            vendor.risk_level === 'medium' ? 'bg-amber-100 text-amber-800' :
-            vendor.risk_level === 'high' ? 'bg-orange-100 text-orange-800' :
-            'bg-red-100 text-red-800'
-          )}>
-            {t(`risk.${vendor.risk_level}`, { defaultValue: vendor.risk_level })}
-          </span>
+          <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>{t('vendors.notRated')}</span>
         )}
       </td>
-      <td className="px-4 py-4 text-sm text-gray-600">
-        ${vendor.total_exposure.toLocaleString()}
-      </td>
-      <td className="px-4 py-4 text-sm">
-        <span className={cn(
-          vendor.obligation_compliance_rate && vendor.obligation_compliance_rate >= 80 ? 'text-green-600' :
-          vendor.obligation_compliance_rate && vendor.obligation_compliance_rate >= 60 ? 'text-amber-600' :
-          'text-red-600'
-        )}>
-          {vendor.obligation_compliance_rate?.toFixed(1) ?? '-'}%
-        </span>
-      </td>
-      <td className="px-4 py-4 text-sm">
-        <span className={cn(
-          vendor.sla_compliance_rate && vendor.sla_compliance_rate >= 90 ? 'text-green-600' :
-          vendor.sla_compliance_rate && vendor.sla_compliance_rate >= 70 ? 'text-amber-600' :
-          'text-red-600'
-        )}>
-          {vendor.sla_compliance_rate?.toFixed(1) ?? '-'}%
-        </span>
-      </td>
-      <td className="px-4 py-4 text-sm">
+      <td><RiskPill level={vendor.risk_level} /></td>
+      <td className="r num nw" style={{ fontWeight: 500 }}>${vendor.total_exposure.toLocaleString()}</td>
+      <td><RateBar value={vendor.obligation_compliance_rate} okAt={80} warnAt={60} suffix="%" /></td>
+      <td><RateBar value={vendor.sla_compliance_rate} okAt={90} warnAt={70} suffix="%" /></td>
+      <td className="r num">
         {vendor.active_breaches > 0 ? (
-          <span className="text-red-600 font-medium">{vendor.active_breaches}</span>
+          <span style={{ color: 'var(--da)', fontWeight: 600 }}>{vendor.active_breaches}</span>
         ) : (
-          <span className="text-green-600">0</span>
+          <span style={{ color: 'var(--ok)' }}>0</span>
         )}
       </td>
     </tr>
   )
 }
 
-function VendorDetailModal({
-  vendorName,
-  onClose,
-}: {
-  vendorName: string
-  onClose: () => void
-}) {
+// ── Detail drawer ────────────────────────────────────────────────
+
+function BreakdownRow({ label, value, strong }: { label: string; value: number | null; strong?: boolean }) {
+  return (
+    <div className="row" style={{ gap: 10 }}>
+      <span className={strong ? undefined : 'muted'} style={{ fontSize: 'var(--fs-md)', fontWeight: strong ? 600 : undefined }}>
+        {label}
+      </span>
+      <span className="grow" />
+      {value != null && <Bar value={value} width={64} tone="var(--p)" />}
+      <span className="num" style={{ fontSize: strong ? 'var(--fs-lg)' : 'var(--fs-md)', fontWeight: strong ? 700 : 500, width: 44, textAlign: 'right' }}>
+        {value != null ? value.toFixed(1) : '—'}
+      </span>
+    </div>
+  )
+}
+
+function MiniStat({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{ background: 'var(--s2)', borderRadius: 'var(--r-md)', padding: '8px 10px' }}>
+      <div className="faint" style={{ fontSize: 'var(--fs-xs)' }}>{label}</div>
+      <div className="num" style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, marginTop: 2 }}>{value}</div>
+    </div>
+  )
+}
+
+function VendorDrawer({ vendorName, onClose }: { vendorName: string; onClose: () => void }) {
   const { t } = useTranslation()
   const { data: vendor, isLoading } = useQuery({
     queryKey: ['vendor-detail', vendorName],
@@ -179,124 +147,97 @@ function VendorDetailModal({
     enabled: !!vendorName,
   })
 
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-8">
+  return (
+    <Drawer open title={vendorName} onClose={onClose} width={460}>
+      {isLoading ? (
+        <div className="row" style={{ justifyContent: 'center', padding: 48 }}>
           <LoadingSpinner size="lg" />
         </div>
-      </div>
-    )
-  }
-
-  if (!vendor) return null
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {vendor.performance_score != null
-                ? <ScoreGauge score={vendor.performance_score} size="lg" />
-                : <div className="w-20 h-20 flex items-center justify-center rounded-full bg-gray-100 text-xs text-gray-400">{t('vendors.notRated')}</div>}
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">{vendor.vendor_name}</h2>
-                <p className={cn(
-                  'text-sm font-medium',
-                  vendor.is_at_risk ? 'text-red-600' : 'text-green-600'
-                )}>
-                  {vendor.is_at_risk ? t('vendors.atRisk') : t('vendors.goodStanding')}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+      ) : !vendor ? (
+        <div className="banner banner-da">
+          <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+          <span>{t('vendors.loadError')}</span>
+        </div>
+      ) : (
+        <div className="col" style={{ gap: 22 }}>
+          {/* Headline score + standing */}
+          <div className="row" style={{ gap: 12 }}>
+            <span
+              className="num"
+              style={{
+                fontSize: 'var(--fs-3xl)',
+                fontWeight: 600,
+                letterSpacing: '-1px',
+                color: vendor.performance_score != null ? scoreTone(vendor.performance_score) : 'var(--f)',
+              }}
             >
-              ✕
-            </button>
+              {vendor.performance_score != null ? vendor.performance_score.toFixed(1) : t('vendors.notRated')}
+            </span>
+            <Pill tone={vendor.is_at_risk ? 'da' : 'ok'}>
+              {vendor.is_at_risk ? t('vendors.atRisk') : t('vendors.goodStanding')}
+            </Pill>
+            <span className="grow" />
+            <RiskPill level={vendor.risk_level} />
           </div>
-        </div>
+          {vendor.performance_score != null && (
+            <Bar value={vendor.performance_score} width="100%" tone={scoreTone(vendor.performance_score)} />
+          )}
 
-        <div className="p-6 space-y-6">
-          {/* Score Breakdown */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 uppercase mb-3">{t('vendors.scoreBreakdown')}</h3>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">{t('vendors.obligationComplianceWeight')}</span>
-                <span className="font-medium">{vendor.score_breakdown.obligation_compliance_score?.toFixed(1) ?? '—'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">{t('vendors.slaComplianceWeight')}</span>
-                <span className="font-medium">{vendor.score_breakdown.sla_compliance_score?.toFixed(1) ?? '—'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">{t('vendors.responsivenessWeight')}</span>
-                <span className="font-medium">{vendor.score_breakdown.responsiveness_score?.toFixed(1) ?? '—'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">{t('vendors.issueRateWeight')}</span>
-                <span className="font-medium">{vendor.score_breakdown.issue_rate_score?.toFixed(1) ?? '—'}</span>
-              </div>
-              <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                <span className="text-sm font-medium text-gray-900">{t('vendors.weightedTotal')}</span>
-                <span className="font-bold text-lg">{vendor.score_breakdown.weighted_total != null ? vendor.score_breakdown.weighted_total.toFixed(1) : t('vendors.notRated')}</span>
-              </div>
+          {/* Score breakdown */}
+          <div className="col" style={{ gap: 9 }}>
+            <div className="sec-t">{t('vendors.scoreBreakdown')}</div>
+            <BreakdownRow label={t('vendors.obligationComplianceWeight')} value={vendor.score_breakdown.obligation_compliance_score} />
+            <BreakdownRow label={t('vendors.slaComplianceWeight')} value={vendor.score_breakdown.sla_compliance_score} />
+            <BreakdownRow label={t('vendors.responsivenessWeight')} value={vendor.score_breakdown.responsiveness_score} />
+            <BreakdownRow label={t('vendors.issueRateWeight')} value={vendor.score_breakdown.issue_rate_score} />
+            <div style={{ borderTop: '1px solid var(--b)', paddingTop: 9 }}>
+              <BreakdownRow label={t('vendors.weightedTotal')} value={vendor.score_breakdown.weighted_total} strong />
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-500">{t('vendors.contracts')}</p>
-              <p className="text-lg font-semibold">{vendor.contracts.total_contracts}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-500">{t('vendors.totalValue')}</p>
-              <p className="text-lg font-semibold">${(vendor.contracts.total_value / 1000000).toFixed(1)}M</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-500">{t('status.active')}</p>
-              <p className="text-lg font-semibold">{vendor.contracts.active_contracts}</p>
-            </div>
+          {/* Quick stats */}
+          <div className="grid gap-2 grid-cols-3">
+            <MiniStat label={t('vendors.contracts')} value={vendor.contracts.total_contracts} />
+            <MiniStat label={t('vendors.totalValue')} value={`$${(vendor.contracts.total_value / 1000000).toFixed(1)}M`} />
+            <MiniStat label={t('status.active')} value={vendor.contracts.active_contracts} />
           </div>
 
-          {/* Risk Factors */}
+          {/* Risk factors */}
           {vendor.risk_factors.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 uppercase mb-3">{t('vendors.riskFactors')}</h3>
-              <ul className="space-y-2">
+            <div className="col" style={{ gap: 8 }}>
+              <div className="sec-t">{t('vendors.riskFactors')}</div>
+              <ul className="col" style={{ gap: 7 }}>
                 {vendor.risk_factors.map((factor, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm">
-                    <ExclamationTriangleIcon className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                    <span>{factor}</span>
+                  <li key={idx} className="row" style={{ gap: 8, alignItems: 'flex-start', fontSize: 'var(--fs-md)', lineHeight: 1.5 }}>
+                    <ExclamationTriangleIcon style={{ width: 15, height: 15, flexShrink: 0, marginTop: 2, color: 'var(--wa)' }} aria-hidden />
+                    <span className="muted">{factor}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          {/* Recommended Actions */}
+          {/* Recommended actions */}
           {vendor.recommended_actions.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 uppercase mb-3">{t('vendors.recommendedActions')}</h3>
-              <ul className="space-y-2">
+            <div className="col" style={{ gap: 8 }}>
+              <div className="sec-t">{t('vendors.recommendedActions')}</div>
+              <ul className="col" style={{ gap: 7 }}>
                 {vendor.recommended_actions.map((action, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm">
-                    <ChartBarIcon className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-                    <span>{action}</span>
+                  <li key={idx} className="row" style={{ gap: 8, alignItems: 'flex-start', fontSize: 'var(--fs-md)', lineHeight: 1.5 }}>
+                    <ChartBarIcon style={{ width: 15, height: 15, flexShrink: 0, marginTop: 2, color: 'var(--in)' }} aria-hidden />
+                    <span className="muted">{action}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
         </div>
-      </div>
-    </div>
+      )}
+    </Drawer>
   )
 }
+
+// ── Page ─────────────────────────────────────────────────────────
 
 export default function VendorsPage() {
   const { t } = useTranslation()
@@ -339,7 +280,7 @@ export default function VendorsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
         <LoadingSpinner size="lg" />
       </div>
     )
@@ -347,171 +288,163 @@ export default function VendorsPage() {
 
   if (error || !data) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600">{t('vendors.loadError')}</p>
+      <div className="banner banner-da">
+        <ExclamationTriangleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+        <span>{t('vendors.loadError')}</span>
       </div>
     )
   }
 
-  const SortIcon = ({ column }: { column: string }) => {
-    if (sortBy !== column) return null
-    return sortOrder === 'asc' ? (
-      <ArrowUpIcon className="h-4 w-4 inline ml-1" />
-    ) : (
-      <ArrowDownIcon className="h-4 w-4 inline ml-1" />
-    )
-  }
+  const showType = partyFilter === 'all'
+
+  /** Server-sorted column header with direction chevron. */
+  const SortableTh = ({ column, label, width, align }: { column: string; label: string; width?: number; align?: 'r' }) => (
+    <th
+      className={cn('sortable', align === 'r' && 'r')}
+      style={width ? { width } : undefined}
+      onClick={() => handleSort(column)}
+      aria-sort={sortBy === column ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+    >
+      <span className="row" style={{ gap: 4, display: 'inline-flex' }}>
+        {label}
+        {sortBy === column &&
+          (sortOrder === 'asc' ? (
+            <ChevronUpIcon style={{ width: 12, height: 12 }} aria-hidden />
+          ) : (
+            <ChevronDownIcon style={{ width: 12, height: 12 }} aria-hidden />
+          ))}
+      </span>
+    </th>
+  )
 
   return (
-    <div className="space-y-6">
-      {/* Header with Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PageHeader
-          title={pageTitle}
-          description={pageDescription}
-          icon={BuildingOffice2Icon}
-          variant="bordered"
-        />
-
-        {/* Party Type Filter */}
-        <div className="flex items-center gap-2">
-          <label htmlFor="party-filter" className="text-sm font-medium text-gray-700">
-            {t('vendors.show')}
-          </label>
-          <select
-            id="party-filter"
+    <div className="col" style={{ gap: 18 }}>
+      {/* Header + party-type filter */}
+      <div className="row" style={{ alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>{pageTitle}</h1>
+          <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>{pageDescription}</p>
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <span className="muted" style={{ fontSize: 'var(--fs-sm)', fontWeight: 500 }}>{t('vendors.show')}</span>
+          <Select
+            aria-label={t('vendors.show')}
             value={partyFilter}
             onChange={(e) => setPartyFilter(e.target.value as PartyFilter)}
-            className="rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500"
-          >
-            <option value="all">{t('vendors.allCounterparties')}</option>
-            <option value="vendor">{t('vendors.vendorsOnly')}</option>
-            <option value="client">{t('vendors.clientsOnly')}</option>
-          </select>
+            containerStyle={{ width: 190 }}
+            options={[
+              { value: 'all', label: t('vendors.allCounterparties') },
+              { value: 'vendor', label: t('vendors.vendorsOnly') },
+              { value: 'client', label: t('vendors.clientsOnly') },
+            ]}
+          />
         </div>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title={partyFilter === 'vendor' ? t('vendors.totalVendors') :
+      {/* Summary stats */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <Stat
+          icon={BuildingOfficeIcon}
+          label={partyFilter === 'vendor' ? t('vendors.totalVendors') :
                  partyFilter === 'client' ? t('vendors.totalClients') :
                  t('vendors.totalCounterparties')}
           value={data.total_vendors}
-          icon={BuildingOfficeIcon}
-          color="primary"
         />
-        <StatCard
-          title={t('vendors.atRisk')}
-          value={data.at_risk_count}
+        <Stat
           icon={ExclamationTriangleIcon}
-          color="danger"
+          label={t('vendors.atRisk')}
+          value={data.at_risk_count}
+          sub={t('vendors.atRiskSub', { defaultValue: 'below performance thresholds' })}
+          subTone={data.at_risk_count > 0 ? 'var(--da)' : undefined}
         />
-        <StatCard
-          title={t('vendors.totalExposure')}
-          value={`$${(data.total_exposure / 1000000).toFixed(1)}M`}
+        <Stat
           icon={ChartBarIcon}
-          color="warning"
+          label={t('vendors.totalExposure')}
+          value={`$${(data.total_exposure / 1000000).toFixed(1)}M`}
+          sub={t('vendors.totalExposureSub', { defaultValue: 'sum of contract values' })}
         />
-        <StatCard
-          title={t('vendors.avgScore')}
+        <Stat
+          icon={ChartBarIcon}
+          label={t('vendors.avgScore')}
           value={(() => {
             const rated = data.vendors.filter((v) => v.performance_score != null) as (VendorListItem & { performance_score: number })[]
             return rated.length > 0
               ? (rated.reduce((sum, v) => sum + v.performance_score, 0) / rated.length).toFixed(1)
               : '—'
           })()}
-          icon={ChartBarIcon}
-          color="success"
+          sub={t('vendors.avgScoreSub', { defaultValue: 'across rated counterparties' })}
         />
       </div>
 
-      {/* Vendors Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('name')}
-              >
-                {t('vendors.vendor')} <SortIcon column="name" />
-              </th>
-              <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('score')}
-              >
-                {t('vendors.score')} <SortIcon column="score" />
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                {t('vendors.risk')}
-              </th>
-              <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('exposure')}
-              >
-                {t('vendors.exposure')} <SortIcon column="exposure" />
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                {t('vendors.oblCompliance')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                {t('vendors.slaCompliance')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                {t('vendors.breaches')}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {data.vendors.length === 0 ? (
+      {/* Scorecard table */}
+      {data.vendors.length === 0 ? (
+        <div className="tbl-w">
+          <EmptyState
+            icon={BuildingOfficeIcon}
+            title={t('vendors.noCounterparties')}
+            body={t('vendors.emptyBody', { defaultValue: 'Scorecards appear once contracts with counterparties are analyzed.' })}
+          />
+        </div>
+      ) : (
+        <div className="tbl-w">
+          <table className="tbl" style={{ minWidth: 920 }}>
+            <thead>
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
-                  {t('vendors.noCounterparties')}
-                </td>
+                <SortableTh column="name" label={t('vendors.vendor')} />
+                <SortableTh column="score" label={t('vendors.score')} width={140} />
+                <th style={{ width: 110 }}>{t('vendors.risk')}</th>
+                <SortableTh column="exposure" label={t('vendors.exposure')} width={130} align="r" />
+                <th style={{ width: 150 }}>{t('vendors.oblCompliance')}</th>
+                <th style={{ width: 150 }}>{t('vendors.slaCompliance')}</th>
+                <th style={{ width: 90 }} className="r">{t('vendors.breaches')}</th>
               </tr>
-            ) : data.vendors.some((v) => v.tenant_name) ? (
-              // Super-admin cross-tenant view — group under tenant headers
-              Object.entries(
-                data.vendors.reduce<Record<string, VendorListItem[]>>((acc, v) => {
-                  const key = v.tenant_name || '—'
-                  ;(acc[key] ||= []).push(v)
-                  return acc
-                }, {}),
-              )
-                .sort(([a], [b]) => a.localeCompare(b))
-                .flatMap(([tenant, rows]) => [
-                  <tr key={`hdr-${tenant}`} className="bg-gray-50">
-                    <td colSpan={7} className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                      {tenant} · {t('vendors.contractsCount', { count: rows.length })}
-                    </td>
-                  </tr>,
-                  ...rows.map((vendor, i) => (
-                    <VendorRow
-                      key={`${tenant}-${vendor.normalized_name}-${i}`}
-                      vendor={vendor}
-                      onClick={() => setSelectedVendor(vendor.vendor_name)}
-                      showType={partyFilter === 'all'}
-                    />
-                  )),
-                ])
-            ) : (
-              data.vendors.map((vendor, i) => (
-                <VendorRow
-                  key={`${vendor.normalized_name}-${i}`}
-                  vendor={vendor}
-                  onClick={() => setSelectedVendor(vendor.vendor_name)}
-                  showType={partyFilter === 'all'}
-                />
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {data.vendors.some((v) => v.tenant_name) ? (
+                // Super-admin cross-tenant view — group under tenant headers
+                Object.entries(
+                  data.vendors.reduce<Record<string, VendorListItem[]>>((acc, v) => {
+                    const key = v.tenant_name || '—'
+                    ;(acc[key] ||= []).push(v)
+                    return acc
+                  }, {}),
+                )
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .flatMap(([tenant, rows]) => [
+                    <tr key={`hdr-${tenant}`}>
+                      <td colSpan={7} style={{ background: 'var(--s3)', padding: '6px 14px' }}>
+                        <span className="sec-t">
+                          {tenant} · {t('vendors.contractsCount', { count: rows.length })}
+                        </span>
+                      </td>
+                    </tr>,
+                    ...rows.map((vendor, i) => (
+                      <VendorRow
+                        key={`${tenant}-${vendor.normalized_name}-${i}`}
+                        vendor={vendor}
+                        onClick={() => setSelectedVendor(vendor.vendor_name)}
+                        showType={showType}
+                      />
+                    )),
+                  ])
+              ) : (
+                data.vendors.map((vendor, i) => (
+                  <VendorRow
+                    key={`${vendor.normalized_name}-${i}`}
+                    vendor={vendor}
+                    onClick={() => setSelectedVendor(vendor.vendor_name)}
+                    showType={showType}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {/* Detail Modal */}
+      {/* Detail drawer */}
       {selectedVendor && (
-        <VendorDetailModal
+        <VendorDrawer
           vendorName={selectedVendor}
           onClose={() => setSelectedVendor(null)}
         />
