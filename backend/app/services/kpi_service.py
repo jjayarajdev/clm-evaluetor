@@ -27,11 +27,14 @@ from app.schemas.kpi import (
 )
 
 
-def apply_tenant_filter_kpi(query, tenant_id):
-    """Apply tenant filter to KPI query via relationship/organization join.
+def apply_tenant_filter_kpi(query, tenant_id, visible_bu_ids=None):
+    """Apply tenant (and optionally BU) filter to a KPI query.
 
     KPIs don't have tenant_id directly — scoped through:
     KPI → BusinessRelationship → Organization.tenant_id
+    visible_bu_ids (from bu_scope.resolve_visible_bu_ids) additionally
+    restricts to relationships visible to the user's business unit(s);
+    None = unrestricted.
     """
     if tenant_id is not None:
         query = query.join(
@@ -39,6 +42,10 @@ def apply_tenant_filter_kpi(query, tenant_id):
         ).join(
             Organization, BusinessRelationship.org_a_id == Organization.id
         ).where(Organization.tenant_id == tenant_id)
+        if visible_bu_ids is not None:
+            from app.core.bu_scope import relationship_bu_visibility_clause
+
+            query = query.where(relationship_bu_visibility_clause(visible_bu_ids))
     return query
 
 

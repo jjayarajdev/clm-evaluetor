@@ -10,6 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.core.deps import get_current_user, require_permission, CurrentTenantId, RequiredTenantId
 from app.core.tenant import apply_tenant_filter
+from app.core.bu_scope import (
+    _org_contracts_visible,
+    relationship_bu_visibility_clause,
+    resolve_visible_bu_ids,
+)
 from app.models import User, Organization, BusinessRelationship
 from app.models.service_portfolio import ServicePortfolio, RelationshipService, ServiceType, ServiceStatus
 from app.schemas.service_portfolio import (
@@ -22,6 +27,16 @@ from app.schemas.service_portfolio import (
 )
 
 router = APIRouter(prefix="/api/service-portfolio", tags=["Service Portfolio"])
+
+
+async def _portfolio_visibility(db: AsyncSession, current_user):
+    """BU-derived portfolio visibility (via its organization). None = unrestricted."""
+    from app.models.service_portfolio import ServicePortfolio
+
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    if visible_bus is None:
+        return None, None
+    return _org_contracts_visible(ServicePortfolio.organization_id, visible_bus), visible_bus
 
 
 @router.get("", response_model=ServicePortfolioListResponse)
@@ -39,6 +54,9 @@ async def list_service_portfolios(
     """List service portfolios with filtering and pagination."""
     query = select(ServicePortfolio)
     query = apply_tenant_filter(query, tenant_id, ServicePortfolio)
+    pf_clause, _visible_bus = await _portfolio_visibility(db, current_user)
+    if pf_clause is not None:
+        query = query.where(pf_clause)
 
     # Apply filters
     if search:
@@ -146,6 +164,9 @@ async def get_services_for_organization(
 
     query = select(ServicePortfolio).where(ServicePortfolio.organization_id == org_id)
     query = apply_tenant_filter(query, tenant_id, ServicePortfolio)
+    pf_clause, _visible_bus = await _portfolio_visibility(db, current_user)
+    if pf_clause is not None:
+        query = query.where(pf_clause)
 
     if service_type:
         query = query.where(ServicePortfolio.service_type == service_type)
@@ -183,6 +204,9 @@ async def get_service_portfolio(
     """Get service portfolio by ID."""
     query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
     query = apply_tenant_filter(query, tenant_id, ServicePortfolio)
+    pf_clause, _visible_bus = await _portfolio_visibility(db, current_user)
+    if pf_clause is not None:
+        query = query.where(pf_clause)
     result = await db.execute(query)
     service = result.scalar_one_or_none()
 
@@ -206,6 +230,9 @@ async def update_service_portfolio(
     """Update a service portfolio entry."""
     query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
     query = apply_tenant_filter(query, tenant_id, ServicePortfolio)
+    pf_clause, _visible_bus = await _portfolio_visibility(db, current_user)
+    if pf_clause is not None:
+        query = query.where(pf_clause)
     result = await db.execute(query)
     service = result.scalar_one_or_none()
 
@@ -262,6 +289,9 @@ async def delete_service_portfolio(
     """Soft delete a service portfolio entry (sets status to deprecated)."""
     query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
     query = apply_tenant_filter(query, tenant_id, ServicePortfolio)
+    pf_clause, _visible_bus = await _portfolio_visibility(db, current_user)
+    if pf_clause is not None:
+        query = query.where(pf_clause)
     result = await db.execute(query)
     service = result.scalar_one_or_none()
 
@@ -288,6 +318,9 @@ async def get_service_relationships(
     # Verify service exists and belongs to tenant
     svc_query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
     svc_query = apply_tenant_filter(svc_query, tenant_id, ServicePortfolio)
+    pf_clause, _visible_bus = await _portfolio_visibility(db, current_user)
+    if pf_clause is not None:
+        svc_query = svc_query.where(pf_clause)
     svc_result = await db.execute(svc_query)
     if not svc_result.scalar_one_or_none():
         raise HTTPException(
@@ -298,6 +331,14 @@ async def get_service_relationships(
     query = select(RelationshipService).where(
         RelationshipService.service_portfolio_id == service_id
     )
+    if _visible_bus is not None:
+        from app.core.bu_scope import visible_relationship_ids_subquery
+
+        query = query.where(
+            RelationshipService.relationship_id.in_(
+                visible_relationship_ids_subquery(tenant_id, _visible_bus)
+            )
+        )
     result = await db.execute(query)
     items = result.scalars().all()
 
@@ -320,6 +361,9 @@ async def link_service_to_relationship(
     # Verify service exists and belongs to tenant
     svc_query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
     svc_query = apply_tenant_filter(svc_query, tenant_id, ServicePortfolio)
+    pf_clause, _visible_bus = await _portfolio_visibility(db, current_user)
+    if pf_clause is not None:
+        svc_query = svc_query.where(pf_clause)
     svc_result = await db.execute(svc_query)
     if not svc_result.scalar_one_or_none():
         raise HTTPException(
@@ -333,6 +377,9 @@ async def link_service_to_relationship(
     )
     if tenant_id is not None:
         rel_query = rel_query.where(BusinessRelationship.tenant_id == tenant_id)
+    rel_clause = relationship_bu_visibility_clause(_visible_bus)
+    if rel_clause is not None:
+        rel_query = rel_query.where(rel_clause)
     rel_result = await db.execute(rel_query)
     if not rel_result.scalar_one_or_none():
         raise HTTPException(
@@ -378,6 +425,9 @@ async def unlink_service_from_relationship(
     # Verify service exists and belongs to tenant
     svc_query = select(ServicePortfolio).where(ServicePortfolio.id == service_id)
     svc_query = apply_tenant_filter(svc_query, tenant_id, ServicePortfolio)
+    pf_clause, _visible_bus = await _portfolio_visibility(db, current_user)
+    if pf_clause is not None:
+        svc_query = svc_query.where(pf_clause)
     svc_result = await db.execute(svc_query)
     if not svc_result.scalar_one_or_none():
         raise HTTPException(

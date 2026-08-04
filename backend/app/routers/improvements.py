@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.core.deps import get_current_user, require_role, CurrentUser, CurrentTenantId
+from app.core.bu_scope import relationship_bu_visibility_clause, resolve_visible_bu_ids
 from app.models import (
     User,
     ImprovementPoint,
@@ -40,14 +41,22 @@ from app.schemas.improvement import (
 router = APIRouter(prefix="/api/improvements", tags=["Improvements"])
 
 
-def apply_tenant_filter_improvement(query, tenant_id):
-    """Apply tenant filter to ImprovementPoint query via relationship/organization join."""
+def apply_tenant_filter_improvement(query, tenant_id, visible_bu_ids=None):
+    """Apply tenant (and optionally BU) filter to an ImprovementPoint query.
+
+    visible_bu_ids (bu_scope.resolve_visible_bu_ids) restricts to
+    relationships visible to the user's business unit(s); None = unrestricted.
+    """
     if tenant_id is not None:
         query = query.join(
             BusinessRelationship, ImprovementPoint.relationship_id == BusinessRelationship.id
         ).join(
             Organization, BusinessRelationship.org_a_id == Organization.id
         ).where(Organization.tenant_id == tenant_id)
+        if visible_bu_ids is not None:
+            from app.core.bu_scope import relationship_bu_visibility_clause
+
+            query = query.where(relationship_bu_visibility_clause(visible_bu_ids))
     return query
 
 
@@ -73,7 +82,8 @@ async def list_improvements(
         selectinload(ImprovementPoint.kpi),
         selectinload(ImprovementPoint.relationship),
     )
-    query = apply_tenant_filter_improvement(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_improvement(query, tenant_id, visible_bus)
 
     if relationship_id:
         query = query.where(ImprovementPoint.relationship_id == relationship_id)
@@ -140,6 +150,11 @@ async def create_improvement(
         rel_query = rel_query.join(
             Organization, BusinessRelationship.org_a_id == Organization.id
         ).where(Organization.tenant_id == tenant_id)
+    rel_bu_clause = relationship_bu_visibility_clause(
+        await resolve_visible_bu_ids(db, current_user)
+    )
+    if rel_bu_clause is not None:
+        rel_query = rel_query.where(rel_bu_clause)
     rel_result = await db.execute(rel_query)
     relationship = rel_result.scalar_one_or_none()
     if not relationship:
@@ -151,13 +166,13 @@ async def create_improvement(
     # Verify KPI if provided — must belong to the caller's tenant (via its
     # relationship), else an improvement could cross-link another tenant's KPI
     if data.kpi_id:
-        from app.models.relationship import BusinessRelationship
-
         kpi_query = select(KPI).join(
             BusinessRelationship, KPI.relationship_id == BusinessRelationship.id
         ).where(KPI.id == data.kpi_id)
         if tenant_id is not None:
             kpi_query = kpi_query.where(BusinessRelationship.tenant_id == tenant_id)
+        if rel_bu_clause is not None:
+            kpi_query = kpi_query.where(rel_bu_clause)
         kpi = (await db.execute(kpi_query)).scalar_one_or_none()
         if not kpi:
             raise HTTPException(
@@ -197,7 +212,8 @@ async def get_improvement(
         selectinload(ImprovementPoint.relationship),
         selectinload(ImprovementPoint.actions).selectinload(ImprovementAction.owner),
     )
-    query = apply_tenant_filter_improvement(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_improvement(query, tenant_id, visible_bus)
     result = await db.execute(query)
     improvement = result.scalar_one_or_none()
 
@@ -224,7 +240,8 @@ async def update_improvement(
         selectinload(ImprovementPoint.kpi),
         selectinload(ImprovementPoint.relationship),
     )
-    query = apply_tenant_filter_improvement(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_improvement(query, tenant_id, visible_bus)
     result = await db.execute(query)
     improvement = result.scalar_one_or_none()
 
@@ -262,7 +279,8 @@ async def delete_improvement(
 ):
     """Delete an improvement point (sets status to cancelled)."""
     query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id)
-    query = apply_tenant_filter_improvement(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_improvement(query, tenant_id, visible_bus)
     result = await db.execute(query)
     improvement = result.scalar_one_or_none()
     if not improvement:
@@ -286,7 +304,8 @@ async def list_actions(
 ):
     """List actions for an improvement point."""
     query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id)
-    query = apply_tenant_filter_improvement(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_improvement(query, tenant_id, visible_bus)
     result = await db.execute(query)
     improvement = result.scalar_one_or_none()
     if not improvement:
@@ -317,7 +336,8 @@ async def add_action(
 ):
     """Add an action to an improvement point."""
     query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id)
-    query = apply_tenant_filter_improvement(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_improvement(query, tenant_id, visible_bus)
     result = await db.execute(query)
     improvement = result.scalar_one_or_none()
     if not improvement:
@@ -357,7 +377,8 @@ async def update_action(
     """Update an action."""
     # Verify tenant access through action -> improvement -> relationship -> org
     imp_query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id)
-    imp_query = apply_tenant_filter_improvement(imp_query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    imp_query = apply_tenant_filter_improvement(imp_query, tenant_id, visible_bus)
     imp_result = await db.execute(imp_query)
     if not imp_result.scalar_one_or_none():
         raise HTTPException(
@@ -409,7 +430,8 @@ async def delete_action(
     """Delete an action."""
     # Verify tenant access through action -> improvement -> relationship -> org
     imp_query = select(ImprovementPoint).where(ImprovementPoint.id == improvement_id)
-    imp_query = apply_tenant_filter_improvement(imp_query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    imp_query = apply_tenant_filter_improvement(imp_query, tenant_id, visible_bus)
     imp_result = await db.execute(imp_query)
     if not imp_result.scalar_one_or_none():
         raise HTTPException(
@@ -454,6 +476,11 @@ async def get_improvement_summary(
         rel_query = rel_query.join(
             Organization, BusinessRelationship.org_a_id == Organization.id
         ).where(Organization.tenant_id == tenant_id)
+    rel_bu_clause = relationship_bu_visibility_clause(
+        await resolve_visible_bu_ids(db, current_user)
+    )
+    if rel_bu_clause is not None:
+        rel_query = rel_query.where(rel_bu_clause)
     rel_result = await db.execute(rel_query)
     if not rel_result.scalar_one_or_none():
         raise HTTPException(
@@ -509,6 +536,11 @@ async def generate_from_gaps(
         rel_query = rel_query.join(
             Organization, BusinessRelationship.org_a_id == Organization.id
         ).where(Organization.tenant_id == tenant_id)
+    rel_bu_clause = relationship_bu_visibility_clause(
+        await resolve_visible_bu_ids(db, current_user)
+    )
+    if rel_bu_clause is not None:
+        rel_query = rel_query.where(rel_bu_clause)
     rel_result = await db.execute(rel_query)
     if not rel_result.scalar_one_or_none():
         raise HTTPException(

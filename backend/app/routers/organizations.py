@@ -30,6 +30,13 @@ from app.schemas.organization_officer import (
 router = APIRouter(prefix="/api/organizations", tags=["Organizations"])
 
 
+async def _org_visibility(db: AsyncSession, current_user) :
+    """BU-derived org visibility clause for this user (None = unrestricted)."""
+    from app.core.bu_scope import org_bu_visibility_clause, resolve_visible_bu_ids
+
+    return org_bu_visibility_clause(await resolve_visible_bu_ids(db, current_user))
+
+
 @router.get("", response_model=OrganizationListResponse)
 async def list_organizations(
     tenant_id: CurrentTenantId,
@@ -46,6 +53,9 @@ async def list_organizations(
     """List organizations with filtering and pagination."""
     query = select(Organization)
     query = apply_tenant_filter(query, tenant_id, Organization)
+    bu_clause = await _org_visibility(db, current_user)
+    if bu_clause is not None:
+        query = query.where(bu_clause)
 
     # Apply filters
     if search:
@@ -159,16 +169,21 @@ async def get_organization_tree(
     """
     query = select(Organization)
     query = apply_tenant_filter(query, tenant_id, Organization)
+    bu_clause = await _org_visibility(db, current_user)
+    if bu_clause is not None:
+        query = query.where(bu_clause)
     query = query.order_by(Organization.name)
 
     result = await db.execute(query)
     all_orgs = result.scalars().all()
 
-    # Build parent->children lookup
+    # Build parent->children lookup. A visible org whose parent is NOT
+    # visible (BU scoping) is promoted to root so it doesn't vanish.
+    visible_ids = {org.id for org in all_orgs}
     children_map: dict = {}
     roots = []
     for org in all_orgs:
-        if org.parent_organization_id:
+        if org.parent_organization_id and org.parent_organization_id in visible_ids:
             children_map.setdefault(org.parent_organization_id, []).append(org)
         else:
             roots.append(org)
@@ -186,6 +201,9 @@ async def get_organization(
     """Get organization by ID."""
     query = select(Organization).where(Organization.id == org_id)
     query = apply_tenant_filter(query, tenant_id, Organization)
+    bu_clause = await _org_visibility(db, current_user)
+    if bu_clause is not None:
+        query = query.where(bu_clause)
     result = await db.execute(query)
     org = result.scalar_one_or_none()
 
@@ -209,6 +227,9 @@ async def update_organization(
     """Update an organization."""
     query = select(Organization).where(Organization.id == org_id)
     query = apply_tenant_filter(query, tenant_id, Organization)
+    bu_clause = await _org_visibility(db, current_user)
+    if bu_clause is not None:
+        query = query.where(bu_clause)
     result = await db.execute(query)
     org = result.scalar_one_or_none()
 
@@ -254,6 +275,9 @@ async def delete_organization(
     """Delete or deactivate an organization."""
     query = select(Organization).where(Organization.id == org_id)
     query = apply_tenant_filter(query, tenant_id, Organization)
+    bu_clause = await _org_visibility(db, current_user)
+    if bu_clause is not None:
+        query = query.where(bu_clause)
     result = await db.execute(query)
     org = result.scalar_one_or_none()
 
@@ -333,9 +357,15 @@ async def get_organization_relationships(
 ):
     """Get all business relationships for an organization."""
     from app.models import BusinessRelationship
+    from app.core.bu_scope import relationship_bu_visibility_clause, resolve_visible_bu_ids
+    from app.core.bu_scope import org_bu_visibility_clause
 
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
     query = select(Organization).where(Organization.id == org_id)
     query = apply_tenant_filter(query, tenant_id, Organization)
+    org_clause = org_bu_visibility_clause(visible_bus)
+    if org_clause is not None:
+        query = query.where(org_clause)
     result = await db.execute(query)
     org = result.scalar_one_or_none()
 
@@ -353,6 +383,9 @@ async def get_organization_relationships(
         )
     )
     relationships_query = apply_tenant_filter(relationships_query, tenant_id, BusinessRelationship)
+    rel_clause = relationship_bu_visibility_clause(visible_bus)
+    if rel_clause is not None:
+        relationships_query = relationships_query.where(rel_clause)
     result = await db.execute(relationships_query)
     relationships = result.scalars().all()
 
@@ -380,9 +413,12 @@ async def get_subsidiaries(
     current_user: User = Depends(get_current_user),
 ):
     """Get direct child organizations (subsidiaries) of the given organization."""
-    # Verify parent exists
+    # Verify parent exists (and is BU-visible)
+    bu_clause = await _org_visibility(db, current_user)
     parent_query = select(Organization).where(Organization.id == org_id)
     parent_query = apply_tenant_filter(parent_query, tenant_id, Organization)
+    if bu_clause is not None:
+        parent_query = parent_query.where(bu_clause)
     parent_result = await db.execute(parent_query)
     parent_org = parent_result.scalar_one_or_none()
 
@@ -397,6 +433,8 @@ async def get_subsidiaries(
         Organization.parent_organization_id == org_id,
     )
     children_query = apply_tenant_filter(children_query, tenant_id, Organization)
+    if bu_clause is not None:
+        children_query = children_query.where(bu_clause)
     children_query = children_query.order_by(Organization.name)
 
     result = await db.execute(children_query)
@@ -417,9 +455,12 @@ async def get_organization_hierarchy(
     Returns the organization itself, its parent chain (up to root), and its
     direct children.
     """
-    # Fetch the target org
+    # Fetch the target org (BU-visible only)
+    bu_clause = await _org_visibility(db, current_user)
     org_query = select(Organization).where(Organization.id == org_id)
     org_query = apply_tenant_filter(org_query, tenant_id, Organization)
+    if bu_clause is not None:
+        org_query = org_query.where(bu_clause)
     result = await db.execute(org_query)
     org = result.scalar_one_or_none()
 
@@ -437,6 +478,9 @@ async def get_organization_hierarchy(
         visited.add(current_parent_id)
         parent_q = select(Organization).where(Organization.id == current_parent_id)
         parent_q = apply_tenant_filter(parent_q, tenant_id, Organization)
+        if bu_clause is not None:
+            # Chain truncates at an invisible ancestor (loop breaks on miss)
+            parent_q = parent_q.where(bu_clause)
         parent_result = await db.execute(parent_q)
         parent = parent_result.scalar_one_or_none()
         if parent:
@@ -457,6 +501,8 @@ async def get_organization_hierarchy(
         Organization.parent_organization_id == org_id,
     )
     children_query = apply_tenant_filter(children_query, tenant_id, Organization)
+    if bu_clause is not None:
+        children_query = children_query.where(bu_clause)
     children_query = children_query.order_by(Organization.name)
     children_result = await db.execute(children_query)
     children = children_result.scalars().all()
@@ -493,9 +539,12 @@ async def list_officers(
 
     Filterable by governance_role, side, and active status.
     """
-    # Verify org exists
+    # Verify org exists (and is BU-visible)
     org_query = select(Organization).where(Organization.id == org_id)
     org_query = apply_tenant_filter(org_query, tenant_id, Organization)
+    bu_clause = await _org_visibility(db, current_user)
+    if bu_clause is not None:
+        org_query = org_query.where(bu_clause)
     org_result = await db.execute(org_query)
     if not org_result.scalar_one_or_none():
         raise HTTPException(
@@ -541,11 +590,14 @@ async def create_officer(
     current_user: User = Depends(require_permission("organizations.write")),
 ):
     """Create a new officer / contact for an organization."""
-    # Verify org exists and belongs to tenant
+    # Verify org exists, belongs to tenant, and is BU-visible
     org_query = select(Organization).where(
         Organization.id == org_id,
         Organization.tenant_id == tenant_id,
     )
+    bu_clause = await _org_visibility(db, current_user)
+    if bu_clause is not None:
+        org_query = org_query.where(bu_clause)
     org_result = await db.execute(org_query)
     if not org_result.scalar_one_or_none():
         raise HTTPException(
@@ -575,11 +627,16 @@ async def update_officer(
     current_user: User = Depends(require_permission("organizations.write")),
 ):
     """Update an existing officer / contact."""
+    from app.core.bu_scope import _org_contracts_visible, resolve_visible_bu_ids
+
     query = select(OrganizationOfficer).where(
         OrganizationOfficer.id == officer_id,
         OrganizationOfficer.organization_id == org_id,
     )
     query = _apply_officer_tenant_filter(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    if visible_bus is not None:
+        query = query.where(_org_contracts_visible(OrganizationOfficer.organization_id, visible_bus))
     result = await db.execute(query)
     officer = result.scalar_one_or_none()
 
@@ -608,11 +665,16 @@ async def delete_officer(
     current_user: User = Depends(require_permission("organizations.write")),
 ):
     """Deactivate an officer (soft delete)."""
+    from app.core.bu_scope import _org_contracts_visible, resolve_visible_bu_ids
+
     query = select(OrganizationOfficer).where(
         OrganizationOfficer.id == officer_id,
         OrganizationOfficer.organization_id == org_id,
     )
     query = _apply_officer_tenant_filter(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    if visible_bus is not None:
+        query = query.where(_org_contracts_visible(OrganizationOfficer.organization_id, visible_bus))
     result = await db.execute(query)
     officer = result.scalar_one_or_none()
 

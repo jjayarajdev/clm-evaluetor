@@ -45,6 +45,13 @@ from app.schemas.relationship_history import (
 router = APIRouter(prefix="/api/relationships", tags=["Relationships"])
 
 
+async def _rel_visibility(db: AsyncSession, current_user):
+    """BU-derived relationship visibility clause (None = unrestricted)."""
+    from app.core.bu_scope import relationship_bu_visibility_clause, resolve_visible_bu_ids
+
+    return relationship_bu_visibility_clause(await resolve_visible_bu_ids(db, current_user))
+
+
 @router.get("", response_model=RelationshipListResponse)
 async def list_relationships(
     tenant_id: CurrentTenantId,
@@ -64,6 +71,9 @@ async def list_relationships(
         selectinload(BusinessRelationship.org_b),
     )
     query = apply_tenant_filter(query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        query = query.where(bu_clause)
 
     # Filter by organization
     if org_id:
@@ -158,11 +168,17 @@ async def create_relationship(
     # Validate organizations exist and belong to tenant
     org_a_query = select(Organization).where(Organization.id == data.org_a_id)
     org_a_query = apply_tenant_filter(org_a_query, tenant_id, Organization)
+    from app.core.bu_scope import org_bu_visibility_clause, resolve_visible_bu_ids
+    org_clause = org_bu_visibility_clause(await resolve_visible_bu_ids(db, current_user))
+    if org_clause is not None:
+        org_a_query = org_a_query.where(org_clause)
     org_a_result = await db.execute(org_a_query)
     org_a = org_a_result.scalar_one_or_none()
 
     org_b_query = select(Organization).where(Organization.id == data.org_b_id)
     org_b_query = apply_tenant_filter(org_b_query, tenant_id, Organization)
+    if org_clause is not None:
+        org_b_query = org_b_query.where(org_clause)
     org_b_result = await db.execute(org_b_query)
     org_b = org_b_result.scalar_one_or_none()
 
@@ -221,6 +237,9 @@ async def get_relationship(
         )
     )
     query = apply_tenant_filter(query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        query = query.where(bu_clause)
     result = await db.execute(query)
     relationship = result.scalar_one_or_none()
 
@@ -262,6 +281,9 @@ async def update_relationship(
         )
     )
     query = apply_tenant_filter(query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        query = query.where(bu_clause)
     result = await db.execute(query)
     relationship = result.scalar_one_or_none()
 
@@ -309,6 +331,9 @@ async def delete_relationship(
 
     query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
     query = apply_tenant_filter(query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        query = query.where(bu_clause)
     relationship = (await db.execute(query)).scalar_one_or_none()
     if not relationship:
         raise HTTPException(
@@ -379,6 +404,9 @@ async def get_team_members(
     # Verify relationship belongs to tenant
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
     rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        rel_query = rel_query.where(bu_clause)
     rel_result = await db.execute(rel_query)
     if not rel_result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relationship not found")
@@ -408,6 +436,9 @@ async def add_team_member(
     # Verify relationship exists and belongs to tenant
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
     rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        rel_query = rel_query.where(bu_clause)
     rel_result = await db.execute(rel_query)
     relationship = rel_result.scalar_one_or_none()
     if not relationship:
@@ -470,6 +501,9 @@ async def update_team_member(
     # Verify relationship belongs to tenant
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
     rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        rel_query = rel_query.where(bu_clause)
     rel_result = await db.execute(rel_query)
     if not rel_result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relationship not found")
@@ -517,6 +551,9 @@ async def remove_team_member(
     # Verify relationship belongs to tenant
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
     rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        rel_query = rel_query.where(bu_clause)
     rel_result = await db.execute(rel_query)
     if not rel_result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relationship not found")
@@ -559,6 +596,9 @@ async def get_health_score(
     # Verify relationship belongs to tenant
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
     rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        rel_query = rel_query.where(bu_clause)
     rel_result = await db.execute(rel_query)
     relationship = rel_result.scalar_one_or_none()
     if not relationship:
@@ -698,6 +738,9 @@ async def list_status_history(
     # Verify relationship exists
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
     rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        rel_query = rel_query.where(bu_clause)
     rel_result = await db.execute(rel_query)
     relationship = rel_result.scalar_one_or_none()
     if not relationship:
@@ -746,6 +789,9 @@ async def record_status_history(
     # Verify relationship exists and belongs to tenant
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
     rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        rel_query = rel_query.where(bu_clause)
     rel_result = await db.execute(rel_query)
     relationship = rel_result.scalar_one_or_none()
     if not relationship:
@@ -813,6 +859,9 @@ async def get_performance_trend(
     # Verify relationship exists
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
     rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    bu_clause = await _rel_visibility(db, current_user)
+    if bu_clause is not None:
+        rel_query = rel_query.where(bu_clause)
     rel_result = await db.execute(rel_query)
     relationship = rel_result.scalar_one_or_none()
     if not relationship:

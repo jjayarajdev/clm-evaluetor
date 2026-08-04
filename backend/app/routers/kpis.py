@@ -39,6 +39,7 @@ from app.schemas.kpi import (
     ScoreApprovalAction,
     PendingApprovalResponse,
 )
+from app.core.bu_scope import relationship_bu_visibility_clause, resolve_visible_bu_ids
 from app.services.kpi_service import (
     apply_tenant_filter_kpi,
     enrich_kpi_response,
@@ -63,7 +64,8 @@ async def list_kpis(
 ):
     """List KPIs with optional filtering."""
     query = select(KPI)
-    query = apply_tenant_filter_kpi(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_kpi(query, tenant_id, visible_bus)
 
     if relationship_id:
         query = query.where(KPI.relationship_id == relationship_id)
@@ -105,6 +107,10 @@ async def create_kpi(
         rel_query = rel_query.join(
             Organization, BusinessRelationship.org_a_id == Organization.id
         ).where(Organization.tenant_id == tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    rel_bu_clause = relationship_bu_visibility_clause(visible_bus)
+    if rel_bu_clause is not None:
+        rel_query = rel_query.where(rel_bu_clause)
     result = await db.execute(rel_query)
     relationship = result.scalar_one_or_none()
     if not relationship:
@@ -167,6 +173,10 @@ async def list_pending_approvals(
             ).join(
                 Organization, BusinessRelationship.org_a_id == Organization.id
             ).where(Organization.tenant_id == tenant_id)
+            visible_bus = await resolve_visible_bu_ids(db, current_user)
+            rel_bu_clause = relationship_bu_visibility_clause(visible_bus)
+            if rel_bu_clause is not None:
+                query = query.where(rel_bu_clause)
 
     result = await db.execute(query)
     scores = result.scalars().all()
@@ -204,7 +214,8 @@ async def get_kpi(
 ):
     """Get KPI by ID."""
     query = select(KPI).where(KPI.id == kpi_id)
-    query = apply_tenant_filter_kpi(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_kpi(query, tenant_id, visible_bus)
     result = await db.execute(query)
     kpi = result.scalar_one_or_none()
     if not kpi:
@@ -226,7 +237,8 @@ async def update_kpi(
 ):
     """Update a KPI."""
     query = select(KPI).where(KPI.id == kpi_id)
-    query = apply_tenant_filter_kpi(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_kpi(query, tenant_id, visible_bus)
     result = await db.execute(query)
     kpi = result.scalar_one_or_none()
     if not kpi:
@@ -254,7 +266,8 @@ async def delete_kpi(
 ):
     """Delete a KPI (soft delete)."""
     query = select(KPI).where(KPI.id == kpi_id)
-    query = apply_tenant_filter_kpi(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_kpi(query, tenant_id, visible_bus)
     result = await db.execute(query)
     kpi = result.scalar_one_or_none()
     if not kpi:
@@ -281,7 +294,8 @@ async def list_perception_scores(
     """List perception scores for a KPI."""
     # Verify KPI exists and belongs to tenant
     query = select(KPI).where(KPI.id == kpi_id)
-    query = apply_tenant_filter_kpi(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_kpi(query, tenant_id, visible_bus)
     result = await db.execute(query)
     kpi = result.scalar_one_or_none()
     if not kpi:
@@ -326,7 +340,8 @@ async def submit_perception_score(
     """Submit a perception score for a KPI."""
     # Get KPI with relationship (tenant-scoped)
     query = select(KPI).where(KPI.id == kpi_id)
-    query = apply_tenant_filter_kpi(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_kpi(query, tenant_id, visible_bus)
     query = query.options(selectinload(KPI.relationship))
     result = await db.execute(query)
     kpi = result.scalar_one_or_none()
@@ -401,7 +416,8 @@ async def approve_perception_score(
 
     # Verify KPI exists and belongs to tenant
     kpi_query = select(KPI).where(KPI.id == kpi_id)
-    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id, visible_bus)
     kpi_result = await db.execute(kpi_query)
     if not kpi_result.scalar_one_or_none():
         raise HTTPException(
@@ -480,7 +496,8 @@ async def reject_perception_score(
 
     # Verify KPI exists and belongs to tenant
     kpi_query = select(KPI).where(KPI.id == kpi_id)
-    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id, visible_bus)
     kpi_result = await db.execute(kpi_query)
     if not kpi_result.scalar_one_or_none():
         raise HTTPException(
@@ -552,7 +569,8 @@ async def update_perception_score(
 
     # Verify KPI exists and belongs to tenant
     kpi_query = select(KPI).where(KPI.id == kpi_id)
-    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id, visible_bus)
     kpi_result = await db.execute(kpi_query)
     if not kpi_result.scalar_one_or_none():
         raise HTTPException(
@@ -619,7 +637,8 @@ async def delete_perception_score(
 
     # Verify KPI exists and belongs to tenant
     kpi_query = select(KPI).where(KPI.id == kpi_id)
-    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    kpi_query = apply_tenant_filter_kpi(kpi_query, tenant_id, visible_bus)
     kpi_result = await db.execute(kpi_query)
     if not kpi_result.scalar_one_or_none():
         raise HTTPException(
@@ -662,7 +681,8 @@ async def list_perception_gaps(
 ):
     """List perception gaps for a KPI."""
     query = select(KPI).where(KPI.id == kpi_id)
-    query = apply_tenant_filter_kpi(query, tenant_id)
+    visible_bus = await resolve_visible_bu_ids(db, current_user)
+    query = apply_tenant_filter_kpi(query, tenant_id, visible_bus)
     result = await db.execute(query)
     kpi = result.scalar_one_or_none()
     if not kpi:
@@ -702,6 +722,21 @@ async def list_relationship_gaps(
     tenant_id: CurrentTenantId = None,
 ):
     """List all perception gaps for a relationship."""
+    # Verify the relationship is visible to this user (tenant + BU) — this
+    # endpoint previously had NO tenant check at all.
+    rel_check = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
+    if tenant_id is not None:
+        rel_check = rel_check.where(BusinessRelationship.tenant_id == tenant_id)
+    rel_bu_clause = relationship_bu_visibility_clause(
+        await resolve_visible_bu_ids(db, current_user)
+    )
+    if rel_bu_clause is not None:
+        rel_check = rel_check.where(rel_bu_clause)
+    if (await db.execute(rel_check)).scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Relationship not found"
+        )
+
     # Get KPIs for relationship
     kpi_query = select(KPI.id).where(
         KPI.relationship_id == rel_id,
@@ -751,6 +786,21 @@ async def get_gap_summary(
 
     If period is not provided, returns the summary for the latest available period.
     """
+    # Verify the relationship is visible to this user (tenant + BU) — this
+    # endpoint previously had NO tenant check at all.
+    rel_check = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
+    if tenant_id is not None:
+        rel_check = rel_check.where(BusinessRelationship.tenant_id == tenant_id)
+    rel_bu_clause = relationship_bu_visibility_clause(
+        await resolve_visible_bu_ids(db, current_user)
+    )
+    if rel_bu_clause is not None:
+        rel_check = rel_check.where(rel_bu_clause)
+    if (await db.execute(rel_check)).scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Relationship not found"
+        )
+
     # Get KPIs for relationship
     kpi_result = await db.execute(
         select(KPI).where(

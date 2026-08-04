@@ -47,10 +47,12 @@ router = APIRouter(prefix="/api/surveys", tags=["Surveys"])
 
 
 async def _verify_instance_tenant(
-    db: AsyncSession, instance_id: UUID, tenant_id: UUID | None,
+    db: AsyncSession, instance_id: UUID, tenant_id: UUID | None, current_user=None,
 ) -> SurveyInstance | None:
-    """Verify a survey instance belongs to the current tenant via its relationship chain."""
+    """Verify a survey instance belongs to the current tenant (and, when a
+    current_user is given, to a relationship visible to their BU)."""
     from app.models import Organization
+    from app.core.bu_scope import relationship_bu_visibility_clause, resolve_visible_bu_ids
 
     query = (
         select(SurveyInstance)
@@ -64,6 +66,12 @@ async def _verify_instance_tenant(
         query = query.join(
             BusinessRelationship, SurveyInstance.relationship_id == BusinessRelationship.id
         ).where(BusinessRelationship.tenant_id == tenant_id)
+        if current_user is not None:
+            rel_clause = relationship_bu_visibility_clause(
+                await resolve_visible_bu_ids(db, current_user)
+            )
+            if rel_clause is not None:
+                query = query.where(rel_clause)
     result = await db.execute(query)
     return result.scalar_one_or_none()
 
@@ -392,11 +400,18 @@ async def list_instances(
 
     # Apply tenant filter via relationship -> organization
     if tenant_id is not None:
+        from app.core.bu_scope import relationship_bu_visibility_clause, resolve_visible_bu_ids
+
         query = query.join(
             BusinessRelationship, SurveyInstance.relationship_id == BusinessRelationship.id
         ).join(
             Organization, BusinessRelationship.org_a_id == Organization.id
         ).where(Organization.tenant_id == tenant_id)
+        rel_clause = relationship_bu_visibility_clause(
+            await resolve_visible_bu_ids(db, current_user)
+        )
+        if rel_clause is not None:
+            query = query.where(rel_clause)
 
     if relationship_id:
         query = query.where(SurveyInstance.relationship_id == relationship_id)
@@ -443,9 +458,14 @@ async def create_instance(
             detail="Template not found or inactive",
         )
 
-    # Validate relationship exists and belongs to tenant
+    # Validate relationship exists, belongs to tenant, and is BU-visible
+    from app.core.bu_scope import relationship_bu_visibility_clause, resolve_visible_bu_ids
+
     rel_query = select(BusinessRelationship).where(BusinessRelationship.id == data.relationship_id)
     rel_query = apply_tenant_filter(rel_query, tenant_id, BusinessRelationship)
+    rel_clause = relationship_bu_visibility_clause(await resolve_visible_bu_ids(db, current_user))
+    if rel_clause is not None:
+        rel_query = rel_query.where(rel_clause)
     rel_result = await db.execute(rel_query)
     relationship = rel_result.scalar_one_or_none()
     if not relationship:
@@ -489,7 +509,7 @@ async def get_instance(
     current_user: User = Depends(get_current_user),
 ):
     """Get a survey instance by ID."""
-    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id, current_user)
 
     if not instance:
         raise HTTPException(
@@ -509,7 +529,7 @@ async def update_instance(
     current_user: User = Depends(require_permission("surveys.manageInstances")),
 ):
     """Update a survey instance."""
-    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id, current_user)
 
     if not instance:
         raise HTTPException(
@@ -544,7 +564,7 @@ async def send_survey(
     current_user: User = Depends(require_permission("surveys.manageInstances")),
 ):
     """Send a survey (transition from DRAFT to IN_PROGRESS)."""
-    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id, current_user)
 
     if not instance:
         raise HTTPException(
@@ -574,7 +594,7 @@ async def close_survey(
     current_user: User = Depends(require_permission("surveys.manageInstances")),
 ):
     """Close a survey (transition from IN_PROGRESS to CLOSED)."""
-    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id, current_user)
 
     if not instance:
         raise HTTPException(
@@ -607,7 +627,7 @@ async def list_responses(
 ):
     """List responses for a survey instance."""
     # Verify instance belongs to tenant
-    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id, current_user)
     if not instance:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey instance not found")
 
@@ -634,7 +654,7 @@ async def get_response(
 ):
     """Get a specific survey response."""
     # Verify instance belongs to tenant
-    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id, current_user)
     if not instance:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey instance not found")
 
@@ -666,7 +686,7 @@ async def generate_survey_token(
     current_user: User = Depends(require_permission("surveys.manageInstances")),
 ):
     """Generate an external access token for survey completion."""
-    instance = await _verify_instance_tenant(db, instance_id, tenant_id)
+    instance = await _verify_instance_tenant(db, instance_id, tenant_id, current_user)
     if not instance:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
