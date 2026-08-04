@@ -1,45 +1,60 @@
+/* Groups & families — Direction B redesign.
+   Explainer banner → search + kind chips → sortable table with row selection,
+   bulk-action bar and per-row delete → create-group Drawer. Data fetching,
+   permission checks and the delete/invalidate flow are unchanged from the
+   pre-redesign page. */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  ArrowUpTrayIcon,
   FolderIcon,
   FolderPlusIcon,
+  InformationCircleIcon,
   MagnifyingGlassIcon,
   SparklesIcon,
-  ArrowUpTrayIcon,
-  ExclamationTriangleIcon,
   TrashIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import PageHeader from '@/components/ui/PageHeader'
-import { cn, formatDate } from '@/lib/utils'
+import {
+  Button,
+  Checkbox,
+  Chip,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Table,
+  useToast,
+} from '@/components/ui'
+import type { IconType, PillTone, TableColumn } from '@/components/ui'
+import { formatDate } from '@/lib/utils'
 import type { ContractGroupResponse } from '@/lib/api/contracts'
 
-const TYPE_BADGES: Record<string, { labelKey: string; icon: typeof FolderIcon; className: string }> = {
-  manual: { labelKey: 'groups.typeManual', icon: FolderIcon, className: 'bg-blue-50 text-blue-700' },
-  upload_batch: { labelKey: 'groups.typeUploadBatch', icon: ArrowUpTrayIcon, className: 'bg-violet-50 text-violet-700' },
-  auto_family: { labelKey: 'groups.typeAutoFamily', icon: SparklesIcon, className: 'bg-emerald-50 text-emerald-700' },
+const TYPE_META: Record<string, { labelKey: string; tone: PillTone; icon: IconType }> = {
+  manual: { labelKey: 'groups.typeManual', tone: 'n', icon: FolderIcon },
+  upload_batch: { labelKey: 'groups.typeUploadBatch', tone: 'in', icon: ArrowUpTrayIcon },
+  auto_family: { labelKey: 'groups.typeAutoFamily', tone: 'p', icon: SparklesIcon },
 }
 
 export function GroupTypeBadge({ groupType }: { groupType: string }) {
   const { t } = useTranslation()
-  const badge = TYPE_BADGES[groupType] ?? TYPE_BADGES.manual
-  const Icon = badge.icon
-  return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', badge.className)}>
-      <Icon className="h-3.5 w-3.5" />
-      {t(badge.labelKey)}
-    </span>
-  )
+  const meta = TYPE_META[groupType] ?? TYPE_META.manual
+  return <Pill tone={meta.tone}>{t(meta.labelKey)}</Pill>
 }
 
 export default function GroupsPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -49,7 +64,6 @@ export default function GroupsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = useState<ContractGroupResponse | null>(null)
   const [isBulkConfirmOpen, setIsBulkConfirmOpen] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const canWrite = user?.role !== 'viewer'
 
@@ -63,15 +77,20 @@ export default function GroupsPage() {
       }),
   })
 
+  const closeCreate = () => {
+    setIsCreateOpen(false)
+    setNewName('')
+    setNewDescription('')
+    setFormError(null)
+  }
+
   const createMutation = useMutation({
     mutationFn: () =>
       api.createGroup({ name: newName, description: newDescription || undefined }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract-groups'] })
-      setIsCreateOpen(false)
-      setNewName('')
-      setNewDescription('')
-      setFormError(null)
+      closeCreate()
+      toast({ text: t('groups.createdToast', { defaultValue: 'Group created' }) })
     },
     onError: (err: Error) => setFormError(err.message || t('groups.createFailed')),
   })
@@ -99,11 +118,15 @@ export default function GroupsPage() {
         return next
       })
       setDeleteTarget(null)
-      setActionError(null)
+      toast({
+        text: t('groups.deletedToast', {
+          defaultValue: 'Group deleted. Contracts are never deleted.',
+        }),
+      })
     },
     onError: (err: Error) => {
       setDeleteTarget(null)
-      setActionError(err.message || t('groups.deleteFailed'))
+      toast({ text: err.message || t('groups.deleteFailed'), error: true })
     },
   })
 
@@ -114,15 +137,21 @@ export default function GroupsPage() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: () => api.bulkDeleteGroups([...selected], selectionHasFamily),
-    onSuccess: () => {
+    onSuccess: (_data, _vars, _ctx) => {
       invalidateAfterDelete()
+      const count = selected.size
       setSelected(new Set())
       setIsBulkConfirmOpen(false)
-      setActionError(null)
+      toast({
+        text: t('groups.bulkDeletedToast', {
+          count,
+          defaultValue: '{{count}} groups deleted. Contracts are never deleted.',
+        }),
+      })
     },
     onError: (err: Error) => {
       setIsBulkConfirmOpen(false)
-      setActionError(err.message || t('groups.deleteFailed'))
+      toast({ text: err.message || t('groups.deleteFailed'), error: true })
     },
   })
 
@@ -135,255 +164,326 @@ export default function GroupsPage() {
     })
   }
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('groups.title')}
-        description={t('groups.subtitle')}
-        actions={
-          canWrite ? (
-            <button className="btn-primary" onClick={() => setIsCreateOpen(true)}>
-              <FolderPlusIcon className="mr-2 h-5 w-5" />
-              {t('groups.newGroup')}
-            </button>
-          ) : undefined
-        }
-      />
+  const allSelected = groups.length > 0 && groups.every((g) => selected.has(g.id))
+  const someSelected = !allSelected && groups.some((g) => selected.has(g.id))
+  const toggleAll = () => {
+    setSelected(allSelected ? new Set() : new Set(groups.map((g: ContractGroupResponse) => g.id)))
+  }
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative">
-          <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-          <input
-            className="input pl-10"
-            placeholder={t('groups.searchPlaceholder')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+  const hasFilters = !!(search || typeFilter)
+
+  const selColumns: TableColumn<ContractGroupResponse>[] = canWrite
+    ? [
+        {
+          key: 'sel',
+          width: 40,
+          header: <Checkbox checked={allSelected} mixed={someSelected} onChange={toggleAll} />,
+          render: (g) => (
+            <Checkbox checked={selected.has(g.id)} onChange={() => toggleSelect(g.id)} />
+          ),
+        },
+      ]
+    : []
+
+  const actionColumns: TableColumn<ContractGroupResponse>[] = canWrite
+    ? [
+        {
+          key: 'actions',
+          width: 50,
+          align: 'right',
+          header: '',
+          render: (g) => (
+            <IconButton
+              icon={TrashIcon}
+              label={t('groups.deleteGroupTitle')}
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                setDeleteTarget(g)
+              }}
+            />
+          ),
+        },
+      ]
+    : []
+
+  const columns: TableColumn<ContractGroupResponse>[] = [
+    ...selColumns,
+    {
+      key: 'name',
+      header: t('groups.colGroup', { defaultValue: 'Group' }),
+      sortable: true,
+      sortValue: (g) => g.name.toLowerCase(),
+      render: (g) => (
+        <div style={{ maxWidth: 360 }}>
+          <span className="trunc" style={{ display: 'block', fontWeight: 500 }}>{g.name}</span>
+          {g.description && (
+            <span className="faint trunc" style={{ display: 'block', fontSize: 'var(--fs-sm)', marginTop: 2 }}>
+              {g.description}
+            </span>
+          )}
         </div>
-        <select
-          className="input w-auto"
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-        >
-          <option value="">{t('groups.allTypes')}</option>
-          <option value="manual">{t('groups.typeManual')}</option>
-          <option value="upload_batch">{t('groups.typeUploadBatch')}</option>
-          <option value="auto_family">{t('groups.typeAutoFamily')}</option>
-        </select>
+      ),
+    },
+    {
+      key: 'kind',
+      header: t('groups.colKind', { defaultValue: 'Kind' }),
+      width: 120,
+      sortable: true,
+      sortValue: (g) => g.group_type,
+      render: (g) => <GroupTypeBadge groupType={g.group_type} />,
+    },
+    {
+      key: 'members',
+      header: t('groups.colMembers', { defaultValue: 'Members' }),
+      width: 100,
+      align: 'right',
+      sortable: true,
+      sortValue: (g) => g.member_count,
+      render: (g) => <span className="num">{g.member_count}</span>,
+    },
+    {
+      key: 'findings',
+      header: t('groups.colFindings', { defaultValue: 'Findings' }),
+      width: 110,
+      align: 'right',
+      sortable: true,
+      sortValue: (g) => g.open_finding_count,
+      render: (g) =>
+        g.open_finding_count > 0 ? (
+          <Pill tone="wa">
+            {t('groups.openFindingsShort', { count: g.open_finding_count, defaultValue: '{{count}} open' })}
+          </Pill>
+        ) : (
+          <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
+            {t('groups.noFindings', { defaultValue: 'none' })}
+          </span>
+        ),
+    },
+    {
+      key: 'updated',
+      header: t('groups.updated'),
+      width: 140,
+      align: 'right',
+      nowrap: true,
+      sortable: true,
+      sortValue: (g) => g.updated_at,
+      render: (g) => (
+        <span className="muted num" style={{ fontSize: 'var(--fs-sm)' }}>{formatDate(g.updated_at)}</span>
+      ),
+    },
+    ...actionColumns,
+  ]
+
+  const emptyState = (
+    <EmptyState
+      icon={FolderIcon}
+      title={
+        hasFilters
+          ? t('groups.emptyFilteredTitle', { defaultValue: 'No groups match' })
+          : t('groups.emptyTitle', { defaultValue: 'No groups yet' })
+      }
+      body={
+        hasFilters
+          ? t('groups.emptyFilteredBody', { defaultValue: 'Loosen the search or kind filter to see more groups.' })
+          : t('groups.emptyBody', {
+              defaultValue:
+                'Groups collect related contracts: create them manually, get one per upload batch, or let hierarchy detection materialise families automatically.',
+            })
+      }
+      action={
+        hasFilters ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={XMarkIcon}
+            onClick={() => { setSearch(''); setTypeFilter('') }}
+          >
+            {t('groups.clearFilters', { defaultValue: 'Clear filters' })}
+          </Button>
+        ) : canWrite ? (
+          <Button variant="primary" size="sm" icon={FolderPlusIcon} onClick={() => setIsCreateOpen(true)}>
+            {t('groups.newGroup')}
+          </Button>
+        ) : undefined
+      }
+    />
+  )
+
+  return (
+    <div className="col" style={{ gap: 18 }}>
+      {/* Header */}
+      <div className="row" style={{ alignItems: 'flex-start' }}>
+        <div className="grow">
+          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>{t('groups.title')}</h1>
+          <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>{t('groups.subtitle')}</p>
+        </div>
+        {canWrite && (
+          <Button variant="primary" icon={FolderPlusIcon} onClick={() => setIsCreateOpen(true)}>
+            {t('groups.newGroup')}
+          </Button>
+        )}
       </div>
 
-      {actionError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {actionError}
-        </div>
-      )}
+      {/* What groups are — three kinds */}
+      <div className="banner banner-in">
+        <InformationCircleIcon style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} aria-hidden />
+        <span>
+          {t('groups.kindsBanner', {
+            defaultValue:
+              'Three kinds of group: Manual groups you create, Upload batch groups are made automatically per upload, and Auto family groups are materialised from the contract hierarchy — deleting a family also removes its underlying links.',
+          })}
+        </span>
+      </div>
 
+      {/* Search + kind filter chips */}
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <Field
+          icon={MagnifyingGlassIcon}
+          placeholder={t('groups.searchPlaceholder')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          containerStyle={{ maxWidth: 320, minWidth: 200, flexGrow: 1 }}
+        />
+        {Object.entries(TYPE_META).map(([type, meta]) => (
+          <Chip
+            key={type}
+            icon={meta.icon}
+            on={typeFilter === type}
+            onClick={() => setTypeFilter((prev) => (prev === type ? '' : type))}
+          >
+            {t(meta.labelKey)}
+          </Chip>
+        ))}
+      </div>
+
+      {/* Bulk-action bar */}
       {canWrite && selected.size > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-primary-200 bg-primary-50 px-4 py-2.5">
-          <span className="text-sm font-medium text-primary-700">
-            {t('groups.selectedCount', { count: selected.size })}
-          </span>
-          <div className="flex items-center gap-3">
-            <button
-              className="text-sm text-gray-600 hover:underline"
-              onClick={() => setSelected(new Set())}
-            >
-              {t('groups.clearSelection')}
-            </button>
-            <button
-              className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
-              onClick={() => setIsBulkConfirmOpen(true)}
-            >
-              <TrashIcon className="h-4 w-4" />
-              {t('groups.deleteSelected')}
-            </button>
-          </div>
+        <div className="row banner banner-p" style={{ gap: 12, alignItems: 'center' }}>
+          <b>{t('groups.selectedCount', { count: selected.size })}</b>
+          <span className="grow" />
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+            {t('groups.clearSelection')}
+          </Button>
+          <Button variant="danger-ghost" size="sm" icon={TrashIcon} onClick={() => setIsBulkConfirmOpen(true)}>
+            {t('groups.deleteSelected')}
+          </Button>
         </div>
       )}
 
+      {/* Groups table */}
       {isLoading ? (
-        <LoadingSpinner size="lg" />
-      ) : groups.length === 0 ? (
-        <div className="card py-16 text-center text-gray-500">
-          <FolderIcon className="mx-auto mb-3 h-12 w-12 text-gray-300" />
-          {t('groups.empty')}
-        </div>
+        <div className="row" style={{ justifyContent: 'center', height: 256 }}><LoadingSpinner size="lg" /></div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {groups.map((group: ContractGroupResponse) => (
-            <Link
-              key={group.id}
-              to={`/groups/${group.id}`}
-              className={cn(
-                'card block p-5 transition-shadow hover:shadow-md',
-                selected.has(group.id) && 'ring-2 ring-primary-500'
-              )}
-            >
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div className="flex min-w-0 items-start gap-2.5">
-                  {canWrite && (
-                    <input
-                      type="checkbox"
-                      readOnly
-                      checked={selected.has(group.id)}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        toggleSelect(group.id)
-                      }}
-                      className="mt-1 h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600"
-                    />
-                  )}
-                  <h3 className="font-semibold text-gray-900">{group.name}</h3>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <GroupTypeBadge groupType={group.group_type} />
-                  {canWrite && (
-                    <button
-                      className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                      title={t('groups.deleteGroupTitle')}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setDeleteTarget(group)
-                      }}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-              {group.description && (
-                <p className="mb-3 line-clamp-2 text-sm text-gray-500">{group.description}</p>
-              )}
-              <div className="flex items-center gap-4 text-sm text-gray-600">
-                <span>{t('groups.memberCount', { count: group.member_count })}</span>
-                {group.open_finding_count > 0 && (
-                  <span className="inline-flex items-center gap-1 text-amber-600">
-                    <ExclamationTriangleIcon className="h-4 w-4" />
-                    {t('groups.openFindings', { count: group.open_finding_count })}
-                  </span>
-                )}
-              </div>
-              <div className="mt-3 text-xs text-gray-400">
-                {t('groups.updated')} {formatDate(group.updated_at)}
-              </div>
-            </Link>
-          ))}
-        </div>
+        <Table<ContractGroupResponse>
+          columns={columns}
+          rows={groups}
+          rowKey={(g) => g.id}
+          onRowClick={(g) => navigate(`/groups/${g.id}`)}
+          empty={emptyState}
+          minWidth={680}
+        />
       )}
 
+      {/* Single delete confirmation */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="mb-3 text-lg font-semibold">{t('groups.deleteGroupTitle')}</h2>
-            <p className="mb-5 text-sm text-gray-600">
-              {deleteTarget.group_type === 'auto_family'
-                ? t('groups.deleteConfirmFamily', { name: deleteTarget.name })
-                : t('groups.deleteConfirmSimple', { name: deleteTarget.name })}
-            </p>
-            <div className="flex justify-end gap-3 border-t pt-4">
-              <button
-                className="rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
-                onClick={() => setDeleteTarget(null)}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                className="rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                disabled={deleteMutation.isPending}
-                onClick={() => deleteMutation.mutate(deleteTarget)}
-              >
-                {deleteMutation.isPending ? t('common.deleting') : t('common.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          open
+          title={t('groups.deleteGroupTitle')}
+          body={
+            deleteTarget.group_type === 'auto_family'
+              ? t('groups.deleteConfirmFamily', { name: deleteTarget.name })
+              : t('groups.deleteConfirmSimple', { name: deleteTarget.name })
+          }
+          affected={[
+            t('groups.affectedGroup', { defaultValue: 'This group and its membership records' }),
+            ...(deleteTarget.group_type === 'auto_family'
+              ? [t('groups.affectedLinks', { defaultValue: 'The hierarchy links between its members, so the family is not re-created' })]
+              : []),
+          ]}
+          safe={[
+            t('groups.safeContracts', { defaultValue: 'The contracts themselves — contracts are never deleted' }),
+            t('groups.safeData', { defaultValue: 'Extracted metadata, clauses, risks and obligations' }),
+          ]}
+          confirmLabel={deleteMutation.isPending ? t('common.deleting') : t('common.delete')}
+          cancelLabel={t('common.cancel')}
+          onCancel={() => { if (!deleteMutation.isPending) setDeleteTarget(null) }}
+          onConfirm={() => { if (!deleteMutation.isPending) deleteMutation.mutate(deleteTarget) }}
+        />
       )}
 
-      {isBulkConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="mb-3 text-lg font-semibold">{t('groups.deleteSelected')}</h2>
-            <p className="mb-2 text-sm text-gray-600">
-              {t('groups.bulkDeleteConfirm', { count: selected.size })}
-            </p>
-            {selectionHasFamily && (
-              <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                {t('groups.bulkDeleteFamilyNote')}
-              </p>
-            )}
-            <div className="flex justify-end gap-3 border-t pt-4">
-              <button
-                className="rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
-                onClick={() => setIsBulkConfirmOpen(false)}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                className="rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                disabled={bulkDeleteMutation.isPending}
-                onClick={() => bulkDeleteMutation.mutate()}
-              >
-                {bulkDeleteMutation.isPending ? t('common.deleting') : t('common.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Bulk delete confirmation */}
+      <ConfirmDialog
+        open={isBulkConfirmOpen}
+        title={t('groups.deleteSelected')}
+        body={t('groups.bulkDeleteConfirm', { count: selected.size })}
+        affected={[
+          t('groups.affectedGroupsBulk', {
+            count: selected.size,
+            defaultValue: 'The {{count}} selected groups and their membership records',
+          }),
+          ...(selectionHasFamily ? [t('groups.bulkDeleteFamilyNote')] : []),
+        ]}
+        safe={[
+          t('groups.safeContracts', { defaultValue: 'The contracts themselves — contracts are never deleted' }),
+          t('groups.safeData', { defaultValue: 'Extracted metadata, clauses, risks and obligations' }),
+        ]}
+        confirmLabel={bulkDeleteMutation.isPending ? t('common.deleting') : t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => { if (!bulkDeleteMutation.isPending) setIsBulkConfirmOpen(false) }}
+        onConfirm={() => { if (!bulkDeleteMutation.isPending) bulkDeleteMutation.mutate() }}
+      />
 
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="mb-4 text-lg font-semibold">{t('groups.newGroup')}</h2>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                createMutation.mutate()
-              }}
-              className="space-y-4"
+      {/* Create-group drawer */}
+      <Drawer
+        open={isCreateOpen}
+        title={t('groups.newGroup')}
+        onClose={closeCreate}
+        width={420}
+        footer={
+          <>
+            <span className="grow" />
+            <Button variant="ghost" onClick={closeCreate}>{t('common.cancel')}</Button>
+            <Button
+              variant="primary"
+              disabled={!newName.trim() || createMutation.isPending}
+              onClick={() => createMutation.mutate()}
             >
-              <div>
-                <label className="label">{t('groups.name')}</label>
-                <input
-                  className="input"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  required
-                  minLength={1}
-                  maxLength={255}
-                />
-              </div>
-              <div>
-                <label className="label">{t('groups.description')}</label>
-                <textarea
-                  className="input"
-                  rows={2}
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                />
-              </div>
-              {formError && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {formError}
-                </div>
-              )}
-              <div className="flex justify-end gap-3 border-t pt-4">
-                <button
-                  type="button"
-                  className="rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
-                  onClick={() => setIsCreateOpen(false)}
-                >
-                  {t('common.cancel')}
-                </button>
-                <button type="submit" className="btn-primary" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? t('common.saving') : t('common.create')}
-                </button>
-              </div>
-            </form>
+              {createMutation.isPending ? t('common.saving') : t('common.create')}
+            </Button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 14 }}>
+          <Field
+            label={t('groups.name')}
+            value={newName}
+            maxLength={255}
+            autoFocus
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newName.trim() && !createMutation.isPending) createMutation.mutate()
+            }}
+          />
+          <div>
+            <label className="lbl">{t('groups.description')}</label>
+            <div className="inp" style={{ height: 'auto', padding: '8px 10px' }}>
+              <textarea
+                rows={3}
+                style={{ resize: 'vertical' }}
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
           </div>
+          <p className="faint" style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.5 }}>
+            {t('groups.createHint', {
+              defaultValue: 'Manual groups let you collect any contracts together — add members from the group page after creating it.',
+            })}
+          </p>
+          {formError && <div className="banner banner-da">{formError}</div>}
         </div>
-      )}
+      </Drawer>
     </div>
   )
 }

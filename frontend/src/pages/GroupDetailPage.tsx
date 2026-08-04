@@ -1,10 +1,17 @@
+/* Group detail — Direction B redesign.
+   Back link + header with kind pill and meta row → cross-document findings card
+   → sub-group chips → sortable member table → add-contracts Drawer and a
+   ConfirmDialog delete flow. Data fetching, mutations and invalidations are
+   unchanged from the pre-redesign page. */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftIcon,
+  DocumentTextIcon,
   FolderIcon,
+  MagnifyingGlassIcon,
   PlusIcon,
   TrashIcon,
   XMarkIcon,
@@ -12,13 +19,33 @@ import {
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { cn, formatDate } from '@/lib/utils'
+import {
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  Field,
+  IconButton,
+  Pill,
+  Table,
+  useToast,
+} from '@/components/ui'
+import type { PillTone, TableColumn } from '@/components/ui'
+import { formatDate } from '@/lib/utils'
 import { GroupTypeBadge } from '@/pages/GroupsPage'
+import type { ContractGroupMemberEntry } from '@/lib/api/contracts'
 
 const SOURCE_LABEL_KEYS: Record<string, string> = {
   manual: 'groups.sourceManual',
   upload_batch: 'groups.sourceUploadBatch',
   auto_family: 'groups.sourceAutoFamily',
+}
+
+const SOURCE_TONE: Record<string, PillTone> = {
+  manual: 'n',
+  upload_batch: 'in',
+  auto_family: 'p',
 }
 
 export default function GroupDetailPage() {
@@ -27,10 +54,11 @@ export default function GroupDetailPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [contractSearch, setContractSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const canWrite = user?.role !== 'viewer'
 
@@ -57,22 +85,29 @@ export default function GroupDetailPage() {
       invalidate()
       setIsAddOpen(false)
       setSelectedIds(new Set())
-      setActionError(null)
+      toast({ text: t('groups.addedToast', { defaultValue: 'Contracts added to group' }) })
     },
-    onError: (err: Error) => setActionError(err.message || t('groups.addFailed')),
+    onError: (err: Error) => toast({ text: err.message || t('groups.addFailed'), error: true }),
   })
 
   const removeMutation = useMutation({
     mutationFn: (contractId: string) => api.removeGroupMember(groupId!, contractId),
-    onSuccess: invalidate,
-    onError: (err: Error) => setActionError(err.message || t('groups.removeFailed')),
+    onSuccess: () => {
+      invalidate()
+      toast({
+        text: t('groups.removedToast', {
+          defaultValue: 'Removed from group. The contract itself is untouched.',
+        }),
+      })
+    },
+    onError: (err: Error) => toast({ text: err.message || t('groups.removeFailed'), error: true }),
   })
 
   const findingMutation = useMutation({
     mutationFn: ({ findingId, status }: { findingId: string; status: 'open' | 'dismissed' }) =>
       api.updateGroupFinding(groupId!, findingId, status),
     onSuccess: invalidate,
-    onError: (err: Error) => setActionError(err.message || t('groups.findingUpdateFailed')),
+    onError: (err: Error) => toast({ text: err.message || t('groups.findingUpdateFailed'), error: true }),
   })
 
   const deleteMutation = useMutation({
@@ -86,10 +121,19 @@ export default function GroupDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['suggested-links'] })
       navigate('/groups')
     },
-    onError: (err: Error) => setActionError(err.message || t('groups.deleteFailed')),
+    onError: (err: Error) => {
+      setIsDeleteOpen(false)
+      toast({ text: err.message || t('groups.deleteFailed'), error: true })
+    },
   })
 
-  if (isLoading || !group) return <LoadingSpinner size="lg" />
+  if (isLoading || !group) {
+    return (
+      <div className="row" style={{ justifyContent: 'center', height: 256 }}>
+        <LoadingSpinner size="lg" />
+      </div>
+    )
+  }
 
   const memberIds = new Set(group.members.map((m) => m.contract_id))
   const candidateList = (candidates?.items ?? candidates ?? []) as Array<{
@@ -97,63 +141,144 @@ export default function GroupDetailPage() {
     filename: string
     counterparty?: string | null
   }>
+  const availableCandidates = candidateList.filter((c) => !memberIds.has(c.id))
+
+  const toggleCandidate = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const memberColumns: TableColumn<ContractGroupMemberEntry>[] = [
+    {
+      key: 'contract',
+      header: t('groups.colContract'),
+      sortable: true,
+      sortValue: (m) => m.filename.toLowerCase(),
+      render: (m) => (
+        <Link
+          to={`/contracts/${m.contract_id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="trunc"
+          style={{ display: 'block', maxWidth: 320, fontWeight: 500, color: 'inherit' }}
+        >
+          {m.filename}
+        </Link>
+      ),
+    },
+    {
+      key: 'counterparty',
+      header: t('groups.colCounterparty'),
+      sortable: true,
+      sortValue: (m) => m.counterparty,
+      render: (m) => (
+        <span className="muted trunc" style={{ display: 'block', maxWidth: 200 }}>{m.counterparty || '—'}</span>
+      ),
+    },
+    {
+      key: 'type',
+      header: t('groups.colType'),
+      sortable: true,
+      nowrap: true,
+      sortValue: (m) => m.contract_type,
+      render: (m) => <span className="muted">{m.contract_type || '—'}</span>,
+    },
+    {
+      key: 'expires',
+      header: t('groups.colExpires'),
+      sortable: true,
+      align: 'right',
+      nowrap: true,
+      sortValue: (m) => m.expiration_date,
+      render: (m) => (
+        <span className="num">{m.expiration_date ? formatDate(m.expiration_date) : '—'}</span>
+      ),
+    },
+    {
+      key: 'source',
+      header: t('groups.colSource'),
+      width: 130,
+      sortable: true,
+      sortValue: (m) => m.source,
+      render: (m) => (
+        <Pill tone={SOURCE_TONE[m.source] ?? 'n'}>
+          {t(SOURCE_LABEL_KEYS[m.source] ?? 'groups.sourceManual')}
+        </Pill>
+      ),
+    },
+    ...(canWrite
+      ? ([
+          {
+            key: 'actions',
+            width: 50,
+            align: 'right',
+            header: '',
+            render: (m) => (
+              <IconButton
+                icon={XMarkIcon}
+                label={t('groups.removeFromGroup')}
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  removeMutation.mutate(m.contract_id)
+                }}
+              />
+            ),
+          },
+        ] as TableColumn<ContractGroupMemberEntry>[])
+      : []),
+  ]
 
   return (
-    <div className="space-y-6">
+    <div className="col" style={{ gap: 18 }}>
+      {/* Back link + header */}
       <div>
-        <Link to="/groups" className="mb-2 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
-          <ArrowLeftIcon className="h-4 w-4" />
+        <Link
+          to="/groups"
+          className="row"
+          style={{ gap: 4, width: 'fit-content', fontSize: 'var(--fs-sm)', color: 'var(--m)' }}
+        >
+          <ArrowLeftIcon style={{ width: 14, height: 14 }} aria-hidden />
           {t('groups.backToGroups')}
         </Link>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-3">
-              <FolderIcon className="h-7 w-7 text-violet-600" />
-              <h1 className="text-2xl font-bold text-gray-900">{group.name}</h1>
+        <div className="row" style={{ alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginTop: 10 }}>
+          <div className="grow" style={{ minWidth: 240 }}>
+            <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+              <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>{group.name}</h1>
               <GroupTypeBadge groupType={group.group_type} />
             </div>
-            {group.description && <p className="mt-1 text-gray-500">{group.description}</p>}
-            <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-600">
-              <span>{t('groups.memberCount', { count: group.member_count })}</span>
+            {group.description && (
+              <p className="muted" style={{ marginTop: 4, fontSize: 'var(--fs-md)' }}>{group.description}</p>
+            )}
+            <div className="row" style={{ gap: 14, flexWrap: 'wrap', marginTop: 8, fontSize: 'var(--fs-sm)', color: 'var(--m)' }}>
+              <span className="num">{t('groups.memberCount', { count: group.member_count })}</span>
               {group.owner_name && (
                 <span>
-                  {t('groups.owner')}: <span className="font-medium">{group.owner_name}</span>
+                  {t('groups.owner')}: <b style={{ fontWeight: 600 }}>{group.owner_name}</b>
                 </span>
               )}
-              <span>
+              <span className="faint">
                 {t('groups.updated')} {formatDate(group.updated_at)}
               </span>
             </div>
           </div>
           {canWrite && (
-            <div className="flex gap-2">
-              <button className="btn-secondary" onClick={() => setIsAddOpen(true)}>
-                <PlusIcon className="mr-1 h-5 w-5" />
+            <div className="row" style={{ gap: 8 }}>
+              <Button variant="secondary" icon={PlusIcon} onClick={() => setIsAddOpen(true)}>
                 {t('groups.addContracts')}
-              </button>
-              <button
-                className="rounded-lg border border-red-200 px-3 py-2 text-red-600 hover:bg-red-50"
-                onClick={() => {
-                  const message =
-                    group.group_type === 'auto_family'
-                      ? t('groups.deleteConfirmFamily', { name: group.name })
-                      : t('groups.deleteConfirm')
-                  if (window.confirm(message)) deleteMutation.mutate()
-                }}
-              >
-                <TrashIcon className="h-5 w-5" />
-              </button>
+              </Button>
+              <Button variant="danger-ghost" icon={TrashIcon} onClick={() => setIsDeleteOpen(true)}>
+                {t('common.delete')}
+              </Button>
             </div>
           )}
         </div>
       </div>
 
-      {actionError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {actionError}
-        </div>
-      )}
-
+      {/* Cross-document findings */}
       {group.findings.length > 0 && (() => {
         // One row per (reference, status); identical references from several
         // documents collapse together with their sources listed.
@@ -171,21 +296,31 @@ export default function GroupDetailPage() {
           a.status === b.status ? a.label.localeCompare(b.label) : a.status === 'open' ? -1 : 1,
         )
         return (
-          <div className="card p-5">
-            <h2 className="mb-3 font-semibold text-gray-900">{t('groups.findingsTitle')}</h2>
-            <ul className="space-y-2">
+          <div className="card card-p">
+            <div className="sec-t" style={{ marginBottom: 10 }}>{t('groups.findingsTitle')}</div>
+            <div className="col" style={{ gap: 8 }}>
               {rows.map((row) => (
-                <li
+                <div
                   key={`${row.label}|${row.status}`}
-                  className={cn(
-                    'flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm',
-                    row.status === 'open'
-                      ? 'border-amber-200 bg-amber-50'
-                      : 'border-gray-100 bg-gray-50 text-gray-400',
-                  )}
+                  className="row"
+                  style={{
+                    gap: 10,
+                    alignItems: 'flex-start',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--r-md)',
+                    border: '1px solid',
+                    borderColor: row.status === 'open' ? 'var(--wa-b)' : 'var(--b)',
+                    background: row.status === 'open' ? 'var(--wa-f)' : 'var(--s2)',
+                  }}
                 >
-                  <div>
-                    <div>
+                  <div className="grow">
+                    <div
+                      style={{
+                        fontSize: 'var(--fs-md)',
+                        lineHeight: 1.5,
+                        color: row.status === 'open' ? 'var(--t)' : 'var(--f)',
+                      }}
+                    >
                       {row.status === 'open'
                         ? t('groups.findingMissing', { label: row.label })
                         : row.status === 'resolved'
@@ -193,7 +328,7 @@ export default function GroupDetailPage() {
                           : t('groups.findingDismissed', { label: row.label })}
                     </div>
                     {row.sources.length > 0 && (
-                      <div className="mt-0.5 text-xs text-gray-500">
+                      <div className="faint" style={{ marginTop: 2, fontSize: 'var(--fs-sm)' }}>
                         {t('groups.findingSources', { count: row.sources.length })}{' '}
                         {row.sources.slice(0, 3).join(', ')}
                         {row.sources.length > 3 && ` +${row.sources.length - 3}`}
@@ -201,36 +336,48 @@ export default function GroupDetailPage() {
                     )}
                   </div>
                   {canWrite && row.status !== 'resolved' && (
-                    <button
-                      className="whitespace-nowrap text-xs font-medium text-gray-500 hover:text-gray-800"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      style={{ flexShrink: 0 }}
                       onClick={() => {
                         const next = row.status === 'open' ? 'dismissed' as const : 'open' as const
                         row.ids.forEach((id) => findingMutation.mutate({ findingId: id, status: next }))
                       }}
                     >
                       {row.status === 'open' ? t('groups.dismiss') : t('groups.reopen')}
-                    </button>
+                    </Button>
                   )}
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         )
       })()}
 
+      {/* Sub-groups */}
       {group.child_groups.length > 0 && (
-        <div className="card p-5">
-          <h2 className="mb-3 font-semibold text-gray-900">{t('groups.subGroups')}</h2>
-          <div className="flex flex-wrap gap-2">
+        <div className="card card-p">
+          <div className="sec-t" style={{ marginBottom: 10 }}>{t('groups.subGroups')}</div>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
             {group.child_groups.map((child) => (
               <Link
                 key={child.id}
                 to={`/groups/${child.id}`}
-                className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"
+                className="row"
+                style={{
+                  gap: 8,
+                  padding: '6px 12px',
+                  border: '1px solid var(--b)',
+                  borderRadius: 'var(--r-md)',
+                  background: 'var(--s)',
+                  fontSize: 'var(--fs-md)',
+                  color: 'inherit',
+                }}
               >
-                <FolderIcon className="h-4 w-4 text-gray-400" />
+                <FolderIcon style={{ width: 14, height: 14, color: 'var(--f)' }} aria-hidden />
                 {child.name}
-                <span className="text-xs text-gray-400">
+                <span className="faint num" style={{ fontSize: 'var(--fs-sm)' }}>
                   {t('groups.memberCount', { count: child.member_count })}
                 </span>
               </Link>
@@ -239,134 +386,114 @@ export default function GroupDetailPage() {
         </div>
       )}
 
-      <div className="card overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                {t('groups.colContract')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                {t('groups.colCounterparty')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                {t('groups.colType')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                {t('groups.colExpires')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                {t('groups.colSource')}
-              </th>
-              {canWrite && <th className="px-4 py-3" />}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {group.members.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
-                  {t('groups.noMembers')}
-                </td>
-              </tr>
-            ) : (
-              group.members.map((member) => (
-                <tr key={member.member_id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`/contracts/${member.contract_id}`}
-                      className="font-medium text-violet-700 hover:underline"
-                    >
-                      {member.filename}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{member.counterparty || '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{member.contract_type || '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {member.expiration_date ? formatDate(member.expiration_date) : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-0.5 text-xs',
-                        member.source === 'auto_family'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-gray-100 text-gray-600',
-                      )}
-                    >
-                      {t(SOURCE_LABEL_KEYS[member.source] ?? 'groups.sourceManual')}
-                    </span>
-                  </td>
-                  {canWrite && (
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        className="text-gray-400 hover:text-red-600"
-                        title={t('groups.removeFromGroup')}
-                        onClick={() => removeMutation.mutate(member.contract_id)}
-                      >
-                        <XMarkIcon className="h-5 w-5" />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      {/* Members table */}
+      <div>
+        <div className="sec-t" style={{ marginBottom: 8 }}>
+          {t('groups.membersTitle', { count: group.member_count, defaultValue: 'Members ({{count}})' })}
+        </div>
+        <Table<ContractGroupMemberEntry>
+          columns={memberColumns}
+          rows={group.members}
+          rowKey={(m) => m.member_id}
+          onRowClick={(m) => navigate(`/contracts/${m.contract_id}`)}
+          minWidth={720}
+          empty={
+            <EmptyState
+              icon={DocumentTextIcon}
+              title={t('groups.noMembers')}
+              body={t('groups.noMembersBody', {
+                defaultValue: 'Add contracts to track cross-document completeness across this group.',
+              })}
+              action={
+                canWrite ? (
+                  <Button variant="primary" size="sm" icon={PlusIcon} onClick={() => setIsAddOpen(true)}>
+                    {t('groups.addContracts')}
+                  </Button>
+                ) : undefined
+              }
+            />
+          }
+        />
       </div>
 
-      {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="mb-4 text-lg font-semibold">{t('groups.addContracts')}</h2>
-            <input
-              className="input mb-3"
-              placeholder={t('groups.searchContracts')}
-              value={contractSearch}
-              onChange={(e) => setContractSearch(e.target.value)}
-            />
-            <div className="flex-1 space-y-1 overflow-y-auto">
-              {candidateList
-                .filter((c) => !memberIds.has(c.id))
-                .map((c) => (
-                  <label
-                    key={c.id}
-                    className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(c.id)}
-                      onChange={(e) => {
-                        const next = new Set(selectedIds)
-                        if (e.target.checked) next.add(c.id)
-                        else next.delete(c.id)
-                        setSelectedIds(next)
-                      }}
-                    />
-                    <span className="text-sm">
-                      {c.filename}
-                      {c.counterparty && <span className="text-gray-400"> — {c.counterparty}</span>}
-                    </span>
-                  </label>
-                ))}
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={isDeleteOpen}
+        title={t('groups.deleteGroupTitle')}
+        body={
+          group.group_type === 'auto_family'
+            ? t('groups.deleteConfirmFamily', { name: group.name })
+            : t('groups.deleteConfirmSimple', { name: group.name })
+        }
+        affected={[
+          t('groups.affectedGroup', { defaultValue: 'This group and its membership records' }),
+          ...(group.group_type === 'auto_family'
+            ? [t('groups.affectedLinks', { defaultValue: 'The hierarchy links between its members, so the family is not re-created' })]
+            : []),
+        ]}
+        safe={[
+          t('groups.safeContracts', { defaultValue: 'The contracts themselves — contracts are never deleted' }),
+          t('groups.safeData', { defaultValue: 'Extracted metadata, clauses, risks and obligations' }),
+        ]}
+        confirmLabel={deleteMutation.isPending ? t('common.deleting') : t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => { if (!deleteMutation.isPending) setIsDeleteOpen(false) }}
+        onConfirm={() => { if (!deleteMutation.isPending) deleteMutation.mutate() }}
+      />
+
+      {/* Add-contracts drawer */}
+      <Drawer
+        open={isAddOpen}
+        title={t('groups.addContracts')}
+        sub={group.name}
+        onClose={() => setIsAddOpen(false)}
+        width={480}
+        footer={
+          <>
+            <span className="grow" />
+            <Button variant="ghost" onClick={() => setIsAddOpen(false)}>{t('common.cancel')}</Button>
+            <Button
+              variant="primary"
+              disabled={selectedIds.size === 0 || addMutation.isPending}
+              onClick={() => addMutation.mutate()}
+            >
+              {t('groups.addSelected', { count: selectedIds.size })}
+            </Button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 12 }}>
+          <Field
+            icon={MagnifyingGlassIcon}
+            placeholder={t('groups.searchContracts')}
+            value={contractSearch}
+            autoFocus
+            onChange={(e) => setContractSearch(e.target.value)}
+          />
+          {availableCandidates.length === 0 ? (
+            <p className="faint" style={{ fontSize: 'var(--fs-sm)', padding: '8px 2px' }}>
+              {t('groups.noCandidates', { defaultValue: 'No matching contracts outside this group.' })}
+            </p>
+          ) : (
+            <div className="col" style={{ gap: 2 }}>
+              {availableCandidates.map((c) => (
+                <div
+                  key={c.id}
+                  className="row"
+                  style={{ gap: 10, padding: '8px 10px', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}
+                  onClick={() => toggleCandidate(c.id)}
+                >
+                  <Checkbox checked={selectedIds.has(c.id)} onChange={() => toggleCandidate(c.id)} />
+                  <span className="grow trunc" style={{ fontSize: 'var(--fs-md)' }}>
+                    {c.filename}
+                    {c.counterparty && <span className="faint"> — {c.counterparty}</span>}
+                  </span>
+                </div>
+              ))}
             </div>
-            <div className="mt-4 flex justify-end gap-3 border-t pt-4">
-              <button
-                className="rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
-                onClick={() => setIsAddOpen(false)}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                className="btn-primary"
-                disabled={selectedIds.size === 0 || addMutation.isPending}
-                onClick={() => addMutation.mutate()}
-              >
-                {t('groups.addSelected', { count: selectedIds.size })}
-              </button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+      </Drawer>
     </div>
   )
 }

@@ -1,27 +1,43 @@
+/* Ask AI (Query) page — Direction B redesign.
+   Full-height chat: session-history rail, scrollable thread, composer pinned
+   at the bottom. User messages right-aligned violet-tinted, AI answers in
+   cards with AiTag + citation chips linking to contracts. Session CRUD,
+   query mutation flow, contract scoping, clause auto-analysis, markdown and
+   visualization rendering are unchanged from the pre-redesign page. */
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  PaperAirplaneIcon,
-  SparklesIcon,
-  DocumentTextIcon,
-  ChevronRightIcon,
-  ChevronDownIcon,
-  XMarkIcon,
-  PlusIcon,
+  ArrowPathIcon,
+  ArrowRightIcon,
+  CalendarDaysIcon,
+  ChartBarIcon,
   ChatBubbleLeftRightIcon,
-  TrashIcon,
+  ClipboardDocumentListIcon,
   ClockIcon,
+  DocumentTextIcon,
+  ExclamationTriangleIcon,
+  FolderIcon,
+  PaperAirplaneIcon,
+  PlusIcon,
+  SparklesIcon,
+  TrashIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar as RBar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
 } from 'recharts'
+import ReactMarkdown from 'react-markdown'
 import api from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
+import {
+  Button, IconButton, Pill, AiTag, Chip, Select, Confidence, Avatar, Tooltip, EmptyState,
+} from '@/components/ui'
 import type { QueryResponse, Visualization, ChatSession, ChatMessageOut } from '@/types'
-import ReactMarkdown from 'react-markdown'
+import type { IconType } from '@/components/ui'
 
 // --------------- Types ---------------
 
@@ -32,20 +48,49 @@ interface Message {
   sources?: QueryResponse['sources']
   followUps?: string[]
   visualizations?: Visualization[]
+  confidence?: number
 }
 
 // --------------- Constants ---------------
 
-const PIE_COLORS = ['#7c3aed', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#64748b']
-
-const SUGGESTED_QUESTIONS = [
-  { key: 'query.suggested.renewals', icon: '\u{1F4C5}' },
-  { key: 'query.suggested.highRisk', icon: '\u{26A0}\u{FE0F}' },
-  { key: 'query.suggested.slas', icon: '\u{1F4CA}' },
-  { key: 'query.suggested.obligations', icon: '\u{1F4CB}' },
-  { key: 'query.suggested.contractCount', icon: '\u{1F4C1}' },
-  { key: 'query.suggested.autoRenewal', icon: '\u{1F504}' },
+// Token-var series palette so charts stay dark-mode correct.
+const PIE_COLORS = [
+  'var(--p)', 'var(--in)', 'var(--ok)', 'var(--wa)',
+  'var(--da)', 'var(--p-b)', 'var(--in-b)', 'var(--m)',
 ]
+
+const CHART_TOOLTIP_STYLE: React.CSSProperties = {
+  background: 'var(--s)',
+  border: '1px solid var(--b)',
+  borderRadius: 'var(--r-md)',
+  boxShadow: 'var(--sh-md)',
+  color: 'var(--t)',
+  fontSize: 'var(--fs-sm)',
+}
+
+const SUGGESTED_QUESTIONS: { key: string; icon: IconType }[] = [
+  { key: 'query.suggested.renewals', icon: CalendarDaysIcon },
+  { key: 'query.suggested.highRisk', icon: ExclamationTriangleIcon },
+  { key: 'query.suggested.slas', icon: ChartBarIcon },
+  { key: 'query.suggested.obligations', icon: ClipboardDocumentListIcon },
+  { key: 'query.suggested.contractCount', icon: FolderIcon },
+  { key: 'query.suggested.autoRenewal', icon: ArrowPathIcon },
+]
+
+// Markdown spacing/typography (colors inherit token vars from body).
+const MD_CLASS = [
+  'leading-relaxed',
+  '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
+  '[&_p]:my-1.5',
+  '[&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5',
+  '[&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5',
+  '[&_li]:my-0.5',
+  '[&_strong]:font-semibold',
+  '[&_h1]:mt-3 [&_h1]:mb-1 [&_h1]:font-semibold',
+  '[&_h2]:mt-3 [&_h2]:mb-1 [&_h2]:font-semibold',
+  '[&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:font-semibold',
+  '[&_code]:font-mono',
+].join(' ')
 
 // --------------- Helpers ---------------
 
@@ -91,17 +136,15 @@ function mapApiMessage(m: ChatMessageOut): Message {
 
 function StatCards({ data }: { data: { cards: { label: string; value: string; color: string }[] } }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 mb-2">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
       {data.cards.map((card, i) => (
-        <div
-          key={i}
-          className="relative overflow-hidden rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
-        >
+        <div key={i} className="card relative overflow-hidden p-4">
+          {/* accent color is backend-provided data */}
           <div className="absolute top-0 left-0 w-full h-1" style={{ backgroundColor: card.color }} />
-          <p className="text-2xl font-bold tracking-tight" style={{ color: card.color }}>
+          <p className="num" style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, letterSpacing: '-0.01em', color: card.color }}>
             {card.value}
           </p>
-          <p className="text-xs font-medium text-gray-500 mt-1">{card.label}</p>
+          <p className="faint mt-1" style={{ fontSize: 'var(--fs-xs)', fontWeight: 500 }}>{card.label}</p>
         </div>
       ))}
     </div>
@@ -110,21 +153,18 @@ function StatCards({ data }: { data: { cards: { label: string; value: string; co
 
 function BarViz({ data, title }: { data: { name: string; count: number; fill: string }[]; title: string }) {
   return (
-    <div className="mt-4 mb-2 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-      <p className="text-sm font-semibold text-gray-800 mb-4">{title}</p>
+    <div className="card card-p">
+      <p className="mb-4" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{title}</p>
       <ResponsiveContainer width="100%" height={Math.max(180, data.length * 40)}>
         <BarChart data={data} layout="vertical" margin={{ left: 10, right: 20, top: 0, bottom: 0 }}>
-          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-          <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: '#374151' }} width={120} axisLine={false} tickLine={false} />
-          <Tooltip
-            contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: 13 }}
-            cursor={{ fill: 'rgba(124, 58, 237, 0.04)' }}
-          />
-          <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={24}>
+          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--f)' }} axisLine={false} tickLine={false} />
+          <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: 'var(--m)' }} width={120} axisLine={false} tickLine={false} />
+          <RTooltip contentStyle={CHART_TOOLTIP_STYLE} cursor={{ fill: 'var(--p-f)' }} />
+          <RBar dataKey="count" radius={[0, 6, 6, 0]} barSize={24}>
             {data.map((entry, i) => (
-              <Cell key={i} fill={entry.fill || '#7c3aed'} />
+              <Cell key={i} fill={entry.fill || 'var(--p)'} />
             ))}
-          </Bar>
+          </RBar>
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -133,8 +173,8 @@ function BarViz({ data, title }: { data: { name: string; count: number; fill: st
 
 function PieViz({ data, title }: { data: { name: string; value: number }[]; title: string }) {
   return (
-    <div className="mt-4 mb-2 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-      <p className="text-sm font-semibold text-gray-800 mb-4">{title}</p>
+    <div className="card card-p">
+      <p className="mb-4" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{title}</p>
       <ResponsiveContainer width="100%" height={240}>
         <PieChart>
           <Pie
@@ -146,15 +186,12 @@ function PieViz({ data, title }: { data: { name: string; value: number }[]; titl
             paddingAngle={3}
             dataKey="value"
             strokeWidth={0}
-            label={({ name, value }) => `${name} (${value})`}
           >
             {data.map((_entry, i) => (
               <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip
-            contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: 13 }}
-          />
+          <RTooltip contentStyle={CHART_TOOLTIP_STYLE} />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
         </PieChart>
       </ResponsiveContainer>
@@ -165,35 +202,28 @@ function PieViz({ data, title }: { data: { name: string; value: number }[]; titl
 function TableViz({ data, title }: { data: { columns: string[]; rows: string[][] }; title: string }) {
   if (!data.columns || !data.rows || data.rows.length === 0) return null
   return (
-    <div className="mt-4 mb-2 rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-      <p className="text-sm font-semibold text-gray-800 px-5 pt-4 pb-2">{title}</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/60">
-              {data.columns.map((col, i) => (
-                <th key={i} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  {col}
-                </th>
+    <div className="tbl-w">
+      <p className="px-4 pt-3 pb-1" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{title}</p>
+      <table className="tbl" style={{ minWidth: 0 }}>
+        <thead>
+          <tr>
+            {data.columns.map((col, i) => (
+              <th key={i}>{col}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.rows.map((row, ri) => (
+            <tr key={ri}>
+              {row.map((cell, ci) => (
+                <td key={ci} style={ci === 0 ? { fontWeight: 500 } : undefined}>
+                  {cell}
+                </td>
               ))}
             </tr>
-          </thead>
-          <tbody>
-            {data.rows.map((row, ri) => (
-              <tr key={ri} className="border-b border-gray-50 last:border-0 hover:bg-primary-50/30 transition-colors">
-                {row.map((cell, ci) => (
-                  <td key={ci} className={cn(
-                    'px-4 py-2.5 text-gray-700 whitespace-nowrap',
-                    ci === 0 && 'font-medium text-gray-900',
-                  )}>
-                    {cell}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -213,55 +243,88 @@ function VisualizationRenderer({ viz }: { viz: Visualization }) {
   }
 }
 
-function TypingIndicator() {
+// --------------- Message Pieces ---------------
+
+function AiAvatar() {
   return (
-    <div className="flex items-center gap-1 px-1 py-2">
-      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce [animation-delay:0ms]" />
-      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce [animation-delay:150ms]" />
-      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce [animation-delay:300ms]" />
-    </div>
+    <span
+      className="shrink-0"
+      style={{
+        width: 30, height: 30, borderRadius: 'var(--r-md)',
+        background: 'var(--p)', color: 'var(--on-p)',
+        display: 'grid', placeItems: 'center',
+      }}
+    >
+      <SparklesIcon style={{ width: 16, height: 16 }} aria-hidden />
+    </span>
   )
 }
 
-function SourcesCollapsible({ sources }: { sources?: QueryResponse['sources'] }) {
+function SourceChips({
+  sources,
+  confidence,
+}: {
+  sources?: QueryResponse['sources']
+  confidence?: number
+}) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  if (!sources || sources.length === 0) return null
+  const navigate = useNavigate()
+  if ((!sources || sources.length === 0) && confidence == null) return null
 
   return (
-    <div className="mt-4">
-      <button
-        onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
-      >
-        <ChevronDownIcon className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
-        {t('query.sourcesCount', { count: sources.length })}
-      </button>
-      {open && (
-        <div className="mt-2 space-y-2">
-          {sources.map((source, idx) => (
-            <div
-              key={idx}
-              className="text-xs rounded-lg p-3 bg-gray-50 border border-gray-100"
+    <div className="row flex-wrap" style={{ gap: 8 }}>
+      {sources?.map((source, idx) => {
+        const label = source.filename || t('query.sourceFallback', { defaultValue: 'Source {{number}}', number: idx + 1 })
+        const section =
+          source.section_number ||
+          (source.chunk_index !== undefined ? t('query.section', { number: source.chunk_index + 1 }) : undefined)
+        return (
+          <Tooltip
+            key={idx}
+            rich
+            side="top"
+            subhead={section ? `${label} · ${section}` : label}
+            label={source.excerpt || t('query.citationHint', { defaultValue: 'Retrieved passage. Click through to open the contract.' })}
+            footer={source.page_start != null ? t('query.citationPage', { defaultValue: 'page {{page}}', page: source.page_start }) : undefined}
+          >
+            <Chip
+              icon={DocumentTextIcon}
+              onClick={source.contract_id ? () => navigate(`/contracts/${source.contract_id}`) : undefined}
             >
-              <p className="font-medium text-gray-600">
-                {source.filename}
-                {source.chunk_index !== undefined && (
-                  <span className="text-gray-400 ml-1">{t('query.section', { number: source.chunk_index + 1 })}</span>
-                )}
-              </p>
-              {source.excerpt && (
-                <p className="text-gray-400 mt-1 line-clamp-2 leading-relaxed">{source.excerpt}</p>
-              )}
-            </div>
-          ))}
-        </div>
+              <span className="trunc" style={{ maxWidth: 220 }}>
+                {label}
+                {section ? ` ${section}` : ''}
+              </span>
+            </Chip>
+          </Tooltip>
+        )
+      })}
+      {confidence != null && (
+        <span className="row" style={{ gap: 7, marginLeft: 4 }}>
+          <span className="faint" style={{ fontSize: 'var(--fs-sm)' }}>
+            {t('query.answerConfidence', { defaultValue: 'answer confidence' })}
+          </span>
+          <Confidence value={confidence} width={40} />
+        </span>
       )}
     </div>
   )
 }
 
-// --------------- Chat History Sidebar ---------------
+function ThinkingIndicator() {
+  const { t } = useTranslation()
+  return (
+    <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+      <AiAvatar />
+      <span className="row pulse muted" style={{ gap: 8, fontSize: 'var(--fs-md)', minHeight: 30 }}>
+        <ArrowPathIcon className="spin" style={{ width: 14, height: 14 }} aria-hidden />
+        {t('query.thinking', { defaultValue: 'Retrieving across your contracts…' })}
+      </span>
+    </div>
+  )
+}
+
+// --------------- Chat History Rail ---------------
 
 function ChatHistorySidebar({
   sessions,
@@ -282,73 +345,67 @@ function ChatHistorySidebar({
   const groups = groupSessionsByDate(sessions)
 
   return (
-    <div className="w-[280px] shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
-      {/* New Chat button */}
-      <div className="p-3 border-b border-gray-100">
-        <button
-          onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-primary-50 hover:border-primary-200 hover:text-primary-700 transition-all shadow-sm"
-        >
-          <PlusIcon className="h-4 w-4" />
+    <div
+      className="col hidden md:flex w-[260px] shrink-0 h-full"
+      style={{ background: 'var(--s)', borderRight: '1px solid var(--b)' }}
+    >
+      <div className="p-3" style={{ borderBottom: '1px solid var(--b)' }}>
+        <Button icon={PlusIcon} className="w-full" onClick={onNewChat}>
           {t('query.newChat')}
-        </button>
+        </Button>
       </div>
 
-      {/* Sessions list */}
-      <div className="flex-1 overflow-y-auto px-2 py-2">
+      <div className="scroll grow px-2 py-2">
         {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-5 h-5 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+          <div className="row justify-center py-8">
+            <ArrowPathIcon className="spin" style={{ width: 18, height: 18, color: 'var(--f)' }} aria-hidden />
           </div>
         ) : sessions.length === 0 ? (
-          <div className="text-center py-12 px-4">
-            <ChatBubbleLeftRightIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-xs text-gray-400">{t('query.noConversations')}</p>
-            <p className="text-[11px] text-gray-300 mt-1">{t('query.startNewChatHint')}</p>
-          </div>
+          <EmptyState
+            icon={ChatBubbleLeftRightIcon}
+            title={t('query.noConversations')}
+            body={t('query.startNewChatHint')}
+          />
         ) : (
           groups.map((group) => (
             <div key={group.label} className="mb-2">
-              <p className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                {t(group.label)}
-              </p>
-              {group.sessions.map((session) => (
-                <div
-                  key={session.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onSelectSession(session.id)}
-                  onKeyDown={(e) => e.key === 'Enter' && onSelectSession(session.id)}
-                  className={cn(
-                    'group relative w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left cursor-pointer transition-all duration-100',
-                    session.id === activeSessionId
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  )}
-                >
-                  <ChatBubbleLeftRightIcon className="h-3.5 w-3.5 shrink-0 opacity-40" />
-                  <span className="flex-1 text-[13px] truncate leading-snug">{session.title}</span>
-                  {session.message_count > 0 && (
-                    <span className={cn(
-                      'text-[10px] tabular-nums shrink-0 transition-opacity',
-                      session.id === activeSessionId ? 'text-primary-400' : 'text-gray-300',
-                      'group-hover:opacity-0'
-                    )}>
-                      {session.message_count}
-                    </span>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDeleteSession(session.id)
-                    }}
-                    className="absolute right-3 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 hover:text-red-500 transition-all"
-                    title={t('query.deleteConversation')}
+              <p className="sec-t px-3 py-1.5">{t(group.label)}</p>
+              {group.sessions.map((session) => {
+                const active = session.id === activeSessionId
+                return (
+                  <div
+                    key={session.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onSelectSession(session.id)}
+                    onKeyDown={(e) => e.key === 'Enter' && onSelectSession(session.id)}
+                    className={cn(
+                      'group relative w-full flex items-center gap-2 px-3 py-2 text-left cursor-pointer rounded-[var(--r-md)] transition-colors',
+                      active ? 'bg-[var(--p-f)] text-[var(--p)]' : 'text-[var(--m)] hover:bg-[var(--s2)]'
+                    )}
                   >
-                    <TrashIcon className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
+                    <ChatBubbleLeftRightIcon className="h-3.5 w-3.5 shrink-0 opacity-40" aria-hidden />
+                    <span className="grow trunc" style={{ fontSize: 'var(--fs-md)', lineHeight: 1.35 }}>
+                      {session.title}
+                    </span>
+                    {session.message_count > 0 && (
+                      <span className="faint num shrink-0 group-hover:opacity-0 transition-opacity" style={{ fontSize: 'var(--fs-2xs)' }}>
+                        {session.message_count}
+                      </span>
+                    )}
+                    <IconButton
+                      icon={TrashIcon}
+                      size="sm"
+                      label={t('query.deleteConversation')}
+                      className="absolute right-2 opacity-0 group-hover:opacity-100 hover:!text-[var(--da)] hover:!bg-[var(--da-f)]"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDeleteSession(session.id)
+                      }}
+                    />
+                  </div>
+                )
+              })}
             </div>
           ))
         )}
@@ -365,6 +422,7 @@ export default function QueryPage() {
   const contractId = searchParams.get('contract')
   const clauseId = searchParams.get('clause')
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   // State
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
@@ -503,6 +561,7 @@ export default function QueryPage() {
         sources: response.sources,
         followUps: response.follow_up_questions,
         visualizations: response.visualizations,
+        confidence: response.confidence,
       }
       setMessages(prev => [...prev, assistantMsg])
 
@@ -545,12 +604,35 @@ export default function QueryPage() {
   }
 
   const hasMessages = messages.length > 0
+  const userName = user?.full_name || user?.username || ''
+
+  const scopePill = selectedContract && selectedContractName && (
+    <Pill tone="p" dot={false}>
+      <DocumentTextIcon style={{ width: 12, height: 12 }} aria-hidden />
+      <span className="trunc" style={{ maxWidth: 260 }}>
+        {t('query.scopedTo', { name: selectedContractName })}
+      </span>
+      <button
+        type="button"
+        onClick={() => setSelectedContract(undefined)}
+        className="row"
+        style={{ marginLeft: 2, cursor: 'pointer', background: 'none', border: 0, color: 'inherit', padding: 0 }}
+        aria-label={t('query.clearScope', { defaultValue: 'Clear contract scope' })}
+      >
+        <XMarkIcon style={{ width: 12, height: 12 }} aria-hidden />
+      </button>
+    </Pill>
+  )
 
   // --------------- Render ---------------
 
   return (
-    <div className="flex -mx-4 sm:-mx-6 lg:-mx-8 -mt-6 -mb-6 h-[calc(100vh-3.5rem)] bg-gray-50">
-      {/* Chat History Sidebar */}
+    // Escape MainLayout's max-w-7xl padded wrapper to own the full viewport
+    // below the 56px top bar; inner .scroll areas handle their own overflow.
+    <div
+      className="flex -mx-4 sm:-mx-6 lg:-mx-8 -mt-6 -mb-6 h-[calc(100vh-3.5rem)]"
+      style={{ background: 'var(--pg)' }}
+    >
       <ChatHistorySidebar
         sessions={sessions}
         activeSessionId={activeSessionId}
@@ -560,188 +642,168 @@ export default function QueryPage() {
         isLoading={sessionsLoading}
       />
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main chat column */}
+      <div className="col flex-1 min-w-0" style={{ minHeight: 0 }}>
         {/* Loading session overlay */}
         {loadingSession && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="flex items-center gap-3 text-gray-400">
-              <ClockIcon className="h-5 w-5 animate-pulse" />
-              <span className="text-sm">{t('query.loadingConversation')}</span>
-            </div>
+          <div className="grow row justify-center">
+            <span className="row pulse muted" style={{ gap: 10 }}>
+              <ClockIcon style={{ width: 18, height: 18 }} aria-hidden />
+              <span style={{ fontSize: 'var(--fs-md)' }}>{t('query.loadingConversation')}</span>
+            </span>
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Empty state */}
         {!loadingSession && !hasMessages && (
-          <div className="flex-1 flex flex-col items-center justify-center px-4">
-            <div className="relative mb-8">
-              <div className="absolute inset-0 blur-3xl opacity-20 bg-gradient-to-r from-primary-400 via-blue-400 to-primary-400 rounded-full scale-150" />
-              <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-200">
-                <SparklesIcon className="h-8 w-8 text-white" />
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-              {t('query.title')}
-            </h1>
-            <p className="text-gray-500 mt-2 max-w-md text-center text-sm leading-relaxed">
-              {t('query.subtitle')}
-            </p>
+          <div className="scroll grow">
+            <div className="col items-center justify-center min-h-full px-6 py-10">
+              <span
+                style={{
+                  width: 56, height: 56, borderRadius: 'var(--r-xl)',
+                  background: 'var(--p)', color: 'var(--on-p)',
+                  display: 'grid', placeItems: 'center', boxShadow: 'var(--sh-md)',
+                }}
+              >
+                <SparklesIcon style={{ width: 26, height: 26 }} aria-hidden />
+              </span>
+              <h1 className="mt-5" style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, letterSpacing: '-0.01em' }}>
+                {t('query.title')}
+              </h1>
+              <p className="muted mt-2 max-w-md text-center" style={{ fontSize: 'var(--fs-md)', lineHeight: 1.6 }}>
+                {t('query.subtitle')}
+              </p>
 
-            {selectedContract && selectedContractName && (
-              <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-50 border border-primary-100 text-xs font-medium text-primary-700">
-                <DocumentTextIcon className="h-3.5 w-3.5" />
-                {t('query.scopedTo', { name: selectedContractName })}
-                <button onClick={() => setSelectedContract(undefined)} className="ml-1 hover:text-primary-900">
-                  <XMarkIcon className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
+              {scopePill && <div className="mt-4">{scopePill}</div>}
 
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-w-2xl w-full">
-              {SUGGESTED_QUESTIONS.map((q, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => submitQuestion(t(q.key))}
-                  disabled={isSubmitting}
-                  className="group flex items-center gap-3 text-left px-4 py-3 rounded-xl border border-gray-150 bg-white hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-150 shadow-sm hover:shadow disabled:opacity-50"
-                >
-                  <span className="text-base">{q.icon}</span>
-                  <span className="text-sm text-gray-700 group-hover:text-primary-700 transition-colors leading-snug">
+              <div className="row flex-wrap justify-center mt-7 max-w-2xl" style={{ gap: 8 }}>
+                {SUGGESTED_QUESTIONS.map((q) => (
+                  <Chip
+                    key={q.key}
+                    icon={q.icon}
+                    disabled={isSubmitting}
+                    onClick={() => submitQuestion(t(q.key))}
+                  >
                     {t(q.key)}
-                  </span>
-                </button>
-              ))}
+                  </Chip>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Messages */}
+        {/* Thread */}
         {!loadingSession && hasMessages && (
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
-              {messages.map((message) => (
-                <div key={message.id}>
-                  {message.role === 'user' && (
-                    <div className="flex justify-end mb-1">
-                      <div className="max-w-2xl px-4 py-2.5 rounded-2xl rounded-br-md bg-primary-600 text-white shadow-sm">
-                        <p className="text-sm leading-relaxed">{message.content}</p>
-                      </div>
+          <div className="scroll grow">
+            <div className="col mx-auto max-w-3xl px-6 py-6" style={{ gap: 20 }}>
+              {messages.map((message) =>
+                message.role === 'user' ? (
+                  <div key={message.id} className="row" style={{ gap: 12, alignItems: 'flex-start', justifyContent: 'flex-end' }}>
+                    <div
+                      style={{
+                        background: 'var(--p-f)', border: '1px solid var(--p-b)',
+                        borderRadius: 'var(--r-lg)', padding: '10px 14px',
+                        fontSize: 'var(--fs-md)', maxWidth: 560, whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {message.content}
                     </div>
-                  )}
-
-                  {message.role === 'assistant' && (
-                    <div className="flex gap-3">
-                      <div className="shrink-0 mt-1">
-                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
-                          <SparklesIcon className="h-3.5 w-3.5 text-white" />
+                    <Avatar name={userName} size={30} />
+                  </div>
+                ) : (
+                  <div key={message.id} className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+                    <AiAvatar />
+                    <div className="grow col" style={{ gap: 12, minWidth: 0 }}>
+                      <div className="card card-p col" style={{ gap: 12 }}>
+                        <div className="row" style={{ justifyContent: 'space-between' }}>
+                          <AiTag>{t('query.aiAnswer', { defaultValue: 'AI answer' })}</AiTag>
                         </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="prose prose-sm max-w-none text-gray-800 prose-headings:font-semibold prose-headings:text-gray-900 prose-headings:tracking-tight prose-strong:text-gray-900 prose-strong:font-semibold prose-li:text-gray-700 prose-p:leading-relaxed prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5">
+                        <div className={MD_CLASS} style={{ fontSize: 'var(--fs-md)' }}>
                           <ReactMarkdown>{message.content}</ReactMarkdown>
                         </div>
 
                         {message.visualizations && message.visualizations.length > 0 && (
-                          <div>
+                          <div className="col" style={{ gap: 12 }}>
                             {message.visualizations.map((viz, idx) => (
                               <VisualizationRenderer key={idx} viz={viz} />
                             ))}
                           </div>
                         )}
 
-                        <SourcesCollapsible sources={message.sources} />
-
-                        {message.followUps && message.followUps.length > 0 && (
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {message.followUps.map((q, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => submitQuestion(q)}
-                                disabled={isSubmitting}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-gray-200 text-gray-600 rounded-full hover:border-primary-300 hover:text-primary-700 hover:bg-primary-50 transition-all duration-150 shadow-sm disabled:opacity-50"
-                              >
-                                <ChevronRightIcon className="h-3 w-3" />
-                                {q}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                        <SourceChips sources={message.sources} confidence={message.confidence} />
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
 
-              {isSubmitting && (
-                <div className="flex gap-3">
-                  <div className="shrink-0 mt-1">
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
-                      <SparklesIcon className="h-3.5 w-3.5 text-white" />
+                      {message.followUps && message.followUps.length > 0 && (
+                        <div className="row flex-wrap" style={{ gap: 8 }}>
+                          {message.followUps.map((q, idx) => (
+                            <Chip key={idx} icon={ArrowRightIcon} disabled={isSubmitting} onClick={() => submitQuestion(q)}>
+                              {q}
+                            </Chip>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <TypingIndicator />
-                </div>
+                )
               )}
+
+              {isSubmitting && <ThinkingIndicator />}
 
               <div ref={messagesEndRef} />
             </div>
           </div>
         )}
 
-        {/* Input Bar */}
+        {/* Composer — pinned at the bottom */}
         {!loadingSession && (
-          <div className={cn(
-            'border-t border-gray-100 bg-white/80 backdrop-blur-sm',
-            hasMessages ? 'py-3 px-4' : 'py-4 px-4'
-          )}>
-            <div className="max-w-4xl mx-auto">
-              {hasMessages && selectedContract && selectedContractName && (
-                <div className="mb-2 flex items-center">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary-50 text-xs font-medium text-primary-600">
-                    <DocumentTextIcon className="h-3 w-3" />
-                    {selectedContractName}
-                    <button onClick={() => setSelectedContract(undefined)} className="ml-0.5 hover:text-primary-800">
-                      <XMarkIcon className="h-3 w-3" />
-                    </button>
-                  </span>
-                </div>
-              )}
+          <div style={{ borderTop: '1px solid var(--b)', background: 'var(--s)' }}>
+            <div className="mx-auto max-w-3xl px-6 py-4">
+              {hasMessages && scopePill && <div className="row mb-2">{scopePill}</div>}
 
-              <form onSubmit={handleSubmit} className="relative">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={t('query.inputPlaceholder')}
-                  className="w-full pl-4 pr-14 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400 focus:bg-white transition-all placeholder:text-gray-400"
-                  disabled={isSubmitting}
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isSubmitting}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:bg-gray-200 disabled:text-gray-400 transition-all duration-150"
-                >
-                  <PaperAirplaneIcon className="h-4 w-4" />
-                </button>
+              <form onSubmit={handleSubmit}>
+                <div className="inp" style={{ height: 44, borderRadius: 'var(--r-md)' }}>
+                  <SparklesIcon style={{ width: 16, height: 16, flexShrink: 0, color: 'var(--p)' }} aria-hidden />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={t('query.inputPlaceholder')}
+                    style={{ fontSize: 'var(--fs-lg)' }}
+                    disabled={isSubmitting}
+                  />
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    icon={PaperAirplaneIcon}
+                    disabled={!input.trim() || isSubmitting}
+                  >
+                    {t('query.askButton', { defaultValue: 'Ask' })}
+                  </Button>
+                </div>
               </form>
 
-              {!hasMessages && !selectedContract && contractsData && contractsData.items.length > 0 && (
-                <div className="mt-2 flex items-center justify-center">
-                  <select
+              {!hasMessages && !selectedContract && contractsData && contractsData.items.length > 0 ? (
+                <div className="row justify-center mt-2">
+                  <Select
+                    aria-label={t('query.searchingAllContracts')}
                     value={selectedContract || ''}
                     onChange={(e) => setSelectedContract(e.target.value || undefined)}
-                    className="text-xs text-gray-400 bg-transparent border-none focus:ring-0 cursor-pointer hover:text-gray-600 transition-colors py-1 text-center appearance-none"
-                  >
-                    <option value="">{t('query.searchingAllContracts')}</option>
-                    {contractsData.items.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {t('query.scopedTo', { name: c.filename })}
-                      </option>
-                    ))}
-                  </select>
+                    containerStyle={{ width: 320, maxWidth: '100%' }}
+                    options={[
+                      { value: '', label: t('query.searchingAllContracts') },
+                      ...contractsData.items.map((c) => ({
+                        value: c.id,
+                        label: t('query.scopedTo', { name: c.filename }),
+                      })),
+                    ]}
+                  />
                 </div>
+              ) : (
+                <p className="faint text-center mt-2" style={{ fontSize: 'var(--fs-sm)' }}>
+                  {t('query.composerHint', { defaultValue: 'Sessions persist. Structured questions return a table or chart alongside the answer.' })}
+                </p>
               )}
             </div>
           </div>
