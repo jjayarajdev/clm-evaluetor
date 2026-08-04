@@ -12,7 +12,7 @@ import {
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { Button, Chip } from '@/components/ui'
+import { Button, Chip, EmptyState } from '@/components/ui'
 
 const barColor = (rate: number) =>
   rate >= 80 ? 'var(--ok)' : rate >= 60 ? 'var(--wa)' : 'var(--da)'
@@ -20,31 +20,48 @@ const barColor = (rate: number) =>
 const changeColor = (pct: number) =>
   pct > 0 ? 'var(--ok)' : pct < 0 ? 'var(--da)' : 'var(--m)'
 
-function TrendChart({ data }: { data: { period_label: string; overall_compliance_rate: number }[] }) {
-  const max = Math.max(...data.map(d => d.overall_compliance_rate), 100)
-  const min = Math.min(...data.map(d => d.overall_compliance_rate), 0)
-  const range = max - min || 1
+interface TrendPoint {
+  period_label: string
+  overall_compliance_rate: number
+  obligations_completed: number
+  obligations_overdue: number
+  sla_breaches: number
+}
 
+/* The backend reports 100% for periods with nothing measured. A rate is only a
+   fact when something happened in the period — otherwise show "no activity"
+   rather than a fabricated perfect score. */
+const hasActivity = (p: TrendPoint) =>
+  p.obligations_completed + p.obligations_overdue + p.sla_breaches > 0
+
+function TrendChart({ data }: { data: TrendPoint[] }) {
   return (
     <div className="flex gap-2">
       {data.map((point, idx) => {
-        const height = ((point.overall_compliance_rate - min) / range) * 100
-
+        const active = hasActivity(point)
         return (
           <div key={idx} className="flex-1 flex flex-col items-center gap-1">
-            <div className="num" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--m)' }}>
-              {point.overall_compliance_rate.toFixed(1)}%
+            <div className="num" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: active ? 'var(--m)' : 'var(--f)' }}>
+              {active ? `${point.overall_compliance_rate.toFixed(1)}%` : '—'}
             </div>
             <div className="w-full h-40 flex items-end">
-              <div
-                className="w-full"
-                style={{
-                  height: `${Math.max(height, 4)}%`,
-                  background: barColor(point.overall_compliance_rate),
-                  borderRadius: '3px 3px 0 0',
-                  transition: 'height .2s var(--ease)',
-                }}
-              />
+              {active ? (
+                <div
+                  className="w-full"
+                  style={{
+                    height: `${Math.max(point.overall_compliance_rate, 4)}%`,
+                    background: barColor(point.overall_compliance_rate),
+                    borderRadius: '3px 3px 0 0',
+                    transition: 'height .2s var(--ease)',
+                  }}
+                />
+              ) : (
+                <div
+                  className="w-full"
+                  style={{ height: 4, background: 'var(--b)', borderRadius: 3 }}
+                  title="No obligations or SLA measurements in this period"
+                />
+              )}
             </div>
             <div className="faint trunc w-full text-center" style={{ fontSize: 'var(--fs-xs)' }}>
               {point.period_label}
@@ -124,7 +141,7 @@ export default function ReportsPage() {
           variant="primary"
           icon={DocumentArrowDownIcon}
           onClick={handleExport}
-          disabled={isExporting || !report}
+          disabled={isExporting || !report || (report.summary.total_obligations === 0 && report.summary.total_slas === 0)}
         >
           {isExporting ? t('reports.exporting') : t('reports.exportCsv')}
         </Button>
@@ -173,7 +190,7 @@ export default function ReportsPage() {
             <div className="row" style={{ justifyContent: 'center', height: 192 }}>
               <LoadingSpinner />
             </div>
-          ) : trend ? (
+          ) : trend && trend.data_points.some(hasActivity) ? (
             <>
               <TrendChart data={trend.data_points} />
 
@@ -188,13 +205,22 @@ export default function ReportsPage() {
                       {getTrendIcon(s.dir)}
                       <span className="muted" style={{ fontSize: 'var(--fs-sm)' }}>{s.label}</span>
                     </div>
-                    <p className="num" style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, color: changeColor(s.pct) }}>
-                      {s.pct > 0 ? '+' : ''}{s.pct.toFixed(1)}%
+                    <p className="num" style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, color: changeColor(s.pct ?? 0) }}>
+                      {(s.pct ?? 0) > 0 ? '+' : ''}{(s.pct ?? 0).toFixed(1)}%
                     </p>
                   </div>
                 ))}
               </div>
             </>
+          ) : trend ? (
+            <EmptyState
+              icon={ArrowTrendingUpIcon}
+              title={t('reports.noActivityTitle', { defaultValue: 'Nothing measured yet' })}
+              body={t('reports.noActivityBody', {
+                defaultValue:
+                  'No obligations were completed or overdue and no SLA measurements were recorded in these periods, so there is no compliance to report. Track obligations and record SLA measurements under Post-signing to populate this trend.',
+              })}
+            />
           ) : (
             <p className="muted text-center" style={{ padding: '32px 0' }}>{t('reports.noTrendData')}</p>
           )}
@@ -205,6 +231,17 @@ export default function ReportsPage() {
       {reportLoading ? (
         <div className="card row" style={{ justifyContent: 'center', padding: 32 }}>
           <LoadingSpinner size="lg" />
+        </div>
+      ) : report && report.summary.total_obligations === 0 && report.summary.total_slas === 0 ? (
+        <div className="card">
+          <EmptyState
+            icon={CalendarIcon}
+            title={t('reports.noReportDataTitle', { defaultValue: 'No post-signing activity in this period' })}
+            body={t('reports.noReportDataBody', {
+              defaultValue:
+                'No tracked obligations or SLAs fall inside the selected dates, so a compliance report would be empty. Widen the report period, or start tracking obligations and SLAs under Post-signing.',
+            })}
+          />
         </div>
       ) : report ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -220,7 +257,9 @@ export default function ReportsPage() {
                     {t('reports.overallCompliance')}
                   </p>
                   <p className="num" style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--in)' }}>
-                    {report.summary.overall_compliance_rate.toFixed(1)}%
+                    {report.summary.total_obligations + report.summary.total_slas > 0
+                      ? `${report.summary.overall_compliance_rate.toFixed(1)}%`
+                      : '—'}
                   </p>
                 </div>
                 <div style={{ background: 'var(--s2)', borderRadius: 'var(--r-md)', padding: 12 }}>
@@ -253,7 +292,9 @@ export default function ReportsPage() {
                 </div>
                 <div className="row" style={{ justifyContent: 'space-between', fontSize: 'var(--fs-sm)' }}>
                   <span className="muted">{t('reports.complianceRate')}</span>
-                  <span className="num" style={{ fontWeight: 500 }}>{report.summary.obligation_compliance_rate.toFixed(1)}%</span>
+                  <span className="num" style={{ fontWeight: 500 }}>
+                    {report.summary.total_obligations > 0 ? `${report.summary.obligation_compliance_rate.toFixed(1)}%` : '—'}
+                  </span>
                 </div>
               </div>
 
@@ -277,7 +318,9 @@ export default function ReportsPage() {
                 </div>
                 <div className="row" style={{ justifyContent: 'space-between', fontSize: 'var(--fs-sm)' }}>
                   <span className="muted">{t('reports.complianceRate')}</span>
-                  <span className="num" style={{ fontWeight: 500 }}>{report.summary.sla_compliance_rate.toFixed(1)}%</span>
+                  <span className="num" style={{ fontWeight: 500 }}>
+                    {report.summary.total_slas > 0 ? `${report.summary.sla_compliance_rate.toFixed(1)}%` : '—'}
+                  </span>
                 </div>
                 <div className="row" style={{ justifyContent: 'space-between', fontSize: 'var(--fs-sm)' }}>
                   <span className="muted">{t('reports.totalPenalties')}</span>
@@ -294,6 +337,15 @@ export default function ReportsPage() {
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--b)' }}>
               <h3 className="sec-t">{t('reports.byContract')}</h3>
             </div>
+            {Object.keys(report.by_contract).length === 0 ? (
+              <EmptyState
+                icon={DocumentArrowDownIcon}
+                title={t('reports.noContractBreakdown', { defaultValue: 'No per-contract data' })}
+                body={t('reports.noContractBreakdownBody', {
+                  defaultValue: 'None of the contracts have tracked obligations or SLA measurements in this period.',
+                })}
+              />
+            ) : (
             <div className="overflow-auto" style={{ maxHeight: 320 }}>
               <table className="tbl" style={{ width: '100%' }}>
                 <thead>
@@ -328,6 +380,7 @@ export default function ReportsPage() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         </div>
       ) : null}
