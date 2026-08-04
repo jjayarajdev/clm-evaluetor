@@ -3,7 +3,6 @@ import { render, RenderOptions } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/contexts/AuthContext'
-import { SidebarProvider } from '@/contexts/SidebarContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ToastProvider } from '@/components/ui/Toast'
 
@@ -34,9 +33,7 @@ const AllProviders = ({ children }: AllProvidersProps) => {
       <BrowserRouter>
         <ThemeProvider>
           <ToastProvider>
-            <AuthProvider>
-              <SidebarProvider>{children}</SidebarProvider>
-            </AuthProvider>
+            <AuthProvider>{children}</AuthProvider>
           </ToastProvider>
         </ThemeProvider>
       </BrowserRouter>

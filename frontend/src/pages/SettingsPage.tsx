@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
+import { useTheme, type ThemeMode } from '@/contexts/ThemeContext'
 import {
   getIndustryProfiles, setMyIndustryProfile, getTenantOverrides, updateTenantOverrides,
   getExtractionThresholds, updateExtractionThresholds,
@@ -1264,12 +1265,12 @@ function IntegrationSettings() {
 
 function AppearanceSettings() {
   const { t } = useTranslation()
-  const [theme, setTheme] = useState('light')
+  const { mode, setMode } = useTheme()
 
-  const themes = [
-    { id: 'light', label: t('settings.appearance.light'), preview: { background: 'var(--s)', border: '1px solid var(--b)' } },
-    { id: 'dark', label: t('settings.appearance.dark'), preview: { background: 'var(--t)' }, disabled: true },
-    { id: 'system', label: t('settings.appearance.system'), preview: { background: 'linear-gradient(to bottom, var(--s), var(--t))' }, disabled: true },
+  const themes: { id: ThemeMode; label: string; preview: React.CSSProperties }[] = [
+    { id: 'light', label: t('settings.appearance.light'), preview: { background: '#fff', border: '1px solid #e4e4e7' } },
+    { id: 'dark', label: t('settings.appearance.dark'), preview: { background: '#18181b', border: '1px solid #27272a' } },
+    { id: 'system', label: t('settings.appearance.system'), preview: { background: 'linear-gradient(105deg, #fff 50%, #18181b 50%)', border: '1px solid var(--b)' } },
   ]
 
   return (
@@ -1281,23 +1282,21 @@ function AppearanceSettings() {
             <button
               key={th.id}
               type="button"
-              onClick={() => !th.disabled && setTheme(th.id)}
+              onClick={() => setMode(th.id)}
               className="col grow"
               style={{
                 gap: 8,
                 padding: 12,
                 borderRadius: 'var(--r-md)',
-                border: '1px solid ' + (theme === th.id ? 'var(--p-b)' : 'var(--b)'),
-                background: theme === th.id ? 'var(--p-f)' : 'var(--s)',
-                cursor: th.disabled ? 'not-allowed' : 'pointer',
-                opacity: th.disabled ? 0.5 : 1,
+                border: '1px solid ' + (mode === th.id ? 'var(--p-b)' : 'var(--b)'),
+                background: mode === th.id ? 'var(--p-f)' : 'var(--s)',
+                cursor: 'pointer',
                 transition: 'border-color .12s var(--ease), background .12s var(--ease)',
               }}
             >
               <span style={{ height: 56, borderRadius: 'var(--r-sm)', ...th.preview }} />
               <span className="row" style={{ gap: 6, justifyContent: 'center' }}>
                 <span style={{ fontSize: 'var(--fs-md)', fontWeight: 600 }}>{th.label}</span>
-                {th.disabled && <Tag>{t('settings.appearance.soon')}</Tag>}
               </span>
             </button>
           ))}
