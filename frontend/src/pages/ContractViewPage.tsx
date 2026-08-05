@@ -524,19 +524,26 @@ export default function ContractViewPage() {
 
   // Build tabs dynamically based on contract type
   const tabs = useMemo(() => {
-    // Industry profiles can define arbitrary detail_tabs; only ids this page
-    // can actually render are shown — unknown ids would be blank panels.
-    const RENDERED_TAB_IDS = new Set([
-      'metadata', 'clauses', 'risk', 'obligations', 'quality', 'supply_chain',
-      'slas', 'family', 'versions', 'comments', 'documents', 'sharing',
-    ])
-    const mapped = (config?.ui?.detail_tabs || DEFAULT_TABS)
-      .filter((tb) => RENDERED_TAB_IDS.has(tb.id))
-      .map((tb) => ({
-        id: tb.id,
-        label: tb.label,
-        icon: TAB_ICON_MAP[tb.icon || ''] || InformationCircleIcon,
-      }))
+    // The canonical tab set is DEFAULT_TABS (the 8-tab layout). Industry profiles
+    // predate this and their detail_tabs still use legacy ids (overview/review/
+    // related/…); we map those to the current ids and use the profile ONLY to
+    // relabel, never to drop a core tab (that's what left older contracts showing
+    // just SLAs/Documents/Sharing).
+    const LEGACY_TAB_ALIAS: Record<string, string> = {
+      overview: 'metadata', review: 'clauses', related: 'family',
+      clause_extraction: 'clauses', obligation_detection: 'obligations',
+      sla_extraction: 'slas', risk_assessment: 'risk',
+    }
+    const profileLabels: Record<string, string> = {}
+    for (const tb of config?.ui?.detail_tabs || []) {
+      const id = LEGACY_TAB_ALIAS[tb.id] || tb.id
+      if (tb.label) profileLabels[id] = tb.label
+    }
+    const mapped = DEFAULT_TABS.map((tb) => ({
+      id: tb.id,
+      label: profileLabels[tb.id] || tb.label,
+      icon: TAB_ICON_MAP[tb.icon || ''] || InformationCircleIcon,
+    }))
     const ct = contract?.contract_type?.toLowerCase() || ''
     const needsProcurementTabs = PROCUREMENT_TYPES.has(ct) ||
       ct.includes('procurement') || ct.includes('supply') || ct.includes('manufacturing')
