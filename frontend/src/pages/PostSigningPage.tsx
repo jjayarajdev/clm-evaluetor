@@ -26,6 +26,7 @@ import {
   PaperClipIcon,
   SignalIcon,
   TruckIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
@@ -258,8 +259,21 @@ export default function PostSigningPage() {
   const [slaBreachFilter, setSlaBreachFilter] = useState<string>('')
   const [msStatusFilter, setMsStatusFilter] = useState<string>('')
   const [renewalWindow, setRenewalWindow] = useState<RenewalWindow>('')
+  const [search, setSearch] = useState('')
   const [isExporting, setIsExporting] = useState(false)
   const queryClient = useQueryClient()
+
+  // Client-side keyword filter for the active tab's rows (data is fully loaded
+  // per tab, so this is instant and covers every row, not just what's on screen).
+  const kw = search.trim().toLowerCase()
+  const rowMatches = (row: any): boolean => {
+    if (!kw) return true
+    return Object.entries(row as Record<string, unknown>).some(([k, v]) =>
+      !k.toLowerCase().endsWith('id') &&
+      (typeof v === 'string' || typeof v === 'number') &&
+      String(v).toLowerCase().includes(kw)
+    )
+  }
 
   // Read URL params on mount (e.g. /compliance?tab=obligations&status=overdue)
   useEffect(() => {
@@ -1015,7 +1029,18 @@ export default function PostSigningPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs<TabId> tabs={tabs} value={activeTab} onChange={setActiveTab} />
+      <Tabs<TabId> tabs={tabs} value={activeTab} onChange={(t) => { setActiveTab(t); setSearch('') }} />
+
+      {/* Keyword search for the active tab's rows (not shown on Overview) */}
+      {activeTab !== 'overview' && (
+        <Field
+          icon={MagnifyingGlassIcon}
+          placeholder={t('postsigning.searchRows', { defaultValue: 'Search this tab…' })}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          containerStyle={{ maxWidth: 340 }}
+        />
+      )}
 
       {/* ── Overview ─────────────────────────────────────────── */}
       {activeTab === 'overview' && (
@@ -1137,7 +1162,7 @@ export default function PostSigningPage() {
           ) : (
             <Table<ObligationRow>
               columns={obligationColumns}
-              rows={obligations}
+              rows={obligations.filter(rowMatches)}
               rowKey={(o) => o.id}
               empty={
                 <EmptyState
@@ -1223,7 +1248,7 @@ export default function PostSigningPage() {
             ) : (
               <Table<SLARow>
                 columns={slaColumns}
-                rows={filteredSLAs}
+                rows={filteredSLAs.filter(rowMatches)}
                 rowKey={(s) => s.id}
                 empty={
                   <EmptyState
@@ -1382,7 +1407,7 @@ export default function PostSigningPage() {
             ) : (
               <Table<MilestoneRow>
                 columns={milestoneColumns}
-                rows={filteredMilestones}
+                rows={filteredMilestones.filter(rowMatches)}
                 rowKey={(m) => m.id}
                 empty={
                   <EmptyState
@@ -1474,7 +1499,7 @@ export default function PostSigningPage() {
             ) : (
               <Table<ContractRenewalInfo>
                 columns={renewalColumns}
-                rows={filteredRenewals}
+                rows={filteredRenewals.filter(rowMatches)}
                 rowKey={(r) => r.contract_id}
                 minWidth={960}
                 empty={
@@ -1534,7 +1559,7 @@ export default function PostSigningPage() {
             ) : (
               <Table<VendorListItem>
                 columns={vendorColumns}
-                rows={vendors}
+                rows={vendors.filter(rowMatches)}
                 rowKey={(v) => v.vendor_name}
                 minWidth={900}
                 empty={
