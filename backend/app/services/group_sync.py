@@ -17,6 +17,7 @@ from collections import defaultdict
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.metadata_extraction import is_unreliable_counterparty
 from app.models.contract import Contract
 from app.models.contract_group import (
     ContractGroup,
@@ -96,6 +97,36 @@ async def _pick_root(
         candidates,
         key=lambda c: (-len(adjacency.get(c, ())), created.get(c) or 0, str(c)),
     )[0]
+
+
+async def _family_name(
+    db: AsyncSession, root: uuid.UUID, component: set[uuid.UUID]
+) -> str:
+    """Name an auto_family group after the family's real counterparty.
+
+    Prefer the root's counterparty; when it's unreliable (blank, a document
+    title like "Exhibit 34 (Benchmarking) ...", or a filename echo) borrow a
+    reliable counterparty from any family member — every contract in a family
+    shares one. Only when the whole family lacks a reliable counterparty do we
+    fall back to the root's filename stem; a group is never named after junk.
+    """
+    rows = (
+        await db.execute(
+            select(Contract.id, Contract.counterparty, Contract.filename).where(
+                Contract.id.in_(component)
+            )
+        )
+    ).all()
+    by_id = {r[0]: (r[1], r[2]) for r in rows}
+    root_cp, root_fn = by_id.get(root, (None, None))
+    if root_cp and not is_unreliable_counterparty(root_cp, root_fn):
+        return f"{root_cp} family"
+    for _cid, (cp, fn) in by_id.items():
+        if cp and not is_unreliable_counterparty(cp, fn):
+            return f"{cp} family"
+    if root_fn:
+        return f"{root_fn.rsplit('.', 1)[0]} family"
+    return "Contract family"
 
 
 async def sync_auto_family_groups(
@@ -211,14 +242,11 @@ async def sync_auto_family_groups(
             (g for g in overlapping if g.root_contract_id == root), None
         ) or (overlapping[0] if overlapping else None)
 
+        name = await _family_name(db, root, component)
         if survivor is None:
-            root_contract = (
-                await db.execute(select(Contract).where(Contract.id == root))
-            ).scalar_one_or_none()
-            stem = (root_contract.counterparty or root_contract.filename.rsplit(".", 1)[0]) if root_contract else "Contract"
             survivor = ContractGroup(
                 tenant_id=tenant_id,
-                name=f"{stem} family",
+                name=name,
                 group_type="auto_family",
                 root_contract_id=root,
             )
@@ -229,6 +257,10 @@ async def sync_auto_family_groups(
             contracts_by_group[survivor.id] = set()
         else:
             survivor.root_contract_id = root
+            # auto_family names are system-derived, not user-owned — keep them
+            # fresh as the root migrates and as counterparty extraction improves.
+            if survivor.name != name:
+                survivor.name = name
         claimed.add(survivor.id)
 
         # Collapse the extras into the survivor before reconciling membership.

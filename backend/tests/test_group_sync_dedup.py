@@ -170,6 +170,48 @@ async def test_sync_collapses_duplicate_and_null_root_orphans(db):
 
 
 @pytest.mark.asyncio
+async def test_group_named_after_reliable_counterparty(db):
+    """The group is named after the family's real counterparty even when the
+    root's own counterparty is junk (a document title), and the name is
+    recomputed on a later sync rather than frozen at creation."""
+    tid = uuid.uuid4()
+    # Root has a junk (document-title) counterparty; a child carries the real one.
+    root = _contract(tid, "Exhibit 34 (Benchmarking) Final v1.91.doc",
+                     cp="Exhibit 34 (Benchmarking) Final v1.91", ctype="msa")
+    child = _contract(tid, "LSA Belgium.doc", cp="KPN Outsourcing Services Belgium N.V.")
+    db.add_all([root, child, _link(root, child)])
+    await db.flush()
+
+    await sync_auto_family_groups(db, tid)
+    groups = await _auto_groups(db, tid)
+    assert len(groups) == 1
+    assert groups[0].name == "KPN Outsourcing Services Belgium N.V. family"
+
+    # A stale name from an earlier run is refreshed, not left frozen.
+    groups[0].name = "Exhibit 34 (Benchmarking) Final v1.91 family"
+    await db.flush()
+    await sync_auto_family_groups(db, tid)
+    groups = await _auto_groups(db, tid)
+    assert groups[0].name == "KPN Outsourcing Services Belgium N.V. family"
+
+
+@pytest.mark.asyncio
+async def test_group_name_falls_back_to_filename_when_no_reliable_party(db):
+    """When no family member has a reliable counterparty, fall back to the
+    root's filename stem — never to a junk counterparty string."""
+    tid = uuid.uuid4()
+    root = _contract(tid, "Master_Frame.docx", cp="the parties", ctype="msa")
+    child = _contract(tid, "Schedule A.docx", cp=None, ctype="schedule")
+    db.add_all([root, child, _link(root, child)])
+    await db.flush()
+
+    await sync_auto_family_groups(db, tid)
+    groups = await _auto_groups(db, tid)
+    assert len(groups) == 1
+    assert groups[0].name == "Master_Frame family"
+
+
+@pytest.mark.asyncio
 async def test_sync_reaps_orphan_when_family_dissolves(db):
     """Root contract deleted and links gone: the leftover NULL-root auto group
     with only auto members is removed entirely."""
