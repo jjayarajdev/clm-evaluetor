@@ -18,6 +18,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   DocumentMagnifyingGlassIcon,
+  MagnifyingGlassIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
@@ -45,6 +46,7 @@ import {
   ConfirmDialog,
   Drawer,
   EmptyState,
+  Field,
   IconButton,
   Pill,
   Select,
@@ -1303,6 +1305,7 @@ function ClauseFilteredTab({
   const [highlightText, setHighlightText] = useState<string | null>(null)
   const [activeRects, setActiveRects] = useState<HighlightRect[] | null>(null)
   const [activeClauseId, setActiveClauseId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   const { data: allClauses, isLoading } = useQuery<any[]>({
     queryKey: ['contract-clauses', contractId],
@@ -1319,8 +1322,18 @@ function ClauseFilteredTab({
 
   const isRelevant = (c: any): boolean =>
     filterFn ? filterFn(c) : clauseTypes ? clauseTypes.includes(c.clause_type) : true
-  const filtered = allClauses?.filter(isRelevant) || []
-  const others = allClauses?.filter((c) => !isRelevant(c)) || []
+  // Client-side keyword filter over the loaded clauses (text, type, section, terms).
+  const kw = search.trim().toLowerCase()
+  const matchesSearch = (c: any): boolean => {
+    if (!kw) return true
+    const hay = [
+      c.text, c.clause_type, c.section_number, c.notes,
+      Array.isArray(c.key_terms) ? c.key_terms.join(' ') : c.key_terms,
+    ].filter(Boolean).join(' ').toLowerCase()
+    return hay.includes(kw)
+  }
+  const filtered = (allClauses?.filter(isRelevant) || []).filter(matchesSearch)
+  const others = (allClauses?.filter((c) => !isRelevant(c)) || []).filter(matchesSearch)
 
   const handleViewSource = (clause: any) => {
     setActiveClauseId(clause.id)
@@ -1354,9 +1367,20 @@ function ClauseFilteredTab({
           <div className="row" style={{ gap: 8 }}>
             <span className="sec-t grow">{title}</span>
             <span className="faint" style={{ fontSize: 'var(--fs-xs)' }}>
-              {t('contract.relevantTotal', { relevant: filtered.length, total: allClauses?.length || 0 })}
+              {kw
+                ? t('contract.matchTotal', { matches: filtered.length + others.length, total: allClauses?.length || 0, defaultValue: '{{matches}} of {{total}} match' })
+                : t('contract.relevantTotal', { relevant: filtered.length, total: allClauses?.length || 0 })}
             </span>
           </div>
+          {(allClauses?.length || 0) > 8 && (
+            <Field
+              icon={MagnifyingGlassIcon}
+              placeholder={t('contract.searchClauses', { defaultValue: 'Search clauses…' })}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              containerStyle={{ marginTop: 8 }}
+            />
+          )}
         </div>
 
         {riskHeader && (
