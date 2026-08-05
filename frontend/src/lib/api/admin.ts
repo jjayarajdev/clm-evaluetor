@@ -1166,6 +1166,7 @@ export interface DspyProgramStatus {
   size_bytes?: number
   compiled_at?: number  // unix epoch seconds (file mtime)
   compiling?: boolean   // a compile is currently running (lock file present)
+  provider?: string     // human label of the provider it was compiled against
   verifications_since_last_compile?: number
 }
 

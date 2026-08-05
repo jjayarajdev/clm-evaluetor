@@ -486,7 +486,7 @@ async def compile_for_tenant(
     # Resolve the tenant's provider (Azure/own OpenAI key) from the DB so
     # compilation runs against the SAME model the tenant extracts with — the
     # background compile has no request context, so load it explicitly here.
-    from app.services.dspy_extractor import _build_lm
+    from app.services.dspy_extractor import _build_lm, provider_descriptor
 
     az_cfg = None
     if tenant_id is not None:
@@ -495,6 +495,7 @@ async def compile_for_tenant(
         if t and t.config_overrides:
             az_cfg = t.config_overrides.get("azure_openai")
     compile_lm = _build_lm(az_cfg)
+    provider = provider_descriptor(az_cfg)
 
     if agent_types is None:
         agent_types = ["metadata", "clause", "obligation", "sla"]
@@ -551,10 +552,15 @@ async def compile_for_tenant(
                 compiled = optimizer.compile(module, trainset=trainset)
 
             path = save_compiled_program(compiled, tenant_id, agent_type)
+            # Record which provider/model this program was compiled against so
+            # the panel can show it (e.g. confirm it used the tenant's Azure).
+            from app.services.dspy_extractor import save_program_meta
+            save_program_meta(tenant_id, agent_type, {"provider": provider, "examples": len(trainset)})
 
             results[agent_type] = {
                 "status": "compiled",
                 "examples": len(trainset),
+                "provider": provider,
                 "path": str(path),
             }
             logger.info(f"Successfully compiled {agent_type} extractor ({len(trainset)} examples)")
@@ -577,19 +583,21 @@ async def get_compilation_status(tenant_id: UUID | None) -> dict:
     Returns a dict mapping agent_type → status dict with ``compiled`` /
     ``compiled_at`` / ``size_bytes`` / ``path``.
     """
-    from app.services.dspy_extractor import _program_path
+    from app.services.dspy_extractor import _program_path, load_program_meta
 
     status = {}
     for agent_type in DSPY_AGENT_TYPES:
         path = _program_path(tenant_id, agent_type)
         if path.exists():
             stat = os.stat(path)
+            meta = load_program_meta(tenant_id, agent_type) or {}
             status[agent_type] = {
                 "compiled": True,
                 "path": str(path),
                 "size_bytes": stat.st_size,
                 "compiled_at": stat.st_mtime,
                 "compiling": _lock_path(tenant_id, agent_type).exists(),
+                "provider": (meta.get("provider") or {}).get("label"),
             }
         else:
             status[agent_type] = {

@@ -23,6 +23,7 @@ import {
   FunnelIcon,
   SparklesIcon,
   ArrowPathIcon,
+  CpuChipIcon,
 } from '@heroicons/react/24/outline'
 import api from '@/lib/api'
 import {
@@ -51,6 +52,7 @@ import {
   Pill,
   Stat,
   Switch,
+  Tag,
 } from '@/components/ui'
 import type { PillTone } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -963,6 +965,14 @@ function DspyCompilationPanel() {
                     >
                       {t('extraction.lastCompiled', { time: formatRelativeTime(compiledAt) })}
                       {sizeKb != null && ` · ${sizeKb} KB`}
+                      {s?.provider && (
+                        <span
+                          className="ml-2"
+                          title={t('extraction.compiledWithProvider', { provider: s.provider, defaultValue: 'Compiled against {{provider}}' })}
+                        >
+                          <Tag icon={CpuChipIcon}>{s.provider}</Tag>
+                        </span>
+                      )}
                       {typeof s?.verifications_since_last_compile === 'number' &&
                         s.verifications_since_last_compile > 0 && (
                         <span

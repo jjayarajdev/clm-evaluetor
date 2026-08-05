@@ -281,6 +281,48 @@ def build_lm_for_tenant(tenant_id: UUID | None) -> "dspy.LM":
     return _build_lm(_azure_for(tenant_id))
 
 
+def provider_descriptor(az_cfg: dict | None) -> dict:
+    """Human-readable description of the provider _build_lm would select.
+
+    Mirrors _build_lm's branches so the panel can show which provider a compile
+    actually ran against (e.g. a tenant's Azure deployment vs the platform key).
+    """
+    from app.config import settings
+
+    model = getattr(settings, "openai_model", "gpt-4o")
+    if az_cfg and az_cfg.get("enabled") and az_cfg.get("api_key"):
+        if az_cfg.get("provider") == "openai":
+            return {"provider": "openai_tenant", "model": model, "label": "OpenAI (tenant key)"}
+        endpoint = (az_cfg.get("endpoint") or "").strip()
+        if endpoint:
+            deployment = (az_cfg.get("deployment") or "").strip() or model
+            return {"provider": "azure", "model": deployment, "endpoint": endpoint,
+                    "label": f"Azure · {deployment}"}
+    return {"provider": "openai_platform", "model": model, "label": "OpenAI (platform)"}
+
+
+def _meta_path(tenant_id: UUID | None, agent_type: str) -> Path:
+    return _program_path(tenant_id, agent_type).with_suffix(".meta.json")
+
+
+def save_program_meta(tenant_id: UUID | None, agent_type: str, meta: dict) -> None:
+    """Persist compile-time metadata (provider, examples) beside the program."""
+    try:
+        _meta_path(tenant_id, agent_type).write_text(json.dumps(meta))
+    except OSError as e:
+        logger.warning(f"Failed to write program meta for {agent_type}: {e}")
+
+
+def load_program_meta(tenant_id: UUID | None, agent_type: str) -> dict | None:
+    path = _meta_path(tenant_id, agent_type)
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 # ═══════════════════════════════════════════════════════════════════
 # Extraction Functions (called by agents)
 # ═══════════════════════════════════════════════════════════════════

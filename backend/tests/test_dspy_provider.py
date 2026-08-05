@@ -5,7 +5,13 @@ resolves the tenant's Azure deployment or own OpenAI key, matching how the rest
 of the app (app.core.llm) selects a provider.
 """
 
-from app.services.dspy_extractor import _build_lm, build_lm_for_tenant
+from app.services.dspy_extractor import (
+    _build_lm,
+    build_lm_for_tenant,
+    load_program_meta,
+    provider_descriptor,
+    save_program_meta,
+)
 
 
 def test_azure_config_builds_azure_lm():
@@ -54,6 +60,29 @@ def test_azure_missing_endpoint_falls_back_to_default():
     az = {"enabled": True, "provider": "azure", "api_key": "k"}
     lm = _build_lm(az)
     assert lm.model.startswith("openai/")
+
+
+def test_provider_descriptor_labels():
+    az = {"enabled": True, "provider": "azure", "api_key": "k",
+          "endpoint": "https://acme.openai.azure.com", "deployment": "acme-gpt4o"}
+    d = provider_descriptor(az)
+    assert d["provider"] == "azure"
+    assert d["label"] == "Azure · acme-gpt4o"
+
+    assert provider_descriptor({"enabled": True, "provider": "openai", "api_key": "k"})["label"] == "OpenAI (tenant key)"
+    assert provider_descriptor(None)["label"] == "OpenAI (platform)"
+    assert provider_descriptor({"enabled": False, "api_key": "k"})["provider"] == "openai_platform"
+
+
+def test_program_meta_roundtrip(monkeypatch, tmp_path):
+    import app.services.dspy_extractor as ext
+
+    monkeypatch.setattr(ext, "COMPILED_DIR", tmp_path)
+    meta = {"provider": provider_descriptor(None), "examples": 7}
+    save_program_meta(None, "metadata", meta)
+    loaded = load_program_meta(None, "metadata")
+    assert loaded == meta
+    assert load_program_meta(None, "clause") is None  # no file → None
 
 
 def test_build_lm_for_tenant_uses_request_context(monkeypatch):
