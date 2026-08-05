@@ -540,8 +540,11 @@ export default function ContractViewPage() {
     }
     const profileLabels: Record<string, string> = {}
     for (const tb of config?.ui?.detail_tabs || []) {
-      const id = LEGACY_TAB_ALIAS[tb.id] || tb.id
-      if (tb.label) profileLabels[id] = tb.label
+      // A legacy-aliased profile tab carries a stale label (Overview/Review/
+      // Related Docs) — never let it override the canonical prototype labels
+      // (Metadata/Clauses/Family). Only a tab already on the current id may relabel.
+      if (LEGACY_TAB_ALIAS[tb.id]) continue
+      if (tb.label) profileLabels[tb.id] = tb.label
     }
     const mapped = DEFAULT_TABS.map((tb) => ({
       id: tb.id,
@@ -1324,16 +1327,27 @@ function ClauseFilteredTab({
     filterFn ? filterFn(c) : clauseTypes ? clauseTypes.includes(c.clause_type) : true
   // Client-side keyword filter over the loaded clauses (text, type, section, terms).
   const kw = search.trim().toLowerCase()
+  const terms = (c: any) =>
+    (Array.isArray(c.key_terms) ? c.key_terms.join(' ') : c.key_terms || '').toLowerCase()
   const matchesSearch = (c: any): boolean => {
     if (!kw) return true
-    const hay = [
-      c.text, c.clause_type, c.section_number, c.notes,
-      Array.isArray(c.key_terms) ? c.key_terms.join(' ') : c.key_terms,
-    ].filter(Boolean).join(' ').toLowerCase()
+    const hay = [c.text, c.clause_type, c.section_number, c.notes, terms(c)]
+      .filter(Boolean).join(' ').toLowerCase()
     return hay.includes(kw)
   }
-  const filtered = (allClauses?.filter(isRelevant) || []).filter(matchesSearch)
-  const others = (allClauses?.filter((c) => !isRelevant(c)) || []).filter(matchesSearch)
+  // Rank: a clause whose TYPE/section/key-terms match the keyword is about that
+  // topic; a body-only hit is incidental. Surface the former first so e.g.
+  // "protection" leads with the Data Protection clauses, not every clause that
+  // happens to mention the word.
+  const searchRank = (c: any): number => {
+    if (!kw) return 0
+    if (String(c.clause_type || '').toLowerCase().includes(kw)) return 3
+    if (terms(c).includes(kw) || String(c.section_number || '').toLowerCase().includes(kw)) return 2
+    return 1
+  }
+  const byRelevance = (arr: any[]) => (kw ? [...arr].sort((a, b) => searchRank(b) - searchRank(a)) : arr)
+  const filtered = byRelevance((allClauses?.filter(isRelevant) || []).filter(matchesSearch))
+  const others = byRelevance((allClauses?.filter((c) => !isRelevant(c)) || []).filter(matchesSearch))
 
   const handleViewSource = (clause: any) => {
     setActiveClauseId(clause.id)
