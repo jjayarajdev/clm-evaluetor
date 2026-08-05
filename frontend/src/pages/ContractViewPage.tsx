@@ -694,7 +694,7 @@ export default function ContractViewPage() {
     }))
 
   const isFullBleed =
-    (activeTab === 'clauses' || activeTab === 'risk' ||
+    (activeTab === 'clauses' || activeTab === 'risk' || activeTab === 'obligations' ||
       activeTab === 'quality' || activeTab === 'supply_chain') && isCompleted
 
   return (
@@ -837,6 +837,9 @@ export default function ContractViewPage() {
               filterFn={(c) => ['high', 'critical'].includes(String(c.risk_level || '').toLowerCase())}
               emptyMessage={t('contract.noHighRiskClauses', { defaultValue: 'No high or critical risk clauses' })}
             />
+          )}
+          {activeTab === 'obligations' && (
+            <ObligationsReviewTab contractId={id} contract={contract} />
           )}
           {activeTab === 'quality' && (
             <ClauseFilteredTab
@@ -1030,8 +1033,7 @@ export default function ContractViewPage() {
             </div>
           )}
 
-          {/* Obligations Tab */}
-          {activeTab === 'obligations' && isCompleted && id && <ObligationsTab contractId={id} />}
+          {/* Obligations render full-bleed (split-pane with PDF) above. */}
 
           {/* SLAs Tab */}
           {activeTab === 'slas' && isCompleted && id && <SLASummary contractId={id} />}
@@ -1413,52 +1415,136 @@ const OBLIGATION_STATUS_TONE: Record<string, PillTone> = {
   waived: 'wa',
 }
 
-function ObligationsTab({ contractId }: { contractId: string }) {
+// Split-pane obligation review: list on the left, the contract PDF on the right,
+// with per-obligation "View source" highlighting — the same review experience as
+// the Clauses/Risk tabs. Highlights come from the /highlights endpoint (rects
+// keyed by obligation id), falling back to a text search on source_text.
+function ObligationsReviewTab({
+  contractId,
+  contract,
+}: {
+  contractId: string
+  contract: { mime_type?: string | null }
+}) {
   const { t } = useTranslation()
+  const [highlightPage, setHighlightPage] = useState<number | null>(null)
+  const [highlightText, setHighlightText] = useState<string | null>(null)
+  const [activeRects, setActiveRects] = useState<HighlightRect[] | null>(null)
+  const [activeId, setActiveId] = useState<string | null>(null)
+
   const { data: intelligence, isLoading } = useQuery({
     queryKey: ['contract-intelligence', contractId],
     queryFn: () => api.getContractIntelligence(contractId),
   })
-
-  if (isLoading) {
-    return <div className="row" style={{ justifyContent: 'center', padding: 32 }}><LoadingSpinner size="lg" /></div>
-  }
+  const { data: highlights } = useQuery({
+    queryKey: ['contract-highlights', contractId],
+    queryFn: () => api.getContractHighlights(contractId),
+  })
 
   const obligations: ObligationItem[] = [
     ...(intelligence?.obligations_matrix?.provider_obligations || []),
     ...(intelligence?.obligations_matrix?.client_obligations || []),
   ]
 
-  if (obligations.length === 0) {
-    return <EmptyState icon={CheckCircleIcon} title={t('reviewPane.noObligations', { defaultValue: 'No obligations extracted' })} />
+  const sourceFor = (obl: ObligationItem) =>
+    highlights?.highlights?.[obl.id]?.rects?.length || obl.source_text
+
+  const handleViewSource = (obl: ObligationItem) => {
+    setActiveId(obl.id)
+    const hl = highlights?.highlights?.[obl.id]
+    if (hl?.rects?.length) {
+      setActiveRects(hl.rects)
+      setHighlightPage(hl.rects[0].page)
+      setHighlightText(null)
+    } else if (obl.source_text) {
+      setActiveRects(null)
+      setHighlightPage(null)
+      setHighlightText(obl.source_text.substring(0, 80))
+    }
   }
 
   return (
-    <div className="tbl-w">
+    <div className="flex h-full">
+      {/* Left: obligation list */}
       <div
-        className="row sec-t"
-        style={{ padding: '10px 14px', background: 'var(--s3)', borderBottom: '1px solid var(--b)' }}
+        className="flex-shrink-0 overflow-y-auto scroll"
+        style={{ width: '45%', borderRight: '1px solid var(--b)', background: 'var(--s3)' }}
       >
-        <span className="grow">{t('contract.obligations')}</span>
-        <span className="faint num" style={{ fontSize: 'var(--fs-xs)' }}>{obligations.length}</span>
-      </div>
-      {obligations.map((obl) => (
-        <div key={obl.id} className="row" style={{ gap: 12, padding: '10px 14px', borderBottom: '1px solid var(--b)', alignItems: 'flex-start' }}>
-          <div className="grow col" style={{ gap: 4, minWidth: 0 }}>
-            <span style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>{obl.description}</span>
-            <div className="row muted" style={{ gap: 8, fontSize: 'var(--fs-xs)', flexWrap: 'wrap' }}>
-              {obl.obligated_party && <span>{obl.obligated_party}</span>}
-              {obl.obligation_type && <Tag>{obl.obligation_type.replace(/_/g, ' ')}</Tag>}
-              {obl.deadline && <span className="num">{formatDate(obl.deadline)}</span>}
-            </div>
-          </div>
-          {obl.status && (
-            <Pill tone={OBLIGATION_STATUS_TONE[String(obl.status).toLowerCase()] || 'n'}>
-              {t(`obligationStatus.${obl.status}`, { defaultValue: String(obl.status).replace(/_/g, ' ') })}
-            </Pill>
-          )}
+        <div
+          className="row"
+          style={{
+            position: 'sticky', top: 0, zIndex: 10, gap: 8, padding: '10px 14px',
+            background: 'var(--s3)', borderBottom: '1px solid var(--b)',
+          }}
+        >
+          <span className="sec-t grow">{t('contract.obligations')}</span>
+          <span className="faint num" style={{ fontSize: 'var(--fs-xs)' }}>{obligations.length}</span>
         </div>
-      ))}
+
+        {isLoading ? (
+          <div className="row" style={{ justifyContent: 'center', padding: 32 }}><LoadingSpinner size="lg" /></div>
+        ) : obligations.length === 0 ? (
+          <EmptyState icon={CheckCircleIcon} title={t('reviewPane.noObligations', { defaultValue: 'No obligations extracted' })} />
+        ) : (
+          obligations.map((obl) => {
+            const hasSource = !!sourceFor(obl)
+            return (
+              <div
+                key={obl.id}
+                onClick={hasSource ? () => handleViewSource(obl) : undefined}
+                className="col"
+                style={{
+                  gap: 4, padding: '10px 14px', borderBottom: '1px solid var(--b)',
+                  cursor: hasSource ? 'pointer' : 'default',
+                  background: activeId === obl.id ? 'var(--p-f)' : undefined,
+                }}
+              >
+                <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
+                  <span className="grow" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>{obl.description}</span>
+                  {obl.status && (
+                    <Pill tone={OBLIGATION_STATUS_TONE[String(obl.status).toLowerCase()] || 'n'}>
+                      {t(`obligationStatus.${obl.status}`, { defaultValue: String(obl.status).replace(/_/g, ' ') })}
+                    </Pill>
+                  )}
+                </div>
+                <div className="row muted" style={{ gap: 8, fontSize: 'var(--fs-xs)', flexWrap: 'wrap' }}>
+                  {obl.obligated_party && <span>{obl.obligated_party}</span>}
+                  {obl.obligation_type && <Tag>{obl.obligation_type.replace(/_/g, ' ')}</Tag>}
+                  {obl.deadline && <span className="num">{formatDate(obl.deadline)}</span>}
+                  {hasSource && (
+                    <span style={{ color: 'var(--p)', fontWeight: 600 }}>
+                      {t('contract.viewSource', { defaultValue: 'View source' })}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* Right: PDF viewer */}
+      <div className="flex-1 min-w-0">
+        <ContractPdfViewer
+          contractId={contractId}
+          mimeType={contract.mime_type}
+          highlightPage={highlightPage}
+          highlightText={highlightText}
+          activeRects={activeRects}
+          allHighlights={highlights?.highlights}
+          pageDimensions={highlights?.page_dimensions}
+          onHighlightClick={(entityId) => {
+            setActiveId(entityId)
+            const hl = highlights?.highlights?.[entityId]
+            if (hl?.rects?.length) {
+              setActiveRects(hl.rects)
+              setHighlightPage(hl.rects[0].page)
+              setHighlightText(null)
+            }
+          }}
+          onPageChange={() => { setHighlightText(null); setHighlightPage(null); setActiveRects(null); setActiveId(null) }}
+        />
+      </div>
     </div>
   )
 }
