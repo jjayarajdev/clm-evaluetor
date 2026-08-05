@@ -313,6 +313,7 @@ class SchedulerService:
         from app.services.family_enrichment import enrich_from_family
         from app.services.group_sync import (
             detect_missing_references,
+            prune_redundant_family_links,
             sync_auto_family_groups,
         )
         from app.services.reference_resolver import resolve_declared_references
@@ -334,6 +335,9 @@ class SchedulerService:
                 n_links += await link_by_counterparty_master(db, tid)
                 n_links += await link_change_orders(db, tid)
                 links_resolved += n_links
+                # Thin sibling↔sibling cross-links before materializing groups
+                # so families reconcile (and render) as trees, not tangles.
+                await prune_redundant_family_links(db, tid)
                 touched += await sync_auto_family_groups(db, tid)
                 enriched += await enrich_from_family(db, tid)
                 findings_changed += await detect_missing_references(db, tid)

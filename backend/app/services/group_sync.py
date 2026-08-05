@@ -73,30 +73,100 @@ def _component_of(
     return seen
 
 
+# Root preference by contract type. A real master agreement should anchor the
+# family even when noisy links make it look like someone's child; a structural
+# doc (schedule/exhibit/lease/amendment/TOC) is the worst possible root. Higher
+# wins. Contract types are normalised through canonical_contract_type first.
+_MASTER_ROOT_TYPES = {"msa"}
+_STRONG_ROOT_TYPES = {
+    "service_agreement", "supply_agreement", "vendor_agreement", "csa",
+}
+_SUBORDINATE_ROOT_TYPES = {
+    "sow", "schedule", "amendment", "lease", "order", "pricing", "governance",
+    "policy", "sla", "mou", "nda", "license",
+}
+
+
+def _root_type_rank(contract_type: str | None) -> int:
+    from app.services.contract_types import canonical_contract_type
+
+    canon = canonical_contract_type(contract_type) or (contract_type or "").lower()
+    if canon in _MASTER_ROOT_TYPES:
+        return 3
+    if canon in _STRONG_ROOT_TYPES:
+        return 2
+    if canon in _SUBORDINATE_ROOT_TYPES:
+        return 0
+    return 1  # unknown / generic agreement — still a better root than a schedule
+
+
 async def _pick_root(
     db: AsyncSession,
     component: set[uuid.UUID],
     children: set[uuid.UUID],
     adjacency: dict[uuid.UUID, set[uuid.UUID]],
 ) -> uuid.UUID:
-    """Root = a contract that is nobody's child; ties broken by degree then age."""
-    candidates = [c for c in component if c not in children]
-    if not candidates:
-        # Pure cycle — fall back to the whole component
-        candidates = list(component)
-    if len(candidates) == 1:
-        return candidates[0]
+    """Root = the family's master. Prefer a real master agreement by contract
+    type, then a contract that is nobody's child, then the biggest hub, then the
+    oldest; contract id breaks final ties so the choice is deterministic.
 
+    Ranking runs over the whole component (not just non-children) so a genuine
+    master that noisy links turned into someone's child still wins.
+    """
     rows = (
         await db.execute(
-            select(Contract.id, Contract.created_at).where(Contract.id.in_(candidates))
+            select(Contract.id, Contract.created_at, Contract.contract_type).where(
+                Contract.id.in_(component)
+            )
         )
     ).all()
-    created = {r[0]: r[1] for r in rows}
-    return sorted(
-        candidates,
-        key=lambda c: (-len(adjacency.get(c, ())), created.get(c) or 0, str(c)),
-    )[0]
+    meta = {r[0]: (r[1], r[2]) for r in rows}
+
+    def key(c: uuid.UUID):
+        created, ctype = meta.get(c, (None, None))
+        return (
+            -_root_type_rank(ctype),                       # master type first
+            0 if c not in children else 1,                 # then not-a-child
+            -len(adjacency.get(c, ())),                    # then hub-ness
+            created.timestamp() if created else float("inf"),  # then oldest
+            str(c),
+        )
+
+    return min(component, key=key)
+
+
+def _find_bridges(
+    adjacency: dict[uuid.UUID, set[uuid.UUID]], nodes: set[uuid.UUID]
+) -> set[frozenset]:
+    """Undirected bridge edges within `nodes` (recursive Tarjan; components are
+    tiny so recursion depth is never a concern)."""
+    bridges: set[frozenset] = set()
+    disc: dict[uuid.UUID, int] = {}
+    low: dict[uuid.UUID, int] = {}
+    timer = [0]
+
+    def dfs(u: uuid.UUID, parent: uuid.UUID | None) -> None:
+        disc[u] = low[u] = timer[0]
+        timer[0] += 1
+        skip_parent = True
+        for v in adjacency.get(u, ()):
+            if v not in nodes:
+                continue
+            if v == parent and skip_parent:
+                skip_parent = False  # skip only one parent edge (handles multi-edges)
+                continue
+            if v not in disc:
+                dfs(v, u)
+                low[u] = min(low[u], low[v])
+                if low[v] > disc[u]:
+                    bridges.add(frozenset((u, v)))
+            else:
+                low[u] = min(low[u], disc[v])
+
+    for s in nodes:
+        if s not in disc:
+            dfs(s, None)
+    return bridges
 
 
 async def _family_name(
@@ -321,6 +391,113 @@ async def sync_auto_family_groups(
             f"Auto-family sync touched {touched} group(s) for tenant {tenant_id}"
         )
     return touched
+
+
+async def prune_redundant_family_links(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    contract_ids: list[uuid.UUID] | None = None,
+) -> int:
+    """De-web families so they render as trees.
+
+    Sibling↔sibling cross-links (schedule→schedule, exhibit→exhibit) accumulate
+    from different linking rules and turn a family into a tangle. This removes
+    the redundant ones: a machine-created link is deactivated only when neither
+    endpoint is the family root AND the edge is not a bridge — i.e. both
+    endpoints stay connected to the family without it. Human links, links
+    touching the root, and bridges are always kept, so nothing is ever
+    disconnected and family membership is unchanged. Reversible
+    (is_active=False). Does not commit — the caller owns the transaction.
+    """
+    from app.services.link_authority import rank_of
+
+    adjacency, children = await _load_link_graph(db, tenant_id)
+
+    link_rows = (
+        (
+            await db.execute(
+                select(ContractLink)
+                .join(Contract, ContractLink.parent_contract_id == Contract.id)
+                .where(
+                    Contract.tenant_id == tenant_id,
+                    ContractLink.is_active == True,  # noqa: E712
+                    ContractLink.link_type.notin_(_FAMILY_LINK_TYPES_EXCLUDED),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    links_by_pair: dict[frozenset, list[ContractLink]] = defaultdict(list)
+    for link in link_rows:
+        links_by_pair[
+            frozenset((link.parent_contract_id, link.child_contract_id))
+        ].append(link)
+
+    def _still_connected(work, a, b) -> bool:
+        """Are a and b connected after dropping the a–b edge from `work`?"""
+        work[a].discard(b)
+        work[b].discard(a)
+        seen, stack = {a}, [a]
+        while stack:
+            n = stack.pop()
+            for x in work[n]:
+                if x not in seen:
+                    seen.add(x)
+                    stack.append(x)
+        work[a].add(b)
+        work[b].add(a)
+        return b in seen
+
+    seeds = list(contract_ids) if contract_ids is not None else list(adjacency.keys())
+    processed: set[uuid.UUID] = set()
+    pruned = 0
+    for seed in seeds:
+        if seed in processed:
+            continue
+        component = _component_of(seed, adjacency)
+        processed |= component
+        if len(component) < 3:  # a single edge is never redundant
+            continue
+        root = await _pick_root(db, component, children, adjacency)
+
+        # Mutable adjacency for this component; we drop edges as we go so
+        # connectivity is re-checked against the shrinking graph.
+        work = {n: {x for x in adjacency.get(n, ()) if x in component} for n in component}
+
+        # Candidate edges: fully machine-made, neither endpoint the root.
+        candidates = []
+        for pair, links in links_by_pair.items():
+            if not pair <= component or root in pair:
+                continue
+            if any(link.created_by_rule is None for link in links):
+                continue  # human-anchored — never prune
+            candidates.append((pair, links))
+        # Drop the weakest-evidence links first (deterministic).
+        candidates.sort(
+            key=lambda pl: (
+                min(rank_of(link.created_by_rule) for link in pl[1]),
+                sorted(str(x) for x in pl[0]),
+            )
+        )
+        for pair, links in candidates:
+            a, b = tuple(pair)
+            if b not in work.get(a, ()):
+                continue  # already removed
+            if not _still_connected(work, a, b):
+                continue  # bridge in the current graph — keep it
+            work[a].discard(b)
+            work[b].discard(a)
+            for link in links:
+                link.is_active = False
+                pruned += 1
+
+    if pruned:
+        await db.flush()
+        logger.info(
+            f"Pruned {pruned} redundant family link(s) for tenant {tenant_id}"
+        )
+    return pruned
 
 
 # ---------------------------------------------------------------------------

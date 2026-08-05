@@ -18,7 +18,10 @@ from app.database import Base
 from app.models.contract import Contract, ContractStatus
 from app.models.contract_group import ContractGroup, ContractGroupMember
 from app.models.contract_link import ContractLink
-from app.services.group_sync import sync_auto_family_groups
+from app.services.group_sync import (
+    prune_redundant_family_links,
+    sync_auto_family_groups,
+)
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -78,14 +81,29 @@ def _contract(tid, name, cp="Algoleap Technologies Pvt. Ltd.", ctype="sow", cid=
     )
 
 
-def _link(parent, child, link_type="schedule"):
+def _link(parent, child, link_type="schedule", rule="framework_set"):
     return ContractLink(
         parent_contract_id=parent.id,
         child_contract_id=child.id,
         link_type=link_type,
-        created_by_rule="framework_set",
+        created_by_rule=rule,
         is_active=True,
     )
+
+
+async def _active_pairs(db, tid):
+    links = (
+        (
+            await db.execute(
+                select(ContractLink).where(ContractLink.is_active == True)  # noqa: E712
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return {
+        frozenset((l.parent_contract_id, l.child_contract_id)) for l in links
+    }
 
 
 async def _auto_groups(db, tid):
@@ -209,6 +227,70 @@ async def test_group_name_falls_back_to_filename_when_no_reliable_party(db):
     groups = await _auto_groups(db, tid)
     assert len(groups) == 1
     assert groups[0].name == "Master_Frame family"
+
+
+@pytest.mark.asyncio
+async def test_pick_root_prefers_master_type_over_structural_doc(db):
+    """A real MSA anchors the family even when noisy links made it a child of an
+    exhibit — contract type outranks the 'nobody's child' heuristic."""
+    tid = uuid.uuid4()
+    msa = _contract(tid, "Master.docx", ctype="msa")
+    ex1 = _contract(tid, "Exhibit A.docx", ctype="exhibit")
+    ex2 = _contract(tid, "Exhibit B.docx", ctype="exhibit")
+    # ex1 is the only 'nobody's child'; the MSA is wrongly a child of ex1.
+    db.add_all([msa, ex1, ex2, _link(ex1, msa), _link(ex1, ex2)])
+    await db.flush()
+
+    await sync_auto_family_groups(db, tid)
+    groups = await _auto_groups(db, tid)
+    assert len(groups) == 1
+    assert groups[0].root_contract_id == msa.id
+
+
+@pytest.mark.asyncio
+async def test_prune_collapses_sibling_web_to_star(db):
+    """Siblings each linked to the root make their cross-links redundant — all of
+    them prune away, leaving a clean star; root links stay."""
+    tid = uuid.uuid4()
+    msa = _contract(tid, "Master.docx", ctype="msa")
+    s1 = _contract(tid, "Schedule 1.docx", ctype="schedule")
+    s2 = _contract(tid, "Schedule 2.docx", ctype="schedule")
+    s3 = _contract(tid, "Schedule 3.docx", ctype="schedule")
+    db.add_all([msa, s1, s2, s3])
+    db.add_all([_link(msa, s1), _link(msa, s2), _link(msa, s3)])  # root links
+    db.add_all([_link(s1, s2), _link(s2, s3), _link(s1, s3)])     # redundant web
+    await db.flush()
+
+    pruned = await prune_redundant_family_links(db, tid)
+    assert pruned == 3
+    pairs = await _active_pairs(db, tid)
+    assert pairs == {
+        frozenset((msa.id, s1.id)),
+        frozenset((msa.id, s2.id)),
+        frozenset((msa.id, s3.id)),
+    }
+
+
+@pytest.mark.asyncio
+async def test_prune_keeps_bridges_and_human_links(db):
+    """A bridge (only path to a leaf) and any human-created link are never
+    pruned — connectivity and human intent are preserved."""
+    tid = uuid.uuid4()
+    msa = _contract(tid, "Master.docx", ctype="msa")
+    s1 = _contract(tid, "Schedule 1.docx", ctype="schedule")
+    s2 = _contract(tid, "Schedule 2.docx", ctype="schedule")
+    leaf = _contract(tid, "Deep Leaf.docx", ctype="schedule")
+    db.add_all([msa, s1, s2, leaf])
+    db.add_all([_link(msa, s1), _link(msa, s2)])
+    db.add(_link(s1, s2, rule=None))          # human sibling link — keep
+    db.add(_link(s2, leaf))                     # bridge: leaf's only path — keep
+    await db.flush()
+
+    pruned = await prune_redundant_family_links(db, tid)
+    assert pruned == 0
+    pairs = await _active_pairs(db, tid)
+    assert frozenset((s1.id, s2.id)) in pairs   # human link survived
+    assert frozenset((s2.id, leaf.id)) in pairs  # bridge survived
 
 
 @pytest.mark.asyncio
