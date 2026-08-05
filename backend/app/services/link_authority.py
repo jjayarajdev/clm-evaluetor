@@ -13,9 +13,15 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.contract_link import ContractLink
+from app.models.contract_link import ContractLink, LinkType
 
 logger = logging.getLogger(__name__)
+
+# Valid linktype enum values. link_type describes the RELATIONSHIP, not the
+# child's contract type — a caller passing e.g. "service_agreement" (a contract
+# type) would otherwise blow up the INSERT on the PG enum. Coerce anything
+# unrecognised to a generic parent-child link (kept in family grouping).
+_VALID_LINK_TYPES = {lt.value for lt in LinkType}
 
 # Higher wins. Humans are unrankable-above-everything.
 RULE_RANK = {
@@ -49,6 +55,14 @@ async def claim_parent(
     if child_id == parent_id:
         return False
 
+    if link_type not in _VALID_LINK_TYPES:
+        logger.warning(
+            "claim_parent got non-linktype '%s' (rule '%s'); using 'child'",
+            link_type,
+            rule,
+        )
+        link_type = "child"
+
     existing = (
         await db.execute(
             select(ContractLink)
@@ -75,6 +89,29 @@ async def claim_parent(
         )
         await db.delete(existing)
         await db.flush()
+
+    # uq_contract_link is on (parent, child, link_type) and ignores is_active,
+    # so a previously-deactivated identical link would collide on INSERT.
+    # Reuse it: reactivate and re-stamp with the winning rule instead.
+    dup = (
+        await db.execute(
+            select(ContractLink)
+            .where(
+                ContractLink.parent_contract_id == parent_id,
+                ContractLink.child_contract_id == child_id,
+                ContractLink.link_type == link_type,
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if dup is not None:
+        if dup.is_active:
+            return False
+        dup.is_active = True
+        dup.created_by_rule = rule
+        dup.link_description = description[:500]
+        await db.flush()
+        return True
 
     db.add(
         ContractLink(

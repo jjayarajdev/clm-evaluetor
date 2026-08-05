@@ -20,7 +20,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.contract import Contract
-from app.models.contract_link import ContractLink
+from app.models.contract_link import ContractLink, LinkType
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +141,17 @@ _SUBORDINATE_TYPES = {
 }
 _MASTER_TYPES = {"msa"}
 
+# Contract types are NOT link types. Reuse a contract type as the relationship
+# label only when it's also a valid LinkType value (sow/amendment/schedule/…);
+# everything else (service_agreement, sla, pricing, governance, policy, …)
+# becomes a generic parent-child family link. 'child' — not 'related' — because
+# 'related' is excluded from family grouping (see group_sync._FAMILY_LINK_TYPES_EXCLUDED).
+_VALID_LINK_TYPES = {lt.value for lt in LinkType}
+
+
+def _subordinate_link_type(contract_type: str) -> str:
+    return contract_type if contract_type in _VALID_LINK_TYPES else "child"
+
 
 def _norm_party(value: str | None) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (value or "").lower()).strip()
@@ -199,7 +210,7 @@ async def link_by_counterparty_master(
             db,
             child_id=child.id,
             parent_id=masters[0].id,
-            link_type=ntype if ntype in _SUBORDINATE_TYPES else "sow",
+            link_type=_subordinate_link_type(ntype),
             rule="counterparty_master",
             description=(
                 "Counterparty family: same counterparty as the tenant's "
