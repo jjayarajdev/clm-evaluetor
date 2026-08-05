@@ -14,7 +14,7 @@ import re
 import uuid
 from collections import defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.contract import Contract
@@ -111,20 +111,12 @@ async def sync_auto_family_groups(
     """
     adjacency, children = await _load_link_graph(db, tenant_id)
 
-    # Which components to process
-    seeds = contract_ids if contract_ids is not None else list(adjacency.keys())
-    processed: set[uuid.UUID] = set()
-    components: list[set[uuid.UUID]] = []
-    for seed in seeds:
-        if seed in processed:
-            continue
-        component = _component_of(seed, adjacency)
-        processed |= component
-        if len(component) >= 2:
-            components.append(component)
-
-    # Existing auto_family groups for this tenant
-    existing_groups = (
+    # Existing auto_family groups for this tenant, with their member rows
+    # preloaded so we can detect a group by its membership — not just its root.
+    # A group's root can go NULL (root contract deleted, FK ON DELETE SET NULL)
+    # or migrate (a new parent appears above the old root); keying purely on
+    # root_contract_id then strands the old group and a duplicate is created.
+    existing_groups = list(
         (
             await db.execute(
                 select(ContractGroup).where(
@@ -136,94 +128,156 @@ async def sync_auto_family_groups(
         .scalars()
         .all()
     )
-    group_by_root = {g.root_contract_id: g for g in existing_groups}
+    group_ids = [g.id for g in existing_groups]
+    members_by_group: dict[uuid.UUID, list[ContractGroupMember]] = defaultdict(list)
+    if group_ids:
+        for m in (
+            (
+                await db.execute(
+                    select(ContractGroupMember).where(
+                        ContractGroupMember.group_id.in_(group_ids)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        ):
+            members_by_group[m.group_id].append(m)
+    contracts_by_group: dict[uuid.UUID, set[uuid.UUID]] = {
+        g.id: {m.contract_id for m in members_by_group.get(g.id, [])}
+        for g in existing_groups
+    }
+
+    # Which components to process. Seed from the requested contracts (or the
+    # whole graph for the nightly job) AND from the members of any existing
+    # auto_family group — so orphaned/duplicate groups get revisited and
+    # collapsed even when the seed contracts don't touch them directly.
+    seeds = list(contract_ids) if contract_ids is not None else list(adjacency.keys())
+    if contract_ids is not None:
+        for g in existing_groups:
+            if g.root_contract_id is None or g.root_contract_id not in adjacency:
+                seeds.extend(contracts_by_group.get(g.id, ()))
+
+    processed: set[uuid.UUID] = set()
+    components: list[set[uuid.UUID]] = []
+    for seed in seeds:
+        if seed in processed:
+            continue
+        component = _component_of(seed, adjacency)
+        processed |= component
+        if len(component) >= 2:
+            components.append(component)
+
+    async def _merge_into(survivor: ContractGroup, dup: ContractGroup) -> None:
+        """Fold a duplicate group into the survivor: rescue its manual pins and
+        completeness findings, then delete it (cascade drops the rest)."""
+        survivor_cids = contracts_by_group.setdefault(survivor.id, set())
+        for m in members_by_group.get(dup.id, []):
+            # auto_family rows are recomputed below; only manual pins are moved.
+            if m.source != "auto_family" and m.contract_id not in survivor_cids:
+                m.group_id = survivor.id
+                survivor_cids.add(m.contract_id)
+                members_by_group[survivor.id].append(m)
+        await db.execute(
+            update(ContractGroupFinding)
+            .where(ContractGroupFinding.group_id == dup.id)
+            .values(group_id=survivor.id)
+        )
+        members_by_group.pop(dup.id, None)
+        contracts_by_group.pop(dup.id, None)
+        if dup in existing_groups:
+            existing_groups.remove(dup)
+        await db.delete(dup)
 
     touched = 0
+    claimed: set[uuid.UUID] = set()  # group ids already assigned to a component
     for component in components:
         root = await _pick_root(db, component, children, adjacency)
 
-        # Reuse a group anchored anywhere inside this component (root may have
-        # moved when a new parent appeared above the old root)
-        group = group_by_root.get(root)
-        if not group:
-            anchored_inside = [
-                g for r, g in group_by_root.items() if r in component
-            ]
-            if anchored_inside:
-                group = anchored_inside[0]
-                group.root_contract_id = root
+        # Every existing auto_family group that overlaps this component — by
+        # root or by any shared member (catches NULL/migrated roots and the
+        # stale duplicates a prior run left behind).
+        overlapping = [
+            g
+            for g in existing_groups
+            if g.id not in claimed
+            and (
+                (g.root_contract_id is not None and g.root_contract_id in component)
+                or (contracts_by_group.get(g.id, set()) & component)
+            )
+        ]
+        # Survivor: prefer one already anchored at the chosen root.
+        survivor = next(
+            (g for g in overlapping if g.root_contract_id == root), None
+        ) or (overlapping[0] if overlapping else None)
 
-        if not group:
+        if survivor is None:
             root_contract = (
                 await db.execute(select(Contract).where(Contract.id == root))
             ).scalar_one_or_none()
             stem = (root_contract.counterparty or root_contract.filename.rsplit(".", 1)[0]) if root_contract else "Contract"
-            group = ContractGroup(
+            survivor = ContractGroup(
                 tenant_id=tenant_id,
                 name=f"{stem} family",
                 group_type="auto_family",
                 root_contract_id=root,
             )
-            db.add(group)
+            db.add(survivor)
             await db.flush()
-            group_by_root[root] = group
+            existing_groups.append(survivor)
+            members_by_group[survivor.id] = []
+            contracts_by_group[survivor.id] = set()
+        else:
+            survivor.root_contract_id = root
+        claimed.add(survivor.id)
 
-        # Reconcile auto_family members only
-        current = {
-            m.contract_id: m
-            for m in (
-                await db.execute(
-                    select(ContractGroupMember).where(
-                        ContractGroupMember.group_id == group.id
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        }
+        # Collapse the extras into the survivor before reconciling membership.
+        for dup in overlapping:
+            if dup.id != survivor.id:
+                await _merge_into(survivor, dup)
+
+        # Reconcile auto_family members only (manual pins are left untouched)
+        current = {m.contract_id: m for m in members_by_group.get(survivor.id, [])}
         for cid in component:
             if cid not in current:
-                db.add(
-                    ContractGroupMember(
-                        tenant_id=tenant_id,
-                        group_id=group.id,
-                        contract_id=cid,
-                        source="auto_family",
-                    )
+                row = ContractGroupMember(
+                    tenant_id=tenant_id,
+                    group_id=survivor.id,
+                    contract_id=cid,
+                    source="auto_family",
                 )
+                db.add(row)
+                members_by_group[survivor.id].append(row)
         for cid, member in current.items():
             if member.source == "auto_family" and cid not in component:
                 await db.delete(member)
         touched += 1
 
-    # Cleanup: auto groups whose component dissolved (root no longer linked)
+    # Cleanup: auto groups whose component dissolved, including NULL-root
+    # orphans (root contract deleted) that no live component reclaimed above.
     scope = set(contract_ids) if contract_ids is not None else None
-    for root, group in list(group_by_root.items()):
-        if root is None:
+    for group in list(existing_groups):
+        if group.id in claimed:
             continue
-        component = _component_of(root, adjacency)
-        if len(component) >= 2:
-            continue
-        if scope is not None and root not in scope:
-            continue
-        members = (
-            (
-                await db.execute(
-                    select(ContractGroupMember).where(
-                        ContractGroupMember.group_id == group.id
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
+        root = group.root_contract_id
+        if root is not None:
+            component = _component_of(root, adjacency)
+            if len(component) >= 2:
+                continue  # still a live family reachable from the root
+            if scope is not None and root not in scope and not (
+                contracts_by_group.get(group.id, set()) & scope
+            ):
+                continue  # out of this scoped run's reach
+        # NULL-root or dissolved: drop its auto members, keep only if manual
+        # pins remain (then it becomes an empty-family manual group).
+        members = members_by_group.get(group.id, [])
         non_auto = [m for m in members if m.source != "auto_family"]
         for m in members:
             if m.source == "auto_family":
                 await db.delete(m)
         if not non_auto:
             await db.delete(group)
-            group_by_root.pop(root, None)
+            existing_groups.remove(group)
         touched += 1
 
     # Session has autoflush=False — flush so callers (e.g. the missing-
