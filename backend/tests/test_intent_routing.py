@@ -68,6 +68,18 @@ async def test_resolve_document_scope_always_rag(monkeypatch):
     assert await resolve_intent("how many obligations", "contract-123", "en") == "document_qa"
 
 
+@pytest.mark.parametrize("q,intent", [
+    ("who are my vendors", "vendors"),
+    ("top counterparties by value", "vendors"),
+    ("combien de fournisseurs ai-je", "vendors"),
+    ("what are my SLAs", "sla"),
+    ("what expires in the next 90 days", "renewals"),
+    ("my riskiest contracts", "risk"),
+])
+def test_keyword_catalog_covers_common_intents(q, intent):
+    assert detect_intent(q) == intent
+
+
 @pytest.mark.asyncio
 async def test_resolve_keyword_fastpath_skips_llm(monkeypatch):
     async def _llm(question, language="en"):

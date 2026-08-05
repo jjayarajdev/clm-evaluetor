@@ -115,7 +115,8 @@ STRUCTURED_INTENTS = {
         "engagements", "date limite",
     ],
     "risk": [
-        "high risk", "highest risk", "risky", "risk summary", "risk score",
+        "high risk", "highest risk", "risky", "riskiest", "riskier", "at risk",
+        "risk summary", "risk score",
         "risk level", "most risky", "risk assessment", "risk overview",
         # French
         "risque", "risques", "a risque", "risque eleve", "score de risque",
@@ -137,6 +138,14 @@ STRUCTURED_INTENTS = {
         "niveau de service", "niveaux de service", "violation de sla",
         "violations de sla", "depassement de sla", "performance des sla",
         "mes sla", "statut des sla",
+    ],
+    "vendors": [
+        "vendor", "vendors", "counterparty", "counterparties", "supplier",
+        "suppliers", "who do i work with", "top counterparties", "top vendors",
+        "by counterparty", "by vendor",
+        # French
+        "fournisseur", "fournisseurs", "contrepartie", "contreparties",
+        "prestataire", "prestataires", "par contrepartie",
     ],
 }
 
@@ -193,6 +202,7 @@ _INTENT_CATALOG = {
     "obligations": "obligations, deadlines, what's due or overdue",
     "risk": "risk levels, risk scores, riskiest contracts, risk overview",
     "sla": "SLA performance, breaches, service-level metrics/status",
+    "vendors": "counterparties/vendors/suppliers — who they are, how many, rollups by counterparty (count/value/risk)",
     "document_qa": "the meaning/wording of a specific document's text (clauses, provisions)",
 }
 
@@ -319,6 +329,9 @@ ANSWER TAILORING (most important rule):
 - Use ONLY facts present in the data summary. Never invent numbers or names.
 - If the data summary genuinely lacks what the question asks for, say so
   briefly and give the closest available facts.
+- detail_rows may include "total" and "showing": the rows are a sample. State
+  the authoritative total (from counts/total) and make clear you are listing the
+  top N — never imply the sample is the complete list.
 
 Respond with ONLY valid JSON:
 {
@@ -522,6 +535,7 @@ async def handle_structured_query(
         "risk": _handle_risk,
         "portfolio": _handle_portfolio,
         "sla": _handle_sla,
+        "vendors": _handle_vendors,
     }
 
     handler = handlers.get(intent)
@@ -1059,7 +1073,11 @@ async def _handle_portfolio(
         "total_value": total_value,
         "detail_rows": {
             "columns": ["Counterparty", "Type", "Risk", "Value"],
-            "rows": detail_rows[:8],
+            "rows": detail_rows[:15],
+            # Honesty signal so a "list/which" answer never implies the sample is
+            # the whole portfolio (the count above is the authoritative total).
+            "total": total,
+            "showing": min(15, total),
         },
     }
 
@@ -1068,6 +1086,62 @@ async def _handle_portfolio(
         "data_summary": data_summary,
         "intent": "portfolio",
     }
+
+
+# ---------------------------------------------------------------------------
+# Handler: Vendors / counterparties
+# ---------------------------------------------------------------------------
+
+async def _handle_vendors(
+    db: AsyncSession,
+    tenant_id: str | None,
+    contract_id: str | None,
+    question: str,
+) -> dict[str, Any]:
+    """Counterparty rollup — one row per counterparty with contract count, total
+    value and worst risk. Exact aggregation over the whole portfolio."""
+    q = select(Contract)
+    if tenant_id:
+        q = q.where(Contract.tenant_id == tenant_id)
+    contracts = _dedup_contracts((await db.execute(q)).scalars().all())
+
+    _RISK_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1, "": 0}
+    agg: dict[str, dict] = {}
+    for c in contracts:
+        name = _clean_counterparty(c.counterparty, c.filename)
+        a = agg.setdefault(name, {"count": 0, "value": 0.0, "risk": ""})
+        a["count"] += 1
+        a["value"] += float(c.contract_value or 0)
+        rl = (c.risk_level.value if hasattr(c.risk_level, "value") else str(c.risk_level or "")).lower()
+        if _RISK_ORDER.get(rl, 0) > _RISK_ORDER.get(a["risk"], 0):
+            a["risk"] = rl
+
+    ranked = sorted(agg.items(), key=lambda kv: (kv[1]["value"], kv[1]["count"]), reverse=True)
+    total_vendors = len(ranked)
+    total_value = sum(a["value"] for _, a in ranked)
+
+    parts = [f"You work with **{total_vendors} counterparties** across {len(contracts)} contracts worth **${total_value:,.0f}** total."]
+    if ranked:
+        top = ranked[0]
+        parts.append(f"Largest by value: **{top[0]}** ({top[1]['count']} contract(s), ${top[1]['value']:,.0f}).")
+    if not contracts:
+        parts = ["No counterparties found — your portfolio has no contracts yet."]
+
+    detail_rows = [
+        [name[:30], str(a["count"]), f"${a['value']:,.0f}" if a["value"] else "—", (a["risk"] or "—").capitalize()]
+        for name, a in ranked
+    ]
+    SHOW = 15
+    data_summary = {
+        "counts": {"Counterparties": total_vendors, "Contracts": len(contracts), "Total Value": f"${total_value:,.0f}"},
+        "detail_rows": {
+            "columns": ["Counterparty", "Contracts", "Value", "Top Risk"],
+            "rows": detail_rows[:SHOW],
+            "total": total_vendors,
+            "showing": min(SHOW, total_vendors),
+        },
+    }
+    return {"answer": "\n".join(parts), "data_summary": data_summary, "intent": "vendors"}
 
 
 # ---------------------------------------------------------------------------
