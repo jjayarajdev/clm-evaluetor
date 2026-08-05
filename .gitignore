@@ -140,3 +140,20 @@ claude-sdlc/
 research/
 tasks/
 deploy/environments.env
+
+# =============================================================================
+# Local working assets — marketing, prototypes, sales, feedback (not tracked)
+# =============================================================================
+docs/PRICING_AND_PACKAGING.md
+docs/SQUARE_ONE_ONBOARDING_CHECKLIST.md
+docs/copies of html/
+docs/feedback/
+docs/pricing-calculator.html
+docs/commercial-combo-mockup.html.zip
+docs/evaluetor-*.html
+docs/evaluetor-*.png
+docs/where-evaluetor-fits*.html
+docs/where-evaluetor-fits*.png
+eval-redesign/
+feedback/
+sales/*copy.pptx
