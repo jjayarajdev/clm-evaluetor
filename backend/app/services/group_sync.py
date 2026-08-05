@@ -106,12 +106,13 @@ async def _pick_root(
     children: set[uuid.UUID],
     adjacency: dict[uuid.UUID, set[uuid.UUID]],
 ) -> uuid.UUID:
-    """Root = the family's master. Prefer a real master agreement by contract
-    type, then a contract that is nobody's child, then the biggest hub, then the
-    oldest; contract id breaks final ties so the choice is deterministic.
-
-    Ranking runs over the whole component (not just non-children) so a genuine
-    master that noisy links turned into someone's child still wins.
+    """Root = the family's master. Structure decides — nobody's child, then the
+    biggest hub, then the oldest — because it is far more reliable than the
+    extracted contract_type (schedules/attachments are routinely mis-typed as
+    'msa'). Contract type is only a gentle nudge, applied *after* structure, so
+    it breaks ties toward a real master without ever letting one mis-typed
+    document hijack a family that structure already resolves. Contract id is the
+    final, deterministic tiebreak.
     """
     rows = (
         await db.execute(
@@ -125,10 +126,10 @@ async def _pick_root(
     def key(c: uuid.UUID):
         created, ctype = meta.get(c, (None, None))
         return (
-            -_root_type_rank(ctype),                       # master type first
-            0 if c not in children else 1,                 # then not-a-child
-            -len(adjacency.get(c, ())),                    # then hub-ness
-            created.timestamp() if created else float("inf"),  # then oldest
+            0 if c not in children else 1,                 # structure: not-a-child
+            -len(adjacency.get(c, ())),                    # structure: hub-ness
+            created.timestamp() if created else float("inf"),  # structure: oldest
+            -_root_type_rank(ctype),                       # gentle type nudge
             str(c),
         )
 

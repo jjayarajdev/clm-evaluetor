@@ -230,15 +230,16 @@ async def test_group_name_falls_back_to_filename_when_no_reliable_party(db):
 
 
 @pytest.mark.asyncio
-async def test_pick_root_prefers_master_type_over_structural_doc(db):
-    """A real MSA anchors the family even when noisy links made it a child of an
-    exhibit — contract type outranks the 'nobody's child' heuristic."""
+async def test_pick_root_uses_type_only_to_break_structural_ties(db):
+    """Type is a gentle nudge, not a hijack: when two candidates are
+    structurally tied (both non-children, equal degree/age) the master-typed one
+    wins — but structure, not the (often mis-extracted) type, comes first."""
     tid = uuid.uuid4()
     msa = _contract(tid, "Master.docx", ctype="msa")
-    ex1 = _contract(tid, "Exhibit A.docx", ctype="exhibit")
-    ex2 = _contract(tid, "Exhibit B.docx", ctype="exhibit")
-    # ex1 is the only 'nobody's child'; the MSA is wrongly a child of ex1.
-    db.add_all([msa, ex1, ex2, _link(ex1, msa), _link(ex1, ex2)])
+    other = _contract(tid, "Side Agreement.docx", ctype="sla")
+    shared = _contract(tid, "Schedule 1.docx", ctype="schedule")
+    # msa and 'other' are both non-children with equal degree → type breaks it.
+    db.add_all([msa, other, shared, _link(msa, shared), _link(other, shared)])
     await db.flush()
 
     await sync_auto_family_groups(db, tid)
