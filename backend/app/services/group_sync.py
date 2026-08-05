@@ -106,27 +106,36 @@ async def _pick_root(
     children: set[uuid.UUID],
     adjacency: dict[uuid.UUID, set[uuid.UUID]],
 ) -> uuid.UUID:
-    """Root = the family's master. Structure decides — nobody's child, then the
-    biggest hub, then the oldest — because it is far more reliable than the
-    extracted contract_type (schedules/attachments are routinely mis-typed as
-    'msa'). Contract type is only a gentle nudge, applied *after* structure, so
-    it breaks ties toward a real master without ever letting one mis-typed
-    document hijack a family that structure already resolves. Contract id is the
-    final, deterministic tiebreak.
+    """Root = the family's master. Signals, in order of reliability:
+
+    1. not a child (in-degree 0) — the top of the link tree;
+    2. filename is NOT a subordinate part (a doc literally named "Schedule 13 …"
+       or "…allonge #1" is never the master, however many links it accrued) —
+       type-independent, so it holds even when the real master is untyped;
+    3. biggest hub, then oldest — structural tiebreaks;
+    4. a gentle contract_type nudge toward a real master;
+    5. contract id — deterministic final tiebreak.
+
+    Structure leads because the extracted contract_type is unreliable
+    (schedules/attachments are routinely mis-typed as 'msa', real masters are
+    sometimes left untyped).
     """
+    from app.services.contract_types import looks_like_subordinate_filename
+
     rows = (
         await db.execute(
-            select(Contract.id, Contract.created_at, Contract.contract_type).where(
-                Contract.id.in_(component)
-            )
+            select(
+                Contract.id, Contract.created_at, Contract.contract_type, Contract.filename
+            ).where(Contract.id.in_(component))
         )
     ).all()
-    meta = {r[0]: (r[1], r[2]) for r in rows}
+    meta = {r[0]: (r[1], r[2], r[3]) for r in rows}
 
     def key(c: uuid.UUID):
-        created, ctype = meta.get(c, (None, None))
+        created, ctype, filename = meta.get(c, (None, None, None))
         return (
             0 if c not in children else 1,                 # structure: not-a-child
+            1 if looks_like_subordinate_filename(filename) else 0,  # subordinate name?
             -len(adjacency.get(c, ())),                    # structure: hub-ness
             created.timestamp() if created else float("inf"),  # structure: oldest
             -_root_type_rank(ctype),                       # gentle type nudge

@@ -139,7 +139,30 @@ _SUBORDINATE_TYPES = {
     "sow", "amendment", "addendum", "schedule", "exhibit", "attachment",
     "sla", "service_agreement", "pricing", "governance", "policy", "order", "mou",
 }
-_MASTER_TYPES = {"msa"}
+# Master tiers, strongest first. A family is anchored by its single top-tier
+# master: a lone MSA wins outright; with no MSA, a lone service/supply/vendor
+# agreement (an outsourcing/framework deal) anchors the family instead. More
+# than one candidate in a tier is genuinely ambiguous → that party gets no
+# auto-master (never silently guess).
+_MASTER_TYPE_TIERS: tuple[frozenset[str], ...] = (
+    frozenset({"msa"}),
+    frozenset({"service_agreement", "supply_agreement", "vendor_agreement"}),
+)
+_MASTER_TYPES = frozenset().union(*_MASTER_TYPE_TIERS)
+
+
+def _resolve_tiered_master(
+    by_tier: dict[int, list["Contract"]],
+) -> "Contract | None":
+    """Pick a party's master: the lone contract in the strongest occupied tier.
+    Ambiguity (2+ in that tier) yields None rather than a wrong guess."""
+    for tier_idx in range(len(_MASTER_TYPE_TIERS)):
+        docs = by_tier.get(tier_idx, [])
+        if len(docs) == 1:
+            return docs[0]
+        if len(docs) > 1:
+            return None  # ambiguous at the strongest occupied tier
+    return None
 
 # Contract types are NOT link types. Reuse a contract type as the relationship
 # label only when it's also a valid LinkType value (sow/amendment/schedule/…);
@@ -184,16 +207,23 @@ async def link_by_counterparty_master(
         .all()
     )
 
-    masters_by_party: dict[str, list[Contract]] = defaultdict(list)
+    # Masters bucketed per party AND per tier, so a lone MSA outranks a lone
+    # service/supply agreement for the same party.
+    masters_by_party: dict[str, dict[int, list[Contract]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     subordinates: list[tuple[Contract, str]] = []
     for c in contracts:
         ntype = canonical_contract_type(c.contract_type) or (c.contract_type or "")
         party = _norm_party(c.counterparty)
         if not party:
             continue
-        if ntype in _MASTER_TYPES:
-            masters_by_party[party].append(c)
-        elif ntype in _SUBORDINATE_TYPES:
+        tier = next(
+            (i for i, t in enumerate(_MASTER_TYPE_TIERS) if ntype in t), None
+        )
+        if tier is not None:
+            masters_by_party[party][tier].append(c)
+        if ntype in _SUBORDINATE_TYPES:
             subordinates.append((c, ntype))
 
     if not subordinates:
@@ -203,13 +233,15 @@ async def link_by_counterparty_master(
 
     created = 0
     for child, ntype in subordinates:
-        masters = masters_by_party.get(_norm_party(child.counterparty), [])
-        if len(masters) != 1 or masters[0].id == child.id:
+        master = _resolve_tiered_master(
+            masters_by_party.get(_norm_party(child.counterparty), {})
+        )
+        if master is None or master.id == child.id:
             continue
         if await claim_parent(
             db,
             child_id=child.id,
-            parent_id=masters[0].id,
+            parent_id=master.id,
             link_type=_subordinate_link_type(ntype),
             rule="counterparty_master",
             description=(

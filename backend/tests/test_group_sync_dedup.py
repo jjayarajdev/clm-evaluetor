@@ -249,6 +249,28 @@ async def test_pick_root_uses_type_only_to_break_structural_ties(db):
 
 
 @pytest.mark.asyncio
+async def test_pick_root_rejects_subordinate_filename_hub(db):
+    """A schedule-named hub never becomes root over a real agreement, even with
+    far more links — filename structure beats link degree, and works when the
+    real master is untyped (the Demo Logistic case)."""
+    tid = uuid.uuid4()
+    master = _contract(tid, "NUON ETRM Outsourcing Agreement.doc", cp="NUON", ctype="other")
+    hub = _contract(tid, "Schedule 13 Audit Controls.docx", cp="NUON", ctype="other")
+    s1 = _contract(tid, "Schedule 01 Definitions.docx", cp="NUON", ctype="other")
+    s2 = _contract(tid, "Schedule 02 Services.docx", cp="NUON", ctype="other")
+    s3 = _contract(tid, "Schedule 09 Technology.docx", cp="NUON", ctype="other")
+    db.add_all([master, hub, s1, s2, s3])
+    # hub is the big hub (3 kids); the master links to only one schedule.
+    db.add_all([_link(master, s1), _link(hub, s1), _link(hub, s2), _link(hub, s3)])
+    await db.flush()
+
+    await sync_auto_family_groups(db, tid)
+    groups = await _auto_groups(db, tid)
+    assert len(groups) == 1
+    assert groups[0].root_contract_id == master.id
+
+
+@pytest.mark.asyncio
 async def test_prune_collapses_sibling_web_to_star(db):
     """Siblings each linked to the root make their cross-links redundant — all of
     them prune away, leaving a clean star; root links stay."""

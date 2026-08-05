@@ -390,3 +390,20 @@ def structural_contract_type_from_filename(
             return "schedule"
 
     return None
+
+
+def looks_like_subordinate_filename(filename: str | None) -> bool:
+    """True when the filename itself marks the document as a subordinate part of
+    a family — a schedule/exhibit/attachment/annex/appendix, a SOW, or an
+    amendment/allonge. Such a document is a poor family root regardless of its
+    (frequently missing or mis-extracted) contract_type, so root selection uses
+    this as a strong, type-independent signal.
+    """
+    if not filename or not filename.strip():
+        return False
+    name = filename.strip()
+    return bool(
+        _FILENAME_ATTACHMENT_RE.match(name)
+        or _FILENAME_SOW_RE.match(name)
+        or _FILENAME_AMENDMENT_RE.search(name)
+    )
