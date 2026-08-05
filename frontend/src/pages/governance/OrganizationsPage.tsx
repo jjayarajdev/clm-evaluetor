@@ -76,7 +76,9 @@ export default function OrganizationsPage() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: ({ id, hard }: { id: string; hard: boolean }) => api.deleteOrganization(id, hard),
+    // Permanent delete cascades the org's relationships (the backend still
+    // blocks if contracts or subsidiaries reference it).
+    mutationFn: ({ id, hard }: { id: string; hard: boolean }) => api.deleteOrganization(id, hard, hard),
     onSuccess: (_res, variables) => {
       queryClient.invalidateQueries({ queryKey: ['organizations'] })
       const name = deleteTarget?.name ?? ''
@@ -308,6 +310,7 @@ export default function OrganizationsPage() {
                 </b>
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   <li>{t('governance.deleteRemovesRecord', { defaultValue: 'The organization record and its officer contacts' })}</li>
+                  <li>{t('governance.deleteRemovesRels', { defaultValue: 'Its business relationships and their KPIs, scores and history' })}</li>
                   <li>{t('governance.deleteRemovesHierarchy', { defaultValue: 'Its position in the corporate hierarchy' })}</li>
                 </ul>
               </div>

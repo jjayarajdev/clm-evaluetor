@@ -318,16 +318,7 @@ async def delete_relationship(
     access tokens are detached (relationship_id set NULL), never deleted.
     Organizations are untouched.
     """
-    from sqlalchemy import delete as sa_delete, update as sa_update
-
-    from app.models.contract import Contract
-    from app.models.external_access import ExternalAccessToken
-    from app.models.improvement import ImprovementAction, ImprovementPoint
-    from app.models.kpi import KPI, PerceptionGap, PerceptionScore
-    from app.models.relationship import RelationshipTeam
-    from app.models.relationship_history import RelationshipStatusHistory
-    from app.models.service_portfolio import RelationshipService
-    from app.models.survey import SurveyInstance, SurveyQuestion, SurveyResponse
+    from app.services.governance_cleanup import delete_relationship_cascade
 
     query = select(BusinessRelationship).where(BusinessRelationship.id == rel_id)
     query = apply_tenant_filter(query, tenant_id, BusinessRelationship)
@@ -341,52 +332,7 @@ async def delete_relationship(
             detail="Relationship not found",
         )
 
-    kpi_ids = select(KPI.id).where(KPI.relationship_id == rel_id)
-    instance_ids = select(SurveyInstance.id).where(SurveyInstance.relationship_id == rel_id)
-    point_ids = select(ImprovementPoint.id).where(ImprovementPoint.relationship_id == rel_id)
-
-    # KPI children
-    await db.execute(sa_delete(PerceptionScore).where(PerceptionScore.kpi_id.in_(kpi_ids)))
-    await db.execute(sa_delete(PerceptionGap).where(PerceptionGap.kpi_id.in_(kpi_ids)))
-    # Survey template questions may reference these KPIs (templates are
-    # tenant-level and survive) — detach, don't delete.
-    await db.execute(
-        sa_update(SurveyQuestion).where(SurveyQuestion.kpi_id.in_(kpi_ids)).values(kpi_id=None)
-    )
-    # Improvement points from other relationships may reference these KPIs
-    await db.execute(
-        sa_update(ImprovementPoint)
-        .where(ImprovementPoint.kpi_id.in_(kpi_ids), ImprovementPoint.relationship_id != rel_id)
-        .values(kpi_id=None)
-    )
-
-    # Surveys and improvements of this relationship
-    await db.execute(sa_delete(SurveyResponse).where(SurveyResponse.survey_instance_id.in_(instance_ids)))
-    await db.execute(sa_delete(ImprovementAction).where(ImprovementAction.improvement_id.in_(point_ids)))
-    await db.execute(sa_delete(SurveyInstance).where(SurveyInstance.relationship_id == rel_id))
-    await db.execute(sa_delete(ImprovementPoint).where(ImprovementPoint.relationship_id == rel_id))
-    await db.execute(sa_delete(KPI).where(KPI.relationship_id == rel_id))
-
-    # Structure around the relationship
-    await db.execute(sa_delete(RelationshipService).where(RelationshipService.relationship_id == rel_id))
-    await db.execute(sa_delete(RelationshipTeam).where(RelationshipTeam.relationship_id == rel_id))
-    await db.execute(
-        sa_delete(RelationshipStatusHistory).where(RelationshipStatusHistory.relationship_id == rel_id)
-    )
-
-    # Detach, never delete: contracts and external access tokens
-    await db.execute(
-        sa_update(Contract)
-        .where(Contract.business_relationship_id == rel_id)
-        .values(business_relationship_id=None)
-    )
-    await db.execute(
-        sa_update(ExternalAccessToken)
-        .where(ExternalAccessToken.relationship_id == rel_id)
-        .values(relationship_id=None)
-    )
-
-    await db.delete(relationship)
+    await delete_relationship_cascade(db, rel_id)
     await db.commit()
 
 

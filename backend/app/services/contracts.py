@@ -291,6 +291,7 @@ class ContractService:
         contract_uuid = contract.id
         file_path = contract.file_path
         filename = contract.filename
+        org_id = contract.organization_id  # for orphaned-org cleanup after delete
 
         logger.info(
             "Deleting contract and all associated data",
@@ -357,6 +358,19 @@ class ContractService:
         # 3. Delete the contract record
         await self.db.delete(contract)
         await self.db.flush()
+
+        # 3b. Clean up the bridge-created org + relationship if this was the org's
+        # last contract and it carries no manual governance data. Best-effort —
+        # never let cleanup failure block the contract deletion.
+        if org_id:
+            try:
+                from app.services.governance_cleanup import cleanup_orphaned_org_for_contract
+
+                summary = await cleanup_orphaned_org_for_contract(self.db, org_id)
+                if summary.get("org_deleted") or summary.get("relationships_deleted"):
+                    logger.info("Cleaned up orphaned governance entities", contract_id=contract_id, **summary)
+            except Exception as e:
+                logger.warning("Orphaned-org cleanup skipped", contract_id=contract_id, error=str(e))
 
         # 4. Delete physical file and folder from disk
         if file_path:

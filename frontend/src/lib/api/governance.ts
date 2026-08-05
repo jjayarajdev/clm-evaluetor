@@ -30,8 +30,8 @@ export async function updateOrganization(id: string, data: import('@/types/gover
 
 // Default = deactivate (reversible). hard=true permanently deletes; the API
 // refuses (409) while relationships, contracts or subsidiaries reference it.
-export async function deleteOrganization(id: string, hard = false): Promise<void> {
-  await client.delete(`/organizations/${id}`, { params: { hard_delete: hard } })
+export async function deleteOrganization(id: string, hard = false, cascade = false): Promise<void> {
+  await client.delete(`/organizations/${id}`, { params: { hard_delete: hard, cascade } })
 }
 
 // Deletes the relationship and its governance data (KPIs, scores, surveys,

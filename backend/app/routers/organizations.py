@@ -269,10 +269,17 @@ async def delete_organization(
     org_id: UUID,
     tenant_id: CurrentTenantId,
     hard_delete: bool = Query(False),
+    cascade: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("organizations.delete")),
 ):
-    """Delete or deactivate an organization."""
+    """Delete or deactivate an organization.
+
+    hard_delete=True removes the org. Contracts and subsidiary organizations
+    always block a hard delete. Business relationships block it UNLESS
+    cascade=True, in which case each relationship (and its governance children)
+    is removed first — for cleaning up an orphaned counterparty org.
+    """
     query = select(Organization).where(Organization.id == org_id)
     query = apply_tenant_filter(query, tenant_id, Organization)
     bu_clause = await _org_visibility(db, current_user)
@@ -320,13 +327,15 @@ async def delete_organization(
             )
         ).scalar_one()
 
+        # Contracts and subsidiaries are hard blockers (never auto-removed).
         blockers = []
-        if rel_count:
-            blockers.append(f"{rel_count} business relationship(s)")
         if contract_count:
             blockers.append(f"{contract_count} contract(s)")
         if subsidiary_count:
             blockers.append(f"{subsidiary_count} subsidiary organization(s)")
+        # Relationships block only when the caller didn't opt into cascade.
+        if rel_count and not cascade:
+            blockers.append(f"{rel_count} business relationship(s)")
         if blockers:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -336,6 +345,24 @@ async def delete_organization(
                     "deactivate the organization instead."
                 ),
             )
+
+        # cascade: remove the org's relationships (and their governance children)
+        # first. contract_count/subsidiary_count are already known to be 0 here.
+        if rel_count and cascade:
+            from app.services.governance_cleanup import delete_relationship_cascade
+
+            rel_ids = [
+                r for (r,) in (await db.execute(
+                    select(BusinessRelationship.id).where(
+                        or_(
+                            BusinessRelationship.org_a_id == org_id,
+                            BusinessRelationship.org_b_id == org_id,
+                        )
+                    )
+                )).all()
+            ]
+            for rid in rel_ids:
+                await delete_relationship_cascade(db, rid)
 
         # Officers are pure children — delete them with the org
         await db.execute(
