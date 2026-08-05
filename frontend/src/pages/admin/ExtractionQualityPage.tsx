@@ -826,7 +826,13 @@ function DspyCompilationPanel() {
   const { data: status, isLoading } = useQuery({
     queryKey: ['dspy-compilation-status'],
     queryFn: getDspyCompilationStatus,
+    // Compilation runs in the background — poll while any agent is compiling so
+    // the panel reflects completion without a manual refresh; idle otherwise.
+    refetchInterval: (query) =>
+      Object.values(query.state.data?.programs || {}).some((p) => p?.compiling) ? 4000 : false,
   })
+
+  const anyCompiling = Object.values(status?.programs || {}).some((p) => p?.compiling)
 
   const { data: autoConfig } = useQuery({
     queryKey: ['dspy-auto-recompile-config'],
@@ -848,7 +854,9 @@ function DspyCompilationPanel() {
       let anyError = false
       for (const [agent, r] of Object.entries(resp.results || {})) {
         const agentLabel = t(`extraction.agents.${agent}`, { defaultValue: DSPY_AGENT_LABELS[agent as DspyAgentType] || agent })
-        if (r.status === 'compiled') {
+        if (r.status === 'started') {
+          lines.push(t('extraction.compileStarted', { agent: agentLabel, defaultValue: '{{agent}}: compiling in background…' }))
+        } else if (r.status === 'compiled') {
           lines.push(t('extraction.compiledWithExamples', { agent: agentLabel, count: r.examples ?? 0 }))
         } else if (r.status === 'skipped') {
           lines.push(`${agentLabel}: ${r.message}`)
@@ -861,6 +869,8 @@ function DspyCompilationPanel() {
       }
       setResultMessage(lines.join(' · '))
       setResultIsError(anyError)
+      // Compilation is backgrounded — clear the local pending flag and let the
+      // per-agent `compiling` status (polled) drive the live spinner state.
       setPendingAgent(null)
       queryClient.invalidateQueries({ queryKey: ['dspy-compilation-status'] })
     },
@@ -904,7 +914,7 @@ function DspyCompilationPanel() {
           size="sm"
           variant="secondary"
           onClick={handleCompileAll}
-          disabled={anyPending}
+          disabled={anyPending || anyCompiling}
           style={!anyPending ? { background: 'var(--p-f)', borderColor: 'var(--p-b)', color: 'var(--p)' } : undefined}
         >
           {pendingAgent === 'all' ? (
@@ -930,12 +940,17 @@ function DspyCompilationPanel() {
             const compiled = s?.compiled === true
             const compiledAt = s?.compiled_at
             const sizeKb = s?.size_bytes ? Math.round(s.size_bytes / 1024) : null
-            const isPending = pendingAgent === agent || pendingAgent === 'all'
+            const isCompiling = s?.compiling === true
+            const isPending = isCompiling || pendingAgent === agent || pendingAgent === 'all'
             return (
               <div key={agent} className="px-4 py-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <Pill tone={compiled ? 'ok' : 'n'}>
-                    {compiled ? t('extraction.compiled') : t('extraction.defaults')}
+                  <Pill tone={isCompiling ? 'in' : compiled ? 'ok' : 'n'}>
+                    {isCompiling
+                      ? t('extraction.compiling')
+                      : compiled
+                        ? t('extraction.compiled')
+                        : t('extraction.defaults')}
                   </Pill>
                   <span className="min-w-[80px]" style={{ fontWeight: 500 }}>
                     {t(`extraction.agents.${agent}`, { defaultValue: DSPY_AGENT_LABELS[agent] })}
@@ -983,7 +998,7 @@ function DspyCompilationPanel() {
                     </span>
                   )}
                 </div>
-                <Button size="sm" variant="secondary" onClick={() => handleCompileOne(agent)} disabled={anyPending}>
+                <Button size="sm" variant="secondary" onClick={() => handleCompileOne(agent)} disabled={anyPending || anyCompiling}>
                   {isPending ? (
                     <>
                       <ArrowPathIcon className="h-3.5 w-3.5 spin" />

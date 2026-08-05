@@ -224,6 +224,27 @@ async def _bg_auto_recompile(tenant_id_str: str | None) -> None:
         _logger.warning(f"Background auto-recompile failed for tenant {tenant_id_str}: {e}")
 
 
+async def _bg_compile(tenant_id_str: str | None, agent_types: list[str]) -> None:
+    """Background task: run a manual DSPy compile for the given agents.
+
+    The /compile endpoint has already acquired the per-agent lock for each of
+    these, so this runs with assume_locked=True (the compile releases the lock
+    when done). Opens its own session; best-effort, failures logged.
+    """
+    from app.database import async_session_maker
+    from app.services.dspy_compiler import compile_for_tenant
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
+
+    try:
+        tid = UUID(tenant_id_str) if tenant_id_str else None
+        async with async_session_maker() as session:
+            results = await compile_for_tenant(session, tid, agent_types, assume_locked=True)
+            _logger.info(f"Manual DSPy compile finished tenant={tenant_id_str}: {results}")
+    except Exception as e:
+        _logger.error(f"Background DSPy compile failed for tenant {tenant_id_str}: {e}")
+
+
 @router.post("/verify")
 async def verify_extraction_item(
     body: VerifyExtractionRequest,
@@ -297,23 +318,45 @@ async def auto_approve_all(
 async def compile_dspy_programs(
     tenant_id: CurrentTenantId,
     current_user: AdminUser,
+    background_tasks: BackgroundTasks,
     agent_types: Optional[list[str]] = None,
-    db: AsyncSession = Depends(get_db),
 ):
-    """Compile DSPy extraction programs from golden set verifications.
+    """Kick off DSPy compilation from golden-set verifications (runs in background).
 
-    Uses verified golden set data to optimize extraction prompts via
-    DSPy's BootstrapFewShot optimizer. Requires at least 3 verified
-    examples per agent type.
+    Compilation runs DSPy's BootstrapFewShot optimizer (multiple LLM calls per
+    agent) and can take a while, so it is dispatched as a background task rather
+    than blocking the request. Per agent the response reports:
+      - "started"     — a compile was enqueued (poll /compile/status for progress),
+      - "in_progress" — a compile for that agent was already running,
+      - "error"       — unknown agent type.
+    Poll GET /compile/status; each program's ``compiling`` flag clears when done.
 
     Super admin compiles global programs; tenant admin compiles tenant-specific.
     """
-    from app.services.dspy_compiler import compile_for_tenant
-    try:
-        results = await compile_for_tenant(db, tenant_id, agent_types)
-        return {"tenant_id": str(tenant_id) if tenant_id else "global", "results": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Compilation failed: {e}")
+    from app.services.dspy_compiler import DSPY_AGENT_TYPES, acquire_compile_lock
+
+    requested = agent_types or DSPY_AGENT_TYPES
+    results: dict[str, dict] = {}
+    to_run: list[str] = []
+    for agent in requested:
+        if agent not in DSPY_AGENT_TYPES:
+            results[agent] = {"status": "error", "message": f"Unknown agent type: {agent}"}
+            continue
+        # Acquire the lock synchronously so a status poll immediately after this
+        # response already reflects "compiling" (no race); the background task
+        # runs with assume_locked=True and releases it when finished.
+        if acquire_compile_lock(tenant_id, agent):
+            results[agent] = {"status": "started"}
+            to_run.append(agent)
+        else:
+            results[agent] = {"status": "in_progress", "message": "Already compiling"}
+
+    if to_run:
+        background_tasks.add_task(
+            _bg_compile, str(tenant_id) if tenant_id else None, to_run
+        )
+
+    return {"tenant_id": str(tenant_id) if tenant_id else "global", "results": results}
 
 
 @router.get("/compile/status")

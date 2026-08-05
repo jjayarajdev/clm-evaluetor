@@ -465,6 +465,7 @@ async def compile_for_tenant(
     db: AsyncSession,
     tenant_id: UUID | None,
     agent_types: list[str] | None = None,
+    assume_locked: bool = False,
 ) -> dict:
     """Compile DSPy programs for a tenant using their golden set data.
 
@@ -472,6 +473,10 @@ async def compile_for_tenant(
         db: Database session.
         tenant_id: Tenant UUID (None for global compilation).
         agent_types: Which agents to compile. Defaults to all four.
+        assume_locked: When True the caller already holds the per-(tenant, agent)
+            compile lock (the /compile endpoint acquires it before scheduling this
+            as a background task); skip re-acquiring but still release in finally,
+            so the lock spans the whole started operation with no race window.
 
     Returns:
         Status dict with results per agent type.
@@ -496,8 +501,9 @@ async def compile_for_tenant(
             continue
 
         # Per-agent lock so a manual compile and an auto-recompile can't
-        # race for the same compiled file.
-        if not acquire_compile_lock(tenant_id, agent_type):
+        # race for the same compiled file. Skipped when the caller already
+        # holds it (assume_locked) — the lock is still released in finally.
+        if not assume_locked and not acquire_compile_lock(tenant_id, agent_type):
             results[agent_type] = {
                 "status": "in_progress",
                 "message": "Another compile is already running for this agent",

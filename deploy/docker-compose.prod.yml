@@ -71,8 +71,14 @@ services:
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_JSON: "true"
+
+      # DSPy compiled programs — persisted on a named volume so they survive
+      # image rebuilds/deploys (otherwise every deploy reverts agents to
+      # generic prompts).
+      DSPY_COMPILED_DIR: /app/storage/dspy_compiled
     volumes:
       - uploads_data:/app/data/uploads
+      - dspy_data:/app/storage/dspy_compiled
       # NOTE: No local ChromaDB volume - all vector data goes to the chromadb service
       # This prevents data inconsistency between two separate databases
     healthcheck:
@@ -104,3 +110,4 @@ volumes:
   postgres_data:
   chroma_data:
   uploads_data:
+  dspy_data:

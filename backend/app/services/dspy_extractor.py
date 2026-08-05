@@ -44,8 +44,12 @@ from app.agents.base import extract_json_from_response
 
 logger = logging.getLogger(__name__)
 
-# Where compiled programs are stored
-COMPILED_DIR = Path(os.environ.get("DSPY_COMPILED_DIR", "data/dspy_compiled"))
+# Where compiled programs (and their .compiling lock sentinels) are stored.
+# This MUST be a persistent path — a container-local dir is wiped on every image
+# rebuild/deploy, silently reverting every agent to generic prompts. Defaults
+# under storage/ which is volume-mounted in both compose files; overridable via
+# DSPY_COMPILED_DIR.
+COMPILED_DIR = Path(os.environ.get("DSPY_COMPILED_DIR", "storage/dspy_compiled"))
 COMPILED_DIR.mkdir(parents=True, exist_ok=True)
 
 

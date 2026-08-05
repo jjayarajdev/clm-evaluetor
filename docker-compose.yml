@@ -73,6 +73,8 @@ services:
       # Storage
       UPLOAD_DIR: /app/storage/uploads
       PROCESSED_DIR: /app/storage/processed
+      # DSPy compiled programs — under the mounted volume so they survive rebuilds
+      DSPY_COMPILED_DIR: /app/storage/dspy_compiled
     ports:
       - "8000:8000"
     volumes:

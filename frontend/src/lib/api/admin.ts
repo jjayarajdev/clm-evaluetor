@@ -1175,7 +1175,10 @@ export interface DspyCompilationStatus {
 }
 
 export interface DspyCompileResult {
-  status: 'compiled' | 'skipped' | 'error' | 'in_progress'
+  // 'started' = compile enqueued in the background (poll /compile/status);
+  // 'in_progress' = one was already running for that agent; 'compiled'/'skipped'
+  // only come from auto-recompile summaries / the legacy synchronous path.
+  status: 'started' | 'compiled' | 'skipped' | 'error' | 'in_progress'
   message?: string
   examples?: number
   path?: string
