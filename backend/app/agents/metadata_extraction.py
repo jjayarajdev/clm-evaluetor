@@ -944,6 +944,23 @@ async def update_contract_metadata(
         if mapped_type:  # None only for empty input — leave existing value intact
             contract.contract_type = mapped_type
 
+    # Filename structural correction — runs for EVERY upload (even when the model
+    # returned no type), so a subordinate document (schedule/exhibit/allonge) is
+    # never left mis-typed as a master. A master mis-type poisons family root
+    # selection and counterparty-master linking, so this is part of the pipeline,
+    # not a one-off cleanup.
+    from app.services.contract_types import structural_contract_type_from_filename
+
+    corrected_type = structural_contract_type_from_filename(
+        contract.filename, contract.contract_type
+    )
+    if corrected_type and corrected_type != contract.contract_type:
+        logger.info(
+            f"Filename structural correction: contract_type "
+            f"'{contract.contract_type}' -> '{corrected_type}' ({contract.filename})"
+        )
+        contract.contract_type = corrected_type
+
     # Helper to check if a value matches any excluded party (the uploader's org)
     def _is_excluded_party(value: str) -> bool:
         if not excluded_parties or not value:

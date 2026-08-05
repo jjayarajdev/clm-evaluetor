@@ -331,3 +331,62 @@ def canonical_contract_type(raw: str | None) -> str | None:
             return code
 
     return "other"
+
+
+# Master contract types — the ones that anchor a family. A structural document
+# (schedule, exhibit, allonge) mis-classified as one of these poisons family
+# root selection and counterparty-master linking, so the pipeline downgrades it.
+MASTER_CONTRACT_TYPES: frozenset[str] = frozenset(
+    {"msa", "service_agreement", "supply_agreement", "vendor_agreement", "csa"}
+)
+
+# Decisive filename signals. A file named "…allonge #1…" IS an amendment; a file
+# named "Schedule 13 …" IS a schedule — no matter what the model guessed. Anchored
+# to the start (or a word boundary for amendments) to stay high-precision.
+_FILENAME_AMENDMENT_RE = re.compile(
+    r"\b(allonge|avenant|addend(?:um|a)|amendment|wijziging|nachtrag)\b",
+    re.IGNORECASE,
+)
+_FILENAME_SOW_RE = re.compile(
+    # c?sow\d* so a fused document number (CSOW0004949) still matches.
+    r"^\s*(c?sow\d*|statement\s+of\s+work|change\s+order|work\s+order)\b",
+    re.IGNORECASE,
+)
+_FILENAME_ATTACHMENT_RE = re.compile(
+    r"^\s*(schedules?|exhibits?|attachments?|annex(?:es|ure)?|appendix|appendices)\b",
+    re.IGNORECASE,
+)
+
+
+def structural_contract_type_from_filename(
+    filename: str | None, current_type: str | None = None
+) -> str | None:
+    """Correct a contract type from a decisive filename signal, else None.
+
+    Two high-precision corrections that keep families well-formed:
+
+    * A filename naming an amendment/allonge/addendum/avenant → ``amendment``
+      (a document named that simply *is* an amendment).
+    * A filename naming a schedule/exhibit/attachment/SOW, when the model typed
+      the document as a MASTER agreement → the structural type. Only the harmful
+      master mis-classification is overridden; a correct specific type the model
+      already assigned (pricing, governance, sla, ...) is left untouched.
+
+    Returns the corrected canonical type, or None to keep ``current_type``.
+    Idempotent — re-running never changes an already-corrected value.
+    """
+    if not filename or not filename.strip():
+        return None
+    name = filename.strip()
+    current = (current_type or "").strip().lower()
+
+    if _FILENAME_AMENDMENT_RE.search(name) and current != "amendment":
+        return "amendment"
+
+    if current in MASTER_CONTRACT_TYPES:
+        if _FILENAME_SOW_RE.match(name):
+            return "sow"
+        if _FILENAME_ATTACHMENT_RE.match(name):
+            return "schedule"
+
+    return None
