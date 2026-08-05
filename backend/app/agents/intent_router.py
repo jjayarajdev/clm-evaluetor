@@ -167,6 +167,93 @@ def detect_intent(question: str) -> str:
     return "document_qa"
 
 
+# Aggregate/count/list questions must ALWAYS be answered from the database — RAG
+# can only see a retrieval sample and will under-count. These phrasings mark a
+# question as an aggregate so it can never fall through to document Q&A.
+_AGGREGATE_MARKERS = (
+    "how many", "how much", "number of", "count", "total", "list all", "list my",
+    "how many of", "sum of", "average", "count of",
+    # French
+    "combien", "nombre de", "total de", "liste de", "liste des", "montant total",
+    "moyenne", "somme",
+)
+
+
+def is_aggregate_question(question: str) -> bool:
+    """True if the question asks for a count/total/list — a DB question by nature."""
+    q = _strip_accents(question.lower().strip())
+    return any(m in q for m in _AGGREGATE_MARKERS)
+
+
+# The intents the LLM planner may choose. Keep in sync with STRUCTURED_INTENTS
+# (+ document_qa for free-text). Descriptions steer the classification.
+_INTENT_CATALOG = {
+    "portfolio": "counts, totals, portfolio value, listing/summarising contracts",
+    "renewals": "renewals, expirations, notice periods, what expires when",
+    "obligations": "obligations, deadlines, what's due or overdue",
+    "risk": "risk levels, risk scores, riskiest contracts, risk overview",
+    "sla": "SLA performance, breaches, service-level metrics/status",
+    "document_qa": "the meaning/wording of a specific document's text (clauses, provisions)",
+}
+
+_PLANNER_PROMPT = (
+    "You route a user's question about their contract portfolio to the right "
+    "answer engine. Reply with ONLY a JSON object: {\"intent\": \"<one-of>\"}.\n\n"
+    "Intents:\n"
+    + "\n".join(f"- {k}: {v}" for k, v in _INTENT_CATALOG.items())
+    + "\n\nRules:\n"
+    "- Any question asking HOW MANY / TOTAL / COUNT / LIST / WHICH across the "
+    "portfolio is a structured intent (portfolio/renewals/obligations/risk/sla), "
+    "NEVER document_qa.\n"
+    "- Use document_qa ONLY when the user asks what a specific document says or "
+    "means (clause wording, definitions, provisions).\n"
+    "- Singular vs plural, typos, and language (English/French) must not change "
+    "the intent.\n"
+)
+
+
+async def resolve_intent(question: str, contract_id: str | None, language: str = "en") -> str:
+    """Final intent for a question. Keyword matching is the fast path; on a miss
+    (document_qa) for a portfolio-scoped chat, the temp-0 LLM planner decides, and
+    a 'how many/total/list' question is forced to the portfolio aggregation so it
+    can never be answered by RAG. A document-scoped chat always uses RAG."""
+    if contract_id:
+        return "document_qa"  # scoped to one document → RAG on it, never portfolio
+    intent = detect_intent(question)
+    if intent == "document_qa":
+        llm_intent = await classify_intent_llm(question, language)
+        if llm_intent != "document_qa":
+            return llm_intent
+        if is_aggregate_question(question):
+            return "portfolio"
+    return intent
+
+
+async def classify_intent_llm(question: str, language: str = "en") -> str:
+    """Robust intent classification via the LLM (temperature 0). Falls back to the
+    keyword result on any error. Used when keyword matching returns document_qa —
+    exactly where brittle phrasing (singular/plural/typo) misroutes count questions."""
+    valid = set(_INTENT_CATALOG.keys())
+    try:
+        from app.core.llm import get_async_openai
+        client = get_async_openai()
+        resp = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": _PLANNER_PROMPT},
+                {"role": "user", "content": question[:500]},
+            ],
+            temperature=0,
+            max_tokens=20,
+            response_format={"type": "json_object"},
+        )
+        intent = (json.loads(resp.choices[0].message.content) or {}).get("intent", "")
+        return intent if intent in valid else "document_qa"
+    except Exception as e:  # noqa: BLE001 — never fail the query on the router
+        logger.warning(f"LLM intent planner failed, keeping keyword result: {e}")
+        return detect_intent(question)
+
+
 # ---------------------------------------------------------------------------
 # LLM enhancement: follow-ups + adaptive visualizations
 # ---------------------------------------------------------------------------

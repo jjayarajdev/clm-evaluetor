@@ -49,6 +49,7 @@ interface Message {
   followUps?: string[]
   visualizations?: Visualization[]
   confidence?: number
+  answerSource?: QueryResponse['answer_source']
 }
 
 // --------------- Constants ---------------
@@ -562,6 +563,7 @@ export default function QueryPage() {
         followUps: response.follow_up_questions,
         visualizations: response.visualizations,
         confidence: response.confidence,
+        answerSource: response.answer_source,
       }
       setMessages(prev => [...prev, assistantMsg])
 
@@ -717,6 +719,22 @@ export default function QueryPage() {
                       <div className="card card-p col" style={{ gap: 12 }}>
                         <div className="row" style={{ justifyContent: 'space-between' }}>
                           <AiTag>{t('query.aiAnswer', { defaultValue: 'AI answer' })}</AiTag>
+                          {message.answerSource && (
+                            <Tooltip
+                              side="top"
+                              label={
+                                message.answerSource === 'portfolio_data'
+                                  ? t('query.sourcePortfolioHint', { defaultValue: 'Answered from an exact query over your portfolio data.' })
+                                  : t('query.sourceDocumentsHint', { defaultValue: 'Answered from retrieved document text (may not cover your whole portfolio).' })
+                              }
+                            >
+                              <Pill tone={message.answerSource === 'portfolio_data' ? 'ok' : 'n'} dot>
+                                {message.answerSource === 'portfolio_data'
+                                  ? t('query.sourcePortfolio', { defaultValue: 'Portfolio data' })
+                                  : t('query.sourceDocuments', { defaultValue: 'Documents' })}
+                              </Pill>
+                            </Tooltip>
+                          )}
                         </div>
                         <div className={MD_CLASS} style={{ fontSize: 'var(--fs-md)' }}>
                           <ReactMarkdown>{message.content}</ReactMarkdown>

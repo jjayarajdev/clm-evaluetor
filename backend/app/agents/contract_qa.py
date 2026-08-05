@@ -36,6 +36,8 @@ class QAResponse(BaseModel):
     visualizations: list[dict] = []
     clarification_needed: bool = False
     clarification_prompt: str | None = None
+    # Which engine answered: 'portfolio_data' (exact DB query) or 'documents' (RAG).
+    answer_source: str = "documents"
 
 
 CONTRACT_QA_PROMPT = """You are a Contract Q&A specialist with access to contract documents. Your role is to answer questions about contracts accurately and helpfully.
@@ -109,11 +111,12 @@ async def ask_question(
     Returns:
         QAResponse with answer and sources.
     """
-    from app.agents.intent_router import detect_intent, handle_structured_query
+    from app.agents.intent_router import handle_structured_query, resolve_intent
 
-    # Step 1: Detect intent
-    intent = detect_intent(question)
-    logger.info(f"Q&A intent detected: '{intent}' for question: {question[:80]}")
+    # Step 1: Resolve intent (keyword fast-path → temp-0 LLM planner → aggregate
+    # backstop). This is what stops a count question misrouting into RAG.
+    intent = await resolve_intent(question, contract_id, language)
+    logger.info(f"Q&A intent resolved: '{intent}' for question: {question[:80]}")
 
     # Step 2: Try structured query for non-document intents.
     # When the user has scoped the chat to a specific document, always use
@@ -141,6 +144,7 @@ async def ask_question(
                         sources=[],
                         follow_up_questions=result.get("follow_up_questions", []),
                         visualizations=result.get("visualizations", []),
+                        answer_source="portfolio_data",
                     )
         except Exception as e:
             logger.warning(f"Structured query failed, falling back to RAG: {e}")

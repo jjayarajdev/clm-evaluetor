@@ -52,6 +52,8 @@ class QueryResponse(BaseModel):
     follow_up_questions: list[str]
     session_id: str
     visualizations: list[Visualization] = []
+    # Which engine answered: 'portfolio_data' (exact DB query) or 'documents' (RAG).
+    answer_source: str = "documents"
 
 
 class SuggestionsResponse(BaseModel):
@@ -152,6 +154,7 @@ async def query_contracts(
             follow_up_questions=result.follow_up_questions,
             session_id=session_id,
             visualizations=visualizations,
+            answer_source=getattr(result, "answer_source", "documents"),
         )
 
     except Exception as e:
