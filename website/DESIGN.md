@@ -267,6 +267,7 @@ default. Documented here so it survives future audits.
 | 2026-05-31 | Added FAQ entry "How is perception gap actually measured" (surveys, KPI inputs, communication signals) | Steven Visser review slide 5 critical observation — page was hand-waving around perception gap measurement. |
 | 2026-05-31 | Added ICP statement to PRODUCT.md (first-wave customer profile: €20M-€500M ACV, procurement-led, EU mid-large, high SLA spend, structured contracts, pain signal). Sharpened trust strip from generic to ICP-aligned. | Steven Visser review slide 5/6 — target market was too wide; no clear ICP. |
 | 2026-05-31 | Added "Cost of doing nothing" callout above the final CTA (€1.5M-€2M/year on €50M portfolio) | Steven Visser review slide 8 — CFO negotiation playbook framing; cost-of-inaction belongs near the CTA, not just in internal sales script. |
+| 2026-08-05 | "Senority B.V." → "Evaluetor B.V." in legal pages (terms + privacy) and PRODUCT.md | Steven Visser review — legal entity references were missed in the 2026-05-31 rename; legal pages and colophon must all read Evaluetor B.V. |
 
 ---
 

@@ -492,7 +492,16 @@ export default function ContractsPage() {
               icon={MagnifyingGlassIcon}
               placeholder={t('contracts.searchPlaceholder')}
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value
+                setSearchInput(v)
+                // Clearing the box should immediately restore the full list —
+                // don't make the user press Enter on an empty query.
+                if (v.trim() === '' && search !== '') {
+                  setSearch('')
+                  setPage(1)
+                }
+              }}
             />
           </form>
           <Select

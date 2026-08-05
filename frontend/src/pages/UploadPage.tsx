@@ -156,7 +156,12 @@ export default function UploadPage() {
     queryKey: ['contract-groups', 'upload-picker'],
     queryFn: () => api.getGroups({ page_size: 100 }),
   })
+  // Dedupe by name — several group records can share a name (e.g. one per
+  // upload batch), and the datalist should offer each distinct name once.
   const groups = groupsData?.items ?? []
+  const groupNameOptions = Array.from(
+    new Map(groups.map((g) => [g.name.toLowerCase(), g.name])).values(),
+  )
 
   // Create new client mutation
   const createClientMutation = useMutation({
@@ -300,8 +305,8 @@ export default function UploadPage() {
               }
             />
             <datalist id="upload-group-options">
-              {groups.map((g) => (
-                <option key={g.id} value={g.name} />
+              {groupNameOptions.map((name) => (
+                <option key={name} value={name} />
               ))}
             </datalist>
           </div>

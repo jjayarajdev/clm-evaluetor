@@ -13,7 +13,7 @@ on the post-signature value zone. We extract obligations, SLAs, risks and
 renewal terms automatically; compare contracted terms against operational
 reality; and surface the gap before value leaks out.
 
-Built in Rotterdam by Senority B.V. Operating since 2024.
+Built in Rotterdam by Evaluetor B.V. Operating since 2024.
 
 ## Audience
 
