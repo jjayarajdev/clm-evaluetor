@@ -258,7 +258,7 @@ class ContractService:
 
         return search_results
 
-    async def delete_contract(self, contract_id: str) -> bool:
+    async def delete_contract(self, contract_id: str, orphan_action: str = "deactivate") -> bool:
         """Delete a contract and all associated data.
 
         Cleans up:
@@ -359,18 +359,18 @@ class ContractService:
         await self.db.delete(contract)
         await self.db.flush()
 
-        # 3b. Clean up the bridge-created org + relationship if this was the org's
-        # last contract and it carries no manual governance data. Best-effort —
-        # never let cleanup failure block the contract deletion.
-        if org_id:
+        # 3b. Apply the caller's chosen handling for a now-orphaned bridge org +
+        # relationship (keep / deactivate / delete). Only acts when this was the
+        # org's last contract. Best-effort — never block the contract deletion.
+        if org_id and orphan_action != "keep":
             try:
-                from app.services.governance_cleanup import cleanup_orphaned_org_for_contract
+                from app.services.governance_cleanup import handle_orphaned_org
 
-                summary = await cleanup_orphaned_org_for_contract(self.db, org_id)
-                if summary.get("org_deleted") or summary.get("relationships_deleted"):
-                    logger.info("Cleaned up orphaned governance entities", contract_id=contract_id, **summary)
+                summary = await handle_orphaned_org(self.db, org_id, orphan_action)
+                if summary.get("org_deleted") or summary.get("org_deactivated"):
+                    logger.info("Handled orphaned governance entities", contract_id=contract_id, **summary)
             except Exception as e:
-                logger.warning("Orphaned-org cleanup skipped", contract_id=contract_id, error=str(e))
+                logger.warning("Orphaned-org handling skipped", contract_id=contract_id, error=str(e))
 
         # 4. Delete physical file and folder from disk
         if file_path:

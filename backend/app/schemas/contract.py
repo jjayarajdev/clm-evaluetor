@@ -124,6 +124,11 @@ class ContractResponse(BaseModel):
     family_count: int = 0
     version_count: int = 0
     comment_count: int = 0
+    # Counterparty organization + how many contracts share it (drives the
+    # "what happens to the org on delete" choice — 1 means this is the last).
+    organization_id: str | None = None
+    organization_name: str | None = None
+    org_contract_count: int = 0
 
     # Timestamps
     created_at: datetime

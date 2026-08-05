@@ -120,6 +120,10 @@ export interface Contract extends ContractSummary {
   family_count: number
   version_count: number
   comment_count: number
+  // Counterparty org + contracts sharing it (drives the delete-orphan choice).
+  organization_id?: string | null
+  organization_name?: string | null
+  org_contract_count?: number
   custom_fields: Record<string, unknown>
   extraction_health?: Record<string, ExtractionStageOutcome> | null
   metadata_provenance?: Record<string, MetadataProvenance> | null

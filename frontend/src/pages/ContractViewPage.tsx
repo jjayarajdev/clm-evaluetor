@@ -35,7 +35,7 @@ import {
 import type { ExtractionStageOutcome, MetadataProvenance, ObligationItem, ContractCommentItem, VersionInfo } from '@/types'
 import api from '@/lib/api'
 import { client as apiClient } from '@/lib/api/client'
-import { reExtractMetadataField, type ReExtractableField } from '@/lib/api/contracts'
+import { reExtractMetadataField, type ReExtractableField, type OrphanAction } from '@/lib/api/contracts'
 import { getIndustryProfiles } from '@/lib/api/admin'
 import type { HighlightRect } from '@/lib/api/contracts'
 import {
@@ -411,6 +411,7 @@ export default function ContractViewPage() {
   const { toast } = useToast()
   const { config, contractTypeLabel, uiLabel } = useTenantConfig()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [orphanAction, setOrphanAction] = useState<OrphanAction>('deactivate')
 
   // Source-provenance drawer state (which metadata field is open)
   const [srcField, setSrcField] = useState<{
@@ -460,10 +461,11 @@ export default function ContractViewPage() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => api.deleteContract(id!),
+    mutationFn: () => api.deleteContract(id!, orphanAction),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] })
       queryClient.invalidateQueries({ queryKey: ['contracts-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['organizations'] })
       navigate('/contracts')
     },
     onError: () => {
@@ -706,7 +708,39 @@ export default function ContractViewPage() {
       <ConfirmDialog
         open={showDeleteConfirm}
         title={t('contract.deleteTitle', { defaultValue: 'Delete this contract?' })}
-        body={t('contract.deleteBody', { defaultValue: 'This permanently removes the document and everything the pipeline extracted from it.' })}
+        body={
+          <span className="col" style={{ gap: 12 }}>
+            <span>{t('contract.deleteBody', { defaultValue: 'This permanently removes the document and everything the pipeline extracted from it.' })}</span>
+            {/* Only when this is the counterparty org's last contract — deleting
+                it would otherwise orphan the org + relationship. */}
+            {contract.organization_id && (contract.org_contract_count ?? 0) <= 1 && (
+              <span className="col" style={{ gap: 6, padding: 12, borderRadius: 'var(--r-md)', background: 'var(--s2)' }}>
+                <span className="sec-t">
+                  {t('contract.orphanOrgHeading', {
+                    org: contract.organization_name || t('contract.theOrganization', { defaultValue: 'the organization' }),
+                    defaultValue: 'This is the last contract for {{org}}',
+                  })}
+                </span>
+                {([
+                  ['deactivate', t('contract.orphanDeactivate', { defaultValue: 'Deactivate it — keep the organization & relationship (and their KPIs/scores) but mark inactive. Reversible.' })],
+                  ['delete', t('contract.orphanDelete', { defaultValue: 'Delete it completely — remove the organization, relationship, KPIs, scores and history.' })],
+                  ['keep', t('contract.orphanKeep', { defaultValue: 'Leave it active as-is.' })],
+                ] as const).map(([val, label]) => (
+                  <label key={val} className="row" style={{ gap: 8, alignItems: 'flex-start', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="orphan-action"
+                      checked={orphanAction === val}
+                      onChange={() => setOrphanAction(val)}
+                      style={{ marginTop: 3, accentColor: 'var(--p)' }}
+                    />
+                    <span style={{ fontSize: 'var(--fs-sm)' }}>{label}</span>
+                  </label>
+                ))}
+              </span>
+            )}
+          </span>
+        }
         affected={[
           contract.filename,
           t('contract.deleteAffected', { defaultValue: 'All extracted clauses, obligations, SLAs and risk analysis' }),

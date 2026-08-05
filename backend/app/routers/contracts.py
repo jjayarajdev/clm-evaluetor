@@ -1853,6 +1853,7 @@ async def process_single_contract(
 def contract_to_response(
     contract, clause_count=None, obligation_count=None, sla_count=None,
     risk_count=0, family_count=0, version_count=0, comment_count=0,
+    organization_id=None, organization_name=None, org_contract_count=0,
 ) -> ContractResponse:
     """Convert Contract model to ContractResponse schema."""
     # Use explicit counts if provided, otherwise try loaded relationships
@@ -1893,6 +1894,9 @@ def contract_to_response(
         family_count=family_count,
         version_count=version_count,
         comment_count=comment_count,
+        organization_id=organization_id,
+        organization_name=organization_name,
+        org_contract_count=org_contract_count,
         created_at=contract.created_at,
         updated_at=contract.updated_at,
     )
@@ -2778,6 +2782,19 @@ async def get_contract(
     # All tab-badge counts (relationships may not be loaded after commit)
     counts = await _contract_tab_counts(db, contract.id)
 
+    # Counterparty org + how many contracts share it (for the delete choice)
+    org_id = org_name = None
+    org_ct = 0
+    if contract.organization_id:
+        from app.models.organization import Organization
+        org_id = str(contract.organization_id)
+        org_name = (await db.execute(
+            select(Organization.name).where(Organization.id == contract.organization_id)
+        )).scalar_one_or_none()
+        org_ct = (await db.execute(
+            select(func.count(Contract.id)).where(Contract.organization_id == contract.organization_id)
+        )).scalar_one() or 0
+
     # Audit log
     await log_audit(
         db=db,
@@ -2791,7 +2808,10 @@ async def get_contract(
 
     await db.commit()
 
-    return contract_to_response(contract, **counts)
+    return contract_to_response(
+        contract, **counts,
+        organization_id=org_id, organization_name=org_name, org_contract_count=org_ct,
+    )
 
 
 @router.delete("/{contract_id}", dependencies=[Depends(require_write)])
@@ -2801,23 +2821,27 @@ async def delete_contract(
     tenant_id: CurrentTenantId,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
+    orphan_action: str = Query("deactivate"),
 ) -> dict:
     """Delete a contract and all associated data.
 
-    Args:
-        contract_id: Contract ID to delete.
-        current_user: Authenticated user.
-        tenant_id: Current tenant ID (None for super-admin).
-        request: FastAPI request for audit logging.
-        db: Database session.
-
-    Returns:
-        Confirmation message.
+    orphan_action controls what happens to the counterparty's bridge-created
+    organization + relationship IF this was the org's last contract:
+    'keep' (leave active), 'deactivate' (mark inactive, preserve data — default),
+    or 'delete' (cascade-remove org + relationship). No-op when the org still has
+    other contracts.
     """
     from app.services.contracts import ContractService
+    from app.services.governance_cleanup import ORPHAN_ACTIONS
+
+    if orphan_action not in ORPHAN_ACTIONS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"orphan_action must be one of {ORPHAN_ACTIONS}",
+        )
 
     service = await _make_contract_service(db, current_user, tenant_id)
-    deleted = await service.delete_contract(contract_id)
+    deleted = await service.delete_contract(contract_id, orphan_action=orphan_action)
 
     if not deleted:
         raise HTTPException(

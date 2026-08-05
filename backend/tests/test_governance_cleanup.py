@@ -19,8 +19,8 @@ from app.models.organization import Organization
 from app.models.relationship import BusinessRelationship
 from app.models.kpi import KPI, PerceptionScore
 from app.services.governance_cleanup import (
-    cleanup_orphaned_org_for_contract,
     delete_relationship_cascade,
+    handle_orphaned_org,
     relationship_has_manual_data,
 )
 
@@ -82,27 +82,52 @@ async def _internal_and_vendor(db, *, with_score=False):
 
 
 @pytest.mark.asyncio
-async def test_orphan_cleanup_removes_org_and_relationship(db):
+async def test_orphan_delete_removes_org_and_relationship(db):
     internal, vendor, rel = await _internal_and_vendor(db)
-    # Vendor has no contracts → orphaned → cleaned up.
-    summary = await cleanup_orphaned_org_for_contract(db, vendor.id)
+    summary = await handle_orphaned_org(db, vendor.id, "delete")
     assert summary["org_deleted"] is True
     assert summary["relationships_deleted"] == 1
     assert (await db.execute(select(func.count(Organization.id)).where(Organization.id == vendor.id))).scalar_one() == 0
     assert (await db.execute(select(func.count(BusinessRelationship.id)).where(BusinessRelationship.id == rel.id))).scalar_one() == 0
-    # The internal org is NOT deleted (it's the other party, not the orphan target).
+    # The internal org (other party) is untouched.
     assert (await db.execute(select(func.count(Organization.id)).where(Organization.id == internal.id))).scalar_one() == 1
 
 
 @pytest.mark.asyncio
-async def test_orphan_cleanup_preserves_manual_governance_data(db):
+async def test_orphan_deactivate_keeps_records(db):
     internal, vendor, rel = await _internal_and_vendor(db, with_score=True)
-    summary = await cleanup_orphaned_org_for_contract(db, vendor.id)
-    assert summary["kept_manual"] is True
-    assert summary["org_deleted"] is False
-    # Everything preserved.
+    summary = await handle_orphaned_org(db, vendor.id, "deactivate")
+    assert summary["org_deactivated"] is True
+    assert summary["relationships_terminated"] == 1
+    # Org + relationship + score all preserved, just inactive/terminated.
+    v = await db.get(Organization, vendor.id)
+    r = await db.get(BusinessRelationship, rel.id)
+    assert v.is_active is False
+    assert r.status == "terminated"
+    assert (await db.execute(select(func.count(PerceptionScore.id)))).scalar_one() == 1
+
+
+@pytest.mark.asyncio
+async def test_orphan_keep_does_nothing(db):
+    _, vendor, rel = await _internal_and_vendor(db)
+    summary = await handle_orphaned_org(db, vendor.id, "keep")
+    assert summary["org_deleted"] is False and summary["org_deactivated"] is False
+    v = await db.get(Organization, vendor.id)
+    assert v.is_active is True
+
+
+@pytest.mark.asyncio
+async def test_orphan_action_noop_when_org_still_has_contracts(db):
+    from app.models.contract import Contract, ContractStatus
+    _, vendor, _ = await _internal_and_vendor(db)
+    db.add(Contract(
+        id=uuid.uuid4(), tenant_id=TID, organization_id=vendor.id, filename="c.pdf",
+        file_path="/x", uploaded_by=uuid.uuid4(), status=ContractStatus.COMPLETED,
+    ))
+    await db.flush()
+    summary = await handle_orphaned_org(db, vendor.id, "delete")
+    assert summary["org_deleted"] is False  # still referenced by a contract
     assert (await db.execute(select(func.count(Organization.id)).where(Organization.id == vendor.id))).scalar_one() == 1
-    assert (await db.execute(select(func.count(BusinessRelationship.id)).where(BusinessRelationship.id == rel.id))).scalar_one() == 1
 
 
 @pytest.mark.asyncio

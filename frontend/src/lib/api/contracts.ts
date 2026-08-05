@@ -56,8 +56,10 @@ export async function getContract(id: string): Promise<Contract> {
   return response.data
 }
 
-export async function deleteContract(id: string): Promise<void> {
-  await client.delete(`/contracts/${id}`)
+export type OrphanAction = 'keep' | 'deactivate' | 'delete'
+
+export async function deleteContract(id: string, orphanAction: OrphanAction = 'deactivate'): Promise<void> {
+  await client.delete(`/contracts/${id}`, { params: { orphan_action: orphanAction } })
 }
 
 export async function batchDeleteContracts(contractIds: string[]): Promise<{

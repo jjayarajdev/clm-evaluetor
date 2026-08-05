@@ -91,32 +91,37 @@ async def delete_relationship_cascade(db: AsyncSession, rel_id: UUID) -> None:
     await db.execute(sa_delete(BusinessRelationship).where(BusinessRelationship.id == rel_id))
 
 
-async def cleanup_orphaned_org_for_contract(db: AsyncSession, org_id: UUID) -> dict:
-    """After a contract delete, remove the bridge-created org + relationship if the
-    org is now orphaned (no contracts, no subsidiaries) and its relationships carry
-    no manual governance data. Best-effort, no commit. Returns a summary.
+ORPHAN_ACTIONS = ("keep", "deactivate", "delete")
 
-    Relationships WITH manual data are preserved (so is the org), rather than
-    silently wiping user-entered scores/surveys/improvements.
+
+async def handle_orphaned_org(db: AsyncSession, org_id: UUID, action: str) -> dict:
+    """Apply the user's chosen action to an org that a just-deleted contract may
+    have orphaned. Best-effort, no commit. Returns a summary.
+
+    Acts only when the org has no remaining contracts (else it's still in use):
+    - 'keep'       : do nothing (org + relationships stay active).
+    - 'deactivate' : mark the org inactive and terminate its relationships,
+                     preserving every record + governance datum (reversible).
+    - 'delete'     : cascade-delete the org + relationships (and their KPIs,
+                     scores, history). Subsidiaries downgrade this to deactivate
+                     (a parent with children is never hard-deleted).
     """
     from app.models.contract import Contract
     from app.models.organization import Organization
     from app.models.organization_officer import OrganizationOfficer
     from app.models.relationship import BusinessRelationship
 
-    summary = {"org_deleted": False, "relationships_deleted": 0, "kept_manual": False}
+    summary = {"action": action, "org_deleted": False, "org_deactivated": False,
+               "relationships_deleted": 0, "relationships_terminated": 0}
+
+    if action == "keep":
+        return summary
 
     remaining = (await db.execute(
         select(func.count(Contract.id)).where(Contract.organization_id == org_id)
     )).scalar_one()
     if remaining > 0:
         return summary  # org still in use by other contracts
-
-    subsidiaries = (await db.execute(
-        select(func.count(Organization.id)).where(Organization.parent_organization_id == org_id)
-    )).scalar_one()
-    if subsidiaries > 0:
-        return summary  # part of a hierarchy — leave it
 
     rel_ids = [
         r for (r,) in (await db.execute(
@@ -125,14 +130,29 @@ async def cleanup_orphaned_org_for_contract(db: AsyncSession, org_id: UUID) -> d
             )
         )).all()
     ]
-    for rid in rel_ids:
-        if await relationship_has_manual_data(db, rid):
-            summary["kept_manual"] = True
-            return summary  # preserve everything; don't half-delete
-        await delete_relationship_cascade(db, rid)
-        summary["relationships_deleted"] += 1
+    subsidiaries = (await db.execute(
+        select(func.count(Organization.id)).where(Organization.parent_organization_id == org_id)
+    )).scalar_one()
 
-    await db.execute(sa_delete(OrganizationOfficer).where(OrganizationOfficer.organization_id == org_id))
-    await db.execute(sa_delete(Organization).where(Organization.id == org_id))
-    summary["org_deleted"] = True
+    if action == "delete" and subsidiaries == 0:
+        for rid in rel_ids:
+            await delete_relationship_cascade(db, rid)
+            summary["relationships_deleted"] += 1
+        await db.execute(sa_delete(OrganizationOfficer).where(OrganizationOfficer.organization_id == org_id))
+        await db.execute(sa_delete(Organization).where(Organization.id == org_id))
+        summary["org_deleted"] = True
+        return summary
+
+    # deactivate (also the fallback when a 'delete' is blocked by subsidiaries)
+    await db.execute(
+        sa_update(Organization).where(Organization.id == org_id).values(is_active=False)
+    )
+    if rel_ids:
+        await db.execute(
+            sa_update(BusinessRelationship)
+            .where(BusinessRelationship.id.in_(rel_ids))
+            .values(status="terminated")
+        )
+        summary["relationships_terminated"] = len(rel_ids)
+    summary["org_deactivated"] = True
     return summary
