@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -1850,7 +1850,10 @@ async def process_single_contract(
     )
 
 
-def contract_to_response(contract, clause_count=None, obligation_count=None, sla_count=None) -> ContractResponse:
+def contract_to_response(
+    contract, clause_count=None, obligation_count=None, sla_count=None,
+    risk_count=0, family_count=0, version_count=0, comment_count=0,
+) -> ContractResponse:
     """Convert Contract model to ContractResponse schema."""
     # Use explicit counts if provided, otherwise try loaded relationships
     _clause_count = clause_count if clause_count is not None else (len(contract.clauses) if contract.clauses else 0)
@@ -1886,9 +1889,50 @@ def contract_to_response(contract, clause_count=None, obligation_count=None, sla
         clause_count=_clause_count,
         obligation_count=_obligation_count,
         sla_count=_sla_count,
+        risk_count=risk_count,
+        family_count=family_count,
+        version_count=version_count,
+        comment_count=comment_count,
         created_at=contract.created_at,
         updated_at=contract.updated_at,
     )
+
+
+async def _contract_tab_counts(db, cid) -> dict:
+    """All contract-detail tab-badge counts for a contract id, as one dict.
+
+    Shared by the GET and PATCH handlers so both return consistent badges. Risk
+    counts high/critical clauses (no separate risk-factor table); Family vs
+    Versions split ContractLinks by link type; this contract may be parent/child.
+    """
+    from app.models.clause import Clause
+    from app.models.obligation import Obligation
+    from app.models.sla import ContractSLA
+    from app.models.contract_link import ContractLink, ContractLinkType
+    from app.models.contract_comment import ContractComment
+
+    version_types = [
+        ContractLinkType.AMENDMENT, ContractLinkType.ADDENDUM, ContractLinkType.CHANGE_ORDER,
+        ContractLinkType.MODIFICATION, ContractLinkType.RENEWAL, ContractLinkType.SUPERSEDES,
+    ]
+    touches = or_(ContractLink.parent_contract_id == cid, ContractLink.child_contract_id == cid)
+
+    async def _count(stmt):
+        return (await db.execute(stmt)).scalar() or 0
+
+    return {
+        "clause_count": await _count(select(func.count(Clause.id)).where(Clause.contract_id == cid)),
+        "obligation_count": await _count(select(func.count(Obligation.id)).where(Obligation.contract_id == cid)),
+        "sla_count": await _count(select(func.count(ContractSLA.id)).where(ContractSLA.contract_id == cid)),
+        "risk_count": await _count(select(func.count(Clause.id)).where(
+            Clause.contract_id == cid, func.lower(Clause.risk_level).in_(["high", "critical"]))),
+        "version_count": await _count(select(func.count(ContractLink.id)).where(
+            touches, ContractLink.link_type.in_(version_types))),
+        "family_count": await _count(select(func.count(ContractLink.id)).where(
+            touches, ~ContractLink.link_type.in_(version_types))),
+        "comment_count": await _count(select(func.count(ContractComment.id)).where(
+            ContractComment.contract_id == cid)),
+    }
 
 
 @router.get("/filter-options")
@@ -2717,9 +2761,6 @@ async def get_contract(
         Full contract details.
     """
     from app.services.contracts import ContractService
-    from app.models.clause import Clause
-    from app.models.obligation import Obligation
-    from app.models.sla import ContractSLA
 
     service = await _make_contract_service(db, current_user, tenant_id)
     contract = await service.get_contract(contract_id)
@@ -2730,17 +2771,8 @@ async def get_contract(
             detail=f"Contract not found: {contract_id}",
         )
 
-    # Query counts explicitly (relationships may not be loaded after commit)
-    cid = contract.id
-    clause_ct = (await db.execute(
-        select(func.count(Clause.id)).where(Clause.contract_id == cid)
-    )).scalar() or 0
-    obligation_ct = (await db.execute(
-        select(func.count(Obligation.id)).where(Obligation.contract_id == cid)
-    )).scalar() or 0
-    sla_ct = (await db.execute(
-        select(func.count(ContractSLA.id)).where(ContractSLA.contract_id == cid)
-    )).scalar() or 0
+    # All tab-badge counts (relationships may not be loaded after commit)
+    counts = await _contract_tab_counts(db, contract.id)
 
     # Audit log
     await log_audit(
@@ -2755,7 +2787,7 @@ async def get_contract(
 
     await db.commit()
 
-    return contract_to_response(contract, clause_count=clause_ct, obligation_count=obligation_ct, sla_count=sla_ct)
+    return contract_to_response(contract, **counts)
 
 
 @router.delete("/{contract_id}", dependencies=[Depends(require_write)])
@@ -3776,22 +3808,10 @@ async def update_contract_metadata(
     await db.commit()
     await db.refresh(contract)
 
-    # Get counts via subqueries to avoid lazy-loading
-    from app.models.clause import Clause
-    from app.models.obligation import Obligation
-    from app.models.sla import ContractSLA
-    from sqlalchemy import func
+    # All tab-badge counts (shared with GET so badges stay consistent post-edit)
+    counts = await _contract_tab_counts(db, contract.id)
 
-    counts = await db.execute(
-        select(
-            func.count(Clause.id).filter(Clause.contract_id == contract.id),
-            func.count(Obligation.id).filter(Obligation.contract_id == contract.id),
-            func.count(ContractSLA.id).filter(ContractSLA.contract_id == contract.id),
-        )
-    )
-    clause_ct, obligation_ct, sla_ct = counts.one()
-
-    return contract_to_response(contract, clause_count=clause_ct, obligation_count=obligation_ct, sla_count=sla_ct)
+    return contract_to_response(contract, **counts)
 
 
 @router.put("/{contract_id}/custom-fields", response_model=ContractResponse, dependencies=[Depends(require_write)])

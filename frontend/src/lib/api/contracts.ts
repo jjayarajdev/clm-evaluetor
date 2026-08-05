@@ -13,6 +13,7 @@ import type {
   MoveContractRequest,
   ContractLinksResponse,
   ContractCommentItem,
+  VersionHistoryResponse,
 } from '@/types'
 import type {
   ContractShareCreate,
@@ -361,8 +362,8 @@ export async function getContractHighlights(contractId: string): Promise<Contrac
 // Amendment/Version endpoints
 // ============================================================================
 
-export async function getContractVersions(contractId: string): Promise<unknown> {
-  const response = await client.get(`/contracts/${contractId}/versions`)
+export async function getContractVersions(contractId: string): Promise<VersionHistoryResponse> {
+  const response = await client.get<VersionHistoryResponse>(`/contracts/${contractId}/versions`)
   return response.data
 }
 

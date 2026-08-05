@@ -113,6 +113,13 @@ export interface Contract extends ContractSummary {
   clause_count: number
   obligation_count: number
   sla_count: number
+  // Counts backing the contract-detail tab badges (default 0 from backend).
+  // risk_count = clauses flagged high/critical; family_count = hierarchy/related
+  // links; version_count = amendment/version links; comment_count = comments.
+  risk_count: number
+  family_count: number
+  version_count: number
+  comment_count: number
   custom_fields: Record<string, unknown>
   extraction_health?: Record<string, ExtractionStageOutcome> | null
   metadata_provenance?: Record<string, MetadataProvenance> | null
@@ -830,4 +837,28 @@ export interface ContractCommentItem {
   created_at: string
   updated_at?: string | null
   reply_count: number
+}
+
+// Contract version / amendment history (GET /contracts/:id/versions)
+export interface VersionInfo {
+  contract_id: string
+  filename: string
+  version_number: number
+  version_label: string | null
+  effective_date: string | null
+  link_type: string | null
+  is_current: boolean
+  is_superseded: boolean
+  created_at: string
+  contract_value: number | null
+  expiration_date: string | null
+  counterparty: string | null
+}
+
+export interface VersionHistoryResponse {
+  original_contract_id: string
+  original_filename: string
+  current_version: number
+  total_versions: number
+  versions: VersionInfo[]
 }

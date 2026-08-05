@@ -117,6 +117,13 @@ class ContractResponse(BaseModel):
     clause_count: int = 0
     obligation_count: int = 0
     sla_count: int = 0
+    # Counts backing the contract-detail tab badges. risk_count = clauses flagged
+    # high/critical; family_count = hierarchy/related links; version_count =
+    # amendment/version links; comment_count = comments on the contract.
+    risk_count: int = 0
+    family_count: int = 0
+    version_count: int = 0
+    comment_count: int = 0
 
     # Timestamps
     created_at: datetime

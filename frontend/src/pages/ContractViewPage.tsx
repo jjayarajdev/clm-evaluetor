@@ -5,7 +5,7 @@
    provenance tooltip, plus a source Drawer with per-field re-extraction.
    Data fetching, mutations, permissions and tab behavior are unchanged from
    the pre-redesign page. */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type ReactNode } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -32,7 +32,7 @@ import {
   TruckIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import type { ExtractionStageOutcome, MetadataProvenance } from '@/types'
+import type { ExtractionStageOutcome, MetadataProvenance, ObligationItem, ContractCommentItem, VersionInfo } from '@/types'
 import api from '@/lib/api'
 import { client as apiClient } from '@/lib/api/client'
 import { reExtractMetadataField, type ReExtractableField } from '@/lib/api/contracts'
@@ -61,7 +61,6 @@ import CustomFieldsDisplay from '@/components/contracts/CustomFieldsDisplay'
 import SuggestedLinksPanel from '@/components/contracts/SuggestedLinksPanel'
 import ContractSharing from '@/components/contracts/ContractSharing'
 import ContractDocumentsTab from '@/components/contracts/ContractDocumentsTab'
-import ContractReviewPane from '@/components/contracts/ContractReviewPane'
 import ContractPdfViewer from '@/components/contracts/ContractPdfViewer'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
@@ -102,14 +101,22 @@ const TAB_ICON_MAP: Record<string, IconType> = {
   shield: ShieldExclamationIcon,
   truck: TruckIcon,
   graph: Square3Stack3DIcon,
+  check: CheckCircleIcon,
+  comment: ChatBubbleLeftRightIcon,
 }
 
-// Fallback tabs if config not loaded yet
+// Fallback tabs if config not loaded yet. Order matches the product prototype:
+// Metadata · Clauses · Risk · Obligations · SLAs · Family · Versions · Comments,
+// then Documents · Sharing (real features not in the mock, kept as trailing tabs).
 const DEFAULT_TABS = [
-  { id: 'overview', label: 'Overview', icon: 'document' },
-  { id: 'review', label: 'Review', icon: 'eye' },
+  { id: 'metadata', label: 'Metadata', icon: 'document' },
+  { id: 'clauses', label: 'Clauses', icon: 'eye' },
+  { id: 'risk', label: 'Risk', icon: 'shield' },
+  { id: 'obligations', label: 'Obligations', icon: 'check' },
   { id: 'slas', label: 'SLAs', icon: 'chart' },
-  { id: 'related', label: 'Related Docs', icon: 'link' },
+  { id: 'family', label: 'Family', icon: 'link' },
+  { id: 'versions', label: 'Versions', icon: 'graph' },
+  { id: 'comments', label: 'Comments', icon: 'comment' },
   { id: 'documents', label: 'Documents', icon: 'folder' },
   { id: 'sharing', label: 'Sharing', icon: 'share' },
 ]
@@ -414,8 +421,15 @@ export default function ContractViewPage() {
   } | null>(null)
   const [hint, setHint] = useState('')
 
-  // Get active tab from URL or default to first tab
-  const activeTab = searchParams.get('tab') || 'overview'
+  // Get active tab from URL or default to Metadata. Legacy ?tab= links from the
+  // pre-split page are remapped so existing bookmarks keep working.
+  const TAB_ALIASES: Record<string, string> = {
+    overview: 'metadata',
+    review: 'clauses',
+    related: 'family',
+  }
+  const rawTab = searchParams.get('tab') || 'metadata'
+  const activeTab = TAB_ALIASES[rawTab] || rawTab
   const setActiveTab = (tab: string) => {
     setSearchParams({ tab })
   }
@@ -513,8 +527,8 @@ export default function ContractViewPage() {
     // Industry profiles can define arbitrary detail_tabs; only ids this page
     // can actually render are shown — unknown ids would be blank panels.
     const RENDERED_TAB_IDS = new Set([
-      'overview', 'review', 'quality', 'supply_chain', 'slas',
-      'related', 'documents', 'sharing',
+      'metadata', 'clauses', 'risk', 'obligations', 'quality', 'supply_chain',
+      'slas', 'family', 'versions', 'comments', 'documents', 'sharing',
     ])
     const mapped = (config?.ui?.detail_tabs || DEFAULT_TABS)
       .filter((tb) => RENDERED_TAB_IDS.has(tb.id))
@@ -528,7 +542,7 @@ export default function ContractViewPage() {
       ct.includes('procurement') || ct.includes('supply') || ct.includes('manufacturing')
     if (needsProcurementTabs) {
       const existingIds = new Set(mapped.map((tb) => tb.id))
-      const insertIdx = mapped.findIndex((tb) => tb.id === 'review') + 1 || 2
+      const insertIdx = mapped.findIndex((tb) => tb.id === 'clauses') + 1 || 2
       const extraTabs = [
         { id: 'quality', label: 'Quality', icon: 'shield' },
         { id: 'supply_chain', label: 'Supply Chain', icon: 'truck' },
@@ -650,19 +664,31 @@ export default function ContractViewPage() {
   const srcResult = srcField ? reExtractResult[srcField.key] : undefined
   const srcPending = srcField ? !!reExtractPending[srcField.key] : false
 
+  // Live count badges from the contract detail payload (no extra fetch). Shown
+  // only when > 0; Metadata never carries a count. Documents/Sharing have none.
+  const TAB_COUNTS: Record<string, number> = {
+    clauses: contract.clause_count,
+    risk: contract.risk_count,
+    obligations: contract.obligation_count,
+    slas: contract.sla_count,
+    family: contract.family_count,
+    versions: contract.version_count,
+    comments: contract.comment_count,
+  }
+
   const tabDefs: TabDef[] = tabs
-    // Hide analysis tabs for non-completed contracts; overview and sharing stay.
-    .filter((tab) => isCompleted || tab.id === 'overview' || tab.id === 'sharing')
+    // Hide analysis tabs for non-completed contracts; metadata and sharing stay.
+    .filter((tab) => isCompleted || tab.id === 'metadata' || tab.id === 'sharing')
     .map((tab) => ({
       value: tab.id,
       label: t(`contract.tabs.${tab.id}`, { defaultValue: tab.label }),
       icon: tab.icon,
-      count: isCompleted && tab.id === 'slas' && contract.sla_count
-        ? contract.sla_count
-        : undefined,
+      count: isCompleted && TAB_COUNTS[tab.id] ? TAB_COUNTS[tab.id] : undefined,
     }))
 
-  const isFullBleed = (activeTab === 'review' || activeTab === 'quality' || activeTab === 'supply_chain') && isCompleted
+  const isFullBleed =
+    (activeTab === 'clauses' || activeTab === 'risk' ||
+      activeTab === 'quality' || activeTab === 'supply_chain') && isCompleted
 
   return (
     <div
@@ -784,10 +810,27 @@ export default function ContractViewPage() {
         <Tabs tabs={tabDefs} value={activeTab} onChange={setActiveTab} style={{ marginTop: 16 }} />
       </div>
 
-      {/* Full-bleed panes (review, quality, supply chain) */}
+      {/* Full-bleed split-pane clause views (clauses, risk, quality, supply chain) */}
       {isFullBleed && id && (
         <div className="grow" style={{ minHeight: 0, overflow: 'hidden' }}>
-          {activeTab === 'review' && <ContractReviewPane contractId={id} contract={contract} />}
+          {activeTab === 'clauses' && (
+            <ClauseFilteredTab
+              contractId={id}
+              contract={contract}
+              title={t('contract.clauses', { defaultValue: 'Clauses' })}
+              emptyMessage={t('reviewPane.noClauses', { defaultValue: 'No clauses extracted' })}
+            />
+          )}
+          {activeTab === 'risk' && (
+            <ClauseFilteredTab
+              contractId={id}
+              contract={contract}
+              title={t('contract.riskAssessment', { defaultValue: 'Risk Assessment' })}
+              riskHeader={<RiskGauge score={contract.risk_score ?? 0} level={contract.risk_level} />}
+              filterFn={(c) => ['high', 'critical'].includes(String(c.risk_level || '').toLowerCase())}
+              emptyMessage={t('contract.noHighRiskClauses', { defaultValue: 'No high or critical risk clauses' })}
+            />
+          )}
           {activeTab === 'quality' && (
             <ClauseFilteredTab
               contractId={id}
@@ -812,8 +855,8 @@ export default function ContractViewPage() {
       {/* Scrolling panes */}
       {!isFullBleed && (
         <div className="scroll grow" style={{ padding: 24, minHeight: 0 }}>
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
+          {/* Metadata Tab (default) — core + custom fields with provenance */}
+          {activeTab === 'metadata' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Left column — extracted metadata */}
               <div className="lg:col-span-2 col" style={{ gap: 14 }}>
@@ -911,24 +954,6 @@ export default function ContractViewPage() {
 
                 {/* Custom Fields */}
                 <CustomFieldsDisplay contract={contract} canEdit={canEditCustomFields} />
-
-                {/* Risk Assessment - only show if analyzed */}
-                {contract.risk_score !== null && (
-                  <div className="card card-p col" style={{ gap: 12 }}>
-                    <div className="sec-t">{t('contract.riskAssessment')}</div>
-                    <RiskGauge score={contract.risk_score} level={contract.risk_level} />
-                    <p className="muted" style={{ fontSize: 'var(--fs-md)' }}>
-                      {t('contract.riskBasis', { clauses: contract.clause_count, obligations: contract.obligation_count })}
-                    </p>
-                    {isCompleted && (
-                      <div className="row">
-                        <Button variant="ghost" size="sm" icon={DocumentMagnifyingGlassIcon} onClick={() => setActiveTab('review')}>
-                          {t('contract.viewDetailedAnalysis')}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Right column — file info & stats */}
@@ -971,13 +996,13 @@ export default function ContractViewPage() {
                         icon={DocumentTextIcon}
                         label={t('contract.clauses')}
                         value={contract.clause_count}
-                        onClick={() => setActiveTab('review')}
+                        onClick={() => setActiveTab('clauses')}
                       />
                       <Stat
                         icon={CheckCircleIcon}
                         label={t('contract.obligations')}
                         value={contract.obligation_count}
-                        onClick={() => setActiveTab('review')}
+                        onClick={() => setActiveTab('obligations')}
                       />
                       <Stat
                         icon={ChartBarIcon}
@@ -989,7 +1014,7 @@ export default function ContractViewPage() {
                         icon={LinkIcon}
                         label={t('contract.related')}
                         value="→"
-                        onClick={() => setActiveTab('related')}
+                        onClick={() => setActiveTab('family')}
                       />
                     </div>
                   </div>
@@ -998,11 +1023,22 @@ export default function ContractViewPage() {
             </div>
           )}
 
+          {/* Obligations Tab */}
+          {activeTab === 'obligations' && isCompleted && id && <ObligationsTab contractId={id} />}
+
           {/* SLAs Tab */}
           {activeTab === 'slas' && isCompleted && id && <SLASummary contractId={id} />}
 
-          {/* Related Docs Tab */}
-          {activeTab === 'related' && isCompleted && id && <SuggestedLinksPanel contractId={id} />}
+          {/* Family Tab — per-contract related / hierarchy links */}
+          {activeTab === 'family' && isCompleted && id && <SuggestedLinksPanel contractId={id} />}
+
+          {/* Versions Tab — amendment / version history */}
+          {activeTab === 'versions' && isCompleted && id && (
+            <VersionsTab contractId={id} onOpen={(cid) => navigate(`/contracts/${cid}`)} />
+          )}
+
+          {/* Comments Tab */}
+          {activeTab === 'comments' && isCompleted && id && <CommentsTab contractId={id} />}
 
           {/* Documents Tab */}
           {activeTab === 'documents' && id && <ContractDocumentsTab contractId={id} />}
@@ -1199,18 +1235,24 @@ function ClauseCompactRow({ clause, onViewSource, isActive }: { clause: any; onV
   )
 }
 
-/** Split-pane clause tab with PDF viewer and highlighting — matches Review tab pattern */
+/** Split-pane clause tab with PDF viewer and highlighting — matches Review tab pattern.
+ * Relevance is decided by `filterFn` when supplied, else by `clauseTypes`; with
+ * neither, every clause is "relevant" (plain full-list view for the Clauses tab). */
 function ClauseFilteredTab({
   contractId,
   contract,
   title,
   clauseTypes,
+  filterFn,
+  riskHeader,
   emptyMessage,
 }: {
   contractId: string
   contract: { mime_type?: string | null }
   title: string
-  clauseTypes: string[]
+  clauseTypes?: string[]
+  filterFn?: (clause: any) => boolean
+  riskHeader?: ReactNode
   emptyMessage: string
 }) {
   const { t } = useTranslation()
@@ -1232,8 +1274,10 @@ function ClauseFilteredTab({
     queryFn: () => api.getContractHighlights(contractId),
   })
 
-  const filtered = allClauses?.filter((c) => clauseTypes.includes(c.clause_type)) || []
-  const others = allClauses?.filter((c) => !clauseTypes.includes(c.clause_type)) || []
+  const isRelevant = (c: any): boolean =>
+    filterFn ? filterFn(c) : clauseTypes ? clauseTypes.includes(c.clause_type) : true
+  const filtered = allClauses?.filter(isRelevant) || []
+  const others = allClauses?.filter((c) => !isRelevant(c)) || []
 
   const handleViewSource = (clause: any) => {
     setActiveClauseId(clause.id)
@@ -1271,6 +1315,10 @@ function ClauseFilteredTab({
             </span>
           </div>
         </div>
+
+        {riskHeader && (
+          <div style={{ padding: '14px', borderBottom: '1px solid var(--b)' }}>{riskHeader}</div>
+        )}
 
         {isLoading ? (
           <div className="row" style={{ justifyContent: 'center', padding: 32 }}><LoadingSpinner size="lg" /></div>
@@ -1341,6 +1389,204 @@ function ClauseFilteredTab({
           onPageChange={() => { setHighlightText(null); setHighlightPage(null); setActiveRects(null); setActiveClauseId(null) }}
         />
       </div>
+    </div>
+  )
+}
+
+// ── Obligations tab ──────────────────────────────────────────────
+// Flat obligation list sourced from the same intelligence payload the Review
+// pane used (provider + client obligations), rendered as compact rows.
+
+const OBLIGATION_STATUS_TONE: Record<string, PillTone> = {
+  pending: 'n',
+  in_progress: 'in',
+  completed: 'ok',
+  fulfilled: 'ok',
+  overdue: 'da',
+  waived: 'wa',
+}
+
+function ObligationsTab({ contractId }: { contractId: string }) {
+  const { t } = useTranslation()
+  const { data: intelligence, isLoading } = useQuery({
+    queryKey: ['contract-intelligence', contractId],
+    queryFn: () => api.getContractIntelligence(contractId),
+  })
+
+  if (isLoading) {
+    return <div className="row" style={{ justifyContent: 'center', padding: 32 }}><LoadingSpinner size="lg" /></div>
+  }
+
+  const obligations: ObligationItem[] = [
+    ...(intelligence?.obligations_matrix?.provider_obligations || []),
+    ...(intelligence?.obligations_matrix?.client_obligations || []),
+  ]
+
+  if (obligations.length === 0) {
+    return <EmptyState icon={CheckCircleIcon} title={t('reviewPane.noObligations', { defaultValue: 'No obligations extracted' })} />
+  }
+
+  return (
+    <div className="tbl-w">
+      <div
+        className="row sec-t"
+        style={{ padding: '10px 14px', background: 'var(--s3)', borderBottom: '1px solid var(--b)' }}
+      >
+        <span className="grow">{t('contract.obligations')}</span>
+        <span className="faint num" style={{ fontSize: 'var(--fs-xs)' }}>{obligations.length}</span>
+      </div>
+      {obligations.map((obl) => (
+        <div key={obl.id} className="row" style={{ gap: 12, padding: '10px 14px', borderBottom: '1px solid var(--b)', alignItems: 'flex-start' }}>
+          <div className="grow col" style={{ gap: 4, minWidth: 0 }}>
+            <span style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>{obl.description}</span>
+            <div className="row muted" style={{ gap: 8, fontSize: 'var(--fs-xs)', flexWrap: 'wrap' }}>
+              {obl.obligated_party && <span>{obl.obligated_party}</span>}
+              {obl.obligation_type && <Tag>{obl.obligation_type.replace(/_/g, ' ')}</Tag>}
+              {obl.deadline && <span className="num">{formatDate(obl.deadline)}</span>}
+            </div>
+          </div>
+          {obl.status && (
+            <Pill tone={OBLIGATION_STATUS_TONE[String(obl.status).toLowerCase()] || 'n'}>
+              {t(`obligationStatus.${obl.status}`, { defaultValue: String(obl.status).replace(/_/g, ' ') })}
+            </Pill>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Versions tab ─────────────────────────────────────────────────
+// Amendment / version history list. Each row links to that version's contract.
+
+function VersionsTab({ contractId, onOpen }: { contractId: string; onOpen: (id: string) => void }) {
+  const { t } = useTranslation()
+  const { data, isLoading } = useQuery({
+    queryKey: ['contract-versions', contractId],
+    queryFn: () => api.getContractVersions(contractId),
+  })
+
+  if (isLoading) {
+    return <div className="row" style={{ justifyContent: 'center', padding: 32 }}><LoadingSpinner size="lg" /></div>
+  }
+
+  const versions: VersionInfo[] = data?.versions || []
+  if (versions.length === 0) {
+    return <EmptyState icon={Square3Stack3DIcon} title={t('contract.noVersions', { defaultValue: 'No version history' })} />
+  }
+
+  return (
+    <div className="tbl-w">
+      <div
+        className="row sec-t"
+        style={{ padding: '10px 14px', background: 'var(--s3)', borderBottom: '1px solid var(--b)' }}
+      >
+        <span className="grow">{t('contract.tabs.versions', { defaultValue: 'Versions' })}</span>
+        <span className="faint num" style={{ fontSize: 'var(--fs-xs)' }}>{versions.length}</span>
+      </div>
+      {versions.map((v) => (
+        <button
+          key={v.contract_id}
+          type="button"
+          onClick={() => onOpen(v.contract_id)}
+          className="row text-left hover:bg-[var(--s2)]"
+          style={{ gap: 12, width: '100%', padding: '10px 14px', borderBottom: '1px solid var(--b)', background: 'none', border: 0, borderBottomWidth: 1, cursor: 'pointer', color: 'inherit', alignItems: 'flex-start' }}
+        >
+          <span className="num faint" style={{ width: 28, flexShrink: 0, fontSize: 'var(--fs-sm)' }}>v{v.version_number}</span>
+          <div className="grow col" style={{ gap: 4, minWidth: 0 }}>
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <span className="trunc" style={{ fontSize: 'var(--fs-md)', fontWeight: 500 }}>
+                {v.version_label || v.filename}
+              </span>
+              {v.is_current && <Pill tone="ok">{t('contract.currentVersion', { defaultValue: 'Current' })}</Pill>}
+              {v.is_superseded && <Pill tone="wa">{t('contract.supersededVersion', { defaultValue: 'Superseded' })}</Pill>}
+              {v.link_type && <Tag>{v.link_type.replace(/_/g, ' ')}</Tag>}
+            </div>
+            <div className="row muted" style={{ gap: 8, fontSize: 'var(--fs-xs)', flexWrap: 'wrap' }}>
+              <span className="trunc">{v.filename}</span>
+              {v.effective_date && <span className="num">{formatDate(v.effective_date)}</span>}
+            </div>
+          </div>
+          <ChevronRightIcon style={{ width: 14, height: 14, flexShrink: 0, color: 'var(--f)' }} aria-hidden />
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── Comments tab ─────────────────────────────────────────────────
+// Contract-level comment list + composer. The comment API exposes list + add
+// only (no resolve/delete), so this renders read + create.
+
+function CommentsTab({ contractId }: { contractId: string }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [draft, setDraft] = useState('')
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['contract-comments', contractId],
+    queryFn: () => api.getContractComments(contractId),
+  })
+
+  const addMut = useMutation({
+    mutationFn: (content: string) => api.addContractComment(contractId, { content }),
+    onSuccess: () => {
+      setDraft('')
+      queryClient.invalidateQueries({ queryKey: ['contract-comments', contractId] })
+    },
+  })
+
+  // Contract-level comments only (not clause/obligation/sla anchored rows).
+  const comments: ContractCommentItem[] = (data?.items || []).filter((c) => !c.section_reference && !c.clause_id)
+
+  const submit = () => {
+    const text = draft.trim()
+    if (text) addMut.mutate(text)
+  }
+
+  return (
+    <div className="col" style={{ gap: 14, maxWidth: 760 }}>
+      {/* Composer */}
+      <div className="card card-p col" style={{ gap: 10 }}>
+        <div className="inp" style={{ height: 'auto', padding: 10, alignItems: 'flex-start' }}>
+          <textarea
+            rows={3}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={t('reviewPane.addCommentPlaceholder', { defaultValue: 'Add a comment…' })}
+            style={{ resize: 'vertical', lineHeight: 1.55, width: '100%', background: 'transparent', border: 0, outline: 'none', color: 'inherit', font: 'inherit', fontSize: 'var(--fs-md)' }}
+          />
+        </div>
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <Button variant="primary" size="sm" disabled={!draft.trim() || addMut.isPending} onClick={submit}>
+            {t('reviewPane.send', { defaultValue: 'Send' })}
+          </Button>
+        </div>
+      </div>
+
+      {/* List */}
+      {isLoading ? (
+        <div className="row" style={{ justifyContent: 'center', padding: 32 }}><LoadingSpinner size="lg" /></div>
+      ) : comments.length === 0 ? (
+        <EmptyState icon={ChatBubbleLeftRightIcon} title={t('contract.noComments', { defaultValue: 'No comments yet' })} />
+      ) : (
+        <div className="col" style={{ gap: 10 }}>
+          {comments.map((c) => (
+            <div key={c.id} className="card card-p col" style={{ gap: 6 }}>
+              <div className="row" style={{ gap: 8 }}>
+                <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
+                  {c.author_name || t('reviewPane.unknownAuthor', { defaultValue: 'Unknown' })}
+                </span>
+                {!c.is_internal_author && <Tag>{t('reviewPane.external', { defaultValue: 'External' })}</Tag>}
+                {c.is_resolved && <Pill tone="ok">{t('contract.commentResolved', { defaultValue: 'Resolved' })}</Pill>}
+                <span className="grow" />
+                <span className="faint num" style={{ fontSize: 'var(--fs-xs)' }}>{formatDate(c.created_at)}</span>
+              </div>
+              <p style={{ fontSize: 'var(--fs-md)', whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{c.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
