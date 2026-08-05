@@ -339,6 +339,12 @@ class SchedulerService:
                 findings_changed += await detect_missing_references(db, tid)
                 await db.commit()
             except Exception as e:
+                # Don't let one tenant's failure abort the run, but never
+                # swallow it silently — a rolled-back tenant leaves its groups
+                # (names, links, findings) stale until the cause is fixed.
+                logger.exception(
+                    "auto_family_sync failed for tenant %s: %s", tid, e
+                )
                 errors.append(f"{tid}: {e}")
                 await db.rollback()
         return {
