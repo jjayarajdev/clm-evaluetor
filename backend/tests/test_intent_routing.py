@@ -9,7 +9,9 @@ where "how many contract do i have" (singular) fell through to RAG and answered
 import pytest
 
 from app.agents import intent_router
-from app.agents.intent_router import detect_intent, is_aggregate_question, resolve_intent
+from app.agents.intent_router import (
+    _looks_hybrid, detect_intent, is_aggregate_question, resolve_intent,
+)
 
 
 def test_keyword_plural_hits_portfolio():
@@ -86,3 +88,34 @@ async def test_resolve_keyword_fastpath_skips_llm(monkeypatch):
         raise AssertionError("planner must not run when keywords already matched")
     monkeypatch.setattr(intent_router, "classify_intent_llm", _llm)
     assert await resolve_intent("How many contracts do I have?", None, "en") == "portfolio"
+
+
+# ── Hybrid (Phase 3): structured filter + document condition ────────
+
+@pytest.mark.parametrize("q", [
+    "which auto-renewing contracts mention a liability cap",
+    "high risk contracts that reference GDPR",
+    "expiring contracts containing an indemnification clause",
+    "les contrats a risque qui mentionnent le RGPD",
+])
+def test_looks_hybrid_true(q):
+    assert _looks_hybrid(q) is True
+
+
+@pytest.mark.parametrize("q", [
+    "how many contracts do i have",             # pure aggregate
+    "what does the termination clause say",      # pure document
+    "who are my vendors",                        # pure structured
+])
+def test_looks_hybrid_false(q):
+    assert _looks_hybrid(q) is False
+
+
+@pytest.mark.asyncio
+async def test_resolve_routes_hybrid_over_keyword_fastpath(monkeypatch):
+    # 'auto-renewal' would keyword-hit renewals, but the document condition
+    # ('mention a liability cap') makes it hybrid.
+    async def _llm(question, language="en"):
+        raise AssertionError("hybrid is decided before the LLM planner")
+    monkeypatch.setattr(intent_router, "classify_intent_llm", _llm)
+    assert await resolve_intent("auto-renewing contracts that mention a liability cap", None, "en") == "hybrid"

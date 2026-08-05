@@ -271,6 +271,7 @@ class VectorStore:
         query_text: str,
         top_k: int = 10,
         contract_id: str | None = None,
+        contract_ids: list[str] | None = None,
         clause_type: str | None = None,
         section_types: list[str] | None = None,
         semantic_tags: list[str] | None = None,
@@ -304,6 +305,9 @@ class VectorStore:
         # Content filters
         if contract_id:
             conditions.append({"contract_id": contract_id})
+        elif contract_ids:
+            # Scope semantic search to a DB-filtered candidate set (hybrid queries).
+            conditions.append({"contract_id": {"$in": list(contract_ids)}})
         if clause_type:
             conditions.append({"clause_type": clause_type})
 

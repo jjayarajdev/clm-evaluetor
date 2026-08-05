@@ -207,8 +207,9 @@ export interface QueryResponse {
   follow_up_questions: string[]
   session_id: string
   visualizations?: Visualization[]
-  // Which engine answered: 'portfolio_data' (exact DB query) or 'documents' (RAG).
-  answer_source?: 'portfolio_data' | 'documents'
+  // Which engine answered: 'portfolio_data' (exact DB query), 'documents' (RAG),
+  // or 'hybrid' (DB filter + document-scoped search).
+  answer_source?: 'portfolio_data' | 'documents' | 'hybrid'
 }
 
 // Additional role type with viewer

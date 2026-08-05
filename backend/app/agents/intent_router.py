@@ -194,6 +194,34 @@ def is_aggregate_question(question: str) -> bool:
     return any(m in q for m in _AGGREGATE_MARKERS)
 
 
+# A hybrid question pairs a portfolio FILTER (structured keywords) with a
+# DOCUMENT condition (something that requires reading the contract text). These
+# markers signal the document half.
+_DOCUMENT_CONDITION_MARKERS = (
+    "mention", "mentions", "contain", "contains", "containing", "include",
+    "includes", "including", "clause", "provision", "reference", "references",
+    "referencing", "that say", "that says", "wording", "with a ", "with an ",
+    "language about", "talk about", "talks about",
+    # French
+    "mentionne", "mentionnent", "contient", "contiennent", "clause", "stipule",
+    "fait reference", "avec une", "avec un ", "parle de", "parlent de",
+)
+
+
+def _looks_hybrid(question: str) -> bool:
+    """True if the question combines a structured filter with a document-text
+    condition (e.g. 'auto-renewing contracts that mention a liability cap')."""
+    q = _strip_accents(question.lower().strip())
+    has_document_condition = any(m in q for m in _DOCUMENT_CONDITION_MARKERS)
+    if not has_document_condition:
+        return False
+    # Needs a structured half too — a filterable keyword or an aggregate framing.
+    has_structured = is_aggregate_question(question) or any(
+        kw in q for kws in STRUCTURED_INTENTS.values() for kw in kws
+    )
+    return has_structured
+
+
 # The intents the LLM planner may choose. Keep in sync with STRUCTURED_INTENTS
 # (+ document_qa for free-text). Descriptions steer the classification.
 _INTENT_CATALOG = {
@@ -203,6 +231,7 @@ _INTENT_CATALOG = {
     "risk": "risk levels, risk scores, riskiest contracts, risk overview",
     "sla": "SLA performance, breaches, service-level metrics/status",
     "vendors": "counterparties/vendors/suppliers — who they are, how many, rollups by counterparty (count/value/risk)",
+    "hybrid": "a portfolio FILTER combined with a DOCUMENT-TEXT condition (e.g. 'auto-renewing contracts that mention a liability cap', 'high-risk contracts referencing GDPR')",
     "document_qa": "the meaning/wording of a specific document's text (clauses, provisions)",
 }
 
@@ -229,6 +258,10 @@ async def resolve_intent(question: str, contract_id: str | None, language: str =
     can never be answered by RAG. A document-scoped chat always uses RAG."""
     if contract_id:
         return "document_qa"  # scoped to one document → RAG on it, never portfolio
+    # A filter + a document condition → hybrid (DB-narrow, then scoped RAG), even
+    # when a structured keyword would otherwise fast-path it.
+    if _looks_hybrid(question):
+        return "hybrid"
     intent = detect_intent(question)
     if intent == "document_qa":
         llm_intent = await classify_intent_llm(question, language)
@@ -527,8 +560,10 @@ async def handle_structured_query(
     tenant_id: str | None = None,
     contract_id: str | None = None,
     language: str = "en",
+    user_id: str | None = None,
+    user_role: str | None = None,
 ) -> dict[str, Any] | None:
-    """Execute a structured database query and enhance with LLM."""
+    """Execute a structured (or hybrid) database query and enhance with LLM."""
     handlers = {
         "renewals": _handle_renewals,
         "obligations": _handle_obligations,
@@ -538,14 +573,20 @@ async def handle_structured_query(
         "vendors": _handle_vendors,
     }
 
-    handler = handlers.get(intent)
-    if not handler:
-        return None
-
     try:
-        result = await handler(db, tenant_id, contract_id, question)
+        if intent == "hybrid":
+            # DB filter + document-scoped semantic search (needs user context).
+            result = await handle_hybrid_query(question, db, tenant_id, user_id, user_role, language)
+        else:
+            handler = handlers.get(intent)
+            if not handler:
+                return None
+            result = await handler(db, tenant_id, contract_id, question)
     except Exception as e:
         logger.warning(f"Structured query failed for intent '{intent}': {e}")
+        return None
+
+    if not result:
         return None
 
     # Enhance with LLM-generated follow-ups and visualizations
@@ -1142,6 +1183,175 @@ async def _handle_vendors(
         },
     }
     return {"answer": "\n".join(parts), "data_summary": data_summary, "intent": "vendors"}
+
+
+# ---------------------------------------------------------------------------
+# Hybrid: structured filter (DB) + document-text condition (scoped RAG)
+# ---------------------------------------------------------------------------
+
+_HYBRID_PLAN_PROMPT = (
+    "Split a hybrid contract question into a structured FILTER and a document "
+    "TEXT condition. Reply with ONLY JSON:\n"
+    '{"filters": {"contract_type": string|null, "risk_levels": [..]|null, '
+    '"expiring_within_days": integer|null, "expired": boolean|null, '
+    '"auto_renewal": boolean|null, "status": string|null, "counterparty": string|null, '
+    '"min_value": number|null, "max_value": number|null}, '
+    '"semantic_query": "the thing to look for in the contract body, or empty"}\n\n'
+    "risk_levels use {low,medium,high,critical}. Everything not asked → null. "
+    "semantic_query is the free-text condition to search the contract text for "
+    "(e.g. 'limitation of liability cap', 'GDPR data protection'). If there is no "
+    "document condition, set semantic_query to \"\"."
+)
+
+
+async def extract_hybrid_plan(question: str) -> dict:
+    """LLM-extract {filters, semantic_query} from a hybrid question. Returns a safe
+    empty plan on any failure so the caller can degrade to plain RAG."""
+    try:
+        from app.core.llm import get_async_openai
+        client = get_async_openai()
+        resp = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": _HYBRID_PLAN_PROMPT},
+                {"role": "user", "content": question[:500]},
+            ],
+            temperature=0,
+            max_tokens=250,
+            response_format={"type": "json_object"},
+        )
+        data = json.loads(resp.choices[0].message.content) or {}
+        return {
+            "filters": data.get("filters") or {},
+            "semantic_query": (data.get("semantic_query") or "").strip(),
+        }
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Hybrid plan extraction failed: {e}")
+        return {"filters": {}, "semantic_query": ""}
+
+
+async def _apply_contract_filters(db: AsyncSession, tenant_id: str | None, filters: dict) -> list:
+    """Apply the structured half of a hybrid query → matching contracts. Pure DB +
+    Python (bounded per tenant); no LLM, so it is deterministic and testable."""
+    q = select(Contract)
+    if tenant_id:
+        q = q.where(Contract.tenant_id == tenant_id)
+    rows = _dedup_contracts((await db.execute(q)).scalars().all())
+    today = date.today()
+
+    def _norm(v) -> str:
+        return str(v or "").lower()
+
+    def keep(c) -> bool:
+        ct = filters.get("contract_type")
+        if ct and _norm(ct) not in _norm(c.contract_type):
+            return False
+        rls = filters.get("risk_levels")
+        if rls:
+            rl = c.risk_level.value if hasattr(c.risk_level, "value") else _norm(c.risk_level)
+            if _norm(rl) not in {_norm(x) for x in rls}:
+                return False
+        ar = filters.get("auto_renewal")
+        if ar is not None and bool(c.auto_renewal) != bool(ar):
+            return False
+        st = filters.get("status")
+        if st:
+            cs = c.status.value if hasattr(c.status, "value") else _norm(c.status)
+            if _norm(cs) != _norm(st):
+                return False
+        d = filters.get("expiring_within_days")
+        if d is not None:
+            if not c.expiration_date or not (0 < (c.expiration_date - today).days <= int(d)):
+                return False
+        if filters.get("expired"):
+            if not c.expiration_date or c.expiration_date >= today:
+                return False
+        cp = filters.get("counterparty")
+        if cp and _norm(cp) not in _norm(f"{c.counterparty or ''} {c.filename or ''}"):
+            return False
+        mv, xv = filters.get("min_value"), filters.get("max_value")
+        if mv is not None and float(c.contract_value or 0) < float(mv):
+            return False
+        if xv is not None and float(c.contract_value or 0) > float(xv):
+            return False
+        return True
+
+    return [c for c in rows if keep(c)]
+
+
+async def handle_hybrid_query(
+    question: str, db: AsyncSession, tenant_id: str | None,
+    user_id: str | None, user_role: str | None, language: str = "en",
+) -> dict[str, Any] | None:
+    """Answer a filter+document question: DB-narrow to candidates, then run the
+    document condition as a semantic search scoped to just those contracts.
+    Returns None (→ caller falls back to plain RAG) if no plan could be formed."""
+    plan = await extract_hybrid_plan(question)
+    filters, semantic_query = plan["filters"], plan["semantic_query"]
+
+    # No usable structured filter AND no document condition → let RAG handle it.
+    if not filters and not semantic_query:
+        return None
+
+    candidates = await _apply_contract_filters(db, tenant_id, filters)
+
+    doc_verified = True
+    matched = candidates
+    if semantic_query and candidates:
+        try:
+            from app.services.vector_store import get_vector_store
+            vs = get_vector_store()
+            cand_ids = [str(c.id) for c in candidates]
+            results = vs.query_similar(
+                semantic_query, top_k=40, contract_ids=cand_ids,
+                user_id=user_id, user_role=user_role, tenant_id=tenant_id,
+            )
+            hit_ids = {r.contract_id for r in results}
+            matched = [c for c in candidates if str(c.id) in hit_ids]
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Hybrid semantic search failed, returning filter-only: {e}")
+            doc_verified = False
+
+    rows = [
+        [
+            _clean_counterparty(c.counterparty, c.filename)[:30],
+            str(c.contract_type or "—"),
+            (c.risk_level.value if hasattr(c.risk_level, "value") else str(c.risk_level or "—")).capitalize(),
+            f"${c.contract_value:,.0f}" if c.contract_value else "—",
+            c.expiration_date.isoformat() if c.expiration_date else "—",
+        ]
+        for c in matched
+    ]
+
+    if matched:
+        head = f"**{len(matched)}** contract(s) match"
+        if semantic_query and doc_verified:
+            head += f" your filters and mention *{semantic_query}*."
+        elif semantic_query and not doc_verified:
+            head = (f"**{len(candidates)}** contract(s) match your filters. I could not "
+                    f"verify the document condition (*{semantic_query}*) — showing the filtered set.")
+        else:
+            head += " your filters."
+        names = ", ".join(f"**{r[0]}**" for r in rows[:5])
+        answer = f"{head}\n\n{names}" + (" …" if len(rows) > 5 else "")
+    else:
+        answer = "No contracts match both your filters and that document condition."
+
+    return {
+        "answer": answer,
+        "data_summary": {
+            "counts": {"Matches": len(matched)},
+            "filters_applied": {k: v for k, v in filters.items() if v is not None},
+            "document_condition": semantic_query or None,
+            "detail_rows": {
+                "columns": ["Counterparty", "Type", "Risk", "Value", "Expires"],
+                "rows": rows[:15],
+                "total": len(matched),
+                "showing": min(15, len(matched)),
+            },
+        },
+        "intent": "hybrid",
+    }
 
 
 # ---------------------------------------------------------------------------

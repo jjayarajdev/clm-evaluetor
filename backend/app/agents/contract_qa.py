@@ -134,6 +134,8 @@ async def ask_question(
                     tenant_id=tenant_id,
                     contract_id=contract_id,
                     language=language,
+                    user_id=user_id,
+                    user_role=user_role,
                 )
 
                 if result and result.get("answer"):
@@ -144,7 +146,7 @@ async def ask_question(
                         sources=[],
                         follow_up_questions=result.get("follow_up_questions", []),
                         visualizations=result.get("visualizations", []),
-                        answer_source="portfolio_data",
+                        answer_source="hybrid" if result.get("intent") == "hybrid" else "portfolio_data",
                     )
         except Exception as e:
             logger.warning(f"Structured query failed, falling back to RAG: {e}")

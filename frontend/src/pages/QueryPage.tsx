@@ -725,13 +725,17 @@ export default function QueryPage() {
                               label={
                                 message.answerSource === 'portfolio_data'
                                   ? t('query.sourcePortfolioHint', { defaultValue: 'Answered from an exact query over your portfolio data.' })
-                                  : t('query.sourceDocumentsHint', { defaultValue: 'Answered from retrieved document text (may not cover your whole portfolio).' })
+                                  : message.answerSource === 'hybrid'
+                                    ? t('query.sourceHybridHint', { defaultValue: 'Filtered your portfolio in the database, then searched the matching contracts’ text.' })
+                                    : t('query.sourceDocumentsHint', { defaultValue: 'Answered from retrieved document text (may not cover your whole portfolio).' })
                               }
                             >
-                              <Pill tone={message.answerSource === 'portfolio_data' ? 'ok' : 'n'} dot>
+                              <Pill tone={message.answerSource === 'documents' ? 'n' : message.answerSource === 'hybrid' ? 'in' : 'ok'} dot>
                                 {message.answerSource === 'portfolio_data'
                                   ? t('query.sourcePortfolio', { defaultValue: 'Portfolio data' })
-                                  : t('query.sourceDocuments', { defaultValue: 'Documents' })}
+                                  : message.answerSource === 'hybrid'
+                                    ? t('query.sourceHybrid', { defaultValue: 'Filter + documents' })
+                                    : t('query.sourceDocuments', { defaultValue: 'Documents' })}
                               </Pill>
                             </Tooltip>
                           )}
