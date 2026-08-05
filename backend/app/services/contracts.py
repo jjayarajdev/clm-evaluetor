@@ -190,12 +190,19 @@ class ContractService:
         total_result = await self.db.execute(count_query)
         total = total_result.scalar() or 0
 
-        # Apply sorting
-        sort_column = getattr(Contract, sort_by, Contract.created_at)
-        if sort_desc:
-            query = query.order_by(sort_column.desc())
-        else:
-            query = query.order_by(sort_column.asc())
+        # Apply sorting — whitelist the sortable columns (never order by an
+        # arbitrary attribute) so every register column can sort server-side
+        # across the WHOLE result set, not just the current page.
+        _SORTABLE = {
+            "filename", "counterparty", "contract_value", "contract_type",
+            "status", "risk_level", "risk_score", "effective_date",
+            "expiration_date", "created_at", "updated_at",
+        }
+        sort_column = getattr(Contract, sort_by if sort_by in _SORTABLE else "created_at")
+        # Push NULLs to the end regardless of direction (a blank value/date
+        # shouldn't jump to the top when sorting ascending).
+        order = sort_column.desc() if sort_desc else sort_column.asc()
+        query = query.order_by(order.nulls_last())
 
         # Apply pagination
         offset = (page - 1) * page_size

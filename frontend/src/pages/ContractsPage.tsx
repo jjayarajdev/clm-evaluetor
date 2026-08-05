@@ -39,7 +39,7 @@ import {
   Table,
   useToast,
 } from '@/components/ui'
-import type { PillTone, TableColumn } from '@/components/ui'
+import type { PillTone, TableColumn, SortState } from '@/components/ui'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ContractTreeView from '@/components/contracts/ContractTreeView'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
@@ -149,6 +149,9 @@ export default function ContractsPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const [page, setPage] = useState(1)
+  // Server-side sort — the register is paginated, so sorting must run over the
+  // whole result set on the backend, not just the rows on the current page.
+  const [sort, setSort] = useState<SortState | null>(null)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [selectedCounterparty, setSelectedCounterparty] = useState<string | null>(null)
@@ -181,8 +184,15 @@ export default function ContractsPage() {
   })
 
   // Fetch contracts
+  // Table column key → backend sort field.
+  const SORT_FIELD: Record<string, string> = {
+    name: 'filename', type: 'contract_type', counterparty: 'counterparty',
+    status: 'status', value: 'contract_value', risk: 'risk_level', expiry: 'expiration_date',
+  }
+  const sortBy = sort ? SORT_FIELD[sort.key] : undefined
+
   const { data, isLoading } = useQuery({
-    queryKey: ['contracts', page, search, selectedCounterparty, selectedType, selectedRisk, selectedStatus, selectedClientId],
+    queryKey: ['contracts', page, search, selectedCounterparty, selectedType, selectedRisk, selectedStatus, selectedClientId, sortBy, sort?.dir],
     queryFn: () => api.getContracts({
       page,
       page_size: pageSize,
@@ -192,6 +202,7 @@ export default function ContractsPage() {
       risk_level: selectedRisk || undefined,
       status: selectedStatus || undefined,
       client_id: selectedClientId || undefined,
+      ...(sortBy ? { sort_by: sortBy, sort_desc: sort!.dir === -1 } : {}),
     }),
   })
 
@@ -719,6 +730,8 @@ export default function ContractsPage() {
             rowKey={(c) => c.id}
             onRowClick={(c) => navigate(`/contracts/${c.id}`)}
             empty={emptyState}
+            sortState={sort}
+            onSortChange={(next) => { setSort(next); setPage(1) }}
           />
 
           {/* Pagination */}

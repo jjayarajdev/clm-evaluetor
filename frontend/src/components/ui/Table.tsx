@@ -25,6 +25,18 @@ export interface TableProps<T> {
   /** min-width of the table; container scrolls horizontally below it. */
   minWidth?: number
   className?: string
+  /** Controlled (server-side) sort. When onSortChange is provided the table
+   *  does NOT sort its rows itself — the parent sorts server-side across the
+   *  whole dataset and passes already-ordered rows. Without it, the table sorts
+   *  client-side over the rows it's given (correct only for full, non-paginated
+   *  lists). */
+  sortState?: SortState | null
+  onSortChange?: (next: SortState | null) => void
+}
+
+export interface SortState {
+  key: string
+  dir: 1 | -1
 }
 
 function defaultValue<T>(row: T, key: string): string | number | null | undefined {
@@ -35,11 +47,15 @@ function defaultValue<T>(row: T, key: string): string | number | null | undefine
 /** Direction B data table: sticky uppercase headers, sortable columns, row states. */
 export function Table<T>({
   columns, rows, rowKey, onRowClick, selectedKey, empty, minWidth = 780, className,
+  sortState, onSortChange,
 }: TableProps<T>) {
-  const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null)
+  const controlled = !!onSortChange
+  const [internalSort, setInternalSort] = useState<SortState | null>(null)
+  const sort = controlled ? (sortState ?? null) : internalSort
 
   const sorted = useMemo(() => {
-    if (!sort) return rows
+    // Controlled: the parent already ordered the rows server-side; don't re-sort.
+    if (controlled || !sort) return rows
     const col = columns.find((c) => c.key === sort.key)
     if (!col) return rows
     const val = col.sortValue || ((r: T) => defaultValue(r, col.key))
@@ -52,10 +68,14 @@ export function Table<T>({
       if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * sort.dir
       return String(va).localeCompare(String(vb)) * sort.dir
     })
-  }, [rows, sort, columns])
+  }, [controlled, rows, sort, columns])
 
-  const toggleSort = (key: string) =>
-    setSort((s) => (s?.key === key ? (s.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 }))
+  const toggleSort = (key: string) => {
+    const next: SortState | null =
+      sort?.key === key ? (sort.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 }
+    if (controlled) onSortChange!(next)
+    else setInternalSort(next)
+  }
 
   if (rows.length === 0 && empty) {
     return <div className={cn('tbl-w', className)}>{empty}</div>
