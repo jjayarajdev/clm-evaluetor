@@ -1908,12 +1908,14 @@ async def _contract_tab_counts(db, cid) -> dict:
     from app.models.clause import Clause
     from app.models.obligation import Obligation
     from app.models.sla import ContractSLA
-    from app.models.contract_link import ContractLink, ContractLinkType
+    from app.models.contract import RiskLevel
+    from app.models.contract_link import ContractLink, LinkType
     from app.models.contract_comment import ContractComment
 
+    # link_type is a PG enum stored as its string value — compare against values.
     version_types = [
-        ContractLinkType.AMENDMENT, ContractLinkType.ADDENDUM, ContractLinkType.CHANGE_ORDER,
-        ContractLinkType.MODIFICATION, ContractLinkType.RENEWAL, ContractLinkType.SUPERSEDES,
+        LinkType.AMENDMENT.value, LinkType.ADDENDUM.value, LinkType.CHANGE_ORDER.value,
+        LinkType.MODIFICATION.value, LinkType.RENEWAL.value, LinkType.SUPERSEDES.value,
     ]
     touches = or_(ContractLink.parent_contract_id == cid, ContractLink.child_contract_id == cid)
 
@@ -1924,12 +1926,14 @@ async def _contract_tab_counts(db, cid) -> dict:
         "clause_count": await _count(select(func.count(Clause.id)).where(Clause.contract_id == cid)),
         "obligation_count": await _count(select(func.count(Obligation.id)).where(Obligation.contract_id == cid)),
         "sla_count": await _count(select(func.count(ContractSLA.id)).where(ContractSLA.contract_id == cid)),
+        # Risk = clauses flagged high/critical (risk_level is a PG enum; compare
+        # against enum members, not func.lower which PG can't apply to an enum).
         "risk_count": await _count(select(func.count(Clause.id)).where(
-            Clause.contract_id == cid, func.lower(Clause.risk_level).in_(["high", "critical"]))),
+            Clause.contract_id == cid, Clause.risk_level.in_([RiskLevel.HIGH, RiskLevel.CRITICAL]))),
         "version_count": await _count(select(func.count(ContractLink.id)).where(
             touches, ContractLink.link_type.in_(version_types))),
         "family_count": await _count(select(func.count(ContractLink.id)).where(
-            touches, ~ContractLink.link_type.in_(version_types))),
+            touches, ContractLink.link_type.notin_(version_types))),
         "comment_count": await _count(select(func.count(ContractComment.id)).where(
             ContractComment.contract_id == cid)),
     }
