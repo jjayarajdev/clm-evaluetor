@@ -1503,6 +1503,7 @@ function ObligationsReviewTab({
   const [highlightText, setHighlightText] = useState<string | null>(null)
   const [activeRects, setActiveRects] = useState<HighlightRect[] | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   const { data: intelligence, isLoading } = useQuery({
     queryKey: ['contract-intelligence', contractId],
@@ -1513,10 +1514,18 @@ function ObligationsReviewTab({
     queryFn: () => api.getContractHighlights(contractId),
   })
 
-  const obligations: ObligationItem[] = [
+  const allObligations: ObligationItem[] = [
     ...(intelligence?.obligations_matrix?.provider_obligations || []),
     ...(intelligence?.obligations_matrix?.client_obligations || []),
   ]
+  // Client-side keyword filter (description, party, type, status, source text).
+  const kw = search.trim().toLowerCase()
+  const obligations = kw
+    ? allObligations.filter((o) =>
+        [o.description, o.obligated_party, o.obligation_type, o.status, o.source_text]
+          .filter(Boolean).join(' ').toLowerCase().includes(kw)
+      )
+    : allObligations
 
   const sourceFor = (obl: ObligationItem) =>
     highlights?.highlights?.[obl.id]?.rects?.length || obl.source_text
@@ -1543,20 +1552,36 @@ function ObligationsReviewTab({
         style={{ width: '45%', borderRight: '1px solid var(--b)', background: 'var(--s3)' }}
       >
         <div
-          className="row"
           style={{
-            position: 'sticky', top: 0, zIndex: 10, gap: 8, padding: '10px 14px',
+            position: 'sticky', top: 0, zIndex: 10, padding: '10px 14px',
             background: 'var(--s3)', borderBottom: '1px solid var(--b)',
           }}
         >
-          <span className="sec-t grow">{t('contract.obligations')}</span>
-          <span className="faint num" style={{ fontSize: 'var(--fs-xs)' }}>{obligations.length}</span>
+          <div className="row" style={{ gap: 8 }}>
+            <span className="sec-t grow">{t('contract.obligations')}</span>
+            <span className="faint num" style={{ fontSize: 'var(--fs-xs)' }}>
+              {kw ? `${obligations.length}/${allObligations.length}` : allObligations.length}
+            </span>
+          </div>
+          {allObligations.length > 8 && (
+            <Field
+              icon={MagnifyingGlassIcon}
+              placeholder={t('contract.searchObligations', { defaultValue: 'Search obligations…' })}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              containerStyle={{ marginTop: 8 }}
+            />
+          )}
         </div>
 
         {isLoading ? (
           <div className="row" style={{ justifyContent: 'center', padding: 32 }}><LoadingSpinner size="lg" /></div>
-        ) : obligations.length === 0 ? (
+        ) : allObligations.length === 0 ? (
           <EmptyState icon={CheckCircleIcon} title={t('reviewPane.noObligations', { defaultValue: 'No obligations extracted' })} />
+        ) : obligations.length === 0 ? (
+          <div className="faint" style={{ padding: 24, textAlign: 'center', fontSize: 'var(--fs-md)' }}>
+            {t('contract.noMatchingObligations', { defaultValue: 'No matching obligations' })}
+          </div>
         ) : (
           obligations.map((obl) => {
             const hasSource = !!sourceFor(obl)
