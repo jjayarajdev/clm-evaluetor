@@ -15,11 +15,18 @@ import asyncio
 import sys
 
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
-from app.database import async_session_maker
+from app.config import settings
 from app.models.contract_group import ContractGroup
 from app.models.tenant import Tenant
 from app.services.group_sync import sync_auto_family_groups
+
+# Own engine: the app engine's pool_pre_ping trips MissingGreenlet when driven
+# from a bare asyncio.run() script, so use a fresh, unpooled connection here.
+_engine = create_async_engine(settings.database_url, poolclass=NullPool)
+async_session_maker = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def _auto_group_count(db, tenant_id) -> int:
@@ -56,6 +63,7 @@ async def main(dry_run: bool) -> None:
             f"\nauto_family groups: {total_before} -> {total_after}"
             f"{'  (dry run — not written)' if dry_run else ''}"
         )
+    await _engine.dispose()
 
 
 if __name__ == "__main__":
