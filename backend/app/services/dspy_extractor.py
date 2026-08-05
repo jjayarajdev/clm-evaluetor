@@ -215,12 +215,16 @@ _lm_configured = False
 
 
 def ensure_dspy_configured():
-    """Configure DSPy's language model (idempotent)."""
+    """Configure DSPy's DEFAULT (global) language model, idempotent.
+
+    This is the fallback used when a tenant has no provider override. Per-tenant
+    provider selection happens per-call via build_lm_for_tenant / set_lm.
+    """
     global _lm_configured
     if _lm_configured:
         return
 
-    from app.core.config import settings
+    from app.config import settings
 
     model = getattr(settings, "openai_model", "gpt-4o")
     lm = dspy.LM(
@@ -231,7 +235,50 @@ def ensure_dspy_configured():
     )
     dspy.configure(lm=lm)
     _lm_configured = True
-    logger.info(f"DSPy configured with model: {model}")
+    logger.info(f"DSPy configured with default model: {model}")
+
+
+def _build_lm(az_cfg: dict | None) -> "dspy.LM":
+    """Build a dspy.LM for a tenant provider config, or the global default.
+
+    Mirrors the resolution the rest of the app uses (app.core.llm): a tenant may
+    run against its own Azure OpenAI deployment or its own OpenAI key; otherwise
+    the platform OpenAI key is used. Azure addresses models by deployment name.
+    """
+    from app.config import settings
+    from app.core.llm import DEFAULT_AZURE_API_VERSION
+
+    model = getattr(settings, "openai_model", "gpt-4o")
+    default_key = getattr(settings, "openai_api_key", None)
+
+    if az_cfg and az_cfg.get("enabled") and az_cfg.get("api_key"):
+        provider = az_cfg.get("provider")
+        if provider == "openai":
+            # Tenant's own OpenAI key (not Azure).
+            return dspy.LM(f"openai/{model}", api_key=az_cfg["api_key"], temperature=0.1, max_tokens=12000)
+        endpoint = (az_cfg.get("endpoint") or "").strip()
+        if endpoint:
+            # Azure: route by deployment name (defaults to the model id, per the
+            # app's "deployments named after model ids" convention).
+            deployment = (az_cfg.get("deployment") or "").strip() or model
+            return dspy.LM(
+                f"azure/{deployment}",
+                api_key=az_cfg["api_key"],
+                api_base=endpoint,
+                api_version=az_cfg.get("api_version") or DEFAULT_AZURE_API_VERSION,
+                temperature=0.1,
+                max_tokens=12000,
+            )
+
+    return dspy.LM(f"openai/{model}", api_key=default_key, temperature=0.1, max_tokens=12000)
+
+
+def build_lm_for_tenant(tenant_id: UUID | None) -> "dspy.LM":
+    """LM for a tenant using the request/cache-resolved provider config
+    (app.core.llm._azure_for) — used at extraction time."""
+    from app.core.llm import _azure_for
+
+    return _build_lm(_azure_for(tenant_id))
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -270,6 +317,7 @@ async def dspy_extract_metadata(
 
     try:
         # DSPy modules are sync — run in thread
+        module.set_lm(build_lm_for_tenant(tenant_id))  # tenant's Azure/OpenAI provider
         async_module = dspy.asyncify(module)
         result = await async_module(contract_text=contract_text[:50000])
 
@@ -298,6 +346,7 @@ async def dspy_extract_clauses(
         return None
 
     try:
+        module.set_lm(build_lm_for_tenant(tenant_id))  # tenant's Azure/OpenAI provider
         async_module = dspy.asyncify(module)
         result = await async_module(contract_chunk=contract_chunk)
 
@@ -325,6 +374,7 @@ async def dspy_extract_obligations(
         return None
 
     try:
+        module.set_lm(build_lm_for_tenant(tenant_id))  # tenant's Azure/OpenAI provider
         async_module = dspy.asyncify(module)
         result = await async_module(contract_chunk=contract_chunk)
 
@@ -352,6 +402,7 @@ async def dspy_extract_slas(
         return None
 
     try:
+        module.set_lm(build_lm_for_tenant(tenant_id))  # tenant's Azure/OpenAI provider
         async_module = dspy.asyncify(module)
         result = await async_module(contract_text=contract_text[:100000])
 

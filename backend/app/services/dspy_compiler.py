@@ -483,6 +483,19 @@ async def compile_for_tenant(
     """
     ensure_dspy_configured()
 
+    # Resolve the tenant's provider (Azure/own OpenAI key) from the DB so
+    # compilation runs against the SAME model the tenant extracts with — the
+    # background compile has no request context, so load it explicitly here.
+    from app.services.dspy_extractor import _build_lm
+
+    az_cfg = None
+    if tenant_id is not None:
+        from app.models.tenant import Tenant
+        t = await db.get(Tenant, tenant_id)
+        if t and t.config_overrides:
+            az_cfg = t.config_overrides.get("azure_openai")
+    compile_lm = _build_lm(az_cfg)
+
     if agent_types is None:
         agent_types = ["metadata", "clause", "obligation", "sla"]
 
@@ -532,7 +545,10 @@ async def compile_for_tenant(
             )
 
             module = module_cls()
-            compiled = optimizer.compile(module, trainset=trainset)
+            # Bootstrap against the tenant's own provider (Azure/own key), not the
+            # process-global default LM.
+            with dspy.context(lm=compile_lm):
+                compiled = optimizer.compile(module, trainset=trainset)
 
             path = save_compiled_program(compiled, tenant_id, agent_type)
 
