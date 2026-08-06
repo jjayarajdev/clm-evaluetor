@@ -29,6 +29,7 @@ from app.models.contract import Contract
 from app.models.contract_link import ContractLink
 from app.models.suggested_link import SuggestedContractLink
 from app.services.contract_types import normalize_contract_type
+from app.services.org_resolver import canonical_org_key
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +123,16 @@ async def resolve_declared_references(
 
             ref_type = normalize_contract_type(ref.get("referenced_type"))
             ref_parties = [_norm(p) for p in (ref.get("party_names") or []) if p]
+            # Canonical org keys of the named parties, so a reference to "the MSA
+            # between the ING Group and the Supplier" resolves to the MSA whose
+            # counterparty is "ING Bank N.V." — same entity, different string.
+            # This is what lets a Local Service Agreement find its master MSA
+            # among several MSAs in the tenant (the classic multi-supplier deal).
+            ref_party_keys = {
+                k
+                for k in (canonical_org_key(p) for p in (ref.get("party_names") or []) if p)
+                if k
+            }
             ref_ident = _norm(ref.get("reference_identifier"))
             ref_date = ref.get("referenced_date")
 
@@ -132,6 +143,7 @@ async def resolve_declared_references(
                 score = 0
                 cand_fn = _norm(cand.filename)
                 cand_cp = _norm(cand.counterparty)
+                cand_key = canonical_org_key(cand.counterparty)
 
                 if ref_ident and len(ref_ident) >= 4 and _identifier_matches(ref_ident, cand_fn):
                     # A precise, bounded identifier match ("Exhibit 12" → the one
@@ -142,8 +154,8 @@ async def resolve_declared_references(
                     score += 4
                 if ref_type and normalize_contract_type(cand.contract_type) == ref_type:
                     score += 2
-                if ref_parties and any(
-                    p and (p in cand_cp or p in cand_fn) for p in ref_parties
+                if (cand_key and cand_key in ref_party_keys) or (
+                    ref_parties and any(p and (p in cand_cp or p in cand_fn) for p in ref_parties)
                 ):
                     score += 2
                 if ref_date and cand.effective_date:

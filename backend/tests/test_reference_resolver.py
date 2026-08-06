@@ -143,6 +143,38 @@ async def test_ambiguous_reference_does_not_link(db):
 
 
 @pytest.mark.asyncio
+async def test_lsa_links_to_its_msa_by_party_among_many(db):
+    """A Local Service Agreement declaring 'the MSA between ING and the supplier'
+    links to the ING MSA — resolved by canonical party ('ING Group' ~ 'ING Bank
+    N.V.'), NOT to the Accenture or Javelin MSAs. The multi-supplier case."""
+    tid = uuid.uuid4()
+    msa_ing = _contract(tid, "MSA GEN Final v3.3.doc", ctype="msa")
+    msa_ing.counterparty = "ING Bank N.V."
+    msa_acc = _contract(tid, "SWS Landscape.doc", ctype="msa")
+    msa_acc.counterparty = "Accenture NV/SA"
+    msa_jav = _contract(tid, "Jumbo Javelin.doc", ctype="msa")
+    msa_jav.counterparty = "Javelin Group Limited"
+    lsa = _contract(
+        tid, "LSA Belgium Final v1.3 KPN.doc", ctype="service_agreement",
+        parent_refs=[{
+            "reference_identifier": "MSA", "referenced_type": "MSA", "confidence": 0.95,
+            "relationship": "parent", "referenced_date": None,
+            "party_names": ["ING Group", "PST Supplier"],
+        }],
+    )
+    lsa.counterparty = "KPN Outsourcing Services Belgium N.V."
+    db.add_all([msa_ing, msa_acc, msa_jav, lsa])
+    await db.flush()
+
+    links_created, _ = await resolve_declared_references(db, tid)
+    assert links_created == 1
+    links = await _links(db, tid)
+    assert len(links) == 1
+    assert links[0].parent_contract_id == msa_ing.id   # the ING MSA, not Accenture/Javelin
+    assert links[0].child_contract_id == lsa.id
+
+
+@pytest.mark.asyncio
 async def test_imprecise_number_does_not_link(db):
     tid = uuid.uuid4()
     ex20 = _contract(tid, "Exhibit 20 (Termination Assistance) Final v1.5.doc")
