@@ -493,7 +493,15 @@ Rules:
 
 
 _DOC_STRUCTURE_PREFIX_RE = re.compile(
-    r"^(exhibit|attachment|schedule|annex|appendix|amendment|addendum|sow|statement of work)\b",
+    r"^(exhibits?|attachments?|schedules?|annex(es)?|appendix|appendices|"
+    r"amendments?|addend(um|a)|sows?|statements? of work)\b",
+    re.IGNORECASE,
+)
+
+# Placeholder / to-be-filled phrases an extractor mistakes for a party name.
+_PLACEHOLDER_COUNTERPARTY_RE = re.compile(
+    r"\b(will be agreed|will take place|to be (agreed|determined|confirmed|advised|named|decided)|"
+    r"tbd|tba|not yet (agreed|determined))\b",
     re.IGNORECASE,
 )
 _FILENAME_NOISE_RE = re.compile(
@@ -591,6 +599,10 @@ def _is_generic_counterparty(value: str | None) -> bool:
     value_lower = value.lower().strip()
 
     if len(value_lower) < 3:
+        return True
+
+    # Placeholder phrases ("PST will be agreed", "Supplier to be determined")
+    if _PLACEHOLDER_COUNTERPARTY_RE.search(value_lower):
         return True
 
     # Exact match generic terms

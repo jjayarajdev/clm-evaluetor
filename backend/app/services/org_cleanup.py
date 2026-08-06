@@ -10,13 +10,47 @@ vacates a junk org, and by the reconcile tooling.
 import logging
 import uuid
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.contract import Contract
 from app.models.organization import Organization
 
 logger = logging.getLogger(__name__)
+
+
+async def prune_unreliable_orgs(db: AsyncSession, tenant_id: uuid.UUID) -> int:
+    """Remove organizations mistakenly minted from a non-organization counterparty
+    (a document title like "Exhibits", a placeholder like "PST will be agreed").
+
+    Detaches their contracts (organization_id -> NULL; the raw counterparty text
+    is untouched) then deletes the now-empty org, so the Vendors and
+    Organizations views agree — neither shows a junk party. Real names and
+    genuinely-ambiguous fragments (e.g. "2IM") are left alone. No commit.
+    """
+    from app.agents.metadata_extraction import is_unreliable_counterparty
+
+    orgs = (
+        (await db.execute(select(Organization).where(Organization.tenant_id == tenant_id)))
+        .scalars()
+        .all()
+    )
+    pruned = 0
+    for org in orgs:
+        if not is_unreliable_counterparty(org.name):
+            continue
+        await db.execute(
+            update(Contract)
+            .where(Contract.organization_id == org.id)
+            .values(organization_id=None)
+        )
+        await db.flush()
+        if await prune_org_if_empty(db, org.id):
+            pruned += 1
+    if pruned:
+        logger.info(f"Pruned {pruned} non-organization org(s) for tenant {tenant_id}")
+        await db.flush()
+    return pruned
 
 
 async def _org_contract_count(db: AsyncSession, org_id: uuid.UUID) -> int:

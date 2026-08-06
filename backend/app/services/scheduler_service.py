@@ -344,6 +344,11 @@ class SchedulerService:
                 await prune_redundant_family_links(db, tid)
                 touched += await sync_auto_family_groups(db, tid)
                 enriched += await enrich_from_family(db, tid)
+                # Drop orgs mistakenly minted from junk counterparties, after
+                # enrichment has had a chance to correct what it can.
+                from app.services.org_cleanup import prune_unreliable_orgs
+
+                await prune_unreliable_orgs(db, tid)
                 findings_changed += await detect_missing_references(db, tid)
                 await db.commit()
             except Exception as e:

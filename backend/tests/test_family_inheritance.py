@@ -32,12 +32,20 @@ TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
         ("Algoleap Technologies Pvt. Ltd.", False),
         ("DemoSup1 BPO Limited", False),
         ("NUON", False),
+        ("Atos Origin", False),
+        ("Hewlett Packard Company", False),
         # junk / titles / fragments
         ("", True),
         (None, True),
         ("Schedule 03 Service Levels", True),  # document-structure prefix
         ("the parties", True),
         ("Exhibit A", True),
+        ("Exhibits", True),                     # plural document title
+        ("Schedules", True),
+        ("PST will be agreed", True),           # placeholder phrase
+        ("PST Supplier will take place", True),
+        ("Supplier to be determined", True),
+        ("TBD", True),
     ],
 )
 def test_is_unreliable_counterparty(value, expected):

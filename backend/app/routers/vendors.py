@@ -62,7 +62,10 @@ async def list_vendors(
 
     from collections import defaultdict
 
-    from app.agents.metadata_extraction import clean_counterparty
+    from app.agents.metadata_extraction import (
+        clean_counterparty,
+        is_unreliable_counterparty,
+    )
     from app.models.organization import Organization
     from app.models.tenant import Tenant
     from app.services.org_resolver import canonical_org_key, choose_display_name
@@ -97,7 +100,15 @@ async def list_vendors(
     # bucket. Each group carries its display name, tenant, and contracts.
     groups: dict = defaultdict(lambda: {"name": None, "tenant": None, "contracts": []})
     for contract, tname, org_name in rows:
-        if contract.organization_id is not None:
+        # A counterparty that isn't a real organization name (document title,
+        # placeholder like "PST will be agreed", a mentioned fragment) is not a
+        # vendor. Roll every such contract into one "Unassigned party" row rather
+        # than minting a phantom vendor per junk string. Applied even when an org
+        # was mistakenly created for it, so the list shows only real parties.
+        if is_unreliable_counterparty(contract.counterparty, contract.filename):
+            key = ("unassigned", str(contract.tenant_id))
+            display = "Unassigned / unverified party"
+        elif contract.organization_id is not None:
             key = ("org", str(contract.organization_id))
             display = org_name or contract.counterparty
         else:
