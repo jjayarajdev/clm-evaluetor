@@ -2267,92 +2267,134 @@ async def get_contract_hierarchy(
     link_result = await db.execute(links_query)
     links = link_result.scalars().all()
 
-    # Build a single-parent tree from the link graph.
-    # Contracts may have multiple parent links or bidirectional links,
-    # so we must pick one parent per child and break cycles.
+    # SINGLE SOURCE OF TRUTH: families and their roots come from the materialized
+    # auto_family groups (services/group_sync.py) — exactly what the Groups page
+    # reads — so the Tree view and the Groups view can never disagree on which
+    # contracts form a family or which document is its root. The link graph is
+    # used only to shape the edges *inside* a family, oriented away from the
+    # group's chosen root. (Root selection lives in one place, _pick_root, not
+    # re-derived here as "any contract with no parent".)
+    from collections import deque
 
-    # Priority: specific link types are better parents than generic ones
+    from app.models.contract_group import ContractGroup, ContractGroupMember
+
+    groups = (
+        (
+            await db.execute(
+                select(ContractGroup).where(
+                    ContractGroup.tenant_id == tenant_id,
+                    ContractGroup.group_type == "auto_family",
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    group_ids = [g.id for g in groups]
+    members_by_group: dict[Any, list[str]] = {}
+    group_of_contract: dict[str, Any] = {}
+    if group_ids:
+        member_rows = (
+            (
+                await db.execute(
+                    select(ContractGroupMember).where(
+                        ContractGroupMember.group_id.in_(group_ids)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for m in member_rows:
+            cid = str(m.contract_id)
+            if cid not in contract_map:  # BU/tenant-invisible member — skip
+                continue
+            members_by_group.setdefault(m.group_id, []).append(cid)
+            group_of_contract[cid] = m.group_id
+
+    # Link edges as an undirected adjacency, with the best (most specific) link
+    # kept per unordered contract pair for edge labelling.
     LINK_PRIORITY = {
-        # A manual drag-to-parent ('child') is deliberate human intent — it wins.
         'child': 0,
         'sow': 0, 'work_order': 0, 'service_order': 0, 'purchase_order': 0,
         'amendment': 1, 'addendum': 1, 'change_order': 1, 'modification': 1,
         'renewal': 2, 'exhibit': 2, 'schedule': 2, 'appendix': 2, 'attachment': 2,
         'supersedes': 3, 'references': 4, 'related': 5,
     }
-
-    # For each child, pick the best (most specific) parent link
-    child_to_parent: dict[str, tuple[str, str, str]] = {}
+    adjacency: dict[str, set[str]] = {}
+    edge_meta: dict[frozenset, tuple[str, str]] = {}
     for link in links:
-        child_id = str(link.child_contract_id)
-        parent_id = str(link.parent_contract_id)
-        lt = link.link_type if isinstance(link.link_type, str) else link.link_type.value
-        # Skip links to contracts outside this tenant
-        if parent_id not in contract_map or child_id not in contract_map:
+        a = str(link.parent_contract_id)
+        b = str(link.child_contract_id)
+        if a not in contract_map or b not in contract_map:
             continue
-        priority = LINK_PRIORITY.get(lt, 5)
-        existing = child_to_parent.get(child_id)
-        if existing is None or priority < LINK_PRIORITY.get(existing[1], 5):
-            child_to_parent[child_id] = (parent_id, lt, str(link.id))
+        lt = link.link_type if isinstance(link.link_type, str) else link.link_type.value
+        adjacency.setdefault(a, set()).add(b)
+        adjacency.setdefault(b, set()).add(a)
+        key = frozenset((a, b))
+        prio = LINK_PRIORITY.get(lt, 5)
+        if key not in edge_meta or prio < LINK_PRIORITY.get(edge_meta[key][0], 5):
+            edge_meta[key] = (lt, str(link.id))
 
-    # Break cycles using DFS: walk from each node up the parent chain;
-    # if we revisit a node, remove that node's parent to make it a root.
-    for start_id in list(child_to_parent.keys()):
-        visited: set[str] = set()
-        current = start_id
-        while current in child_to_parent:
-            if current in visited:
-                # Cycle detected — break it by removing this node's parent
-                del child_to_parent[current]
-                break
-            visited.add(current)
-            current = child_to_parent[current][0]
+    placed: set[str] = set()
 
-    # Build parent_to_children from the clean single-parent mapping
-    parent_to_children: dict[str, list[str]] = {}
-    for child_id, (parent_id, _, _) in child_to_parent.items():
-        parent_to_children.setdefault(parent_id, []).append(child_id)
-
-    # Roots: contracts with no parent in the mapping
-    root_ids = [cid for cid in contract_map if cid not in child_to_parent]
-
-    # Build tree recursively
-    placed: set[str] = set()  # Track placed nodes to avoid duplicates
-
-    def build_node(contract_id: str) -> ContractTreeNode | None:
-        if contract_id in placed:
-            return None
-        placed.add(contract_id)
-
-        c = contract_map.get(contract_id)
-        if not c:
-            return None
-
-        link_info = child_to_parent.get(contract_id)
-        children_nodes = []
-        for child_id in parent_to_children.get(contract_id, []):
-            child_node = build_node(child_id)
-            if child_node:
-                children_nodes.append(child_node)
-
+    def make_node(cid: str, link_type: str | None, link_id: str | None) -> ContractTreeNode:
+        c = contract_map[cid]
+        placed.add(cid)
         return ContractTreeNode(
-            id=contract_id,
+            id=cid,
             filename=c.filename,
             contract_type=c.contract_type or None,
             counterparty=c.counterparty,
             status=c.status.value if c.status else None,
             risk_level=c.risk_level.value if c.risk_level else None,
             uploaded_at=str(c.created_at) if c.created_at else None,
-            link_type=link_info[1] if link_info else None,
-            link_id=link_info[2] if link_info else None,
-            children=children_nodes,
+            link_type=link_type,
+            link_id=link_id,
+            children=[],
         )
 
-    roots = []
-    for root_id in root_ids:
-        node = build_node(root_id)
-        if node:
-            roots.append(node)
+    roots: list[ContractTreeNode] = []
+
+    # One tree per auto_family group, rooted at the group's root_contract_id.
+    for g in groups:
+        members = set(members_by_group.get(g.id, []))
+        if not members:
+            continue
+        root = str(g.root_contract_id) if g.root_contract_id else None
+        if root not in members:
+            # Root hidden by BU filter or unset — fall back to the most-connected
+            # visible member so the family still renders as one tree.
+            root = max(
+                members,
+                key=lambda c: (len(adjacency.get(c, set()) & members), c),
+            )
+
+        node_map: dict[str, ContractTreeNode] = {root: make_node(root, None, None)}
+        visited = {root}
+        queue = deque([root])
+        while queue:
+            u = queue.popleft()
+            for v in sorted(adjacency.get(u, set()) & members):
+                if v in visited:
+                    continue
+                visited.add(v)
+                lt, lid = edge_meta.get(frozenset((u, v)), (None, None))
+                child_node = make_node(v, lt, lid)
+                node_map[u].children.append(child_node)
+                node_map[v] = child_node
+                queue.append(v)
+        # Manually-pinned members with no link path to the root still belong to
+        # the family — attach them directly under the root.
+        for cid in sorted(members - visited):
+            node_map[root].children.append(make_node(cid, None, None))
+        roots.append(node_map[root])
+
+    # Standalone contracts (not in any auto_family group) → singleton roots.
+    for cid in contract_map:
+        if cid in placed or cid in group_of_contract:
+            continue
+        roots.append(make_node(cid, None, None))
 
     # Sort roots: those with children first, then by filename
     roots.sort(key=lambda n: (len(n.children) == 0, n.filename or ""))
