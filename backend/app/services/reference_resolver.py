@@ -50,6 +50,16 @@ def _norm(text: str | None) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
 
 
+def _identifier_matches(ident: str, filename: str) -> bool:
+    """Whole-token match of a declared identifier inside a (normalised) filename.
+
+    Bounded so a numbered identifier can't match a longer number: "exhibit 12"
+    matches "exhibit 12 3rd party contracts" but NOT "exhibit 120" or
+    "exhibit 121". Both inputs are already `_norm`'d (lowercase, space-joined).
+    """
+    return re.search(rf"(?:^|\s){re.escape(ident)}(?:\s|$)", filename) is not None
+
+
 def _link_type_for(reference: dict, document_role: str | None) -> str:
     lt = _RELATIONSHIP_TO_LINK_TYPE.get((reference.get("relationship") or "").lower())
     if lt:
@@ -123,8 +133,13 @@ async def resolve_declared_references(
                 cand_fn = _norm(cand.filename)
                 cand_cp = _norm(cand.counterparty)
 
-                if ref_ident and len(ref_ident) >= 4 and ref_ident in cand_fn:
-                    score += 3
+                if ref_ident and len(ref_ident) >= 4 and _identifier_matches(ref_ident, cand_fn):
+                    # A precise, bounded identifier match ("Exhibit 12" → the one
+                    # "Exhibit 12 (…)") is strong enough to auto-link on its own
+                    # when unique — the child explicitly named this parent. The
+                    # `best_score >= 4 and unique` gate below still guards against
+                    # ambiguity (two candidates matching → no link).
+                    score += 4
                 if ref_type and normalize_contract_type(cand.contract_type) == ref_type:
                     score += 2
                 if ref_parties and any(
