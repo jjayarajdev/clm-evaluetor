@@ -17,7 +17,10 @@ from sqlalchemy.ext.asyncio import (
 from app.database import Base
 from app.models.contract import Contract, ContractStatus
 from app.models.contract_link import ContractLink
-from app.services.framework_linker import link_by_counterparty_master
+from app.services.framework_linker import (
+    link_by_counterparty_master,
+    link_by_document_numbering,
+)
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -110,6 +113,47 @@ async def test_msa_outranks_service_agreement(db):
     links = await _active_links(db)
     assert all(l.parent_contract_id == msa.id for l in links)
     assert {l.child_contract_id for l in links} == {svc.id, sow.id}
+
+
+@pytest.mark.asyncio
+async def test_document_numbering_links_attachment_and_subexhibit(db):
+    """'Attachment N-X' → 'Exhibit N', and 'Exhibit N.M' → 'Exhibit N.0', by
+    filename numbering — even when the extracted parent reference is broken."""
+    tid = uuid.uuid4()
+    ex5 = _contract(tid, "Exhibit 5 (Human Resource Provisions) Final v1.7.DOC", "other")
+    att5 = _contract(tid, "Attachment 5-E(4) (Pensions - BELGIUM) Final v1.4.doc", "other")
+    ex20 = _contract(tid, "Exhibit 2.0 (Statement of Work) Final v1.7.doc", "other")
+    ex27 = _contract(tid, "Exhibit 2.7 (2IM Services) Final v1.5.doc", "schedule")
+    db.add_all([ex5, att5, ex20, ex27])
+    await db.flush()
+
+    n = await link_by_document_numbering(db, tid)
+    assert n == 2
+    links = await _active_links(db)
+    pairs = {(l.parent_contract_id, l.child_contract_id) for l in links}
+    assert (ex5.id, att5.id) in pairs      # Attachment 5-E(4) -> Exhibit 5
+    assert (ex20.id, ex27.id) in pairs     # Exhibit 2.7 -> Exhibit 2.0
+
+
+@pytest.mark.asyncio
+async def test_document_numbering_needs_unique_head(db):
+    """No link when the number doesn't uniquely resolve, and no bleed between
+    'Exhibit 2' and 'Exhibit 20'."""
+    tid = uuid.uuid4()
+    ex2a = _contract(tid, "Exhibit 2 (One) Final.doc", "other")
+    ex2b = _contract(tid, "Exhibit 2 (Two) Final.doc", "other")   # ambiguous head for "2"
+    att2 = _contract(tid, "Attachment 2-A (Bundle) Final.doc", "other")
+    ex20 = _contract(tid, "Exhibit 20 (Termination) Final.doc", "other")
+    att20 = _contract(tid, "Attachment 20-A (Plan) Final.doc", "other")
+    db.add_all([ex2a, ex2b, att2, ex20, att20])
+    await db.flush()
+
+    n = await link_by_document_numbering(db, tid)
+    links = await _active_links(db)
+    pairs = {(l.parent_contract_id, l.child_contract_id) for l in links}
+    assert (ex20.id, att20.id) in pairs           # "20" is unique -> links
+    assert not any(p == att2.id for _, p in pairs)  # "2" is ambiguous -> no link
+    assert n == 1
 
 
 @pytest.mark.asyncio

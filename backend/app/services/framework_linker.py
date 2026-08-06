@@ -259,6 +259,77 @@ async def link_by_counterparty_master(
     return created
 
 
+# A document's number encodes its parent in these outsourcing-style families:
+#   "Attachment N-X ..."     -> the "Exhibit N ..." head
+#   "Exhibit N.M ..." (M>0)  -> the "Exhibit N.0 ..." head
+# Bounded so numbers can't bleed: "Exhibit 5" is a head; "Exhibit 2.0" heads the
+# 2.x sub-series; "Exhibit 20"/"Exhibit 20-2IM" are NOT heads for key "5"/"2".
+_HEAD_BARE_RE = re.compile(r"^\s*exhibit\s+(\d+)(?![.\d-])", re.IGNORECASE)
+_HEAD_DOTZERO_RE = re.compile(r"^\s*exhibit\s+(\d+)\.0(?![.\d])", re.IGNORECASE)
+_CHILD_ATTACHMENT_RE = re.compile(r"^\s*attachment\s+(\d+)", re.IGNORECASE)
+_CHILD_SUBEXHIBIT_RE = re.compile(r"^\s*exhibit\s+(\d+)\.([1-9]\d*)", re.IGNORECASE)
+
+
+async def link_by_document_numbering(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+) -> int:
+    """Link structural documents to their parent by their filename numbering.
+
+    Deterministic and independent of the (frequently broken) extracted
+    parent-reference field — an "Attachment 5-E(4)" whose reference field wrongly
+    names itself still resolves to "Exhibit 5" by its number. Fires only on a
+    UNIQUE head match, so ambiguity links nothing. Goes through the link referee
+    (rule='document_number'), so a stronger declared/human parent still wins.
+    Returns links created; does not commit.
+    """
+    from app.services.link_authority import claim_parent
+
+    contracts = (
+        (await db.execute(select(Contract).where(Contract.tenant_id == tenant_id)))
+        .scalars()
+        .all()
+    )
+
+    heads: dict[str, list[Contract]] = defaultdict(list)
+    for c in contracts:
+        fn = c.filename or ""
+        m = _HEAD_BARE_RE.match(fn) or _HEAD_DOTZERO_RE.match(fn)
+        if m:
+            heads[m.group(1)].append(c)
+
+    created = 0
+    for c in contracts:
+        fn = c.filename or ""
+        am = _CHILD_ATTACHMENT_RE.match(fn)
+        em = _CHILD_SUBEXHIBIT_RE.match(fn) if not am else None
+        if am:
+            key, link_type = am.group(1), "attachment"
+        elif em:
+            key, link_type = em.group(1), "exhibit"
+        else:
+            continue
+        candidates = heads.get(key, [])
+        if len(candidates) != 1 or candidates[0].id == c.id:
+            continue  # no head, or ambiguous, or self
+        if await claim_parent(
+            db,
+            child_id=c.id,
+            parent_id=candidates[0].id,
+            link_type=link_type,
+            rule="document_number",
+            description=f"Document numbering: child of {(candidates[0].filename or '')[:120]}",
+        ):
+            created += 1
+
+    if created:
+        logger.info(
+            f"Document-numbering linking created {created} link(s) for tenant {tenant_id}"
+        )
+    await db.flush()
+    return created
+
+
 async def link_framework_sets(
     db: AsyncSession,
     tenant_id: uuid.UUID,

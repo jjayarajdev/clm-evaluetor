@@ -328,12 +328,16 @@ class SchedulerService:
             try:
                 from app.services.framework_linker import (
                     link_by_counterparty_master,
+                    link_by_document_numbering,
                     link_change_orders,
                 )
 
                 n_links, _ = await resolve_declared_references(db, tid)
                 n_links += await link_by_counterparty_master(db, tid)
                 n_links += await link_change_orders(db, tid)
+                # Numbering runs last so an explicit declared parent wins over
+                # the "Attachment N-X -> Exhibit N" convention.
+                n_links += await link_by_document_numbering(db, tid)
                 links_resolved += n_links
                 # Thin sibling↔sibling cross-links before materializing groups
                 # so families reconcile (and render) as trees, not tangles.

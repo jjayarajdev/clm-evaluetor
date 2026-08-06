@@ -240,12 +240,14 @@ async def _check_batch_completion(batch_id: str, session: AsyncSession) -> None:
         if first and first.tenant_id:
             from app.services.framework_linker import (
                 link_by_counterparty_master,
+                link_by_document_numbering,
                 link_change_orders,
             )
 
             n = await link_framework_sets(session, first.tenant_id)
             n += await link_by_counterparty_master(session, first.tenant_id)
             n += await link_change_orders(session, first.tenant_id)
+            n += await link_by_document_numbering(session, first.tenant_id)
             if n:
                 from app.services.family_enrichment import enrich_from_family
                 from app.services.group_sync import sync_auto_family_groups
