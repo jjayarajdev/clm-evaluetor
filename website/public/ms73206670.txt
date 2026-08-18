@@ -1,0 +1,5 @@
+﻿{
+  "Description": "Domain ownership verification file for Microsoft 365 - place in the website root",
+  "Domain": "evaluetor.com",
+  "Id": "2df68d09-71b0-4d9e-b33c-8e97a977673a"
+}
