@@ -22,7 +22,12 @@
     "create": "Create",
     "saving": "Saving...",
     "saved": "Saved",
-    "deleting": "Deleting…"
+    "deleting": "Deleting…",
+    "add": "Add",
+    "back": "Back",
+    "close": "Close",
+    "confirm": "Confirm",
+    "remove": "Remove"
   },
   "roles": {
     "admin": "Admin",
@@ -76,7 +81,27 @@
     "deleteConfirmTitle_one": "Delete {{count}} Contract?",
     "deleteConfirmTitle_other": "Delete {{count}} Contracts?",
     "deleteConfirmBody": "This will permanently delete the selected contracts, including all associated files, clauses, obligations, and vector embeddings. This action cannot be undone.",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "daysAgo": "{{count}}d ago",
+    "deleteFailed": "Delete failed. Please try again.",
+    "deleteSuccess": "{{count}} contract(s) deleted",
+    "deselect": "Deselect",
+    "emptyBody": "Upload your first contract to start the AI extraction pipeline.",
+    "emptyFilteredBody": "Loosen or clear a filter to see more of your portfolio.",
+    "emptyTitle": "No contracts yet",
+    "inDays": "in {{count}}d",
+    "nextPage": "Next page",
+    "previousPage": "Previous page",
+    "selectedCount": "{{count}} selected",
+    "statAnalyzed": "Fully analyzed",
+    "statAnalyzedSub": "{{count}} still processing",
+    "statCritical": "+{{count}} critical",
+    "statExpiring": "Expiring soon",
+    "statExpiringSub": "approaching expiration",
+    "statHighRisk": "High risk",
+    "statHighRiskSub": "needing review",
+    "statTotal": "Contracts",
+    "statTotalSub": "across your portfolio"
   },
   "contract": {
     "notFound": "Contract not found",
@@ -146,7 +171,8 @@
       "sharing": "Sharing",
       "quality": "Quality",
       "supply_chain": "Supply Chain",
-      "graph": "Knowledge Graph"
+      "graph": "Knowledge Graph",
+      "versions": "Versions"
     },
     "stages": {
       "metadata": "Metadata",
@@ -172,7 +198,35 @@
       "failed": "failed",
       "skipped": "skipped",
       "not_applicable": "not applicable"
-    }
+    },
+    "aiValuesExplainer": "Values marked AI were extracted by the pipeline and carry a confidence score and a source sentence. Hover any score to see the exact wording it came from.",
+    "commentResolved": "Resolved",
+    "confidenceSubhead": "Confidence {{value}}",
+    "currentVersion": "Current",
+    "deleteAffected": "All extracted clauses, obligations, SLAs and risk analysis",
+    "deleteBody": "This permanently removes the document and everything the pipeline extracted from it.",
+    "deleteTitle": "Delete this contract?",
+    "extractedValue": "Extracted value",
+    "manualEntry": "manual entry",
+    "matchTotal": "{{matches}} of {{total}} match",
+    "noComments": "No comments yet",
+    "noHighRiskClauses": "No high or critical risk clauses",
+    "noMatchingObligations": "No matching obligations",
+    "noVersions": "No version history",
+    "notFound2": "Not found",
+    "orphanDeactivate": "Deactivate it — keep the organization & relationship (and their KPIs/scores) but mark inactive. Reversible.",
+    "orphanDelete": "Delete it completely — remove the organization, relationship, KPIs, scores and history.",
+    "orphanKeep": "Leave it active as-is.",
+    "orphanOrgHeading": "the organization",
+    "processQueued": "Processing started",
+    "provenanceAgent": "metadata agent",
+    "reanalyzeQueued": "Re-analysis queued",
+    "searchClauses": "Search clauses…",
+    "searchObligations": "Search obligations…",
+    "sourceProvenance": "Source provenance",
+    "supersededVersion": "Superseded",
+    "theOrganization": "the organization",
+    "viewSource": "View source"
   },
   "upload": {
     "title": "Upload Contracts",
@@ -238,7 +292,25 @@
     "stageSchema": "Schema extraction agent",
     "stageLinks": "Link detection",
     "stageCompliance": "Compliance check",
-    "stageGovernance": "Governance sync"
+    "stageGovernance": "Governance sync",
+    "alreadyUploaded": "Duplicate",
+    "clientCreated": "Client \"{{name}}\" created",
+    "fileFailedToast": "\"{{name}}\" failed processing",
+    "fileProcessedToast": "\"{{name}}\" processed",
+    "queuedForProcessing": "Queued — waiting for the processing worker",
+    "removeFromQueue": "Remove from queue",
+    "trayClearFinished": "Clear finished uploads",
+    "trayCollapse": "Collapse upload status",
+    "trayDismiss": "Dismiss",
+    "trayDone": "Done {{count}}",
+    "trayExpand": "Expand upload status",
+    "trayFailed": "Failed",
+    "trayFailedCount": "Failed {{count}}",
+    "trayLabel": "Upload status",
+    "trayProcessing": "Processing {{count}}",
+    "trayUploading": "Uploading {{count}}",
+    "trayViewContract": "View contract",
+    "uploadFailedToast": "\"{{name}}\" failed to upload"
   },
   "clauses": {
     "quality_assurance": "Quality Assurance",
@@ -417,7 +489,10 @@
     "notTracked": "Not tracked — no obligations marked completed or in progress.",
     "notMeasured": "Not measured — no SLA performance data yet.",
     "valueCoverage": "{{valued}} of {{total}} contracts valued",
-    "valueOtherCurrencies": "also amounts in {{currencies}}"
+    "valueOtherCurrencies": "also amounts in {{currencies}}",
+    "noContracts": "No contracts yet",
+    "noContractsDesc": "Upload a contract to start extraction, risk detection and obligation tracking.",
+    "noRecentActivityDesc": "Uploads, analyses and obligation updates will appear here as they happen."
   },
   "query": {
     "suggested": {
@@ -449,7 +524,22 @@
     "errorMessage": "Sorry, I encountered an error: {{error}}",
     "unknownError": "Unknown error",
     "inputPlaceholder": "Ask about your contracts...",
-    "searchingAllContracts": "Searching all contracts"
+    "searchingAllContracts": "Searching all contracts",
+    "aiAnswer": "AI answer",
+    "answerConfidence": "answer confidence",
+    "askButton": "Ask",
+    "citationHint": "Retrieved passage. Click through to open the contract.",
+    "citationPage": "page {{page}}",
+    "clearScope": "Clear contract scope",
+    "composerHint": "Sessions persist. Structured questions return a table or chart alongside the answer.",
+    "sourceDocuments": "Documents",
+    "sourceDocumentsHint": "Answered from retrieved document text (may not cover your whole portfolio).",
+    "sourceFallback": "Source {{number}}",
+    "sourceHybrid": "Filter + documents",
+    "sourceHybridHint": "Filtered your portfolio in the database, then searched the matching contracts’ text.",
+    "sourcePortfolio": "Portfolio data",
+    "sourcePortfolioHint": "Answered from an exact query over your portfolio data.",
+    "thinking": "Retrieving across your contracts…"
   },
   "sla": {
     "notFound": "SLA not found.",
@@ -491,7 +581,9 @@
     "notes": "Notes",
     "notesPlaceholder": "Optional — period, source…",
     "recordFailed": "Could not record the measurement.",
-    "recordInvalid": "Enter a numeric value."
+    "recordInvalid": "Enter a numeric value.",
+    "consecutive": "consecutive",
+    "recordedToast": "Measurement recorded."
   },
   "renewals": {
     "pastNoticeDeadline": "Past Notice Deadline",
@@ -523,7 +615,20 @@
     "noContractsInWindow": "No contracts in this renewal window",
     "expiredValueNote": "+ {{value}} in expired contracts",
     "expiredNeedsAction": "Expired — Needs Action",
-    "lapsedValue": "{{value}} lapsed"
+    "lapsedValue": "{{value}} lapsed",
+    "atStake": "{{value}} at stake",
+    "autoRenewingSub": "renew unless notice is given",
+    "contract": "Contract",
+    "counterparty": "Counterparty",
+    "emptyBody": "Nothing needs a renewal decision in this window.",
+    "expiredCount": "{{count}} contracts have expired",
+    "exportDone": "Calendar exported (.ics)",
+    "exportFailed": "Calendar export failed",
+    "needActionSub": "notice window open or closing",
+    "noticeBy": "Notice by",
+    "noticeWindowClosed": "window closed",
+    "openExpiredBucket": "View {{count}} expired",
+    "totalExpiringSub": "in the next 90 days"
   },
   "reports": {
     "title": "Compliance Reports",
@@ -550,7 +655,13 @@
     "byContract": "By Contract",
     "contract": "Contract",
     "oblAbbr": "Obl.",
-    "slaAbbr": "SLA"
+    "slaAbbr": "SLA",
+    "noActivityBody": "No obligations were completed or overdue and no SLA measurements were recorded in these periods, so there is no compliance to report. Track obligations and record SLA measurements under Post-signing to populate this trend.",
+    "noActivityTitle": "Nothing measured yet",
+    "noContractBreakdown": "No per-contract data",
+    "noContractBreakdownBody": "None of the contracts have tracked obligations or SLA measurements in this period.",
+    "noReportDataBody": "No tracked obligations or SLAs fall inside the selected dates, so a compliance report would be empty. Widen the report period, or start tracking obligations and SLAs under Post-signing.",
+    "noReportDataTitle": "No post-signing activity in this period"
   },
   "vendors": {
     "vendor": "Vendor",
@@ -593,7 +704,11 @@
     "oblCompliance": "Obl. Compliance",
     "slaCompliance": "SLA Compliance",
     "breaches": "Breaches",
-    "noCounterparties": "No counterparties found"
+    "noCounterparties": "No counterparties found",
+    "atRiskSub": "below performance thresholds",
+    "avgScoreSub": "across rated counterparties",
+    "emptyBody": "Scorecards appear once contracts with counterparties are analyzed.",
+    "totalExposureSub": "sum of contract values"
   },
   "postsigning": {
     "na": "N/A",
@@ -649,7 +764,8 @@
       "slas": "SLAs ({{count}})",
       "milestones": "Milestones ({{count}})",
       "renewals": "Renewals",
-      "vendors": "Vendors ({{count}})"
+      "vendors": "Vendors ({{count}})",
+      "slasShort": "SLAs"
     },
     "title": "Post-Signing Operations",
     "description": "Monitor obligations, SLAs, milestones, renewals, and vendor performance",
@@ -759,7 +875,24 @@
     "oblPercent": "Obl %",
     "slaPercent": "SLA %",
     "noVendorData": "No vendor data available",
-    "valueCoverage": "{{value}} · {{valued}}/{{total}} valued"
+    "valueCoverage": "{{value}} · {{valued}}/{{total}} valued",
+    "emptyMilestonesBody": "Milestones are dated obligations — they appear once extraction finds target dates in your contracts.",
+    "emptyMilestonesFiltered": "No milestones match this status — clear the filter to see all.",
+    "emptyObligationsBody": "Obligations appear here once the AI pipeline extracts them from uploaded contracts.",
+    "emptyObligationsFiltered": "No obligations match the current filters — loosen or clear them to see more.",
+    "emptyRenewalsBody": "Nothing expires within the next 90 days and no contract has lapsed recently.",
+    "emptyRenewalsFiltered": "Nothing falls inside this window — clear the filter to see the full radar.",
+    "emptySlasBody": "SLAs appear here once the AI pipeline extracts service levels from uploaded contracts.",
+    "emptySlasFiltered": "No SLAs match the current filters — loosen or clear them to see more.",
+    "emptyVendorsBody": "Vendor scorecards are derived from contracts — upload contracts with counterparties to populate this list.",
+    "exportFailed": "Calendar export failed",
+    "exportSuccess": "Calendar exported (.ics)",
+    "overdueBannerBody": "These obligations are past their due date — review and complete or waive them.",
+    "overdueBannerTitle": "{{count}} overdue.",
+    "recordSuccess": "Measurement recorded",
+    "renewalStatusFailed": "Could not update renewal status",
+    "renewalStatusUpdated": "Renewal status updated",
+    "searchRows": "Search this tab…"
   },
   "users": {
     "subtitle": "Manage user accounts and permissions",
@@ -787,7 +920,19 @@
     "buSelectPlaceholder": "Select a business unit…",
     "buScopeHint": "Controls which contracts this user can see (their unit + unassigned).",
     "buFullAccess": "— Unassigned (full tenant access) —",
-    "buAdminScopeHint": "Leave unassigned for full tenant access, or pick a unit to restrict this admin to it."
+    "buAdminScopeHint": "Leave unassigned for full tenant access, or pick a unit to restrict this admin to it.",
+    "buAllUnits": "all units",
+    "buAllUnitsTip": "No business unit — sees all units",
+    "countSummary": "{{count}} users",
+    "createdToast": "{{username}} created",
+    "deleteBody": "The account can no longer sign in. Contracts and records they created stay in place.",
+    "deleteFailed": "Failed to delete user",
+    "deletedToast": "{{username}} deleted",
+    "emptyBody": "Create the first account for this tenant — it will inherit your role and business-unit rules.",
+    "emptyTitle": "No users yet",
+    "inactiveCount": "{{count}} inactive",
+    "updatedToast": "User updated",
+    "usernameHint": "Used to sign in — no spaces."
   },
   "obligation": {
     "notFound": "Obligation not found",
@@ -871,7 +1016,10 @@
     "evidencePlaceholder": "Describe the compliance evidence...",
     "evidenceDate": "Evidence Date",
     "attachmentOptional": "Attachment (optional)",
-    "uploading": "Uploading..."
+    "uploading": "Uploading...",
+    "evidenceAddedToast": "Evidence recorded.",
+    "overdueBanner": "the deadline of {{date}} has passed and this obligation is not completed or waived.",
+    "updateFailed": "Update failed. Please try again."
   },
   "clause": {
     "notFound": "Clause not found",
@@ -1223,7 +1371,9 @@
     "searchContractsPlaceholder": "Search contracts...",
     "addAsPlatformLabel": "Add as platform-wide (benefits all tenants)",
     "noMatchingContracts": "No matching contracts found",
-    "manuallyAdded": "Manually added"
+    "manuallyAdded": "Manually added",
+    "compileStarted": "{{agent}}: compiling in background…",
+    "compiledWithProvider": "Compiled against {{provider}}"
   },
   "industry": {
     "noProfile": "No profile",
@@ -1416,7 +1566,8 @@
     "idpGroupPlaceholder": "e.g., ContractAdmins",
     "saving": "Saving...",
     "updateConfiguration": "Update Configuration",
-    "enableSso": "Enable SSO"
+    "enableSso": "Enable SSO",
+    "toggleSecret": "Toggle visibility"
   },
   "integrations": {
     "failed": "Failed",
@@ -1485,7 +1636,8 @@
         "error": "Error"
       },
       "noMappings": "No SLA mappings found.",
-      "noMappingsHint": "Click \"Sync Now\" to fetch SLAs from ServiceNow."
+      "noMappingsHint": "Click \"Sync Now\" to fetch SLAs from ServiceNow.",
+      "toggleSecret": "Toggle visibility"
     },
     "sharepoint": {
       "health": {
@@ -1560,7 +1712,8 @@
       "endpoint": "Endpoint",
       "duration": "Duration",
       "error": "Error",
-      "noLogs": "No integration logs available."
+      "noLogs": "No integration logs available.",
+      "needsAttention": "needs attention"
     }
   },
   "superadmin": {
@@ -1637,7 +1790,17 @@
       "tenantDeleted": "Tenant Deleted",
       "deletedSuffix": "has been permanently deleted.",
       "deletionSummary": "Deletion Summary",
-      "done": "Done"
+      "done": "Done",
+      "activateAction": "Activate",
+      "activateTitle": "Activate tenant?",
+      "activatedToast": "Tenant activated",
+      "createdToast": "{{name}} created",
+      "deactivateAction": "Deactivate",
+      "deactivateAffectedLogins": "Sign-in for every user of this tenant",
+      "deactivateSafeData": "Contracts, users and settings — everything is kept and restored on reactivation",
+      "deactivateTitle": "Deactivate tenant?",
+      "deactivatedToast": "Tenant deactivated",
+      "updatedToast": "Tenant updated"
     },
     "tenantDetail": {
       "notFound": "Tenant not found",
@@ -1706,7 +1869,11 @@
       "idpGroupName": "IdP Group Name",
       "appRole": "App Role",
       "idpGroupPlaceholder": "e.g., ContractAdmins",
-      "enableSso": "Enable SSO"
+      "enableSso": "Enable SSO",
+      "disableAffected": "SSO sign-in for this tenant",
+      "disableSafe": "Provisioned users and their password logins",
+      "disabledToast": "SSO disabled",
+      "savedToast": "SSO configuration saved"
     },
     "users": {
       "subtitle": "Manage users across all tenants",
@@ -2098,7 +2265,97 @@
     "deletePermanently": "Delete permanently",
     "deleteRelationship": "Delete relationship",
     "deleteRelationshipPrompt": "Delete the relationship with “{{name}}”?",
-    "deleteRelationshipWarning": "This permanently removes its KPIs and scores, surveys and responses, improvement points, team and history. Contracts are detached but never deleted. This cannot be undone."
+    "deleteRelationshipWarning": "This permanently removes its KPIs and scores, surveys and responses, improvement points, team and history. Contracts are detached but never deleted. This cannot be undone.",
+    "addQuestion": "Add question",
+    "allApproved": "All pending scores approved",
+    "anonymous": "Anonymous",
+    "approveHint": "Approved scores are folded into the relationship health score.",
+    "approved": "Approved",
+    "awaitingApproval": "submitted scores awaiting approval",
+    "backToOrganizations": "Back to organizations",
+    "belowHealth70": "below health 70",
+    "clickToEdit": "Click to edit",
+    "closingText": "Closing",
+    "deleteQuestion": "Delete question",
+    "deleteQuestionAffected": "The question is removed from this template and will not appear in new surveys",
+    "deleteQuestionSafe": "Answers already collected in submitted responses",
+    "deleteRemovesHierarchy": "Its position in the corporate hierarchy",
+    "deleteRemovesRecord": "The organization record and its officer contacts",
+    "deleteRemovesRels": "Its business relationships and their KPIs, scores and history",
+    "deleteRemovesTitle": "Permanent deletion removes",
+    "deleteSafeContracts": "Contracts — contracts are never deleted",
+    "deleteSafeOrgs": "The organizations themselves — they stay in the registry",
+    "deleteSafeRefs": "Existing contracts and relationships — every reference stays intact",
+    "deleteSafeReversible": "Anything permanently — deactivation is reversible",
+    "deleteSafeTitle": "Deactivating does not touch",
+    "deleteScoreAffected": "The recorded score for this period",
+    "deleteScoreSafe": "The KPI definition and every other period",
+    "deleteScoreTitle": "Delete score for {{name}}?",
+    "deleteTemplate": "Delete template",
+    "deleteTemplateAffected": "The template is deactivated: it disappears from this list and can no longer be used for new surveys",
+    "deleteTemplatePrompt": "Delete \"{{name}}\"? This deactivates the template (soft delete).",
+    "deleteTemplateSafe": "Surveys already created from it and their responses — they keep working",
+    "editTemplate": "Edit template",
+    "gapHint": "internal vs external perception",
+    "healthyAtOrAbove": "health score 80 or above",
+    "historyEmptyBody": "Record a periodic status to build the performance timeline.",
+    "improvementsEmptyBody": "Improvement points are generated from severe perception gaps, or raised by hand.",
+    "improvementsGenerated": "Improvement points generated from gaps",
+    "introText": "Introduction",
+    "kpiCreated": "KPI created",
+    "kpisEmptyBody": "KPIs measure the relationship from both sides. Add one to start scoring.",
+    "linkedToKpi": "Linked to KPI",
+    "noOrgsEmptyHint": "Organizations are created here or auto-created when a contract with a new counterparty is analyzed.",
+    "noOrgsFilterHint": "No organization matches the current search or type filter.",
+    "noQuestionsYet": "No questions yet — add the first one.",
+    "noRelationshipsForOrgHint": "Relationships between this organization and others appear here once created.",
+    "noTemplatesYet": "No templates available",
+    "notLinkedToKpi": "not linked to a KPI",
+    "notScored": "Not scored",
+    "officerAdded": "{{name}} added",
+    "officerRemoved": "Officer removed",
+    "openRelationship": "Open relationship",
+    "orgCreated": "{{name}} created",
+    "orgDeactivated": "{{name}} deactivated",
+    "orgDeleted": "{{name}} deleted",
+    "questionAdded": "Question added",
+    "questionDeleted": "Question deleted",
+    "questionText": "Question text",
+    "questionUpdated": "Question updated",
+    "questions": "Questions",
+    "queueClear": "nothing awaiting approval",
+    "recordScore": "Record score",
+    "rejected": "Rejected",
+    "relationshipCreated": "Relationship created",
+    "relationshipDeleted": "Relationship deleted",
+    "relationshipsEmptyBody": "Create a relationship to start tracking health, KPIs and perception.",
+    "removeOfficerAffected": "The officer contact entry for this organization",
+    "removeOfficerBody": "This removes the officer contact from this organization.",
+    "removeOfficerSafeContracts": "Contracts — they are never deleted",
+    "removeOfficerSafeOrg": "The organization itself and its relationships",
+    "removeOfficerTitle": "Remove {{name}}?",
+    "required": "Required",
+    "responses": "Responses",
+    "scoreApproved": "Score approved",
+    "scoreDeleted": "Score deleted",
+    "scoreRejected": "Score rejected",
+    "scoreSubmitted": "Perception score submitted",
+    "severeGapsCount": "{{count}} severe gaps.",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "statusRecorded": "Performance status recorded",
+    "surveyCreated": "Survey created",
+    "surveySent": "Survey sent",
+    "teamEmptyBody": "No one is assigned to this relationship yet.",
+    "templateCreated": "Template created",
+    "templateDeactivated": "Template deactivated",
+    "templateRequiredBanner": "A survey needs a template, and there are none yet. Create a template first, then come back to send a survey.",
+    "templateRequiredHint": "Disabled — no survey templates exist yet.",
+    "templateUpdated": "Template updated",
+    "templates": "Templates",
+    "tryAnotherFilter": "Try a different relationship type filter.",
+    "typeNotEditable": "Type cannot be changed after creation",
+    "updateFailed": "Update failed"
   },
   "reviewPane": {
     "unknown": "Unknown",
@@ -2742,7 +2999,20 @@
       "slaWeight": "SLA weight",
       "resetHint": "Remove the override and fall back to the inherited defaults.",
       "resetTenant": "Reset to system defaults",
-      "resetBu": "Clear override (inherit)"
+      "resetBu": "Clear override (inherit)",
+      "atRiskThreshold": "\"At risk\" below",
+      "atRiskThresholdHint": "Composite score below this counts the vendor as at risk.",
+      "highThreshold": "High risk ≥",
+      "issueRateWeight": "Issue-rate weight",
+      "lowThreshold": "Low risk ≥",
+      "mediumThreshold": "Medium risk ≥",
+      "reservedSignal": "not yet measured",
+      "responsivenessWeight": "Responsiveness weight",
+      "saveAllTabsHint": "Saves all three rule sets.",
+      "vendorBands": "Risk bands",
+      "vendorBandsHint": "Score at or above \"low\" is low risk, above \"medium\" is medium, above \"high\" is high — anything lower is critical.",
+      "vendorDesc": "How counterparty performance scores are blended and banded. Only measured signals (obligations, SLAs) enter the blend; weights are renormalized.",
+      "vendorTitle": "Vendor scorecard"
     },
     "general": {
       "industryProfile": "Industry Profile",
@@ -2808,7 +3078,10 @@
       "triggeredTimes_other": "Triggered {{count}} times",
       "confirmDelete": "Are you sure you want to delete this rule?",
       "noRules": "No notification rules configured",
-      "noRulesHint": "Add rules to get notified about important contract events"
+      "noRulesHint": "Add rules to get notified about important contract events",
+      "deleteRuleTitle": "Delete notification rule",
+      "ruleCreated": "Notification rule created",
+      "ruleDeleted": "Notification rule deleted"
     },
     "security": {
       "allFieldsRequired": "All fields are required",
@@ -2838,7 +3111,8 @@
         "slack": "Send notifications to Slack"
       },
       "connected": "Connected",
-      "configure": "Configure"
+      "configure": "Configure",
+      "notConnected": "Not connected"
     },
     "appearance": {
       "theme": "Theme",
@@ -2924,7 +3198,19 @@
     "saving": "Saving...",
     "update": "Update",
     "create": "Create",
-    "saveFailed": "Failed to save business unit"
+    "saveFailed": "Failed to save business unit",
+    "childCount": "{{count}} sub-units",
+    "createdToast": "{{name}} created",
+    "deactivate": "Deactivate",
+    "deactivateAffectsUnit": "The unit is marked inactive and can no longer be assigned to users or contracts",
+    "deactivateAffectsUsers": "Users assigned to it keep the assignment but the unit no longer scopes new work",
+    "deactivatePrompt": "Deactivate {{name}}?",
+    "deactivateSafeData": "Existing contracts, sub-units and governance data — every reference stays intact",
+    "deactivateSafeReversible": "Anything permanently — reactivate the unit at any time from Edit",
+    "deactivatedToast": "{{name}} deactivated",
+    "hierarchyHint": "Units are hierarchical and tenant-created. Contracts inherit the uploader’s unit; a unit head sees their whole subtree, and users with no unit see everything.",
+    "unitCount": "{{count}} units",
+    "updatedToast": "{{name}} updated"
   },
   "externalUsers": {
     "subtitle": "Manage counterparty contacts who can access shared contracts",
@@ -2956,7 +3242,15 @@
     "phonePlaceholder": "+1 (555) 123-4567",
     "saving": "Saving...",
     "update": "Update",
-    "create": "Create"
+    "create": "Create",
+    "createdToast": "{{name}} added",
+    "deactivate": "Deactivate",
+    "deactivateAffectsAccess": "Their share links stop working — they can no longer open contracts shared with them",
+    "deactivateBody": "This external user loses access to everything shared with them.",
+    "deactivateSafeData": "Their record, access history and existing share entries stay intact",
+    "deactivateSafeReinvite": "Nothing permanently — they can be invited again at any time",
+    "deactivatedToast": "{{name}} deactivated",
+    "updatedToast": "External user updated"
   },
   "scheduler": {
     "subtitle": "Manage background jobs and scheduled tasks",
@@ -3010,7 +3304,13 @@
     "noHistory": "No execution history",
     "itemsProcessed_one": "{{count}} item",
     "itemsProcessed_other": "{{count}} items",
-    "noJobs": "No scheduled jobs found."
+    "noJobs": "No scheduled jobs found.",
+    "startFailedToast": "Failed to start scheduler",
+    "startedToast": "Scheduler started",
+    "stopFailedToast": "Failed to stop scheduler",
+    "stoppedToast": "Scheduler stopped",
+    "triggerFailedToast": "Failed to trigger {{name}}",
+    "triggeredToast": "{{name}} triggered"
   },
   "masterdata": {
     "subtitle": "Manage SLA and milestone reference configurations",
@@ -3129,7 +3429,33 @@
     "deleteConfirmSimple": "Delete “{{name}}”? Contracts are not affected — only the grouping is removed.",
     "deleteConfirmFamily": "Delete family “{{name}}”? The contract links between its members will also be removed so the family isn't re-created. Contracts themselves are not affected.",
     "bulkDeleteConfirm": "Delete {{count}} groups? Contracts are not affected.",
-    "bulkDeleteFamilyNote": "Your selection includes auto-family groups — the contract links between their members will also be removed."
+    "bulkDeleteFamilyNote": "Your selection includes auto-family groups — the contract links between their members will also be removed.",
+    "addedToast": "Contracts added to group",
+    "affectedGroup": "This group and its membership records",
+    "affectedGroupsBulk": "The {{count}} selected groups and their membership records",
+    "affectedLinks": "The hierarchy links between its members, so the family is not re-created",
+    "bulkDeletedToast": "{{count}} groups deleted. Contracts are never deleted.",
+    "clearFilters": "Clear filters",
+    "colFindings": "Findings",
+    "colGroup": "Group",
+    "colKind": "Kind",
+    "colMembers": "Members",
+    "createHint": "Manual groups let you collect any contracts together — add members from the group page after creating it.",
+    "createdToast": "Group created",
+    "deletedToast": "Group deleted. Contracts are never deleted.",
+    "emptyBody": "Groups collect related contracts: create them manually, get one per upload batch, or let hierarchy detection materialise families automatically.",
+    "emptyFilteredBody": "Loosen the search or kind filter to see more groups.",
+    "emptyFilteredTitle": "No groups match",
+    "emptyTitle": "No groups yet",
+    "kindsBanner": "Three kinds of group: Manual groups you create, Upload batch groups are made automatically per upload, and Auto family groups are materialised from the contract hierarchy — deleting a family also removes its underlying links.",
+    "membersTitle": "Members ({{count}})",
+    "noCandidates": "No matching contracts outside this group.",
+    "noFindings": "none",
+    "noMembersBody": "Add contracts to track cross-document completeness across this group.",
+    "openFindingsShort": "{{count}} open",
+    "removedToast": "Removed from group. The contract itself is untouched.",
+    "safeContracts": "The contracts themselves — contracts are never deleted",
+    "safeData": "Extracted metadata, clauses, risks and obligations"
   },
   "notifFeed": {
     "title": "Notifications",
@@ -3184,7 +3510,12 @@
     "estimatedCost": "Est. AI cost",
     "estimatedCostNote": "Estimate at list prices",
     "thisMonthCount": "{{count}} this month",
-    "month": "Month"
+    "month": "Month",
+    "aiGatedBanner": "Pages and documents are visible to every role. Token consumption, AI actions and estimated cost are visible to tenant admins only, enforced by the API.",
+    "aiVisibleBanner": "You see token consumption and estimated cost because you are a tenant admin. The API enforces this too, not just the UI.",
+    "monthlyTrend": "{{metric}} — monthly trend",
+    "noDataBody": "Metering starts with the first document processed for this tenant.",
+    "noDataTitle": "No usage recorded yet"
   },
   "rbac": {
     "title": "Roles & Permissions",
@@ -3198,6 +3529,10 @@
     "tenantSubtitle": "Tailor what each role can do in YOUR organization. Roles without an override follow the platform defaults. Changes apply to users on their next action.",
     "overridden": "customized",
     "resetToPlatform": "Use platform defaults",
-    "tenantFooterNote": "Overrides apply to this organization only"
+    "tenantFooterNote": "Overrides apply to this organization only",
+    "savedToast": "{{role}} permissions saved"
+  },
+  "commandPalette": {
+    "placeholder": "Search or jump to"
   }
 }

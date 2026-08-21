@@ -22,7 +22,12 @@
     "create": "Créer",
     "saving": "Enregistrement...",
     "saved": "Enregistré",
-    "deleting": "Suppression…"
+    "deleting": "Suppression…",
+    "add": "Ajouter",
+    "back": "Retour",
+    "close": "Fermer",
+    "confirm": "Confirmer",
+    "remove": "Retirer"
   },
   "roles": {
     "admin": "Administrateur",
@@ -76,7 +81,27 @@
     "deleteConfirmTitle_one": "Supprimer {{count}} contrat ?",
     "deleteConfirmTitle_other": "Supprimer {{count}} contrats ?",
     "deleteConfirmBody": "Cette action supprimera définitivement les contrats sélectionnés, y compris tous les fichiers, clauses, obligations et représentations vectorielles associés. Cette action est irréversible.",
-    "deleting": "Suppression..."
+    "deleting": "Suppression...",
+    "daysAgo": "il y a {{count}} j",
+    "deleteFailed": "Échec de la suppression. Veuillez réessayer.",
+    "deleteSuccess": "{{count}} contrat(s) supprimé(s)",
+    "deselect": "Désélectionner",
+    "emptyBody": "Importez votre premier contrat pour lancer le pipeline d'extraction IA.",
+    "emptyFilteredBody": "Assouplissez ou effacez un filtre pour voir davantage de votre portefeuille.",
+    "emptyTitle": "Aucun contrat pour le moment",
+    "inDays": "dans {{count}} j",
+    "nextPage": "Page suivante",
+    "previousPage": "Page précédente",
+    "selectedCount": "{{count}} sélectionné(s)",
+    "statAnalyzed": "Entièrement analysés",
+    "statAnalyzedSub": "{{count}} encore en traitement",
+    "statCritical": "+{{count}} critiques",
+    "statExpiring": "Expiration proche",
+    "statExpiringSub": "approchent de l'expiration",
+    "statHighRisk": "Risque élevé",
+    "statHighRiskSub": "à examiner",
+    "statTotal": "Contrats",
+    "statTotalSub": "dans votre portefeuille"
   },
   "contract": {
     "notFound": "Contrat introuvable",
@@ -146,7 +171,8 @@
       "sharing": "Partage",
       "quality": "Qualité",
       "supply_chain": "Chaîne d'appro.",
-      "graph": "Graphe de connaissances"
+      "graph": "Graphe de connaissances",
+      "versions": "Versions"
     },
     "stages": {
       "metadata": "Métadonnées",
@@ -172,7 +198,35 @@
       "failed": "échoué",
       "skipped": "ignoré",
       "not_applicable": "non applicable"
-    }
+    },
+    "aiValuesExplainer": "Les valeurs marquées IA ont été extraites par le pipeline et portent un score de confiance et une phrase source. Survolez un score pour voir le texte exact dont il provient.",
+    "commentResolved": "Résolu",
+    "confidenceSubhead": "Confiance {{value}}",
+    "currentVersion": "Actuelle",
+    "deleteAffected": "Toutes les clauses, obligations, SLA et analyses de risque extraites",
+    "deleteBody": "Cette action supprime définitivement le document et tout ce que le pipeline en a extrait.",
+    "deleteTitle": "Supprimer ce contrat ?",
+    "extractedValue": "Valeur extraite",
+    "manualEntry": "saisie manuelle",
+    "matchTotal": "{{matches}} sur {{total}} correspondent",
+    "noComments": "Aucun commentaire pour le moment",
+    "noHighRiskClauses": "Aucune clause à risque élevé ou critique",
+    "noMatchingObligations": "Aucune obligation correspondante",
+    "noVersions": "Aucun historique de versions",
+    "notFound2": "Introuvable",
+    "orphanDeactivate": "La désactiver — conserver l'organisation et la relation (avec leurs KPI et scores) mais les marquer inactives. Réversible.",
+    "orphanDelete": "La supprimer complètement — retirer l'organisation, la relation, les KPI, les scores et l'historique.",
+    "orphanKeep": "La laisser active telle quelle.",
+    "orphanOrgHeading": "l'organisation",
+    "processQueued": "Traitement démarré",
+    "provenanceAgent": "agent de métadonnées",
+    "reanalyzeQueued": "Nouvelle analyse en file d'attente",
+    "searchClauses": "Rechercher dans les clauses…",
+    "searchObligations": "Rechercher dans les obligations…",
+    "sourceProvenance": "Provenance de la source",
+    "supersededVersion": "Remplacée",
+    "theOrganization": "l'organisation",
+    "viewSource": "Voir la source"
   },
   "upload": {
     "title": "Importer des contrats",
@@ -238,7 +292,25 @@
     "stageSchema": "Agent d'extraction du schéma",
     "stageLinks": "Détection des liens",
     "stageCompliance": "Contrôle de conformité",
-    "stageGovernance": "Synchronisation de la gouvernance"
+    "stageGovernance": "Synchronisation de la gouvernance",
+    "alreadyUploaded": "Doublon",
+    "clientCreated": "Client « {{name}} » créé",
+    "fileFailedToast": "Échec du traitement de « {{name}} »",
+    "fileProcessedToast": "« {{name}} » traité",
+    "queuedForProcessing": "En file d'attente — en attente du processus de traitement",
+    "removeFromQueue": "Retirer de la file",
+    "trayClearFinished": "Effacer les imports terminés",
+    "trayCollapse": "Réduire l'état des imports",
+    "trayDismiss": "Fermer",
+    "trayDone": "Terminé {{count}}",
+    "trayExpand": "Développer l'état des imports",
+    "trayFailed": "Échec",
+    "trayFailedCount": "Échecs {{count}}",
+    "trayLabel": "État des imports",
+    "trayProcessing": "Traitement {{count}}",
+    "trayUploading": "Import {{count}}",
+    "trayViewContract": "Voir le contrat",
+    "uploadFailedToast": "Échec de l'import de « {{name}} »"
   },
   "clauses": {
     "quality_assurance": "Assurance qualité",
@@ -417,7 +489,10 @@
     "notTracked": "Non suivi — aucune obligation marquée terminée ou en cours.",
     "notMeasured": "Non mesuré — aucune donnée de performance SLA pour l'instant.",
     "valueCoverage": "{{valued}} contrats sur {{total}} évalués",
-    "valueOtherCurrencies": "montants aussi en {{currencies}}"
+    "valueOtherCurrencies": "montants aussi en {{currencies}}",
+    "noContracts": "Aucun contrat pour le moment",
+    "noContractsDesc": "Importez un contrat pour lancer l'extraction, la détection des risques et le suivi des obligations.",
+    "noRecentActivityDesc": "Les imports, analyses et mises à jour d'obligations apparaîtront ici au fur et à mesure."
   },
   "query": {
     "suggested": {
@@ -449,7 +524,22 @@
     "errorMessage": "Désolé, une erreur s'est produite : {{error}}",
     "unknownError": "Erreur inconnue",
     "inputPlaceholder": "Posez une question sur vos contrats...",
-    "searchingAllContracts": "Recherche dans tous les contrats"
+    "searchingAllContracts": "Recherche dans tous les contrats",
+    "aiAnswer": "Réponse IA",
+    "answerConfidence": "confiance de la réponse",
+    "askButton": "Demander",
+    "citationHint": "Passage retrouvé. Cliquez pour ouvrir le contrat.",
+    "citationPage": "page {{page}}",
+    "clearScope": "Effacer le périmètre de contrat",
+    "composerHint": "Les sessions sont conservées. Les questions structurées renvoient un tableau ou un graphique avec la réponse.",
+    "sourceDocuments": "Documents",
+    "sourceDocumentsHint": "Réponse issue du texte des documents retrouvés (peut ne pas couvrir tout votre portefeuille).",
+    "sourceFallback": "Source {{number}}",
+    "sourceHybrid": "Filtre + documents",
+    "sourceHybridHint": "Votre portefeuille a été filtré en base, puis le texte des contrats correspondants a été interrogé.",
+    "sourcePortfolio": "Données du portefeuille",
+    "sourcePortfolioHint": "Réponse issue d'une requête exacte sur les données de votre portefeuille.",
+    "thinking": "Recherche dans vos contrats…"
   },
   "sla": {
     "notFound": "SLA introuvable.",
@@ -491,7 +581,9 @@
     "notes": "Notes",
     "notesPlaceholder": "Optionnel — période, source…",
     "recordFailed": "Impossible d'enregistrer la mesure.",
-    "recordInvalid": "Saisissez une valeur numérique."
+    "recordInvalid": "Saisissez une valeur numérique.",
+    "consecutive": "consécutifs",
+    "recordedToast": "Mesure enregistrée."
   },
   "renewals": {
     "pastNoticeDeadline": "Délai de préavis dépassé",
@@ -523,7 +615,20 @@
     "noContractsInWindow": "Aucun contrat dans cette fenêtre de renouvellement",
     "expiredValueNote": "+ {{value}} dans les contrats expirés",
     "expiredNeedsAction": "Expirés — Action requise",
-    "lapsedValue": "{{value}} échus"
+    "lapsedValue": "{{value}} échus",
+    "atStake": "{{value}} en jeu",
+    "autoRenewingSub": "se renouvellent sauf préavis",
+    "contract": "Contrat",
+    "counterparty": "Contrepartie",
+    "emptyBody": "Aucune décision de renouvellement n'est requise dans cette fenêtre.",
+    "expiredCount": "{{count}} contrats ont expiré",
+    "exportDone": "Calendrier exporté (.ics)",
+    "exportFailed": "Échec de l'export du calendrier",
+    "needActionSub": "fenêtre de préavis ouverte ou en cours de fermeture",
+    "noticeBy": "Préavis avant le",
+    "noticeWindowClosed": "fenêtre fermée",
+    "openExpiredBucket": "Voir {{count}} expirés",
+    "totalExpiringSub": "dans les 90 prochains jours"
   },
   "reports": {
     "title": "Rapports de conformité",
@@ -550,7 +655,13 @@
     "byContract": "Par contrat",
     "contract": "Contrat",
     "oblAbbr": "Obl.",
-    "slaAbbr": "SLA"
+    "slaAbbr": "SLA",
+    "noActivityBody": "Aucune obligation n'a été accomplie ou mise en retard et aucune mesure de SLA n'a été enregistrée sur ces périodes, il n'y a donc pas de conformité à rapporter. Suivez les obligations et enregistrez des mesures de SLA sous Post-signature pour alimenter cette tendance.",
+    "noActivityTitle": "Rien de mesuré pour le moment",
+    "noContractBreakdown": "Pas de données par contrat",
+    "noContractBreakdownBody": "Aucun des contrats n'a d'obligations suivies ni de mesures de SLA sur cette période.",
+    "noReportDataBody": "Aucune obligation ni aucun SLA suivi ne tombe dans les dates sélectionnées ; un rapport de conformité serait donc vide. Élargissez la période du rapport, ou commencez à suivre obligations et SLA sous Post-signature.",
+    "noReportDataTitle": "Aucune activité post-signature sur cette période"
   },
   "vendors": {
     "vendor": "Fournisseur",
@@ -593,7 +704,11 @@
     "oblCompliance": "Conformité obl.",
     "slaCompliance": "Conformité SLA",
     "breaches": "Manquements",
-    "noCounterparties": "Aucune contrepartie trouvée"
+    "noCounterparties": "Aucune contrepartie trouvée",
+    "atRiskSub": "sous les seuils de performance",
+    "avgScoreSub": "sur les contreparties notées",
+    "emptyBody": "Les fiches apparaissent une fois analysés les contrats avec contreparties.",
+    "totalExposureSub": "somme des valeurs de contrat"
   },
   "postsigning": {
     "na": "N/D",
@@ -649,7 +764,8 @@
       "slas": "SLA ({{count}})",
       "milestones": "Jalons ({{count}})",
       "renewals": "Renouvellements",
-      "vendors": "Fournisseurs ({{count}})"
+      "vendors": "Fournisseurs ({{count}})",
+      "slasShort": "SLA"
     },
     "title": "Opérations post-signature",
     "description": "Surveillez les obligations, les SLA, les jalons, les renouvellements et la performance des fournisseurs",
@@ -759,7 +875,24 @@
     "oblPercent": "Obl. %",
     "slaPercent": "SLA %",
     "noVendorData": "Aucune donnée fournisseur disponible",
-    "valueCoverage": "{{value}} · {{valued}}/{{total}} évalués"
+    "valueCoverage": "{{value}} · {{valued}}/{{total}} évalués",
+    "emptyMilestonesBody": "Les jalons sont des obligations datées — ils apparaissent dès que l'extraction trouve des dates cibles dans vos contrats.",
+    "emptyMilestonesFiltered": "Aucun jalon ne correspond à ce statut — effacez le filtre pour tout voir.",
+    "emptyObligationsBody": "Les obligations apparaissent ici dès que le pipeline IA les extrait des contrats importés.",
+    "emptyObligationsFiltered": "Aucune obligation ne correspond aux filtres actuels — assouplissez-les ou effacez-les pour en voir plus.",
+    "emptyRenewalsBody": "Rien n'expire dans les 90 prochains jours et aucun contrat n'est arrivé à échéance récemment.",
+    "emptyRenewalsFiltered": "Rien ne tombe dans cette fenêtre — effacez le filtre pour voir tout le radar.",
+    "emptySlasBody": "Les SLA apparaissent ici dès que le pipeline IA extrait des niveaux de service des contrats importés.",
+    "emptySlasFiltered": "Aucun SLA ne correspond aux filtres actuels — assouplissez-les ou effacez-les pour en voir plus.",
+    "emptyVendorsBody": "Les fiches fournisseurs sont dérivées des contrats — importez des contrats avec contreparties pour alimenter cette liste.",
+    "exportFailed": "Échec de l'export du calendrier",
+    "exportSuccess": "Calendrier exporté (.ics)",
+    "overdueBannerBody": "Ces obligations ont dépassé leur échéance — examinez-les puis accomplissez-les ou levez-les.",
+    "overdueBannerTitle": "{{count}} en retard.",
+    "recordSuccess": "Mesure enregistrée",
+    "renewalStatusFailed": "Impossible de mettre à jour le statut de renouvellement",
+    "renewalStatusUpdated": "Statut de renouvellement mis à jour",
+    "searchRows": "Rechercher dans cet onglet…"
   },
   "users": {
     "subtitle": "Gérez les comptes utilisateurs et les autorisations",
@@ -787,7 +920,19 @@
     "buSelectPlaceholder": "Sélectionnez une unité opérationnelle…",
     "buScopeHint": "Détermine les contrats visibles par cet utilisateur (son unité + non attribués).",
     "buFullAccess": "— Non attribué (accès à tout le tenant) —",
-    "buAdminScopeHint": "Laissez non attribué pour un accès à tout le tenant, ou choisissez une unité pour y restreindre cet administrateur."
+    "buAdminScopeHint": "Laissez non attribué pour un accès à tout le tenant, ou choisissez une unité pour y restreindre cet administrateur.",
+    "buAllUnits": "toutes les unités",
+    "buAllUnitsTip": "Aucune unité opérationnelle — voit toutes les unités",
+    "countSummary": "{{count}} utilisateurs",
+    "createdToast": "{{username}} créé",
+    "deleteBody": "Le compte ne peut plus se connecter. Les contrats et enregistrements qu'il a créés restent en place.",
+    "deleteFailed": "Échec de la suppression de l'utilisateur",
+    "deletedToast": "{{username}} supprimé",
+    "emptyBody": "Créez le premier compte de ce tenant — il héritera de vos règles de rôle et d'unité opérationnelle.",
+    "emptyTitle": "Aucun utilisateur pour le moment",
+    "inactiveCount": "{{count}} inactifs",
+    "updatedToast": "Utilisateur mis à jour",
+    "usernameHint": "Sert à la connexion — sans espaces."
   },
   "obligation": {
     "notFound": "Obligation introuvable",
@@ -871,7 +1016,10 @@
     "evidencePlaceholder": "Décrivez la preuve de conformité...",
     "evidenceDate": "Date de la preuve",
     "attachmentOptional": "Pièce jointe (facultatif)",
-    "uploading": "Téléversement en cours..."
+    "uploading": "Téléversement en cours...",
+    "evidenceAddedToast": "Preuve enregistrée.",
+    "overdueBanner": "l'échéance du {{date}} est dépassée et cette obligation n'est ni accomplie ni levée.",
+    "updateFailed": "Échec de la mise à jour. Veuillez réessayer."
   },
   "clause": {
     "notFound": "Clause introuvable",
@@ -1223,7 +1371,9 @@
     "searchContractsPlaceholder": "Rechercher des contrats...",
     "addAsPlatformLabel": "Ajouter à l'échelle de la plateforme (bénéficie à tous les tenants)",
     "noMatchingContracts": "Aucun contrat correspondant trouvé",
-    "manuallyAdded": "Ajouté manuellement"
+    "manuallyAdded": "Ajouté manuellement",
+    "compileStarted": "{{agent}} : compilation en arrière-plan…",
+    "compiledWithProvider": "Compilé avec {{provider}}"
   },
   "industry": {
     "noProfile": "Aucun profil",
@@ -1416,7 +1566,8 @@
     "idpGroupPlaceholder": "p. ex. ContractAdmins",
     "saving": "Enregistrement...",
     "updateConfiguration": "Mettre à jour la configuration",
-    "enableSso": "Activer le SSO"
+    "enableSso": "Activer le SSO",
+    "toggleSecret": "Basculer la visibilité"
   },
   "integrations": {
     "failed": "Échecs",
@@ -1485,7 +1636,8 @@
         "error": "Erreur"
       },
       "noMappings": "Aucune correspondance SLA trouvée.",
-      "noMappingsHint": "Cliquez sur « Synchroniser maintenant » pour récupérer les SLA depuis ServiceNow."
+      "noMappingsHint": "Cliquez sur « Synchroniser maintenant » pour récupérer les SLA depuis ServiceNow.",
+      "toggleSecret": "Basculer la visibilité"
     },
     "sharepoint": {
       "health": {
@@ -1560,7 +1712,8 @@
       "endpoint": "Point de terminaison",
       "duration": "Durée",
       "error": "Erreur",
-      "noLogs": "Aucun journal d'intégration disponible."
+      "noLogs": "Aucun journal d'intégration disponible.",
+      "needsAttention": "nécessite une attention"
     }
   },
   "superadmin": {
@@ -1637,7 +1790,17 @@
       "tenantDeleted": "Tenant supprimé",
       "deletedSuffix": "a été définitivement supprimé.",
       "deletionSummary": "Récapitulatif de la suppression",
-      "done": "Terminé"
+      "done": "Terminé",
+      "activateAction": "Activer",
+      "activateTitle": "Activer le tenant ?",
+      "activatedToast": "Tenant activé",
+      "createdToast": "{{name}} créé",
+      "deactivateAction": "Désactiver",
+      "deactivateAffectedLogins": "La connexion pour tous les utilisateurs de ce tenant",
+      "deactivateSafeData": "Contrats, utilisateurs et paramètres — tout est conservé et restauré à la réactivation",
+      "deactivateTitle": "Désactiver le tenant ?",
+      "deactivatedToast": "Tenant désactivé",
+      "updatedToast": "Tenant mis à jour"
     },
     "tenantDetail": {
       "notFound": "Tenant introuvable",
@@ -1706,7 +1869,11 @@
       "idpGroupName": "Nom du groupe IdP",
       "appRole": "Rôle applicatif",
       "idpGroupPlaceholder": "p. ex. ContractAdmins",
-      "enableSso": "Activer le SSO"
+      "enableSso": "Activer le SSO",
+      "disableAffected": "La connexion SSO pour ce tenant",
+      "disableSafe": "Les utilisateurs provisionnés et leurs connexions par mot de passe",
+      "disabledToast": "SSO désactivé",
+      "savedToast": "Configuration SSO enregistrée"
     },
     "users": {
       "subtitle": "Gérez les utilisateurs de tous les tenants",
@@ -2098,7 +2265,97 @@
     "deletePermanently": "Supprimer définitivement",
     "deleteRelationship": "Supprimer la relation",
     "deleteRelationshipPrompt": "Supprimer la relation avec « {{name}} » ?",
-    "deleteRelationshipWarning": "Cette action supprime définitivement ses KPI et scores, enquêtes et réponses, points d'amélioration, équipe et historique. Les contrats sont détachés mais jamais supprimés. Action irréversible."
+    "deleteRelationshipWarning": "Cette action supprime définitivement ses KPI et scores, enquêtes et réponses, points d'amélioration, équipe et historique. Les contrats sont détachés mais jamais supprimés. Action irréversible.",
+    "addQuestion": "Ajouter une question",
+    "allApproved": "Tous les scores en attente approuvés",
+    "anonymous": "Anonyme",
+    "approveHint": "Les scores approuvés sont intégrés au score de santé de la relation.",
+    "approved": "Approuvé",
+    "awaitingApproval": "scores soumis en attente d'approbation",
+    "backToOrganizations": "Retour aux organisations",
+    "belowHealth70": "santé inférieure à 70",
+    "clickToEdit": "Cliquer pour modifier",
+    "closingText": "Conclusion",
+    "deleteQuestion": "Supprimer la question",
+    "deleteQuestionAffected": "La question est retirée de ce modèle et n'apparaîtra plus dans les nouvelles enquêtes",
+    "deleteQuestionSafe": "Les réponses déjà collectées dans les questionnaires soumis",
+    "deleteRemovesHierarchy": "Sa position dans la hiérarchie du groupe",
+    "deleteRemovesRecord": "La fiche de l'organisation et ses contacts référents",
+    "deleteRemovesRels": "Ses relations d'affaires avec leurs KPI, scores et historique",
+    "deleteRemovesTitle": "La suppression définitive retire",
+    "deleteSafeContracts": "Les contrats — les contrats ne sont jamais supprimés",
+    "deleteSafeOrgs": "Les organisations elles-mêmes — elles restent dans le registre",
+    "deleteSafeRefs": "Les contrats et relations existants — toutes les références restent intactes",
+    "deleteSafeReversible": "Rien de définitif — la désactivation est réversible",
+    "deleteSafeTitle": "La désactivation ne touche pas",
+    "deleteScoreAffected": "Le score enregistré pour cette période",
+    "deleteScoreSafe": "La définition du KPI et toutes les autres périodes",
+    "deleteScoreTitle": "Supprimer le score de {{name}} ?",
+    "deleteTemplate": "Supprimer le modèle",
+    "deleteTemplateAffected": "Le modèle est désactivé : il disparaît de cette liste et ne peut plus servir à de nouvelles enquêtes",
+    "deleteTemplatePrompt": "Supprimer « {{name}} » ? Cette action désactive le modèle (suppression douce).",
+    "deleteTemplateSafe": "Les enquêtes déjà créées à partir de ce modèle et leurs réponses — elles continuent de fonctionner",
+    "editTemplate": "Modifier le modèle",
+    "gapHint": "perception interne vs externe",
+    "healthyAtOrAbove": "score de santé de 80 ou plus",
+    "historyEmptyBody": "Enregistrez un état périodique pour construire la chronologie de performance.",
+    "improvementsEmptyBody": "Les points d'amélioration sont générés à partir d'écarts de perception sévères, ou créés manuellement.",
+    "improvementsGenerated": "Points d'amélioration générés à partir des écarts",
+    "introText": "Introduction",
+    "kpiCreated": "KPI créé",
+    "kpisEmptyBody": "Les KPI mesurent la relation des deux côtés. Ajoutez-en un pour commencer la notation.",
+    "linkedToKpi": "Lié au KPI",
+    "noOrgsEmptyHint": "Les organisations sont créées ici ou automatiquement lorsqu'un contrat avec une nouvelle contrepartie est analysé.",
+    "noOrgsFilterHint": "Aucune organisation ne correspond à la recherche ou au filtre de type actuel.",
+    "noQuestionsYet": "Pas encore de questions — ajoutez la première.",
+    "noRelationshipsForOrgHint": "Les relations entre cette organisation et d'autres apparaîtront ici une fois créées.",
+    "noTemplatesYet": "Aucun modèle disponible",
+    "notLinkedToKpi": "non lié à un KPI",
+    "notScored": "Non noté",
+    "officerAdded": "{{name}} ajouté",
+    "officerRemoved": "Référent retiré",
+    "openRelationship": "Ouvrir la relation",
+    "orgCreated": "{{name}} créée",
+    "orgDeactivated": "{{name}} désactivée",
+    "orgDeleted": "{{name}} supprimée",
+    "questionAdded": "Question ajoutée",
+    "questionDeleted": "Question supprimée",
+    "questionText": "Texte de la question",
+    "questionUpdated": "Question mise à jour",
+    "questions": "Questions",
+    "queueClear": "rien en attente d'approbation",
+    "recordScore": "Enregistrer un score",
+    "rejected": "Rejeté",
+    "relationshipCreated": "Relation créée",
+    "relationshipDeleted": "Relation supprimée",
+    "relationshipsEmptyBody": "Créez une relation pour commencer à suivre la santé, les KPI et la perception.",
+    "removeOfficerAffected": "La fiche de contact du référent pour cette organisation",
+    "removeOfficerBody": "Cette action retire le contact référent de cette organisation.",
+    "removeOfficerSafeContracts": "Les contrats — ils ne sont jamais supprimés",
+    "removeOfficerSafeOrg": "L'organisation elle-même et ses relations",
+    "removeOfficerTitle": "Retirer {{name}} ?",
+    "required": "Obligatoire",
+    "responses": "Réponses",
+    "scoreApproved": "Score approuvé",
+    "scoreDeleted": "Score supprimé",
+    "scoreRejected": "Score rejeté",
+    "scoreSubmitted": "Score de perception soumis",
+    "severeGapsCount": "{{count}} écarts sévères.",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "statusRecorded": "État de performance enregistré",
+    "surveyCreated": "Enquête créée",
+    "surveySent": "Enquête envoyée",
+    "teamEmptyBody": "Personne n'est encore affecté à cette relation.",
+    "templateCreated": "Modèle créé",
+    "templateDeactivated": "Modèle désactivé",
+    "templateRequiredBanner": "Une enquête nécessite un modèle, et il n'en existe encore aucun. Créez d'abord un modèle, puis revenez envoyer une enquête.",
+    "templateRequiredHint": "Désactivé — aucun modèle d'enquête n'existe encore.",
+    "templateUpdated": "Modèle mis à jour",
+    "templates": "Modèles",
+    "tryAnotherFilter": "Essayez un autre filtre de type de relation.",
+    "typeNotEditable": "Le type ne peut pas être modifié après la création",
+    "updateFailed": "Échec de la mise à jour"
   },
   "reviewPane": {
     "unknown": "Inconnu",
@@ -2742,7 +2999,20 @@
       "slaWeight": "Poids des SLA",
       "resetHint": "Supprimer la dérogation et revenir aux valeurs par défaut héritées.",
       "resetTenant": "Réinitialiser aux valeurs par défaut du système",
-      "resetBu": "Effacer la dérogation (hériter)"
+      "resetBu": "Effacer la dérogation (hériter)",
+      "atRiskThreshold": "« À risque » en dessous de",
+      "atRiskThresholdHint": "Un score composite sous ce seuil classe le fournisseur comme à risque.",
+      "highThreshold": "Risque élevé ≥",
+      "issueRateWeight": "Poids du taux d'incidents",
+      "lowThreshold": "Risque faible ≥",
+      "mediumThreshold": "Risque moyen ≥",
+      "reservedSignal": "pas encore mesuré",
+      "responsivenessWeight": "Poids de la réactivité",
+      "saveAllTabsHint": "Enregistre les trois ensembles de règles.",
+      "vendorBands": "Bandes de risque",
+      "vendorBandsHint": "Un score au niveau « faible » ou au-dessus est un risque faible, au-dessus de « moyen » un risque moyen, au-dessus de « élevé » un risque élevé — tout score inférieur est critique.",
+      "vendorDesc": "Comment les scores de performance des contreparties sont pondérés et classés. Seuls les signaux mesurés (obligations, SLA) entrent dans le calcul ; les poids sont renormalisés.",
+      "vendorTitle": "Fiche fournisseur"
     },
     "general": {
       "industryProfile": "Profil sectoriel",
@@ -2808,7 +3078,10 @@
       "triggeredTimes_other": "Déclenchée {{count}} fois",
       "confirmDelete": "Êtes-vous sûr de vouloir supprimer cette règle ?",
       "noRules": "Aucune règle de notification configurée",
-      "noRulesHint": "Ajoutez des règles pour être notifié des événements contractuels importants"
+      "noRulesHint": "Ajoutez des règles pour être notifié des événements contractuels importants",
+      "deleteRuleTitle": "Supprimer la règle de notification",
+      "ruleCreated": "Règle de notification créée",
+      "ruleDeleted": "Règle de notification supprimée"
     },
     "security": {
       "allFieldsRequired": "Tous les champs sont obligatoires",
@@ -2838,7 +3111,8 @@
         "slack": "Envoyez des notifications vers Slack"
       },
       "connected": "Connecté",
-      "configure": "Configurer"
+      "configure": "Configurer",
+      "notConnected": "Non connecté"
     },
     "appearance": {
       "theme": "Thème",
@@ -2924,7 +3198,19 @@
     "saving": "Enregistrement...",
     "update": "Mettre à jour",
     "create": "Créer",
-    "saveFailed": "Échec de l’enregistrement de l’unité opérationnelle"
+    "saveFailed": "Échec de l’enregistrement de l’unité opérationnelle",
+    "childCount": "{{count}} sous-unités",
+    "createdToast": "{{name}} créée",
+    "deactivate": "Désactiver",
+    "deactivateAffectsUnit": "L'unité est marquée inactive et ne peut plus être affectée à des utilisateurs ou à des contrats",
+    "deactivateAffectsUsers": "Les utilisateurs qui y sont affectés conservent leur affectation, mais l'unité ne délimite plus les nouveaux travaux",
+    "deactivatePrompt": "Désactiver {{name}} ?",
+    "deactivateSafeData": "Les contrats, sous-unités et données de gouvernance existants — toutes les références restent intactes",
+    "deactivateSafeReversible": "Rien de définitif — réactivez l'unité à tout moment depuis Modifier",
+    "deactivatedToast": "{{name}} désactivée",
+    "hierarchyHint": "Les unités sont hiérarchiques et créées par le tenant. Les contrats héritent de l'unité de l'importateur ; un responsable d'unité voit toute sa sous-arborescence, et les utilisateurs sans unité voient tout.",
+    "unitCount": "{{count}} unités",
+    "updatedToast": "{{name}} mise à jour"
   },
   "externalUsers": {
     "subtitle": "Gérez les contacts des contreparties pouvant accéder aux contrats partagés",
@@ -2956,7 +3242,15 @@
     "phonePlaceholder": "+33 1 23 45 67 89",
     "saving": "Enregistrement...",
     "update": "Mettre à jour",
-    "create": "Créer"
+    "create": "Créer",
+    "createdToast": "{{name}} ajouté",
+    "deactivate": "Désactiver",
+    "deactivateAffectsAccess": "Leurs liens de partage cessent de fonctionner — ils ne peuvent plus ouvrir les contrats partagés avec eux",
+    "deactivateBody": "Cet utilisateur externe perd l'accès à tout ce qui est partagé avec lui.",
+    "deactivateSafeData": "Sa fiche, son historique d'accès et les partages existants restent intacts",
+    "deactivateSafeReinvite": "Rien de définitif — il peut être invité à nouveau à tout moment",
+    "deactivatedToast": "{{name}} désactivé",
+    "updatedToast": "Utilisateur externe mis à jour"
   },
   "scheduler": {
     "subtitle": "Gérez les tâches d'arrière-plan et les tâches planifiées",
@@ -3010,7 +3304,13 @@
     "noHistory": "Aucun historique d'exécution",
     "itemsProcessed_one": "{{count}} élément",
     "itemsProcessed_other": "{{count}} éléments",
-    "noJobs": "Aucune tâche planifiée trouvée."
+    "noJobs": "Aucune tâche planifiée trouvée.",
+    "startFailedToast": "Échec du démarrage du planificateur",
+    "startedToast": "Planificateur démarré",
+    "stopFailedToast": "Échec de l'arrêt du planificateur",
+    "stoppedToast": "Planificateur arrêté",
+    "triggerFailedToast": "Échec du déclenchement de {{name}}",
+    "triggeredToast": "{{name}} déclenché"
   },
   "masterdata": {
     "subtitle": "Gérez les configurations de référence des SLA et des jalons",
@@ -3129,7 +3429,33 @@
     "deleteConfirmSimple": "Supprimer « {{name}} » ? Les contrats ne sont pas affectés — seul le regroupement est supprimé.",
     "deleteConfirmFamily": "Supprimer la famille « {{name}} » ? Les liens entre ses contrats seront également supprimés afin que la famille ne soit pas recréée. Les contrats eux-mêmes ne sont pas affectés.",
     "bulkDeleteConfirm": "Supprimer {{count}} groupes ? Les contrats ne sont pas affectés.",
-    "bulkDeleteFamilyNote": "Votre sélection contient des familles automatiques — les liens entre leurs contrats seront également supprimés."
+    "bulkDeleteFamilyNote": "Votre sélection contient des familles automatiques — les liens entre leurs contrats seront également supprimés.",
+    "addedToast": "Contrats ajoutés au groupe",
+    "affectedGroup": "Ce groupe et ses enregistrements d'appartenance",
+    "affectedGroupsBulk": "Les {{count}} groupes sélectionnés et leurs enregistrements d'appartenance",
+    "affectedLinks": "Les liens hiérarchiques entre ses membres, afin que la famille ne soit pas recréée",
+    "bulkDeletedToast": "{{count}} groupes supprimés. Les contrats ne sont jamais supprimés.",
+    "clearFilters": "Effacer les filtres",
+    "colFindings": "Constats",
+    "colGroup": "Groupe",
+    "colKind": "Type",
+    "colMembers": "Membres",
+    "createHint": "Les groupes manuels vous permettent de rassembler n'importe quels contrats — ajoutez des membres depuis la page du groupe après sa création.",
+    "createdToast": "Groupe créé",
+    "deletedToast": "Groupe supprimé. Les contrats ne sont jamais supprimés.",
+    "emptyBody": "Les groupes rassemblent des contrats liés : créez-les manuellement, obtenez-en un par lot d'import, ou laissez la détection de hiérarchie matérialiser les familles automatiquement.",
+    "emptyFilteredBody": "Assouplissez la recherche ou le filtre de type pour voir plus de groupes.",
+    "emptyFilteredTitle": "Aucun groupe ne correspond",
+    "emptyTitle": "Aucun groupe pour le moment",
+    "kindsBanner": "Trois types de groupe : les groupes Manuels que vous créez, les groupes de Lot d'import créés automatiquement à chaque import, et les groupes de Famille auto matérialisés depuis la hiérarchie des contrats — supprimer une famille retire aussi ses liens sous-jacents.",
+    "membersTitle": "Membres ({{count}})",
+    "noCandidates": "Aucun contrat correspondant hors de ce groupe.",
+    "noFindings": "aucun",
+    "noMembersBody": "Ajoutez des contrats pour suivre la complétude transversale de ce groupe.",
+    "openFindingsShort": "{{count}} ouverts",
+    "removedToast": "Retiré du groupe. Le contrat lui-même est intact.",
+    "safeContracts": "Les contrats eux-mêmes — les contrats ne sont jamais supprimés",
+    "safeData": "Les métadonnées, clauses, risques et obligations extraits"
   },
   "notifFeed": {
     "title": "Notifications",
@@ -3184,7 +3510,12 @@
     "estimatedCost": "Coût IA estimé",
     "estimatedCostNote": "Estimation aux prix catalogue",
     "thisMonthCount": "{{count}} ce mois-ci",
-    "month": "Mois"
+    "month": "Mois",
+    "aiGatedBanner": "Les pages et documents sont visibles par tous les rôles. La consommation de jetons, les actions IA et le coût estimé ne sont visibles que par les administrateurs du tenant, avec application côté API.",
+    "aiVisibleBanner": "Vous voyez la consommation de jetons et le coût estimé parce que vous êtes administrateur du tenant. L'API l'applique aussi, pas seulement l'interface.",
+    "monthlyTrend": "{{metric}} — tendance mensuelle",
+    "noDataBody": "Le comptage démarre avec le premier document traité pour ce tenant.",
+    "noDataTitle": "Aucune consommation enregistrée pour le moment"
   },
   "rbac": {
     "title": "Rôles et permissions",
@@ -3198,6 +3529,10 @@
     "tenantSubtitle": "Ajustez ce que chaque rôle peut faire dans VOTRE organisation. Les rôles sans personnalisation suivent les valeurs par défaut de la plateforme. Prise d'effet à la prochaine action des utilisateurs.",
     "overridden": "personnalisé",
     "resetToPlatform": "Valeurs par défaut de la plateforme",
-    "tenantFooterNote": "Les personnalisations s'appliquent uniquement à cette organisation"
+    "tenantFooterNote": "Les personnalisations s'appliquent uniquement à cette organisation",
+    "savedToast": "Permissions {{role}} enregistrées"
+  },
+  "commandPalette": {
+    "placeholder": "Rechercher ou naviguer vers"
   }
 }
