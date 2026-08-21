@@ -46,8 +46,12 @@ services:
       CHROMA_HOST: chromadb
       CHROMA_PORT: 8000
 
-      # OpenAI
+      # OpenAI (cell-level residency overrides are optional; empty = default)
       OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY required}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-}
 
       # App settings
       APP_NAME: "CLM Platform"

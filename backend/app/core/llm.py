@@ -49,6 +49,19 @@ def _client_hardening() -> dict:
         "max_retries": settings.openai_max_retries,
     }
 
+
+def _global_client_kwargs() -> dict:
+    """Kwargs for the platform's global (non-Azure) OpenAI clients.
+
+    Adds the cell-level base URL override (e.g. an EU-resident OpenAI-compatible
+    endpoint) on top of the shared hardening. Azure clients must NOT get this —
+    they address their own endpoint.
+    """
+    kw = _client_hardening()
+    if settings.openai_base_url:
+        kw["base_url"] = settings.openai_base_url
+    return kw
+
 # tenant_id(str) -> azure config dict {endpoint, api_key, api_version}. In-memory,
 # refreshed at startup and on save. NOTE: per-process — with multiple workers a
 # save only updates one worker, so it's a best-effort fallback. The authoritative
@@ -98,15 +111,36 @@ async def refresh_azure_cache(db) -> int:
     return len(_azure_cache)
 
 
+def _cell_azure() -> dict | None:
+    """Cell-level (env-configured) Azure endpoint — the residency default.
+
+    On a data-residency cell (e.g. EU), AZURE_OPENAI_ENDPOINT routes every
+    tenant WITHOUT its own AI config through an in-region Azure resource, so
+    no LLM traffic leaves the cell's geography by default. A tenant's own
+    config still wins.
+    """
+    if not settings.azure_openai_endpoint:
+        return None
+    return {
+        "enabled": True,
+        "provider": "azure",
+        "endpoint": settings.azure_openai_endpoint,
+        "api_key": settings.azure_openai_api_key or settings.openai_api_key,
+        "api_version": settings.azure_openai_api_version or None,
+    }
+
+
 def _azure_for(tenant_id) -> dict | None:
     # Prefer the per-request config loaded from the DB (authoritative, multi-worker
     # safe). It's set (possibly to None) whenever we had a session; only fall back
     # to the process cache when it was never loaded for this request/task.
+    # Either way, a tenant without its own config gets the cell-level default.
     ctx = _ctx_azure.get()
     if ctx is not _UNSET:
-        return ctx
+        return ctx or _cell_azure()
     tid = tenant_id if tenant_id is not None else current_tenant_id.get()
-    return _azure_cache.get(str(tid)) if tid is not None else None
+    cfg = _azure_cache.get(str(tid)) if tid is not None else None
+    return cfg or _cell_azure()
 
 
 def _langfuse_on() -> bool:
@@ -236,12 +270,12 @@ def get_async_openai(tenant_id=None, trace: bool = False) -> AsyncOpenAI:
         try:
             from langfuse.openai import AsyncOpenAI as LangfuseAsyncOpenAI
             return _meter_async_client(
-                LangfuseAsyncOpenAI(api_key=settings.openai_api_key, **_client_hardening())
+                LangfuseAsyncOpenAI(api_key=settings.openai_api_key, **_global_client_kwargs())
             )
         except Exception:  # noqa: BLE001
             pass
     return _meter_async_client(
-        AsyncOpenAI(api_key=settings.openai_api_key, **_client_hardening())
+        AsyncOpenAI(api_key=settings.openai_api_key, **_global_client_kwargs())
     )
 
 
@@ -276,5 +310,5 @@ def get_sync_openai(tenant_id=None) -> OpenAI:
         except Exception:  # noqa: BLE001
             logger.warning("Azure OpenAI (sync) build failed; using global OpenAI", exc_info=True)
     return _meter_sync_client(
-        OpenAI(api_key=settings.openai_api_key, **_client_hardening())
+        OpenAI(api_key=settings.openai_api_key, **_global_client_kwargs())
     )

@@ -1,3 +1,5 @@
+import os
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -47,6 +49,23 @@ class Settings(BaseSettings):
     openai_max_retries: int = Field(
         default=3, description="SDK-level retry budget for OpenAI/Azure calls"
     )
+    # Cell-level residency overrides (data-residency cells, e.g. the EU cell).
+    # openai_base_url points the global OpenAI client at an OpenAI-compatible
+    # regional endpoint; the azure_* trio routes ALL tenants without their own
+    # AI config through a cell-level Azure OpenAI resource (deployments must be
+    # named after the model ids, same rule as per-tenant Azure).
+    openai_base_url: str = Field(
+        default="", description="Override base URL for the global OpenAI client"
+    )
+    azure_openai_endpoint: str = Field(
+        default="", description="Cell-level Azure OpenAI endpoint (residency default)"
+    )
+    azure_openai_api_key: str = Field(
+        default="", description="Key for the cell-level Azure endpoint (falls back to openai_api_key)"
+    )
+    azure_openai_api_version: str = Field(
+        default="", description="API version for the cell-level Azure endpoint"
+    )
 
     # Langfuse
     langfuse_public_key: str = ""
@@ -84,3 +103,18 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# docker-compose passes the residency overrides as ${VAR:-}, i.e. an EMPTY
+# string when unset. The OpenAI SDK reads OPENAI_BASE_URL from the environment
+# at client construction and treats "" as a real base URL — every request then
+# dies with "Request URL is missing an 'http://' or 'https://' protocol".
+# Scrub empty values here (config is imported before any client is built);
+# Settings above already treat "" as unset.
+for _var in (
+    "OPENAI_BASE_URL",
+    "AZURE_OPENAI_ENDPOINT",
+    "AZURE_OPENAI_API_KEY",
+    "AZURE_OPENAI_API_VERSION",
+):
+    if os.environ.get(_var) == "":
+        del os.environ[_var]

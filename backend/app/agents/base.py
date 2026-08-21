@@ -6,9 +6,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from langfuse import Langfuse
-from langfuse.openai import AsyncOpenAI as LangfuseAsyncOpenAI
-from openai import AsyncOpenAI
 from pydantic import BaseModel
+
+from app.core.llm import get_async_openai
 
 # Try to import decorators (available in newer versions)
 try:
@@ -33,7 +33,9 @@ from app.services.langfuse_service import (
 
 logger = logging.getLogger(__name__)
 
-# Initialize Langfuse client if configured
+# Initialize Langfuse client if configured. The OpenAI client comes from the
+# central factory so agents honor cell-level residency endpoints (and get
+# usage metering) — trace=True keeps the Langfuse-wrapped client when enabled.
 langfuse_client: Langfuse | None = None
 if settings.langfuse_public_key and settings.langfuse_secret_key:
     try:
@@ -42,15 +44,13 @@ if settings.langfuse_public_key and settings.langfuse_secret_key:
             secret_key=settings.langfuse_secret_key,
             host=settings.effective_langfuse_host,
         )
-        # Use Langfuse-wrapped OpenAI client for automatic tracing
-        openai_client = LangfuseAsyncOpenAI(api_key=settings.openai_api_key)
+        openai_client = get_async_openai(trace=True)
         logger.info("Langfuse integration enabled for agent LLM calls")
     except Exception as e:
         logger.warning(f"Failed to initialize Langfuse: {e}")
-        openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
+        openai_client = get_async_openai()
 else:
-    # Fall back to standard OpenAI client
-    openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
+    openai_client = get_async_openai()
 
 
 @dataclass

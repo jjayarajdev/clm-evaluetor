@@ -2,7 +2,12 @@
 #
 # Reproducible, drift-free deploy from a local git checkout to the EC2 box.
 #
-#   deploy/redeploy.sh [all|backend|frontend] [--allow-dirty] [--reindex]
+#   deploy/redeploy.sh [all|backend|frontend] [--cell=us|eu] [--allow-dirty] [--reindex]
+#
+# Cells (data-residency regions): each cell is a full stack on its own box.
+#   Connection details live in deploy/cells/<name>.env (CLM_HOST/CLM_KEY/CLM_URL).
+#   Default cell is "us". App secrets are NOT in these files — they live in the
+#   per-box deploy/.env, which rsync excludes.
 #
 # Why this exists (deployment hygiene):
 #   * Syncs the EXACT git-tracked source with rsync --delete, so the box can
@@ -17,21 +22,30 @@
 # Rollback: `git checkout <sha> && deploy/redeploy.sh` re-deploys that exact commit.
 set -euo pipefail
 
-HOST="${CLM_HOST:-ec2-user@52.21.204.211}"
-KEY="${CLM_KEY:-$HOME/.ssh/clm-demo-key.pem}"
-APP_URL="${CLM_URL:-http://52.21.204.211}"
 REMOTE_DIR="clm"                                    # relative to ec2-user home
 COMPOSE="docker-compose -f docker-compose.prod.yml" # box uses standalone v1
 
+CELL="${CLM_CELL:-us}"
 TARGET="all"; ALLOW_DIRTY=false; REINDEX=false
 for a in "$@"; do
   case "$a" in
     all|backend|frontend) TARGET="$a" ;;
+    --cell=*) CELL="${a#--cell=}" ;;
     --allow-dirty) ALLOW_DIRTY=true ;;
     --reindex) REINDEX=true ;;
     *) echo "Unknown arg: $a"; exit 2 ;;
   esac
 done
+
+CELL_FILE="$(dirname "${BASH_SOURCE[0]}")/cells/$CELL.env"
+if [ ! -f "$CELL_FILE" ]; then
+  echo "ERROR: unknown cell '$CELL' (no $CELL_FILE)"; exit 2
+fi
+# shellcheck source=/dev/null
+source "$CELL_FILE"
+HOST="${CLM_HOST:?cell file must set CLM_HOST}"
+KEY="${CLM_KEY:-$HOME/.ssh/clm-demo-key.pem}"
+APP_URL="${CLM_URL:?cell file must set CLM_URL}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -51,7 +65,7 @@ fi
 DIRTY_TAG=""; [ "$DIRTY" != "0" ] && DIRTY_TAG=" [dirty]"
 STAMP="$COMMIT ($BRANCH) $(date -u +%FT%TZ) by $(whoami)$DIRTY_TAG"
 
-echo "==> Deploy target=$TARGET  commit=$STAMP  ->  $HOST"
+echo "==> Deploy cell=$CELL  target=$TARGET  commit=$STAMP  ->  $HOST"
 PREV=$("${SSH_CMD[@]}" "$HOST" "cat $REMOTE_DIR/DEPLOYED_COMMIT 2>/dev/null | head -1" 2>/dev/null || true)
 [ -n "$PREV" ] && echo "    previously deployed: $PREV"
 
