@@ -111,6 +111,11 @@ class Contract(Base, UUIDMixin, TimestampMixin, TenantMixin):
         String(100),
         nullable=True,
     )
+    language: Mapped[str | None] = mapped_column(
+        String(8),
+        nullable=True,
+        doc="ISO 639-1 code of the document's language (detected at ingestion)",
+    )
 
     # Risk assessment
     risk_score: Mapped[int | None] = mapped_column(

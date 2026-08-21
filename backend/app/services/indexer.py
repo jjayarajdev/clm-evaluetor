@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.clause import Clause, ClauseType
 from app.models.contract import Contract, ContractStatus
 from app.services.chunker import Chunk, ChunkedDocument, DocumentChunker, get_chunker
+from app.services.language import apply_language_to_hints, detect_language
 from app.services.parser import DocumentParser, ParsedDocument, get_parser
 from app.services.vector_store import ChunkMetadata, VectorStore, get_vector_store
 
@@ -349,6 +350,11 @@ class IndexingService:
             # without re-parsing the document or wasting tokens.
             if parsed.full_text:
                 contract.extracted_text = parsed.full_text
+                contract.language = detect_language(parsed.full_text) or contract.language
+                if contract.language and contract.language != "en":
+                    logger.info(
+                        f"Detected document language '{contract.language}' for {contract.id}"
+                    )
                 await self.db.flush()
 
             # Chunk document
@@ -406,6 +412,9 @@ class IndexingService:
             extraction_hints = await _load_extraction_hints(
                 self.db, contract.tenant_id, contract.industry_profile_id
             )
+            # Non-English documents: instruct agents to answer in the
+            # document's language (free text only; codes/dates stay English).
+            extraction_hints = apply_language_to_hints(extraction_hints, contract.language)
 
             # Build few-shot context from golden set
             meta_few_shot = ""
@@ -521,7 +530,9 @@ class IndexingService:
                     contract_profile_id=contract.industry_profile_id,
                 )
                 if resolved_hints:
-                    extraction_hints = resolved_hints
+                    extraction_hints = apply_language_to_hints(
+                        resolved_hints, contract.language
+                    )
 
             # Extract custom fields if tenant has them defined
             if contract.tenant_id:

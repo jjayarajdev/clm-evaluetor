@@ -79,6 +79,7 @@ class ContractResponse(BaseModel):
     contract_value: Decimal | None
     currency: str | None
     jurisdiction: str | None
+    language: str | None = None
 
     # Risk
     risk_score: int | None

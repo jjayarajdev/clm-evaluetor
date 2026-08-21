@@ -454,6 +454,7 @@ async def _run_deep_analysis(
 
         # Store extracted text on contract and fetch tenant_id for few-shot
         tenant_id = None
+        doc_language = None
         async with async_session_maker() as session:
             result = await session.execute(
                 select(Contract).where(Contract.id == cid_uuid)
@@ -461,6 +462,10 @@ async def _run_deep_analysis(
             contract = result.scalar_one_or_none()
             if contract:
                 contract.extracted_text = full_text
+                if not contract.language:
+                    from app.services.language import detect_language
+                    contract.language = detect_language(full_text)
+                doc_language = contract.language
                 tenant_id = contract.tenant_id
                 await session.commit()
 
@@ -512,6 +517,11 @@ async def _run_deep_analysis(
                     )
             except Exception as e:
                 logger.debug(f"[DEEP ANALYSIS] Extraction hints skipped: {e}")
+
+        # Non-English documents: instruct agents to answer in the document's
+        # language (free text only; codes/dates stay English).
+        from app.services.language import apply_language_to_hints
+        extraction_hints = apply_language_to_hints(extraction_hints, doc_language)
 
         # --- AI extraction stage (no DB needed) ---
         tenant_id_str = str(tenant_id) if tenant_id else None
@@ -1873,6 +1883,7 @@ def contract_to_response(
         contract_value=contract.contract_value,
         currency=contract.currency,
         jurisdiction=contract.jurisdiction,
+        language=contract.language,
         risk_score=contract.risk_score,
         risk_level=contract.risk_level.value if contract.risk_level else None,
         auto_renewal=contract.auto_renewal,
@@ -3000,7 +3011,10 @@ async def get_contract_clauses(
     query = select(Clause).where(Clause.contract_id == uuid.UUID(contract_id))
     if clause_type:
         query = query.where(Clause.clause_type == clause_type)
-    query = query.order_by(Clause.clause_type, Clause.created_at)
+    # Document order: clauses without a page number (rare) sort last.
+    query = query.order_by(
+        Clause.page_number.nulls_last(), Clause.section_number, Clause.created_at
+    )
     result = await db.execute(query)
     clauses = result.scalars().all()
     return [
@@ -3217,6 +3231,10 @@ async def analyze_contract(
             import logging
             logging.info(f"Parsed {len(full_text)} chars for deep analysis of {contract_id}")
 
+            # Non-English documents: agents must answer in the document's language
+            from app.services.language import detect_language, language_instruction
+            lang_hint = language_instruction(contract.language or detect_language(full_text))
+
             # Build few-shot context from golden set
             c_fs = o_fs = s_fs = ""
             if contract.tenant_id:
@@ -3243,6 +3261,7 @@ async def analyze_contract(
                     contract_id=contract_id,
                     user_id=str(current_user.id),
                     few_shot_context=c_fs,
+                    industry_hint=lang_hint,
                 )
             except AgentResponseError as e:
                 logging.warning(f"Clause extraction degraded for {contract_id}: {e}")
@@ -3256,6 +3275,7 @@ async def analyze_contract(
                     contract_id=contract_id,
                     user_id=str(current_user.id),
                     few_shot_context=o_fs,
+                    industry_hint=lang_hint,
                 )
             except AgentResponseError as e:
                 logging.warning(f"Obligation extraction degraded for {contract_id}: {e}")
@@ -3269,6 +3289,7 @@ async def analyze_contract(
                     contract_id=contract_id,
                     user_id=str(current_user.id),
                     few_shot_context=s_fs,
+                    industry_hint=lang_hint,
                 )
             except AgentResponseError as e:
                 logging.warning(f"SLA extraction degraded for {contract_id}: {e}")
@@ -3643,7 +3664,10 @@ async def re_extract_metadata_field(
 
     # Combine the tenant addendum with the caller's hint into the industry_hint
     # the agent already understands.
-    hint_parts = [p for p in [industry_addendum, body.hint] if p]
+    from app.services.language import language_instruction
+    hint_parts = [
+        p for p in [industry_addendum, body.hint, language_instruction(contract.language)] if p
+    ]
     industry_hint = "\n\n".join(hint_parts) if hint_parts else ""
 
     metadata = await extract_metadata_with_fallback(

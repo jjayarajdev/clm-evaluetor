@@ -2,6 +2,8 @@
 
 import io
 import logging
+import re
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import BinaryIO
@@ -20,6 +22,48 @@ logger = logging.getLogger(__name__)
 
 # Minimum characters per page to consider it has valid text (not scanned)
 MIN_TEXT_THRESHOLD = 50
+
+# Control characters and zero-width/BOM marks that survive PDF extraction and
+# render as junk in the UI. Tab/newline/CR are kept.
+_CONTROL_CHARS_RE = re.compile(
+    r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u200b\u200c\u200d\ufeff\ufffe\ufffd]"
+)
+
+# Byte sequences of UTF-8 text mis-decoded as Latin-1/CP1252 ("é" -> "Ã©",
+# "'" -> "â€™"). Counting these tells apart real mojibake from legitimate
+# accented text (e.g. Portuguese "SÃO" scores 0 — "Ã" alone is not a marker).
+_MOJIBAKE_MARKERS = (
+    "Ã©", "Ã¨", "Ãª", "Ã«", "Ã ", "Ã¢", "Ã§", "Ã´", "Ã®", "Ã¯", "Ã¹", "Ã»",
+    "Ã‰", "Ã€", "Ã‡", "â€™", "â€˜", "â€œ", "â€\x9d", "â€“", "â€”", "Â«", "Â»", "Â ",
+)
+
+
+def _mojibake_score(text: str) -> int:
+    return sum(text.count(m) for m in _MOJIBAKE_MARKERS)
+
+
+def clean_extracted_text(text: str) -> str:
+    """Normalize extracted text so accented characters survive intact.
+
+    - Repairs UTF-8-read-as-Latin-1 mojibake when the text clearly shows it
+      (score threshold avoids corrupting legitimate accented text).
+    - Normalizes to NFC so decomposed accents (e + combining ´) compare and
+      render as single characters.
+    - Strips control characters and zero-width marks.
+    """
+    if not text:
+        return text
+    score = _mojibake_score(text)
+    if score >= 3:
+        try:
+            repaired = text.encode("latin-1", "ignore").decode("utf-8", "ignore")
+            # Keep only a strict improvement that didn't destroy content
+            if _mojibake_score(repaired) < score and len(repaired) > len(text) * 0.8:
+                text = repaired
+        except Exception:  # noqa: BLE001 — never fail parsing over cleanup
+            pass
+    text = unicodedata.normalize("NFC", text)
+    return _CONTROL_CHARS_RE.sub("", text)
 
 
 @dataclass
@@ -89,6 +133,7 @@ class DocumentParser:
         """
         self.enable_ocr = enable_ocr
         self._tesseract_available: bool | None = None
+        self._ocr_langs: str | None = None
 
     def check_tesseract(self) -> bool:
         """Check if Tesseract is available."""
@@ -176,8 +221,8 @@ class DocumentParser:
                 page = doc[page_num]
                 text = page.get_text("text")
 
-                # Clean up text
-                text = text.strip()
+                # Clean up text (mojibake repair, NFC, control chars)
+                text = clean_extracted_text(text.strip())
 
                 # Check if page needs OCR (minimal text extracted)
                 if len(text) < MIN_TEXT_THRESHOLD:
@@ -251,7 +296,7 @@ class DocumentParser:
             page_contents: dict[int, list[str]] = {1: []}
 
             for para in doc.paragraphs:
-                text = para.text.strip()
+                text = clean_extracted_text(para.text.strip())
                 if not text:
                     continue
 
@@ -847,6 +892,26 @@ class DocumentParser:
             rows.append(" | ".join(cells))
         return "\n".join(rows)
 
+    def _ocr_languages(self) -> str:
+        """Tesseract language string: English plus any installed EU languages.
+
+        Hardcoding "eng" mangles accented characters on non-English scans;
+        only installed traineddata files are added so OCR never errors out.
+        """
+        if self._ocr_langs is not None:
+            return self._ocr_langs
+        langs = ["eng"]
+        try:
+            import pytesseract
+
+            available = set(pytesseract.get_languages(config=""))
+            langs += sorted(available & {"fra", "deu", "spa", "ita", "nld", "por"})
+        except Exception:  # noqa: BLE001 — fall back to English-only OCR
+            pass
+        self._ocr_langs = "+".join(langs)
+        logger.info(f"OCR languages: {self._ocr_langs}")
+        return self._ocr_langs
+
     def _ocr_pdf(self, doc: fitz.Document) -> list[PageContent]:
         """Perform OCR on PDF pages using Tesseract.
 
@@ -873,8 +938,8 @@ class DocumentParser:
 
             # Run OCR
             try:
-                text = pytesseract.image_to_string(img, lang="eng")
-                text = text.strip()
+                text = pytesseract.image_to_string(img, lang=self._ocr_languages())
+                text = clean_extracted_text(text.strip())
             except Exception as e:
                 logger.warning(f"OCR failed for page {page_num + 1}: {e}")
                 text = ""
