@@ -43,6 +43,8 @@ import type { PillTone, TableColumn, SortState } from '@/components/ui'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ContractTreeView from '@/components/contracts/ContractTreeView'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { can } from '@/lib/rbac'
 import type { ContractSummary } from '@/types'
 
 function currentLocale(): string {
@@ -147,6 +149,8 @@ export default function ContractsPage() {
   const { contractTypeLabel, uiLabel } = useTenantConfig()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const canUpload = can(user, 'upload')
   const { toast } = useToast()
   const [page, setPage] = useState(1)
   // Server-side sort — the register is paginated, so sorting must run over the
@@ -410,11 +414,11 @@ export default function ContractsPage() {
           <Button variant="secondary" size="sm" onClick={() => { clearFilters(); setSearch(''); setSearchInput('') }}>
             {t('contracts.clearAllFilters')}
           </Button>
-        ) : (
+        ) : canUpload ? (
           <Button variant="primary" size="sm" icon={ArrowUpTrayIcon} onClick={() => navigate('/upload')}>
             {t('nav.upload')}
           </Button>
-        )
+        ) : undefined
       }
     />
   )
@@ -438,9 +442,11 @@ export default function ContractsPage() {
           <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 600, letterSpacing: '-.5px' }}>{t('nav.contracts')}</h1>
           <p className="muted" style={{ marginTop: 2, fontSize: 'var(--fs-md)' }}>{t('contracts.subtitle')}</p>
         </div>
-        <Button variant="primary" icon={ArrowUpTrayIcon} onClick={() => navigate('/upload')}>
-          {t('nav.upload')}
-        </Button>
+        {canUpload && (
+          <Button variant="primary" icon={ArrowUpTrayIcon} onClick={() => navigate('/upload')}>
+            {t('nav.upload')}
+          </Button>
+        )}
       </div>
 
       {/* Stat cards — the two rightmost double as filters */}

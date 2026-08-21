@@ -21,6 +21,7 @@ import {
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/AuthContext'
+import { can } from '@/lib/rbac'
 import { useTenantConfig } from '@/contexts/TenantConfigContext'
 import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -408,11 +409,13 @@ export default function ModernDashboardPage() {
                 title={t('dashboard.noContracts', { defaultValue: 'No contracts yet' })}
                 body={t('dashboard.noContractsDesc', { defaultValue: 'Upload a contract to start extraction, risk detection and obligation tracking.' })}
                 action={
-                  <Link to="/upload">
-                    <Button variant="primary" size="sm" icon={ArrowUpTrayIcon}>
-                      {t('dashboard.actions.newContract')}
-                    </Button>
-                  </Link>
+                  can(user, 'upload') ? (
+                    <Link to="/upload">
+                      <Button variant="primary" size="sm" icon={ArrowUpTrayIcon}>
+                        {t('dashboard.actions.newContract')}
+                      </Button>
+                    </Link>
+                  ) : undefined
                 }
               />
             ) : (

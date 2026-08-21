@@ -22,6 +22,8 @@ import {
 } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
+import { can, type Permission } from '@/lib/rbac'
 
 interface CommandItem {
   id: string
@@ -31,22 +33,23 @@ interface CommandItem {
   shortcut?: string
   action: string | (() => void)
   category: 'navigation' | 'action' | 'recent'
+  permission?: Permission
 }
 
 const commands: CommandItem[] = [
   // Navigation
-  { id: 'dashboard', name: 'Dashboard', description: 'Go to dashboard', icon: HomeIcon, shortcut: 'G D', action: '/dashboard', category: 'navigation' },
-  { id: 'contracts', name: 'Contracts', description: 'Browse all contracts', icon: DocumentTextIcon, shortcut: 'G C', action: '/contracts', category: 'navigation' },
-  { id: 'upload', name: 'Upload Contract', description: 'Upload new contracts', icon: ArrowUpTrayIcon, shortcut: 'G U', action: '/upload', category: 'navigation' },
-  { id: 'compliance', name: 'Compliance', description: 'View compliance dashboard', icon: ScaleIcon, shortcut: 'G O', action: '/compliance', category: 'navigation' },
-  { id: 'renewals', name: 'Renewals', description: 'Contract renewals calendar', icon: ClockIcon, shortcut: 'G R', action: '/renewals', category: 'navigation' },
-  { id: 'vendors', name: 'Vendors', description: 'Vendor performance', icon: BuildingOfficeIcon, shortcut: 'G V', action: '/vendors', category: 'navigation' },
-  { id: 'reports', name: 'Reports', description: 'Analytics and reports', icon: ChartBarIcon, shortcut: 'G A', action: '/reports', category: 'navigation' },
+  { id: 'dashboard', name: 'Dashboard', description: 'Go to dashboard', icon: HomeIcon, shortcut: 'G D', action: '/dashboard', category: 'navigation', permission: 'dashboard' },
+  { id: 'contracts', name: 'Contracts', description: 'Browse all contracts', icon: DocumentTextIcon, shortcut: 'G C', action: '/contracts', category: 'navigation', permission: 'contracts' },
+  { id: 'upload', name: 'Upload Contract', description: 'Upload new contracts', icon: ArrowUpTrayIcon, shortcut: 'G U', action: '/upload', category: 'navigation', permission: 'upload' },
+  { id: 'compliance', name: 'Compliance', description: 'View compliance dashboard', icon: ScaleIcon, shortcut: 'G O', action: '/compliance', category: 'navigation', permission: 'postSigning' },
+  { id: 'renewals', name: 'Renewals', description: 'Contract renewals calendar', icon: ClockIcon, shortcut: 'G R', action: '/renewals', category: 'navigation', permission: 'renewals' },
+  { id: 'vendors', name: 'Vendors', description: 'Vendor performance', icon: BuildingOfficeIcon, shortcut: 'G V', action: '/vendors', category: 'navigation', permission: 'vendors' },
+  { id: 'reports', name: 'Reports', description: 'Analytics and reports', icon: ChartBarIcon, shortcut: 'G A', action: '/reports', category: 'navigation', permission: 'reports' },
 
   // Actions
-  { id: 'ask-ai', name: 'Ask AI', description: 'Query contracts with AI', icon: SparklesIcon, shortcut: '/', action: '/query', category: 'action' },
-  { id: 'users', name: 'Manage Users', description: 'User administration', icon: UserGroupIcon, action: '/users', category: 'action' },
-  { id: 'settings', name: 'Settings', description: 'Application settings', icon: Cog6ToothIcon, action: '/settings', category: 'action' },
+  { id: 'ask-ai', name: 'Ask AI', description: 'Query contracts with AI', icon: SparklesIcon, shortcut: '/', action: '/query', category: 'action', permission: 'askAi' },
+  { id: 'users', name: 'Manage Users', description: 'User administration', icon: UserGroupIcon, action: '/users', category: 'action', permission: 'admin' },
+  { id: 'settings', name: 'Settings', description: 'Application settings', icon: Cog6ToothIcon, action: '/settings', category: 'action', permission: 'settings' },
 ]
 
 const categoryLabels = {
@@ -63,6 +66,7 @@ export default function CommandPalette() {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const commandName = (cmd: CommandItem) =>
     t(`palette.${toCamel(cmd.id)}`, { defaultValue: cmd.name })
@@ -90,9 +94,13 @@ export default function CommandPalette() {
     }
   }, [])
 
+  const allowedCommands = commands.filter(
+    (cmd) => !cmd.permission || can(user, cmd.permission)
+  )
+
   const filteredCommands = query === ''
-    ? commands
-    : commands.filter((cmd) =>
+    ? allowedCommands
+    : allowedCommands.filter((cmd) =>
         commandName(cmd).toLowerCase().includes(query.toLowerCase()) ||
         commandDescription(cmd)?.toLowerCase().includes(query.toLowerCase())
       )

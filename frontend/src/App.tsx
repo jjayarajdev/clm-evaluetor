@@ -114,7 +114,7 @@ function App() {
         <Route path="renewals" element={<RenewalsPage />} />
         <Route path="vendors" element={<VendorsPage />} />
         <Route path="reports" element={<ReportsPage />} />
-        <Route path="upload" element={<UploadPage />} />
+        <Route path="upload" element={<RequirePermission perm="upload"><UploadPage /></RequirePermission>} />
         <Route path="query" element={<QueryPage />} />
         <Route path="users" element={<RequirePermission perm="admin"><UsersPage /></RequirePermission>} />
         <Route path="settings" element={<RequirePermission perm="settings"><SettingsPage /></RequirePermission>} />
