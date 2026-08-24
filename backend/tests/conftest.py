@@ -36,6 +36,16 @@ def _reset_permissions_cache():
     reset_permissions_cache()
 
 
+# The rate limiter is per-process — reset between tests so tests that hit
+# login/upload repeatedly never trip limits filled by earlier tests.
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    from app.core.rate_limit import limiter
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
 # Event loop fixture for async tests
 @pytest.fixture(scope="session")
 def event_loop():

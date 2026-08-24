@@ -15,8 +15,10 @@ from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.core.audit import log_audit
 from app.core.deps import AdminUser, CurrentUser, CurrentTenantId, RequiredTenantId, require_admin, require_write
+from app.core.rate_limit import rate_limit_by_user
 from app.models.contract import Contract
 from app.database import get_db
 from app.models.audit import AuditAction
@@ -35,6 +37,12 @@ from app.services.upload import UploadError, UploadService
 from app.services.progress_tracker import get_progress_tracker, ProcessingStage
 
 router = APIRouter(prefix="/api/contracts", tags=["Contracts"])
+
+# Uploads trigger paid LLM pipelines — shared per-user ceiling across the
+# single/batch/zip endpoints (same scope key), counted per request not per file.
+_upload_rate_limit = Depends(
+    rate_limit_by_user("upload", settings.rate_limit_upload_per_minute)
+)
 
 
 async def _get_all_child_bu_ids(db: AsyncSession, parent_id) -> list:
@@ -310,7 +318,7 @@ async def _attach_upload_group(
     return str(group.id)
 
 
-@router.post("/upload", response_model=ContractUploadResponse, dependencies=[Depends(require_write)])
+@router.post("/upload", response_model=ContractUploadResponse, dependencies=[Depends(require_write), _upload_rate_limit])
 async def upload_single_file(
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
@@ -1254,7 +1262,7 @@ async def _run_deep_analysis(
             pass
 
 
-@router.post("/upload/batch", response_model=BatchUploadResponse, dependencies=[Depends(require_write)])
+@router.post("/upload/batch", response_model=BatchUploadResponse, dependencies=[Depends(require_write), _upload_rate_limit])
 async def upload_batch_files(
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,
@@ -1397,7 +1405,7 @@ async def upload_batch_files(
     )
 
 
-@router.post("/upload/zip", response_model=BatchUploadResponse, dependencies=[Depends(require_write)])
+@router.post("/upload/zip", response_model=BatchUploadResponse, dependencies=[Depends(require_write), _upload_rate_limit])
 async def upload_zip_archive(
     current_user: CurrentUser,
     tenant_id: CurrentTenantId,

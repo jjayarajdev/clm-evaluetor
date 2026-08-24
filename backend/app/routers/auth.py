@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.audit import get_client_ip, get_user_agent, log_audit
 from app.core.deps import CurrentUser
+from app.core.rate_limit import rate_limit_by_ip, rate_limit_by_user
 from app.core.security import (
     TIMING_EQUALIZATION_HASH,
     create_access_token,
@@ -28,7 +29,15 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    dependencies=[
+        Depends(
+            rate_limit_by_ip("login", settings.rate_limit_login_per_minute)
+        )
+    ],
+)
 async def login(
     login_request: LoginRequest,
     request: Request,
@@ -211,7 +220,16 @@ async def logout(
     return {"message": "Successfully logged out"}
 
 
-@router.post("/change-password")
+@router.post(
+    "/change-password",
+    dependencies=[
+        Depends(
+            rate_limit_by_user(
+                "pwchange", settings.rate_limit_password_change_per_minute
+            )
+        )
+    ],
+)
 async def change_password(
     data: PasswordChangeRequest,
     current_user: CurrentUser,

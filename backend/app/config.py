@@ -100,6 +100,13 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
+    # Rate limiting (in-memory, per uvicorn worker — a client can reach up
+    # to workers× the nominal value; these are abuse ceilings, not quotas)
+    rate_limit_enabled: bool = True
+    rate_limit_login_per_minute: int = 10
+    rate_limit_password_change_per_minute: int = 5
+    rate_limit_upload_per_minute: int = 30
+
     # File Upload
     max_upload_size_mb: int = 50
     upload_dir: str = "data/uploads"
