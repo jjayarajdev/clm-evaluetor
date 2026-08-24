@@ -3085,7 +3085,7 @@
     },
     "security": {
       "allFieldsRequired": "All fields are required",
-      "passwordTooShort": "New password must be at least 8 characters",
+      "passwordTooShort": "New password must be at least 12 characters and include an uppercase letter, a lowercase letter, and a digit",
       "passwordsDoNotMatch": "Passwords do not match",
       "updateFailed": "Failed to update password",
       "changePassword": "Change Password",

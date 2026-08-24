@@ -53,14 +53,41 @@ class TestBcryptByteLimit:
 
     def test_schema_rejects_long_new_password(self):
         with pytest.raises(ValidationError):
-            UserPasswordUpdate(new_password="a" * 80)
+            UserPasswordUpdate(new_password="Aa1" + "a" * 77)
         with pytest.raises(ValidationError):
             PasswordChangeRequest(
-                current_password="current-pass", new_password="a" * 80
+                current_password="current-pass", new_password="Aa1" + "a" * 77
             )
 
-    def test_schema_accepts_normal_password(self):
-        assert UserPasswordUpdate(new_password="normal-pass-123")
+    def test_schema_accepts_policy_compliant_password(self):
+        assert UserPasswordUpdate(new_password="Normal-pass-123")
+
+
+class TestPasswordPolicy:
+    """New passwords need >=12 chars with lower, upper, and digit; existing
+    credentials are exempt (login fields don't use NewPassword)."""
+
+    def test_too_short_rejected(self):
+        with pytest.raises(ValidationError):
+            UserPasswordUpdate(new_password="Short-a1")
+
+    def test_missing_uppercase_rejected(self):
+        with pytest.raises(ValidationError):
+            UserPasswordUpdate(new_password="lowercase-only-123")
+
+    def test_missing_lowercase_rejected(self):
+        with pytest.raises(ValidationError):
+            UserPasswordUpdate(new_password="UPPERCASE-ONLY-123")
+
+    def test_missing_digit_rejected(self):
+        with pytest.raises(ValidationError):
+            UserPasswordUpdate(new_password="No-Digits-Here-At-All")
+
+    def test_login_exempt_from_policy(self):
+        from app.schemas.auth import LoginRequest
+
+        # Legacy 8-char demo credentials must still be able to log in.
+        assert LoginRequest(username="admin", password="admin123")
 
 
 class TestTimingEqualizationHash:

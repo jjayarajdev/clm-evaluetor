@@ -604,7 +604,7 @@ export default function GlobalUsersPage() {
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             required
-            minLength={8}
+            minLength={12}
           />
         </form>
       </Drawer>
@@ -692,7 +692,7 @@ export default function GlobalUsersPage() {
               value={editFormData.new_password}
               onChange={(e) => setEditFormData({ ...editFormData, new_password: e.target.value })}
               placeholder={t('superadmin.users.keepCurrentPlaceholder')}
-              minLength={8}
+              minLength={12}
             />
             <Select
               label={t('superadmin.role')}

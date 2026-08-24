@@ -1214,7 +1214,13 @@ function SecuritySettings() {
       setPasswordError(t('settings.security.allFieldsRequired'))
       return
     }
-    if (passwords.newPass.length < 8) {
+    // Mirrors the backend NewPassword policy (schemas/auth.py)
+    if (
+      passwords.newPass.length < 12 ||
+      !/[a-z]/.test(passwords.newPass) ||
+      !/[A-Z]/.test(passwords.newPass) ||
+      !/\d/.test(passwords.newPass)
+    ) {
       setPasswordError(t('settings.security.passwordTooShort'))
       return
     }

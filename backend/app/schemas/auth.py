@@ -7,19 +7,33 @@ from pydantic import AfterValidator, BaseModel, EmailStr, Field
 from app.core.security import BCRYPT_MAX_PASSWORD_BYTES
 
 
-def _enforce_bcrypt_byte_limit(v: str) -> str:
+# Policy for NEW passwords only. Login/current-password fields are exempt so
+# every pre-existing credential keeps working; the policy applies as passwords
+# are set or changed.
+MIN_PASSWORD_LENGTH = 12
+
+
+def _enforce_password_policy(v: str) -> str:
     if len(v.encode("utf-8")) > BCRYPT_MAX_PASSWORD_BYTES:
         raise ValueError(
             f"Password must be at most {BCRYPT_MAX_PASSWORD_BYTES} bytes"
         )
+    if not any(c.islower() for c in v):
+        raise ValueError("Password must contain a lowercase letter")
+    if not any(c.isupper() for c in v):
+        raise ValueError("Password must contain an uppercase letter")
+    if not any(c.isdigit() for c in v):
+        raise ValueError("Password must contain a digit")
     return v
 
 
-# For fields that SET a password (hash_password rejects >72 bytes — validate
-# here so the client gets a 422 instead of a 500). Login fields stay uncapped:
-# a pre-existing longer password still verifies via bcrypt's truncation.
+# For fields that SET a password: length + character-class policy, plus the
+# bcrypt byte cap (hash_password rejects >72 bytes — validate here so the
+# client gets a 422 instead of a 500).
 NewPassword = Annotated[
-    str, Field(min_length=8), AfterValidator(_enforce_bcrypt_byte_limit)
+    str,
+    Field(min_length=MIN_PASSWORD_LENGTH),
+    AfterValidator(_enforce_password_policy),
 ]
 
 

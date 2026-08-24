@@ -524,7 +524,7 @@ export default function UsersPage() {
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             required={!editingUser}
-            minLength={8}
+            minLength={12}
           />
         </form>
       </Drawer>
