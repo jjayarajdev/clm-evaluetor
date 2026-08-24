@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field
 
 from app.models.user import Role
+from app.schemas.auth import NewPassword
 
 
 class UserCreate(BaseModel):
@@ -18,7 +19,7 @@ class UserCreate(BaseModel):
     job_title: str | None = Field(None, max_length=128)
     phone: str | None = Field(None, max_length=50)
     department: str | None = Field(None, max_length=128)
-    password: str = Field(..., min_length=8)
+    password: NewPassword
     role: Role = Role.LEGAL
     tenant_id: str | None = None  # Super admin can specify target tenant
     business_unit_id: str | None = None
@@ -50,7 +51,7 @@ class UserPreferencesUpdate(BaseModel):
 class UserPasswordUpdate(BaseModel):
     """Schema for updating user password (admin)."""
 
-    new_password: str = Field(..., min_length=8)
+    new_password: NewPassword
 
 
 class UserResponse(BaseModel):

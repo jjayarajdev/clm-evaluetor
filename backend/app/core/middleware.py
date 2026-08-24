@@ -150,6 +150,42 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 session_id_var.reset(session_id_token)
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Attach standard security headers to every response.
+
+    The interactive API docs (Swagger/ReDoc) load scripts and styles from a
+    CDN, so they are exempt from the restrictive CSP; every other response is
+    API JSON and gets `default-src 'none'`.
+    """
+
+    _DOCS_PATHS = ("/api/docs", "/api/redoc", "/api/openapi.json")
+
+    async def dispatch(
+        self, request: Request, call_next: Callable
+    ) -> Response:
+        response = await call_next(request)
+        headers = response.headers
+        headers.setdefault("X-Content-Type-Options", "nosniff")
+        headers.setdefault("X-Frame-Options", "DENY")
+        headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        headers.setdefault(
+            "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
+        )
+        if not request.url.path.startswith(self._DOCS_PATHS):
+            headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'none'; frame-ancestors 'none'",
+            )
+        # HSTS is only meaningful (and only honored by browsers) over TLS.
+        forwarded_proto = request.headers.get("X-Forwarded-Proto", "")
+        if request.url.scheme == "https" or forwarded_proto == "https":
+            headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
+        return response
+
+
 def _get_client_ip(request: Request) -> str | None:
     """Extract client IP from request headers.
 

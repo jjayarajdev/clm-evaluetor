@@ -9,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.audit import get_client_ip, get_user_agent, log_audit
 from app.core.deps import CurrentUser
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import (
+    TIMING_EQUALIZATION_HASH,
+    create_access_token,
+    hash_password,
+    verify_password,
+)
 from app.database import get_db
 from app.models.audit import AuditAction
 from app.models.user import User
@@ -48,8 +53,14 @@ async def login(
     )
     user = result.scalar_one_or_none()
 
-    # Verify user exists and password is correct
-    if user is None or not verify_password(login_request.password, user.password_hash):
+    # Verify user exists and password is correct. Always run the bcrypt check —
+    # against a dummy hash when the user doesn't exist — so response timing
+    # doesn't reveal which usernames are valid.
+    password_ok = verify_password(
+        login_request.password,
+        user.password_hash if user else TIMING_EQUALIZATION_HASH,
+    )
+    if user is None or not password_ok:
         # Log failed login attempt
         await log_audit(
             db=db,

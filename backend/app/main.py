@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.core.logging import configure_logging, get_logger
-from app.core.middleware import RequestLoggingMiddleware
+from app.core.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from app.routers import (
     admin_settings, alerts, amendments, auth, audit, clients, compliance, connectors, contracts,
     custom_fields, dashboard, knowledge_graph, master_data_admin, metrics, milestones, monitor,
@@ -171,6 +171,9 @@ app = FastAPI(
 
 # Add request logging middleware (must be added first to wrap all requests)
 app.add_middleware(RequestLoggingMiddleware)
+
+# Standard security headers on every response
+app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS middleware for frontend communication
 app.add_middleware(

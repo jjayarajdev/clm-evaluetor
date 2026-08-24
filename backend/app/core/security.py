@@ -50,6 +50,16 @@ class TokenPayload(BaseModel):
 # Password Hashing
 # =============================================================================
 
+# bcrypt silently ignores everything past 72 bytes, so two passwords that
+# differ only beyond that point would verify as equal. Reject at hash time
+# (schemas enforce the same cap for a 422 instead of a 500).
+BCRYPT_MAX_PASSWORD_BYTES = 72
+
+# A real bcrypt hash of a throwaway value, verified against when a login names
+# an unknown user — so response timing doesn't reveal whether a username exists.
+# Never a valid credential: the plaintext it hashes is not accepted anywhere.
+TIMING_EQUALIZATION_HASH = "$2b$12$Xq3V5llIfuyX.ZY1ytgEk.U8H5T17O.C/qUZtXIMhjlMLXhqinBRu"
+
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt.
@@ -59,8 +69,15 @@ def hash_password(password: str) -> str:
 
     Returns:
         Hashed password string.
+
+    Raises:
+        ValueError: If the password exceeds bcrypt's 72-byte limit.
     """
     password_bytes = password.encode('utf-8')
+    if len(password_bytes) > BCRYPT_MAX_PASSWORD_BYTES:
+        raise ValueError(
+            f"Password exceeds bcrypt's {BCRYPT_MAX_PASSWORD_BYTES}-byte limit"
+        )
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
@@ -73,11 +90,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         hashed_password: Hashed password to compare against.
 
     Returns:
-        True if password matches, False otherwise.
+        True if password matches, False otherwise (including when the stored
+        hash is empty or malformed — bcrypt's ValueError must not become a 500
+        on the login endpoint).
     """
     password_bytes = plain_password.encode('utf-8')
     hashed_bytes = hashed_password.encode('utf-8')
-    return bcrypt.checkpw(password_bytes, hashed_bytes)
+    try:
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except ValueError:
+        return False
 
 
 # =============================================================================

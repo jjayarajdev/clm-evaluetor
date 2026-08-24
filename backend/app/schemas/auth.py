@@ -1,6 +1,26 @@
 """Pydantic schemas for authentication."""
 
-from pydantic import BaseModel, EmailStr, Field
+from typing import Annotated
+
+from pydantic import AfterValidator, BaseModel, EmailStr, Field
+
+from app.core.security import BCRYPT_MAX_PASSWORD_BYTES
+
+
+def _enforce_bcrypt_byte_limit(v: str) -> str:
+    if len(v.encode("utf-8")) > BCRYPT_MAX_PASSWORD_BYTES:
+        raise ValueError(
+            f"Password must be at most {BCRYPT_MAX_PASSWORD_BYTES} bytes"
+        )
+    return v
+
+
+# For fields that SET a password (hash_password rejects >72 bytes — validate
+# here so the client gets a 422 instead of a 500). Login fields stay uncapped:
+# a pre-existing longer password still verifies via bcrypt's truncation.
+NewPassword = Annotated[
+    str, Field(min_length=8), AfterValidator(_enforce_bcrypt_byte_limit)
+]
 
 
 class LoginRequest(BaseModel):
@@ -47,7 +67,7 @@ class PasswordChangeRequest(BaseModel):
     """Request schema for password change."""
 
     current_password: str = Field(..., min_length=8)
-    new_password: str = Field(..., min_length=8)
+    new_password: NewPassword
 
 
 # Update forward references

@@ -88,8 +88,17 @@ class Settings(BaseSettings):
         description="Public-facing URL of the frontend app (e.g. http://52.21.204.211)",
     )
 
-    # CORS - allow all origins for demo/dev (restrict in production)
-    cors_origins: list[str] = ["*"]
+    # CORS — explicit origins only (never "*": combined with
+    # allow_credentials it defeats the browser's origin isolation). Defaults
+    # cover local dev servers; production sets CORS_ORIGINS (JSON list) if the
+    # backend is ever exposed cross-origin — the prod nginx proxies /api
+    # same-origin, so browsers there never need CORS at all.
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002",
+        "http://127.0.0.1:3000",
+    ]
 
     # File Upload
     max_upload_size_mb: int = 50

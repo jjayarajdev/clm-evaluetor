@@ -104,6 +104,16 @@ if [ "$REINDEX" = "true" ]; then
 fi
 EOF
 
+# ── 3b. Reclaim disk (build cache once filled the 30G root disk to 99%,
+# failing mid-deploy with "I/O operation failed during extraction"). Keep a
+# bounded build cache so backend layer-caching still works; drop images no
+# longer referenced by a container (rollback is rebuild-from-source anyway).
+echo "==> Pruning docker build cache (>8GB) + dangling images"
+"${SSH_CMD[@]}" "$HOST" \
+  "docker builder prune -f --keep-storage 8GB >/dev/null 2>&1 || docker builder prune -f >/dev/null 2>&1 || true; \
+   docker image prune -f >/dev/null 2>&1 || true; \
+   df -h / | tail -1" || true
+
 # ── 4. Health check (poll — a freshly-restarted backend needs a moment) ──
 echo "==> Health (polling up to ~60s):"
 ok=false; front=000; api=000
