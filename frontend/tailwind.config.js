@@ -43,7 +43,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Instrument Sans', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Instrument Sans Variable', 'Instrument Sans', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'Menlo', 'monospace'],
       },
     },

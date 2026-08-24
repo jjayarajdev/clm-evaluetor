@@ -7,6 +7,12 @@ import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './components/ui/Toast'
 import './i18n'
+// Self-hosted fonts (bundled by Vite) — no Google Fonts request at runtime,
+// a GDPR requirement for EU tenants.
+import '@fontsource-variable/instrument-sans'
+import '@fontsource-variable/instrument-sans/wght-italic.css'
+import '@fontsource/jetbrains-mono/400.css'
+import '@fontsource/jetbrains-mono/500.css'
 import './index.css'
 
 const queryClient = new QueryClient({
