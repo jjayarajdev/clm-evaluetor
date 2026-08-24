@@ -1,5 +1,5 @@
-# Build stage
-FROM node:20-alpine as builder
+# Build stage (Vite 8 requires Node ^20.19 or >=22)
+FROM node:22-alpine as builder
 
 WORKDIR /app
 

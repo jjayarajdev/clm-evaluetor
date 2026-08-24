@@ -1,7 +1,6 @@
 /* Focused unit tests for the UploadContext job-state lifecycle:
    upload result mapping (accepted / duplicate / rejected), processing poll
    transitions (completed / failed), and queue maintenance actions. */
-import { ReactNode } from 'react'
 import { render, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

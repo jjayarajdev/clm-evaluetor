@@ -43,7 +43,7 @@ export default function TenantRolePermissionsSection() {
   const groups = useMemo(() => {
     const out: Record<string, string[]> = {}
     for (const p of data?.catalog ?? []) {
-      ;(out[groupKey(p)] ??= []).push(p)
+      (out[groupKey(p)] ??= []).push(p)
     }
     return Object.entries(out).sort(([a], [b]) =>
       a === 'navigation' ? -1 : b === 'navigation' ? 1 : a.localeCompare(b)

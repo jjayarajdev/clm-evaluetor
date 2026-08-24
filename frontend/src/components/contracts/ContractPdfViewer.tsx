@@ -14,8 +14,13 @@ import api from '@/lib/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import type { HighlightRect } from '@/lib/api/contracts'
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+// Configure PDF.js worker — self-hosted (bundled by Vite), never a CDN.
+// The direct pdfjs-dist dependency is pinned to react-pdf's exact version so
+// this worker matches the API react-pdf loads (a mismatch fails at runtime).
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString()
 
 interface ContractPdfViewerProps {
   contractId: string
