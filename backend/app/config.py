@@ -100,6 +100,11 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
+    # Encryption key for secrets stored in the DB (integration credentials).
+    # Falls back to jwt_secret_key when unset; set it explicitly in
+    # production so JWT key rotation can't orphan stored credentials.
+    credentials_encryption_key: str = ""
+
     # Rate limiting (in-memory, per uvicorn worker — a client can reach up
     # to workers× the nominal value; these are abuse ceilings, not quotas)
     rate_limit_enabled: bool = True

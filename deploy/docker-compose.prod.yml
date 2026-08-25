@@ -57,6 +57,7 @@ services:
       APP_NAME: "CLM Platform"
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY required}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY:-}
       SECURITY_PROFILE: ${SECURITY_PROFILE:-demo}
 
       # Optional: Langfuse observability

@@ -11,6 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.crypto import EncryptedJSON
 from app.database import Base
 from app.models.base import TimestampMixin
 
@@ -70,8 +71,9 @@ class IntegrationConfig(Base, TimestampMixin):
     auth_type: Mapped[str] = mapped_column(String(50), default="oauth2")
     # Options: "oauth2", "basic", "api_key", "bearer"
 
-    credentials: Mapped[Optional[dict]] = mapped_column(JSONB)
-    # Encrypted JSON with auth details
+    credentials: Mapped[Optional[dict]] = mapped_column(EncryptedJSON)
+    # Fernet-encrypted at rest (EncryptedJSON — reads/writes plain dicts);
+    # legacy plaintext rows load unchanged and encrypt on next save.
     # OAuth2: {"client_id": "...", "client_secret": "...", "token_url": "..."}
     # Basic: {"username": "...", "password": "..."}
     # API Key: {"api_key": "...", "header_name": "X-API-Key"}
