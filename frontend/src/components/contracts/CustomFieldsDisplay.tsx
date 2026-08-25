@@ -120,7 +120,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             type="text"
             value={(value as string) || ''}
             onChange={(e) => handleValueChange(field.name, e.target.value)}
-            className="input-field text-sm"
+            className="inp-flat text-sm"
             placeholder={field.help_text || t('customFields.enterField', { field: field.label.toLowerCase() })}
           />
         )
@@ -131,7 +131,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             type="number"
             value={(value as number) ?? ''}
             onChange={(e) => handleValueChange(field.name, e.target.value ? Number(e.target.value) : null)}
-            className="input-field text-sm"
+            className="inp-flat text-sm"
             placeholder={field.help_text || t('customFields.enterField', { field: field.label.toLowerCase() })}
           />
         )
@@ -141,7 +141,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             type="date"
             value={(value as string) || ''}
             onChange={(e) => handleValueChange(field.name, e.target.value)}
-            className="input-field text-sm"
+            className="inp-flat text-sm"
           />
         )
       case 'checkbox':
@@ -158,7 +158,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
           <select
             value={(value as string) || ''}
             onChange={(e) => handleValueChange(field.name, e.target.value)}
-            className="input-field text-sm"
+            className="inp-flat text-sm"
           >
             <option value="">{t('customFields.select')}</option>
             {field.options?.map((opt) => (
@@ -175,7 +175,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
               const selected = Array.from(e.target.selectedOptions, option => option.value)
               handleValueChange(field.name, selected)
             }}
-            className="input-field text-sm min-h-[80px]"
+            className="inp-flat text-sm min-h-[80px]"
           >
             {field.options?.map((opt) => (
               <option key={opt} value={opt}>{opt}</option>
@@ -188,7 +188,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             type="url"
             value={(value as string) || ''}
             onChange={(e) => handleValueChange(field.name, e.target.value)}
-            className="input-field text-sm"
+            className="inp-flat text-sm"
             placeholder={t('customFields.urlPlaceholder')}
           />
         )
@@ -198,7 +198,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             type="email"
             value={(value as string) || ''}
             onChange={(e) => handleValueChange(field.name, e.target.value)}
-            className="input-field text-sm"
+            className="inp-flat text-sm"
             placeholder={t('customFields.emailPlaceholder')}
           />
         )
@@ -208,7 +208,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
             type="text"
             value={(value as string) || ''}
             onChange={(e) => handleValueChange(field.name, e.target.value)}
-            className="input-field text-sm"
+            className="inp-flat text-sm"
           />
         )
     }
@@ -216,7 +216,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
 
   return (
     <div className="card">
-      <div className="card-header flex items-center justify-between">
+      <div className="card-h flex items-center justify-between">
         <h2 className="text-sm font-medium text-gray-900">{t('customFields.title')}</h2>
         {canEdit && !isEditing && (
           <button
@@ -251,7 +251,7 @@ export default function CustomFieldsDisplay({ contract, canEdit = false }: Custo
           </div>
         )}
       </div>
-      <div className="card-body">
+      <div className="card-p">
         <div className="grid grid-cols-2 gap-4">
           {fieldDefinitions.map((field) => (
             <div key={field.name}>

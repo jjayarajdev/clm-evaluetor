@@ -157,18 +157,18 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
           {step === 'input' && (
             <>
               <div>
-                <label className="label">{t('industry.industryName')}</label>
+                <label className="lbl">{t('industry.industryName')}</label>
                 <input
-                  className="input"
+                  className="inp-flat"
                   placeholder={t('industry.industryNamePlaceholder')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
               <div>
-                <label className="label">{t('industry.description')}</label>
+                <label className="lbl">{t('industry.description')}</label>
                 <textarea
-                  className="input h-24"
+                  className="inp-flat h-24"
                   placeholder={t('industry.descriptionPlaceholder')}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -178,9 +178,9 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
                 </p>
               </div>
               <div>
-                <label className="label">{t('industry.sampleContractText')}</label>
+                <label className="lbl">{t('industry.sampleContractText')}</label>
                 <textarea
-                  className="input h-32 font-mono text-xs"
+                  className="inp-flat h-32 font-mono text-xs"
                   placeholder={t('industry.sampleContractPlaceholder')}
                   value={sampleText}
                   onChange={(e) => setSampleText(e.target.value)}
@@ -206,26 +206,26 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">{t('industry.name')}</label>
+                  <label className="lbl">{t('industry.name')}</label>
                   <input
-                    className="input"
+                    className="inp-flat"
                     value={draft.name || ''}
                     onChange={(e) => updateDraftField('name', e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="label">{t('industry.slug')}</label>
+                  <label className="lbl">{t('industry.slug')}</label>
                   <input
-                    className="input font-mono"
+                    className="inp-flat font-mono"
                     value={draft.slug || ''}
                     onChange={(e) => updateDraftField('slug', e.target.value)}
                   />
                 </div>
               </div>
               <div>
-                <label className="label">{t('industry.description')}</label>
+                <label className="lbl">{t('industry.description')}</label>
                 <textarea
-                  className="input h-20"
+                  className="inp-flat h-20"
                   value={draft.description || ''}
                   onChange={(e) => updateDraftField('description', e.target.value)}
                 />
@@ -253,7 +253,7 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
           {step === 'review' ? (
-            <button className="btn-secondary text-sm" onClick={() => setStep('input')}>
+            <button className="btn btn-s text-sm" onClick={() => setStep('input')}>
               {t('industry.back')}
             </button>
           ) : (
@@ -261,7 +261,7 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
           )}
           {step === 'input' ? (
             <button
-              className="btn-primary text-sm flex items-center gap-2"
+              className="btn btn-p text-sm flex items-center gap-2"
               disabled={name.trim().length < 2 || description.trim().length < 10 || generateMutation.isPending}
               onClick={() => generateMutation.mutate()}
             >
@@ -270,7 +270,7 @@ export default function NewIndustryWizard({ onClose }: { onClose: () => void }) 
             </button>
           ) : (
             <button
-              className="btn-primary text-sm flex items-center gap-2"
+              className="btn btn-p text-sm flex items-center gap-2"
               disabled={createMutation.isPending || anyParseError}
               onClick={() => createMutation.mutate()}
             >

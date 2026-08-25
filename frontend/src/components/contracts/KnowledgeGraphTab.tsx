@@ -221,7 +221,7 @@ export default function KnowledgeGraphTab({ contractId }: { contractId: string; 
       <p className="text-gray-500 mt-2">There was an error retrieving the graph data for this contract.</p>
       <button 
         onClick={() => refetch()}
-        className="btn-primary mt-4"
+        className="btn btn-p mt-4"
       >
         <ArrowPathIcon className="h-4 w-4 mr-2" />
         Retry
@@ -293,7 +293,7 @@ export default function KnowledgeGraphTab({ contractId }: { contractId: string; 
               </p>
               <button 
                 onClick={() => api.extractKnowledgeGraph(contractId).then(() => refetch())}
-                className="btn-primary mt-6"
+                className="btn btn-p mt-6"
               >
                 Extract Knowledge Graph
               </button>

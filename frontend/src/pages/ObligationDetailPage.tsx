@@ -697,7 +697,7 @@ export default function ObligationDetailPage() {
             <label className="lbl">{t('obligation.attachmentOptional')}</label>
             <input
               type="file"
-              className="input"
+              className="inp-flat"
               onChange={(e) => setEvidenceFile(e.target.files?.[0] || null)}
             />
             {evidenceFile && (

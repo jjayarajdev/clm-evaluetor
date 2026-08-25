@@ -85,17 +85,16 @@
   .card{background:var(--s);border:1px solid var(--b);border-radius:var(--r-lg)}
   .card-p{padding:16px}
   .sec-t{font-size:var(--fs-xs);font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--f)}
-  /* legacy card sections (Phase 7: replace with card-p) */
-  .card-header{padding:14px 16px;border-bottom:1px solid var(--b);background:var(--s3);border-radius:var(--r-lg) var(--r-lg) 0 0}
-  .card-body{padding:16px}
+  /* card section header (pairs with .card-p for the body) */
+  .card-h{padding:14px 16px;border-bottom:1px solid var(--b);background:var(--s3);border-radius:var(--r-lg) var(--r-lg) 0 0}
 
   /* --- buttons --- */
-  .btn,.btn-primary,.btn-secondary,.btn-danger,.btn-ghost{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 12px;border:1px solid transparent;border-radius:var(--r-sm);font-size:var(--fs-md);font-weight:600;cursor:pointer;background:none;white-space:nowrap;transition:background .12s var(--ease),border-color .12s var(--ease),color .12s var(--ease)}
-  .btn:disabled,.btn-primary:disabled,.btn-secondary:disabled,.btn-danger:disabled,.btn-ghost:disabled{opacity:.45;cursor:not-allowed}
-  .btn-p,.btn-primary{background:var(--p);color:var(--on-p)}.btn-p:hover:not(:disabled),.btn-primary:hover:not(:disabled){background:var(--p-h)}
-  .btn-s,.btn-secondary{background:var(--s);border-color:var(--b2);color:var(--t)}.btn-s:hover:not(:disabled),.btn-secondary:hover:not(:disabled){background:var(--s2)}
-  .btn-g,.btn-ghost{color:var(--m)}.btn-g:hover:not(:disabled),.btn-ghost:hover:not(:disabled){background:var(--s2);color:var(--t)}
-  .btn-d,.btn-danger{background:var(--da);color:#fff}.btn-d:hover:not(:disabled),.btn-danger:hover:not(:disabled){filter:brightness(.92)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 12px;border:1px solid transparent;border-radius:var(--r-sm);font-size:var(--fs-md);font-weight:600;cursor:pointer;background:none;white-space:nowrap;transition:background .12s var(--ease),border-color .12s var(--ease),color .12s var(--ease)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn-p{background:var(--p);color:var(--on-p)}.btn-p:hover:not(:disabled){background:var(--p-h)}
+  .btn-s{background:var(--s);border-color:var(--b2);color:var(--t)}.btn-s:hover:not(:disabled){background:var(--s2)}
+  .btn-g{color:var(--m)}.btn-g:hover:not(:disabled){background:var(--s2);color:var(--t)}
+  .btn-d{background:var(--da);color:#fff}.btn-d:hover:not(:disabled){filter:brightness(.92)}
   .btn-dg{color:var(--da)}.btn-dg:hover:not(:disabled){background:var(--da-f)}
   .btn-sm{height:28px;padding:0 9px;font-size:var(--fs-sm)}
   .btn-lg{height:40px;padding:0 16px;font-size:var(--fs-lg)}
@@ -127,13 +126,12 @@
   .lbl{display:block;font-size:var(--fs-sm);font-weight:600;color:var(--m);margin-bottom:5px}
   .hint{font-size:var(--fs-sm);color:var(--f);margin-top:5px}
   .hint-e{color:var(--da)}
-  /* legacy input/label (Phase 7: replace with .inp/.lbl) */
-  .input{display:block;width:100%;min-height:34px;padding:6px 10px;background:var(--s);border:1px solid var(--b);border-radius:var(--r-sm);color:var(--t);font-size:var(--fs-md);transition:border-color .12s var(--ease),box-shadow .12s var(--ease)}
-  .input::placeholder{color:var(--f)}
-  .input:hover:not(:focus){border-color:var(--b2)}
-  .input:focus{outline:none;border-color:var(--p);box-shadow:0 0 0 3px var(--p-f2)}
-  .label{display:block;font-size:var(--fs-sm);font-weight:600;color:var(--m);margin-bottom:5px}
-  select.input{padding-right:2.25rem;appearance:none;background-repeat:no-repeat;background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a1a1aa' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");background-position:right 0.5rem center;background-size:1.25em 1.25em}
+  /* flat input — for bare inputs/textareas where the .inp wrapper doesn't fit */
+  .inp-flat{display:block;width:100%;min-height:34px;padding:6px 10px;background:var(--s);border:1px solid var(--b);border-radius:var(--r-sm);color:var(--t);font-size:var(--fs-md);transition:border-color .12s var(--ease),box-shadow .12s var(--ease)}
+  .inp-flat::placeholder{color:var(--f)}
+  .inp-flat:hover:not(:focus){border-color:var(--b2)}
+  .inp-flat:focus{outline:none;border-color:var(--p);box-shadow:0 0 0 3px var(--p-f2)}
+  select.inp-flat{padding-right:2.25rem;appearance:none;background-repeat:no-repeat;background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a1a1aa' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");background-position:right 0.5rem center;background-size:1.25em 1.25em}
   .cbx{width:16px;height:16px;border:1.5px solid var(--b2);border-radius:var(--r-xs);background:var(--s);display:inline-grid;place-items:center;cursor:pointer;flex-shrink:0;color:transparent;transition:all .1s var(--ease)}
   .cbx.on{background:var(--p);border-color:var(--p);color:#fff}
   .cbx.mix{background:var(--p);border-color:var(--p);color:#fff}

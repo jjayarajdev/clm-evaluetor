@@ -297,7 +297,7 @@ export default function SnowIntegrationPage() {
 
       {/* Connection Configuration Section */}
       <div className="card">
-        <div className="card-header row" style={{ gap: 8 }}>
+        <div className="card-h row" style={{ gap: 8 }}>
           <CloudArrowUpIcon style={{ width: 16, height: 16, flexShrink: 0, color: 'var(--p)' }} aria-hidden />
           <span className="sec-t grow">{t('integrations.snow.connectionConfiguration')}</span>
           {config && !isEditing && (
@@ -323,7 +323,7 @@ export default function SnowIntegrationPage() {
 
         {/* Existing config status card */}
         {config && !isEditing && (
-          <div className="card-body col" style={{ gap: 14 }}>
+          <div className="card-p col" style={{ gap: 14 }}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Health Status */}
               <div style={{ padding: 12, background: 'var(--s3)', border: '1px solid var(--b)', borderRadius: 'var(--r-md)' }}>
@@ -404,7 +404,7 @@ export default function SnowIntegrationPage() {
 
         {/* Edit/Create Form */}
         {isEditing && (
-          <div className="card-body">
+          <div className="card-p">
             <form onSubmit={handleSave} className="col" style={{ gap: 14, maxWidth: 512 }}>
               <Field
                 label={`${t('integrations.snow.connectionName')} *`}

@@ -138,7 +138,7 @@ function MetadataEditRow({
               type="text"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
-              className="input w-full"
+              className="inp-flat w-full"
               placeholder={t('extraction.correctedValuePlaceholder')}
               autoFocus
             />
@@ -147,7 +147,7 @@ function MetadataEditRow({
             type="text"
             value={editNotes}
             onChange={(e) => setEditNotes(e.target.value)}
-            className="input w-full"
+            className="inp-flat w-full"
             placeholder={t('extraction.notesOptionalPlaceholder')}
           />
           <div className="row">
@@ -241,11 +241,11 @@ function ClauseEditRow({
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="lbl">{t('extraction.clauseType')}</label>
-              <input type="text" value={editType} onChange={(e) => setEditType(e.target.value)} className="input w-full" placeholder={t('extraction.clauseTypePlaceholder')} />
+              <input type="text" value={editType} onChange={(e) => setEditType(e.target.value)} className="inp-flat w-full" placeholder={t('extraction.clauseTypePlaceholder')} />
             </div>
             <div className="w-32">
               <label className="lbl">{t('extraction.riskLevel')}</label>
-              <select value={editRisk} onChange={(e) => setEditRisk(e.target.value)} className="input w-full">
+              <select value={editRisk} onChange={(e) => setEditRisk(e.target.value)} className="inp-flat w-full">
                 <option value="">--</option>
                 <option value="low">{t('risk.low')}</option>
                 <option value="medium">{t('risk.medium')}</option>
@@ -255,9 +255,9 @@ function ClauseEditRow({
           </div>
           <div>
             <label className="lbl">{t('extraction.text')}</label>
-            <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="input w-full" />
+            <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="inp-flat w-full" />
           </div>
-          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full" placeholder={t('extraction.notesPlaceholder')} />
+          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="inp-flat w-full" placeholder={t('extraction.notesPlaceholder')} />
           <div className="row">
             <Button size="sm" style={{ background: 'var(--da-f)', borderColor: 'var(--da-b)', color: 'var(--da)' }} onClick={() => saveEdit('incorrect')}>{t('extraction.saveAsIncorrect')}</Button>
             <Button size="sm" style={{ background: 'var(--wa-f)', borderColor: 'var(--wa-b)', color: 'var(--wa)' }} onClick={() => saveEdit('partial')}>{t('extraction.saveAsPartial')}</Button>
@@ -344,18 +344,18 @@ function ObligationEditRow({
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="lbl">{t('extraction.type')}</label>
-              <input type="text" value={editType} onChange={(e) => setEditType(e.target.value)} className="input w-full" />
+              <input type="text" value={editType} onChange={(e) => setEditType(e.target.value)} className="inp-flat w-full" />
             </div>
             <div className="flex-1">
               <label className="lbl">{t('extraction.obligatedParty')}</label>
-              <input type="text" value={editParty} onChange={(e) => setEditParty(e.target.value)} className="input w-full" />
+              <input type="text" value={editParty} onChange={(e) => setEditParty(e.target.value)} className="inp-flat w-full" />
             </div>
           </div>
           <div>
             <label className="lbl">{t('extraction.description')}</label>
-            <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} className="input w-full" />
+            <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} className="inp-flat w-full" />
           </div>
-          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full" placeholder={t('extraction.notesPlaceholder')} />
+          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="inp-flat w-full" placeholder={t('extraction.notesPlaceholder')} />
           <div className="row">
             <Button size="sm" style={{ background: 'var(--da-f)', borderColor: 'var(--da-b)', color: 'var(--da)' }} onClick={() => saveEdit('incorrect')}>{t('extraction.saveAsIncorrect')}</Button>
             <Button size="sm" style={{ background: 'var(--wa-f)', borderColor: 'var(--wa-b)', color: 'var(--wa)' }} onClick={() => saveEdit('partial')}>{t('extraction.saveAsPartial')}</Button>
@@ -437,19 +437,19 @@ function SLAEditRow({
         <div className="space-y-2">
           <div>
             <label className="lbl">{t('extraction.slaName')}</label>
-            <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input w-full" />
+            <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="inp-flat w-full" />
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="lbl">{t('extraction.targetValue')}</label>
-              <input type="number" step="any" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} className="input w-full" />
+              <input type="number" step="any" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} className="inp-flat w-full" />
             </div>
             <div className="flex-1">
               <label className="lbl">{t('extraction.unit')}</label>
-              <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} className="input w-full" placeholder={t('extraction.unitExamplePlaceholder')} />
+              <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} className="inp-flat w-full" placeholder={t('extraction.unitExamplePlaceholder')} />
             </div>
           </div>
-          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full" placeholder={t('extraction.notesPlaceholder')} />
+          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="inp-flat w-full" placeholder={t('extraction.notesPlaceholder')} />
           <div className="row">
             <Button size="sm" style={{ background: 'var(--da-f)', borderColor: 'var(--da-b)', color: 'var(--da)' }} onClick={() => saveEdit('incorrect')}>{t('extraction.saveAsIncorrect')}</Button>
             <Button size="sm" style={{ background: 'var(--wa-f)', borderColor: 'var(--wa-b)', color: 'var(--wa)' }} onClick={() => saveEdit('partial')}>{t('extraction.saveAsPartial')}</Button>
@@ -526,11 +526,11 @@ function AddMissingClause({ onAdd }: { onAdd: (correctedValue: Record<string, un
         <div className="flex gap-2">
           <div className="flex-1">
             <label className="lbl">{t('extraction.clauseType')} *</label>
-            <input type="text" value={clauseType} onChange={(e) => setClauseType(e.target.value)} className="input w-full" placeholder={t('extraction.clauseTypePlaceholder')} autoFocus />
+            <input type="text" value={clauseType} onChange={(e) => setClauseType(e.target.value)} className="inp-flat w-full" placeholder={t('extraction.clauseTypePlaceholder')} autoFocus />
           </div>
           <div className="w-32">
             <label className="lbl">{t('extraction.riskLevel')}</label>
-            <select value={riskLevel} onChange={(e) => setRiskLevel(e.target.value)} className="input w-full">
+            <select value={riskLevel} onChange={(e) => setRiskLevel(e.target.value)} className="inp-flat w-full">
               <option value="">--</option>
               <option value="low">{t('risk.low')}</option>
               <option value="medium">{t('risk.medium')}</option>
@@ -540,7 +540,7 @@ function AddMissingClause({ onAdd }: { onAdd: (correctedValue: Record<string, un
         </div>
         <div>
           <label className="lbl">{t('extraction.clauseText')} *</label>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} className="input w-full" placeholder={t('extraction.pasteClauseTextPlaceholder')} />
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} className="inp-flat w-full" placeholder={t('extraction.pasteClauseTextPlaceholder')} />
         </div>
         <div className="row">
           <Button size="sm" variant="primary" disabled={!clauseType || !text} onClick={handleSubmit}>{t('extraction.addToGoldenSet')}</Button>
@@ -582,16 +582,16 @@ function AddMissingObligation({ onAdd }: { onAdd: (correctedValue: Record<string
         <div className="flex gap-2">
           <div className="flex-1">
             <label className="lbl">{t('extraction.obligationType')} *</label>
-            <input type="text" value={oblType} onChange={(e) => setOblType(e.target.value)} className="input w-full" placeholder={t('extraction.obligationTypePlaceholder')} autoFocus />
+            <input type="text" value={oblType} onChange={(e) => setOblType(e.target.value)} className="inp-flat w-full" placeholder={t('extraction.obligationTypePlaceholder')} autoFocus />
           </div>
           <div className="flex-1">
             <label className="lbl">{t('extraction.obligatedParty')}</label>
-            <input type="text" value={party} onChange={(e) => setParty(e.target.value)} className="input w-full" placeholder={t('extraction.obligatedPartyPlaceholder')} />
+            <input type="text" value={party} onChange={(e) => setParty(e.target.value)} className="inp-flat w-full" placeholder={t('extraction.obligatedPartyPlaceholder')} />
           </div>
         </div>
         <div>
           <label className="lbl">{t('extraction.description')} *</label>
-          <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} className="input w-full" placeholder={t('extraction.describeObligationPlaceholder')} />
+          <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} className="inp-flat w-full" placeholder={t('extraction.describeObligationPlaceholder')} />
         </div>
         <div className="row">
           <Button size="sm" variant="primary" disabled={!oblType || !desc} onClick={handleSubmit}>{t('extraction.addToGoldenSet')}</Button>
@@ -639,20 +639,20 @@ function AddMissingSLA({ onAdd }: { onAdd: (correctedValue: Record<string, unkno
       <div className="space-y-2">
         <div>
           <label className="lbl">{t('extraction.slaName')} *</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input w-full" placeholder={t('extraction.slaNamePlaceholder')} autoFocus />
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="inp-flat w-full" placeholder={t('extraction.slaNamePlaceholder')} autoFocus />
         </div>
         <div className="flex gap-2">
           <div className="flex-1">
             <label className="lbl">{t('extraction.metricType')}</label>
-            <input type="text" value={metricType} onChange={(e) => setMetricType(e.target.value)} className="input w-full" placeholder={t('extraction.metricTypePlaceholder')} />
+            <input type="text" value={metricType} onChange={(e) => setMetricType(e.target.value)} className="inp-flat w-full" placeholder={t('extraction.metricTypePlaceholder')} />
           </div>
           <div className="w-28">
             <label className="lbl">{t('extraction.targetLabel')}</label>
-            <input type="number" step="any" value={target} onChange={(e) => setTarget(e.target.value)} className="input w-full" placeholder="99.9" />
+            <input type="number" step="any" value={target} onChange={(e) => setTarget(e.target.value)} className="inp-flat w-full" placeholder="99.9" />
           </div>
           <div className="w-28">
             <label className="lbl">{t('extraction.unit')}</label>
-            <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} className="input w-full" placeholder={t('extraction.unitPlaceholder')} />
+            <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} className="inp-flat w-full" placeholder={t('extraction.unitPlaceholder')} />
           </div>
         </div>
         <div className="row">
@@ -1048,7 +1048,7 @@ function DspyCompilationPanel() {
                   max={100}
                   value={editingThreshold}
                   onChange={(e) => setEditingThreshold(Number(e.target.value) || 1)}
-                  className="input"
+                  className="inp-flat"
                   style={{ width: 64, minHeight: 28, padding: '2px 8px', fontSize: 'var(--fs-sm)' }}
                 />
                 <button

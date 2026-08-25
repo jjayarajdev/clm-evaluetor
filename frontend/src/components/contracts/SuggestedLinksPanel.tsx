@@ -342,7 +342,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
           onClick={handleApprove}
           disabled={isProcessing}
           className={cn(
-            'btn-primary text-sm py-1.5 px-3 flex items-center gap-1',
+            'btn btn-p text-sm py-1.5 px-3 flex items-center gap-1',
             isProcessing && 'opacity-50 cursor-not-allowed'
           )}
         >
@@ -358,7 +358,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
           onClick={handleReject}
           disabled={isProcessing}
           className={cn(
-            'btn-secondary text-sm py-1.5 px-3 flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50',
+            'btn btn-s text-sm py-1.5 px-3 flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50',
             isProcessing && 'opacity-50 cursor-not-allowed'
           )}
         >
@@ -372,7 +372,7 @@ function SuggestionCard({ suggestion, contractId, onReviewComplete }: Suggestion
             onClick={() => setShowModifyDropdown(!showModifyDropdown)}
             disabled={isProcessing}
             className={cn(
-              'btn-secondary text-sm py-1.5 px-3 flex items-center gap-1',
+              'btn btn-s text-sm py-1.5 px-3 flex items-center gap-1',
               isProcessing && 'opacity-50 cursor-not-allowed'
             )}
           >
@@ -458,13 +458,13 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
     return (
       <div className="space-y-4">
         <div className="card">
-          <div className="card-header">
+          <div className="card-h">
             <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
               <LinkIcon className="h-4 w-4 text-primary-500" />
               {t('suggestedLinks.relatedContracts')}
             </h3>
           </div>
-          <div className="card-body flex items-center justify-center py-8">
+          <div className="card-p flex items-center justify-center py-8">
             <LoadingSpinner size="sm" />
           </div>
         </div>
@@ -475,13 +475,13 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
   if (!hasContent) {
     return (
       <div className="card">
-        <div className="card-header">
+        <div className="card-h">
           <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
             <LinkIcon className="h-4 w-4 text-gray-400" />
             {t('suggestedLinks.relatedContracts')}
           </h3>
         </div>
-        <div className="card-body text-center py-8">
+        <div className="card-p text-center py-8">
           <DocumentTextIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
           <p className="text-sm text-gray-500">{t('suggestedLinks.noRelated')}</p>
           <p className="text-xs text-gray-400 mt-1">
@@ -501,7 +501,7 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
       {/* Established Links */}
       {establishedLinks.length > 0 && (
         <div className="card">
-          <div className="card-header">
+          <div className="card-h">
             <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
               <ShieldCheckIcon className="h-4 w-4 text-green-500" />
               {t('suggestedLinks.establishedLinks')}
@@ -510,7 +510,7 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
               </span>
             </h3>
           </div>
-          <div className="card-body space-y-3">
+          <div className="card-p space-y-3">
             {parentLinks.length > 0 && (
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
@@ -542,7 +542,7 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
       {/* AI Suggestions */}
       {pendingSuggestions.length > 0 && (
         <div className="card border-primary-200 bg-primary-50/30">
-          <div className="card-header flex items-center justify-between">
+          <div className="card-h flex items-center justify-between">
             <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
               <SparklesIcon className="h-4 w-4 text-primary-500" />
               {t('suggestedLinks.aiSuggestions')}
@@ -564,7 +564,7 @@ export default function SuggestedLinksPanel({ contractId }: SuggestedLinksPanelP
             </div>
           </div>
 
-          <div className="card-body space-y-3">
+          <div className="card-p space-y-3">
             {pendingSuggestions.map((suggestion) => (
               <SuggestionCard
                 key={suggestion.id}

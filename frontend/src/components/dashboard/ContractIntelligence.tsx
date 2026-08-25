@@ -448,7 +448,7 @@ export default function ContractIntelligence({ contractId }: Props) {
         <button
           onClick={() => analyzeMutation.mutate()}
           disabled={analyzeMutation.isPending}
-          className="btn-secondary flex items-center gap-2"
+          className="btn btn-s flex items-center gap-2"
         >
           <ArrowPathIcon className={cn("h-4 w-4", analyzeMutation.isPending && "animate-spin")} />
           {analyzeMutation.isPending ? t('summaries.analyzing') : t('contract.reanalyze')}
@@ -457,13 +457,13 @@ export default function ContractIntelligence({ contractId }: Props) {
 
       {/* Key Terms Grid */}
       <div className="card">
-        <div className="card-header">
+        <div className="card-h">
           <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
             <DocumentTextIcon className="h-5 w-5 text-gray-400" />
             {t('summaries.keyContractTerms')}
           </h3>
         </div>
-        <div className="card-body">
+        <div className="card-p">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="flex items-start gap-3">
               <BuildingOfficeIcon className="h-5 w-5 text-gray-400 mt-0.5" />

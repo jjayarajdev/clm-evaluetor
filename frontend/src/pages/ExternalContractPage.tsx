@@ -702,7 +702,7 @@ function InlineCommentWidget({
                 onChange={(e) => setItemComment(e.target.value)}
                 placeholder={t('external.addYourComment')}
                 rows={2}
-                className="input grow resize-none"
+                className="inp-flat grow resize-none"
                 style={{ fontSize: 'var(--fs-sm)' }}
                 autoFocus
               />

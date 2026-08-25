@@ -669,7 +669,7 @@ export default function ExternalGovernancePage() {
                   onChange={(e) => setScoreComments(e.target.value)}
                   rows={3}
                   placeholder={t('external.scoreCommentsPlaceholder')}
-                  className="input resize-none"
+                  className="inp-flat resize-none"
                 />
               </div>
 

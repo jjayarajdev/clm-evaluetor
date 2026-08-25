@@ -90,7 +90,7 @@ function InlineEdit({
           <select
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
-            className="input text-sm py-1 flex-1"
+            className="inp-flat text-sm py-1 flex-1"
             autoFocus
           >
             <option value="">-</option>
@@ -113,7 +113,7 @@ function InlineEdit({
             type={type === 'date' ? 'date' : type === 'number' ? 'number' : 'text'}
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
-            className="input text-sm py-1 flex-1"
+            className="inp-flat text-sm py-1 flex-1"
             autoFocus
             onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') cancel() }}
           />
@@ -766,7 +766,7 @@ function ClauseRow({
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
                 rows={4}
-                className="input text-sm w-full"
+                className="inp-flat text-sm w-full"
               />
               <div className="flex justify-end gap-1 mt-1">
                 <button
@@ -872,7 +872,7 @@ function ObligationRow({
                 value={editDesc}
                 onChange={(e) => setEditDesc(e.target.value)}
                 rows={3}
-                className="input text-sm w-full"
+                className="inp-flat text-sm w-full"
               />
               <div className="flex justify-end gap-1 mt-1">
                 <button

@@ -189,7 +189,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
         </h2>
         <button
           onClick={() => setShowCreate(true)}
-          className="btn-primary text-xs flex items-center gap-1"
+          className="btn btn-p text-xs flex items-center gap-1"
         >
           <PlusIcon className="h-3.5 w-3.5" /> {t('docsTab.addDocument')}
         </button>
@@ -290,7 +290,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowCreate(false)} className="btn-secondary">{t('common.cancel')}</button>
+              <button onClick={() => setShowCreate(false)} className="btn btn-s">{t('common.cancel')}</button>
               <button
                 onClick={() => {
                   if (formData.title && formData.document_type) {
@@ -298,7 +298,7 @@ export default function ContractDocumentsTab({ contractId }: Props) {
                   }
                 }}
                 disabled={!formData.title || createMutation.isPending}
-                className="btn-primary"
+                className="btn btn-p"
               >
                 {createMutation.isPending ? t('docsTab.adding') : t('docsTab.addDocument')}
               </button>

@@ -498,7 +498,7 @@ export default function ContractTreeView({ roots, totalContracts, totalLinks }: 
                     value={moveSearch}
                     onChange={(e) => setMoveSearch(e.target.value)}
                     placeholder={t('treeView.moveSearchPlaceholder', { defaultValue: 'Search a new parent contract…' })}
-                    className="input pl-9"
+                    className="inp-flat pl-9"
                   />
                 </div>
               </div>

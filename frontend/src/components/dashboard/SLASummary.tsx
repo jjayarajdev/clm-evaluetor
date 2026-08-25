@@ -523,7 +523,7 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
   if (!slas || slas.length === 0) {
     return (
       <div className="card">
-        <div className="card-body text-center py-8">
+        <div className="card-p text-center py-8">
           <ChartBarIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">{t('summaries.noSlas')}</p>
           <p className="text-sm text-gray-400 mt-1">
@@ -571,28 +571,28 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card">
-          <div className="card-body text-center">
+          <div className="card-p text-center">
             <ChartBarIcon className="h-8 w-8 text-primary-500 mx-auto mb-2" />
             <p className="text-2xl font-bold text-gray-900">{totalSLAs}</p>
             <p className="text-sm text-gray-500">{t('summaries.totalSlas')}</p>
           </div>
         </div>
         <div className="card">
-          <div className="card-body text-center">
+          <div className="card-p text-center">
             <CheckCircleIcon className="h-8 w-8 text-green-500 mx-auto mb-2" />
             <p className="text-2xl font-bold text-gray-900">{activeSLAs}</p>
             <p className="text-sm text-gray-500">{t('status.active')}</p>
           </div>
         </div>
         <div className="card">
-          <div className="card-body text-center">
+          <div className="card-p text-center">
             <ExclamationTriangleIcon className="h-8 w-8 text-red-500 mx-auto mb-2" />
             <p className="text-2xl font-bold text-gray-900">{breached}</p>
             <p className="text-sm text-gray-500">{t('status.breached')}</p>
           </div>
         </div>
         <div className="card">
-          <div className="card-body text-center">
+          <div className="card-p text-center">
             <CurrencyDollarIcon className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
             <p className="text-2xl font-bold text-gray-900">{withPenalties}</p>
             <p className="text-sm text-gray-500">{t('summaries.withPenalties')}</p>
@@ -627,7 +627,7 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
 
         return (
           <div key={severity} className="card">
-            <div className="card-header flex items-center gap-2">
+            <div className="card-h flex items-center gap-2">
               <span className={cn(
                 'px-2 py-0.5 rounded text-xs font-medium capitalize border',
                 getSeverityColor(severity)
@@ -832,7 +832,7 @@ export default function SLASummary({ contractId }: SLASummaryProps) {
                   placeholder={t('summaries.librarySearchPlaceholder')}
                   value={librarySearch}
                   onChange={(e) => setLibrarySearch(e.target.value)}
-                  className="input w-full pl-9"
+                  className="inp-flat w-full pl-9"
                   autoFocus
                 />
               </div>
