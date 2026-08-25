@@ -17,6 +17,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.core.audit import log_audit
+from app.core.http import content_disposition
 from app.core.deps import AdminUser, CurrentUser, CurrentTenantId, RequiredTenantId, require_admin, require_write
 from app.core.rate_limit import rate_limit_by_user
 from app.models.contract import Contract
@@ -4990,7 +4991,7 @@ async def download_contract_file(
         iterfile(),
         media_type=serve_mime,
         headers={
-            "Content-Disposition": f'attachment; filename="{serve_name}"',
+            "Content-Disposition": content_disposition(serve_name),
             "Content-Length": str(os.path.getsize(serve_path)),
         },
     )

@@ -12,6 +12,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.http import content_disposition
 from app.database import get_db
 from app.models.contract import Contract
 from app.models.contract_share import ContractShare
@@ -647,7 +648,7 @@ async def download_shared_contract(
         iterfile(),
         media_type=contract.mime_type or "application/octet-stream",
         headers={
-            "Content-Disposition": f'attachment; filename="{contract.filename}"',
+            "Content-Disposition": content_disposition(contract.filename),
             "Content-Length": str(os.path.getsize(file_path)),
         },
     )
@@ -706,7 +707,7 @@ async def view_shared_contract(
         iterfile(),
         media_type=contract.mime_type or "application/pdf",
         headers={
-            "Content-Disposition": f'inline; filename="{contract.filename}"',
+            "Content-Disposition": content_disposition(contract.filename, "inline"),
             "Content-Length": str(os.path.getsize(file_path)),
         },
     )
