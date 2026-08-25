@@ -284,8 +284,17 @@ async def get_contract_intelligence(
             source_text=obl.source_text,
         )
 
+        # Provider = the counterparty's obligations. Match against the
+        # contract's actual counterparty name first (language-neutral — the
+        # old English-only keywords put every obligation of a French contract
+        # on the client side); keep the keywords as a fallback for legacy
+        # rows whose party label doesn't echo the counterparty name.
         party = (obl.obligated_party or "").lower()
-        if "provider" in party or "clasp" in party or "vendor" in party:
+        counterparty = (contract.counterparty or "").lower()
+        matches_counterparty = bool(party) and bool(counterparty) and (
+            counterparty in party or party in counterparty
+        )
+        if matches_counterparty or "provider" in party or "clasp" in party or "vendor" in party:
             provider_obligations.append(item)
         else:
             client_obligations.append(item)

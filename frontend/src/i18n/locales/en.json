@@ -226,7 +226,8 @@
     "sourceProvenance": "Source provenance",
     "supersededVersion": "Superseded",
     "theOrganization": "the organization",
-    "viewSource": "View source"
+    "viewSource": "View source",
+    "allParties": "All parties"
   },
   "upload": {
     "title": "Upload Contracts",

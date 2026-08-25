@@ -226,7 +226,8 @@
     "sourceProvenance": "Provenance de la source",
     "supersededVersion": "Remplacée",
     "theOrganization": "l'organisation",
-    "viewSource": "Voir la source"
+    "viewSource": "Voir la source",
+    "allParties": "Toutes les parties"
   },
   "upload": {
     "title": "Importer des contrats",

@@ -1504,6 +1504,7 @@ function ObligationsReviewTab({
   const [activeRects, setActiveRects] = useState<HighlightRect[] | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [partyFilter, setPartyFilter] = useState('')
 
   const { data: intelligence, isLoading } = useQuery({
     queryKey: ['contract-intelligence', contractId],
@@ -1518,14 +1519,20 @@ function ObligationsReviewTab({
     ...(intelligence?.obligations_matrix?.provider_obligations || []),
     ...(intelligence?.obligations_matrix?.client_obligations || []),
   ]
+  // Distinct obligated parties for the filter dropdown (tester request:
+  // "select just one party, e.g. Sous-Traitant or Donneur d'Ordre").
+  const parties = [...new Set(allObligations.map((o) => o.obligated_party).filter(Boolean))] as string[]
+  const byParty = partyFilter
+    ? allObligations.filter((o) => o.obligated_party === partyFilter)
+    : allObligations
   // Client-side keyword filter (description, party, type, status, source text).
   const kw = search.trim().toLowerCase()
   const obligations = kw
-    ? allObligations.filter((o) =>
+    ? byParty.filter((o) =>
         [o.description, o.obligated_party, o.obligation_type, o.status, o.source_text]
           .filter(Boolean).join(' ').toLowerCase().includes(kw)
       )
-    : allObligations
+    : byParty
 
   const sourceFor = (obl: ObligationItem) =>
     highlights?.highlights?.[obl.id]?.rects?.length || obl.source_text
@@ -1560,9 +1567,20 @@ function ObligationsReviewTab({
           <div className="row" style={{ gap: 8 }}>
             <span className="sec-t grow">{t('contract.obligations')}</span>
             <span className="faint num" style={{ fontSize: 'var(--fs-xs)' }}>
-              {kw ? `${obligations.length}/${allObligations.length}` : allObligations.length}
+              {kw || partyFilter ? `${obligations.length}/${allObligations.length}` : allObligations.length}
             </span>
           </div>
+          {parties.length > 1 && (
+            <Select
+              value={partyFilter}
+              onChange={(e) => setPartyFilter(e.target.value)}
+              containerStyle={{ marginTop: 8 }}
+              options={[
+                { value: '', label: t('contract.allParties', { defaultValue: 'All parties' }) },
+                ...parties.map((p) => ({ value: p, label: p })),
+              ]}
+            />
+          )}
           {allObligations.length > 8 && (
             <Field
               icon={MagnifyingGlassIcon}
