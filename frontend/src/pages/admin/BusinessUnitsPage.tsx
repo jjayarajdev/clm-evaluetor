@@ -305,12 +305,6 @@ export default function BusinessUnitsPage() {
     },
   })
 
-  const profileMutation = useMutation({
-    mutationFn: ({ buId, profileId }: { buId: string; profileId: string | null }) =>
-      api.assignBuProfile(buId, profileId, effectiveTenantId),
-    onSuccess: invalidate,
-  })
-
   const toggleExpand = (id: string) => {
     setExpandedNodes((prev) => {
       const next = new Set(prev)
@@ -379,12 +373,16 @@ export default function BusinessUnitsPage() {
   }
 
   const handleSubmit = () => {
+    // Cleared fields must be EXPLICIT nulls: `|| undefined` made axios drop
+    // the key, the backend's exclude_unset never saw it, and "move to top
+    // level" (or clearing description/profile) silently no-oped while the UI
+    // toasted success — the tester-reported "nothing changes after update".
     const submitData = {
       name: formData.name,
       code: formData.code,
-      description: formData.description || undefined,
-      parent_id: formData.parent_id || undefined,
-      industry_profile_id: formData.industry_profile_id || undefined,
+      description: formData.description || null,
+      parent_id: formData.parent_id || null,
+      industry_profile_id: formData.industry_profile_id || null,
     }
 
     if (editingId) {
@@ -395,13 +393,6 @@ export default function BusinessUnitsPage() {
           is_active: formData.is_active,
         },
       })
-      // If profile changed, also call the profile assignment endpoint
-      if (formData.industry_profile_id !== '') {
-        profileMutation.mutate({
-          buId: editingId,
-          profileId: formData.industry_profile_id || null,
-        })
-      }
     } else {
       createMutation.mutate(submitData)
     }

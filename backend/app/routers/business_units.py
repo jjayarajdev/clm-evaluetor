@@ -4,7 +4,7 @@ from uuid import UUID
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func, or_, text
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -25,25 +25,28 @@ router = APIRouter(prefix="/api/business-units", tags=["Business Units"])
 
 
 async def _get_descendant_ids(db: AsyncSession, bu_id: UUID) -> set[UUID]:
-    """Get all descendant BU IDs via a recursive query.
+    """Get all descendant BU IDs via a recursive CTE.
 
     Must not use BusinessUnit.get_all_child_ids() here: its recursive
     relationship walk triggers lazy loads outside the async greenlet
-    (MissingGreenlet), which 500s the request.
+    (MissingGreenlet), which 500s the request. Built as a Core CTE (not raw
+    text()) so the UUID column type handles param binding and row conversion
+    on every dialect — raw SQL bound a dashed uuid string that sqlite's
+    undashed storage never matched, silently disabling the circular-reference
+    guard under test.
     """
-    result = await db.execute(
-        text("""
-            WITH RECURSIVE descendants AS (
-                SELECT id FROM business_units WHERE parent_id = :bu_id
-                UNION ALL
-                SELECT b.id FROM business_units b
-                JOIN descendants d ON b.parent_id = d.id
-            )
-            SELECT id FROM descendants
-        """),
-        {"bu_id": bu_id},
+    descendants = (
+        select(BusinessUnit.id)
+        .where(BusinessUnit.parent_id == bu_id)
+        .cte("descendants", recursive=True)
     )
-    return {row[0] for row in result}
+    descendants = descendants.union_all(
+        select(BusinessUnit.id).join(
+            descendants, BusinessUnit.parent_id == descendants.c.id
+        )
+    )
+    result = await db.execute(select(descendants.c.id))
+    return set(result.scalars().all())
 
 
 @router.get("", response_model=BusinessUnitListResponse)

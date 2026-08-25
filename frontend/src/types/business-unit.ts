@@ -32,19 +32,21 @@ export interface BusinessUnitTree {
 export interface BusinessUnitCreate {
   name: string
   code: string
-  description?: string
-  parent_id?: string
-  head_user_id?: string
-  industry_profile_id?: string
+  description?: string | null
+  parent_id?: string | null
+  head_user_id?: string | null
+  industry_profile_id?: string | null
 }
 
 export interface BusinessUnitUpdate {
   name?: string
   code?: string
-  description?: string
-  parent_id?: string
-  head_user_id?: string
-  industry_profile_id?: string
+  // null = explicitly clear (undefined keys are dropped by axios and the
+  // backend's exclude_unset treats them as "no change")
+  description?: string | null
+  parent_id?: string | null
+  head_user_id?: string | null
+  industry_profile_id?: string | null
   is_active?: boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config_overrides?: Record<string, any>
