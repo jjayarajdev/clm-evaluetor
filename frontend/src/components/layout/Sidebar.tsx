@@ -16,6 +16,7 @@ import {
   ClipboardDocumentCheckIcon,
   ClipboardDocumentListIcon,
   ClockIcon,
+  ChartBarSquareIcon,
   CloudArrowUpIcon,
   Cog6ToothIcon,
   DocumentChartBarIcon,
@@ -139,6 +140,7 @@ const superAdminNav: NavItem[] = [
   { name: 'nav.customFields', href: '/super-admin/custom-fields', icon: AdjustmentsHorizontalIcon, permission: 'superadmin' },
   { name: 'nav.rolePermissions', href: '/super-admin/role-permissions', icon: ShieldCheckIcon, permission: 'superadmin' },
   { name: 'nav.integrations', href: '/super-admin/integrations', icon: CloudArrowUpIcon, permission: 'superadmin' },
+  { name: 'nav.fleetUsage', href: '/super-admin/usage', icon: ChartBarSquareIcon, permission: 'superadmin' },
 ]
 
 const LANGUAGES: { code: AppLanguage; labelKey: string }[] = [

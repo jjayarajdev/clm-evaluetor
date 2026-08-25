@@ -11,7 +11,8 @@ one tenant via ?tenant_id=, plus a per-tenant breakdown on /by-tenant.
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +23,14 @@ from app.models.usage_event import UsageEvent, UsageMetric
 from app.models.user import Role
 
 router = APIRouter(prefix="/api/usage", tags=["Usage"])
+
+
+class UsageLimitsUpdate(BaseModel):
+    """Monthly soft limits; null/0 clears a limit."""
+
+    monthly_pages: int | None = Field(None, ge=0)
+    monthly_ai_actions: int | None = Field(None, ge=0)
+    monthly_cost_usd: float | None = Field(None, ge=0)
 
 # USD per 1M tokens (input, output) — illustrative list prices for the cost
 # ESTIMATE shown to tenant admins; not a billing rate card. Prefix-matched in
@@ -165,7 +174,13 @@ async def usage_by_tenant(
     current_user: SuperAdminUser,
     db: AsyncSession = Depends(get_db),
 ):
-    """Current-month usage + estimated cost per tenant (super admin fleet view)."""
+    """Current-month usage + estimated cost per tenant (super admin fleet view).
+
+    Lists EVERY active tenant (zero-usage tenants included) and, where
+    monthly limits are configured, the utilization percentage per limit.
+    """
+    from app.services.usage_alerts import get_usage_limits, _LIMIT_METRICS
+
     start = _month_start(datetime.now(timezone.utc))
     q = (
         select(UsageEvent.tenant_id, UsageEvent.metric, UsageEvent.model, func.sum(UsageEvent.quantity))
@@ -176,17 +191,78 @@ async def usage_by_tenant(
     for tid, metric, model, total in (await db.execute(q)).all():
         by_tenant.setdefault(tid, []).append((metric, model, int(total or 0)))
 
-    names = {
-        t.id: t.name
-        for t in (await db.execute(select(Tenant))).scalars().all()
-    }
-    items = [
-        {
-            "tenant_id": str(tid) if tid else None,
-            "tenant_name": names.get(tid, "Platform (no tenant)"),
-            **_bucketize(rows, full=True),
+    tenants = (await db.execute(select(Tenant))).scalars().all()
+    for t in tenants:
+        by_tenant.setdefault(t.id, [])
+    tenant_by_id = {t.id: t for t in tenants}
+
+    items = []
+    for tid, rows in by_tenant.items():
+        tenant = tenant_by_id.get(tid)
+        usage = _bucketize(rows, full=True)
+        limits = get_usage_limits(tenant) if tenant else {}
+        utilization = {
+            key: {
+                "limit": limit,
+                "current": _LIMIT_METRICS[key][1](usage),
+                "pct": round(_LIMIT_METRICS[key][1](usage) / limit * 100, 1) if limit else 0,
+            }
+            for key, limit in limits.items()
         }
-        for tid, rows in by_tenant.items()
-    ]
+        items.append({
+            "tenant_id": str(tid) if tid else None,
+            "tenant_name": tenant.name if tenant else "Platform (no tenant)",
+            **usage,
+            "limits": utilization,
+        })
     items.sort(key=lambda i: i.get("estimated_cost_usd", 0), reverse=True)
     return {"month": start.strftime("%Y-%m"), "items": items}
+
+
+@router.get("/limits/{tenant_id}")
+async def get_tenant_usage_limits(
+    tenant_id: uuid.UUID,
+    current_user: SuperAdminUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Read a tenant's configured monthly usage limits (super admin)."""
+    from app.services.usage_alerts import get_usage_limits
+
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return {"tenant_id": str(tenant_id), "usage_limits": get_usage_limits(tenant)}
+
+
+@router.put("/limits/{tenant_id}")
+async def set_tenant_usage_limits(
+    tenant_id: uuid.UUID,
+    body: UsageLimitsUpdate,
+    current_user: SuperAdminUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Set a tenant's monthly usage limits (super admin).
+
+    Limits are soft: they drive the 80%/100% admin alerts, not enforcement
+    (that's metering phase 4). Setting a value to null removes the limit.
+    """
+    from sqlalchemy.orm.attributes import flag_modified
+
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    overrides = dict(tenant.config_overrides or {})
+    limits = {
+        k: v
+        for k, v in body.model_dump().items()
+        if v is not None and v > 0
+    }
+    if limits:
+        overrides["usage_limits"] = limits
+    else:
+        overrides.pop("usage_limits", None)
+    tenant.config_overrides = overrides
+    flag_modified(tenant, "config_overrides")
+    await db.commit()
+    return {"tenant_id": str(tenant_id), "usage_limits": limits}

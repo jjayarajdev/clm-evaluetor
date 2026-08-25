@@ -397,7 +397,8 @@
     "signOut": "Se déconnecter",
     "groups": "Groupes",
     "usage": "Consommation",
-    "rolePermissions": "Rôles et permissions"
+    "rolePermissions": "Rôles et permissions",
+    "fleetUsage": "Consommation flotte"
   },
   "dashboard": {
     "goodMorning": "Bonjour",
@@ -3535,5 +3536,24 @@
   },
   "commandPalette": {
     "placeholder": "Rechercher ou naviguer vers"
+  },
+  "fleetUsage": {
+    "title": "Consommation flotte",
+    "subtitle": "Consommation mesurée par tenant pour {{month}} — cliquez sur un tenant pour définir des limites mensuelles",
+    "tenant": "Tenant",
+    "pages": "Pages",
+    "documents": "Documents",
+    "tokens": "Jetons",
+    "aiActions": "Actions IA",
+    "estCost": "Coût est.",
+    "utilization": "Utilisation",
+    "noLimits": "Aucune limite",
+    "editLimits": "Limites — {{name}}",
+    "limitsHint": "Limites indicatives : les administrateurs du tenant sont alertés à 80 % et 100 %. L'utilisation n'est jamais bloquée. Laissez un champ vide pour supprimer la limite.",
+    "monthlyPages": "Pages mensuelles",
+    "monthlyAiActions": "Actions IA mensuelles",
+    "monthlyCost": "Coût mensuel estimé (USD)",
+    "limitsSaved": "Limites enregistrées",
+    "empty": "Aucune consommation enregistrée ce mois-ci"
   }
 }

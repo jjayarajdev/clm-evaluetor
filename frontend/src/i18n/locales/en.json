@@ -397,7 +397,8 @@
     "signOut": "Sign out",
     "groups": "Groups",
     "usage": "Usage",
-    "rolePermissions": "Roles & Permissions"
+    "rolePermissions": "Roles & Permissions",
+    "fleetUsage": "Fleet usage"
   },
   "dashboard": {
     "goodMorning": "Good morning",
@@ -3535,5 +3536,24 @@
   },
   "commandPalette": {
     "placeholder": "Search or jump to"
+  },
+  "fleetUsage": {
+    "title": "Fleet usage",
+    "subtitle": "Metered usage per tenant for {{month}} — click a tenant to set monthly limits",
+    "tenant": "Tenant",
+    "pages": "Pages",
+    "documents": "Documents",
+    "tokens": "Tokens",
+    "aiActions": "AI actions",
+    "estCost": "Est. cost",
+    "utilization": "Limit use",
+    "noLimits": "No limits",
+    "editLimits": "Limits — {{name}}",
+    "limitsHint": "Soft limits: tenant admins get an alert at 80% and 100%. Usage is never blocked. Leave a field empty to remove the limit.",
+    "monthlyPages": "Monthly pages",
+    "monthlyAiActions": "Monthly AI actions",
+    "monthlyCost": "Monthly estimated cost (USD)",
+    "limitsSaved": "Usage limits saved",
+    "empty": "No usage recorded this month"
   }
 }

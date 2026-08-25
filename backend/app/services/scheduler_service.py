@@ -68,6 +68,7 @@ class SchedulerService:
         """Register default job executors."""
         self._job_executors["sla_comparison"] = self._execute_sla_comparison_job
         self._job_executors["auto_family_sync"] = self._execute_auto_family_sync_job
+        self._job_executors["usage_threshold_check"] = self._execute_usage_threshold_job
 
     def register_executor(self, job_name: str, executor: JobExecutor) -> None:
         """Register a job executor.
@@ -154,6 +155,23 @@ class SchedulerService:
                 db.add(job)
                 await db.commit()
                 logger.info("Created default auto_family sync job")
+
+            # Hourly usage-threshold check (metering phase 3)
+            result = await db.execute(
+                select(SchedulerJob).where(SchedulerJob.job_name == "usage_threshold_check")
+            )
+            if not result.scalars().first():
+                job = SchedulerJob(
+                    job_name="usage_threshold_check",
+                    job_type="monitoring",
+                    description="Alerts tenant admins at 80%/100% of configured monthly usage limits",
+                    interval_seconds=3600,  # hourly
+                    is_enabled=True,
+                    next_run_at=datetime.now(timezone.utc) + timedelta(seconds=120),
+                )
+                db.add(job)
+                await db.commit()
+                logger.info("Created default usage threshold job")
 
     async def _run_loop(self) -> None:
         """Main scheduler loop."""
@@ -306,6 +324,12 @@ class SchedulerService:
                     f"Job {job_name} completed with status {status.value} "
                     f"in {duration_ms}ms. Next run: {next_run_at}"
                 )
+
+    async def _execute_usage_threshold_job(self, db: AsyncSession) -> dict:
+        """Hourly 80%/100% usage-limit check (metering phase 3)."""
+        from app.services.usage_alerts import check_usage_thresholds
+
+        return await check_usage_thresholds(db)
 
     async def _execute_auto_family_sync_job(self, db: AsyncSession) -> dict:
         """Nightly reconcile of auto_family contract groups for all tenants."""

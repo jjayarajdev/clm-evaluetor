@@ -1267,6 +1267,45 @@ export async function getUsageSummary(months = 6): Promise<UsageSummary> {
   return response.data
 }
 
+// Fleet view + monthly soft limits (super admin). Limits drive the 80%/100%
+// admin alerts, not enforcement.
+
+export interface TenantUsageLimit {
+  limit: number
+  current: number
+  pct: number
+}
+
+export interface TenantUsageRow extends UsageTotals {
+  tenant_id: string | null
+  tenant_name: string
+  limits: Record<string, TenantUsageLimit>
+}
+
+export interface FleetUsage {
+  month: string
+  items: TenantUsageRow[]
+}
+
+export interface UsageLimitsInput {
+  monthly_pages?: number | null
+  monthly_ai_actions?: number | null
+  monthly_cost_usd?: number | null
+}
+
+export async function getUsageByTenant(): Promise<FleetUsage> {
+  const response = await client.get<FleetUsage>('/usage/by-tenant')
+  return response.data
+}
+
+export async function setUsageLimits(
+  tenantId: string,
+  limits: UsageLimitsInput,
+): Promise<{ tenant_id: string; usage_limits: Record<string, number> }> {
+  const response = await client.put(`/usage/limits/${tenantId}`, limits)
+  return response.data
+}
+
 // ── DB-driven RBAC (super admin) ─────────────────────────────────────
 // The platform role→permission matrix — source of truth for both backend
 // guards and the frontend permission list served on /auth/me.

@@ -41,6 +41,7 @@ import GlobalUsersPage from './pages/super-admin/GlobalUsersPage'
 import CustomFieldsPage from './pages/super-admin/CustomFieldsPage'
 import RolePermissionsPage from './pages/super-admin/RolePermissionsPage'
 import SnowAdminPage from './pages/super-admin/SnowAdminPage'
+import FleetUsagePage from './pages/super-admin/FleetUsagePage'
 import OrganizationsPage from './pages/governance/OrganizationsPage'
 import RelationshipsPage from './pages/governance/RelationshipsPage'
 import RelationshipDetailPage from './pages/governance/RelationshipDetailPage'
@@ -151,6 +152,7 @@ function App() {
         <Route path="super-admin/users" element={<RequirePermission perm="superadmin"><GlobalUsersPage /></RequirePermission>} />
         <Route path="super-admin/custom-fields" element={<RequirePermission perm="superadmin"><CustomFieldsPage /></RequirePermission>} />
         <Route path="super-admin/integrations" element={<RequirePermission perm="superadmin"><SnowAdminPage /></RequirePermission>} />
+        <Route path="super-admin/usage" element={<RequirePermission perm="superadmin"><FleetUsagePage /></RequirePermission>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
