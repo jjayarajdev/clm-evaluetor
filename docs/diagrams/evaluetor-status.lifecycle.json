@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Evaluetor \u2014 Contract Processing Lifecycle",
+    "output": "docs/diagrams/evaluetor-status.html",
+    "viewBox": [
+      980,
+      660
+    ],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "main-phases",
+        "label": "Processing phases",
+        "focus": [
+          "pending",
+          "parsing",
+          "indexing",
+          "analysis",
+          "completed"
+        ],
+        "note": "From accepted upload through parsing, indexing and deep analysis to completed."
+      },
+      {
+        "id": "recovery",
+        "label": "Failure and recovery",
+        "focus": [
+          "indexing",
+          "failed",
+          "parsing"
+        ],
+        "note": "A failed run is persisted as failed \u2014 never silently completed \u2014 and can be re-run."
+      },
+      {
+        "id": "reanalysis",
+        "label": "Re-analysis",
+        "focus": [
+          "completed",
+          "reprocess",
+          "analysis"
+        ],
+        "note": "Admins can re-analyze a completed contract; extraction is re-metered by decision."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Processing phases"
+    },
+    {
+      "id": "waiting",
+      "label": "Re-analysis"
+    },
+    {
+      "id": "exceptions",
+      "label": "Recovery"
+    }
+  ],
+  "states": [
+    {
+      "id": "pending",
+      "type": "start",
+      "label": "Pending",
+      "sublabel": "upload accepted",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": "entry"
+    },
+    {
+      "id": "parsing",
+      "type": "active",
+      "label": "Parsing",
+      "sublabel": "OCR \u00b7 language",
+      "lane": "main",
+      "col": 1,
+      "step": "02"
+    },
+    {
+      "id": "indexing",
+      "type": "active",
+      "label": "Indexing",
+      "sublabel": "chunk \u00b7 embed \u00b7 metadata",
+      "lane": "main",
+      "col": 2,
+      "step": "03",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "analysis",
+      "type": "active",
+      "label": "Deep Analysis",
+      "sublabel": "clauses \u00b7 SLAs \u00b7 links",
+      "lane": "main",
+      "col": 3,
+      "step": "04",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "completed",
+      "type": "success",
+      "label": "Completed",
+      "sublabel": "ready to explore",
+      "lane": "main",
+      "col": 4,
+      "step": "05",
+      "tag": "done"
+    },
+    {
+      "id": "reprocess",
+      "type": "waiting",
+      "label": "Re-analyze",
+      "sublabel": "admin requested",
+      "lane": "waiting",
+      "col": 1,
+      "tag": "on demand"
+    },
+    {
+      "id": "failed",
+      "type": "failure",
+      "label": "Failed",
+      "sublabel": "error persisted",
+      "lane": "exceptions",
+      "col": 0,
+      "yOffset": 78,
+      "tag": "retryable"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "index-failed",
+      "from": "indexing",
+      "to": "failed",
+      "variant": "security",
+      "fromSide": "left",
+      "toSide": "left",
+      "via": [
+        [
+          320,
+          157
+        ],
+        [
+          320,
+          385
+        ]
+      ]
+    },
+    {
+      "id": "failed-retry",
+      "from": "failed",
+      "to": "parsing",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "top",
+      "via": [
+        [
+          20,
+          385
+        ],
+        [
+          20,
+          80
+        ],
+        [
+          248,
+          80
+        ]
+      ]
+    },
+    {
+      "id": "completed-reprocess",
+      "from": "completed",
+      "to": "reprocess",
+      "variant": "default",
+      "route": "drop"
+    },
+    {
+      "id": "reprocess-analysis",
+      "from": "reprocess",
+      "to": "analysis",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Honest States",
+      "items": [
+        "Completed is only set after deep analysis finishes, not before",
+        "A corrupt or empty file fails loudly instead of completing empty",
+        "Stage-level progress streams to the upload tray over SSE"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Re-Analysis",
+      "items": [
+        "Admins re-run extraction after model or prompt improvements",
+        "The Square One French contracts were re-analyzed after the language fix",
+        "Re-runs are metered again \u2014 usage evidence stays complete"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Recovery",
+      "items": [
+        "Failed runs keep the error message for support diagnosis",
+        "Retry restarts from parsing with the same stored file",
+        "No terminal dead ends besides a successfully completed contract"
+      ]
+    }
+  ]
+}

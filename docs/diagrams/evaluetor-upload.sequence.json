@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Evaluetor — Contract Upload Sequence",
+    "output": "docs/diagrams/evaluetor-upload.html",
+    "viewBox": [820, 760],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "guarded-upload",
+        "label": "Guarded upload",
+        "focus": ["user", "web", "api", "guard"],
+        "note": "JWT, rate limit and the write permission gate every upload before a byte is stored."
+      },
+      {
+        "id": "async-extraction",
+        "label": "Async extraction",
+        "focus": ["api", "worker", "llm", "pg"],
+        "note": "The API answers immediately; extraction runs in the background and persists per-call usage."
+      },
+      {
+        "id": "live-progress",
+        "label": "Live progress",
+        "focus": ["web", "api", "user"],
+        "note": "The upload tray follows stage-by-stage progress over SSE until completion."
+      }
+    ]
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "User", "sublabel": "tenant upload role" },
+    { "id": "web", "type": "frontend", "label": "Upload Page", "sublabel": "React tray" },
+    { "id": "api", "type": "backend", "label": "FastAPI", "sublabel": "/contracts/upload" },
+    { "id": "guard", "type": "security", "label": "Guards", "sublabel": "JWT · rate limit" },
+    { "id": "worker", "type": "backend", "label": "Worker", "sublabel": "index + analyze" },
+    { "id": "pg", "type": "database", "label": "PostgreSQL", "sublabel": "tenant rows" },
+    { "id": "llm", "type": "external", "label": "OpenAI", "sublabel": "GPT-4o" }
+  ],
+  "segments": [
+    { "from": 150, "to": 355, "label": "Upload" },
+    { "from": 375, "to": 590, "label": "Background extraction" },
+    { "from": 605, "to": 675, "label": "Completion" }
+  ],
+  "messages": [
+    { "id": "select-file", "from": "user", "to": "web", "y": 185, "label": "select PDF / DOCX", "variant": "default" },
+    { "id": "post-upload", "from": "web", "to": "api", "y": 225, "label": "POST /contracts/upload", "variant": "emphasis" },
+    { "id": "check-guards", "from": "api", "to": "guard", "y": 265, "label": "JWT · rate limit · write", "variant": "security" },
+    { "id": "guards-ok", "from": "guard", "to": "api", "y": 300, "label": "allowed", "variant": "return" },
+    { "id": "insert-pending", "from": "api", "to": "pg", "y": 340, "label": "contract row (pending)", "variant": "default" },
+    { "id": "accepted", "from": "api", "to": "web", "y": 395, "label": "contract_id", "variant": "return" },
+    { "id": "sse-subscribe", "from": "web", "to": "api", "y": 432, "label": "SSE processing-status", "variant": "dashed" },
+    { "id": "start-worker", "from": "api", "to": "worker", "y": 468, "label": "index in background", "variant": "dashed" },
+    { "id": "llm-extract", "from": "worker", "to": "llm", "y": 505, "label": "extract metadata · clauses · SLAs", "variant": "emphasis" },
+    { "id": "llm-json", "from": "llm", "to": "worker", "y": 542, "label": "structured JSON + token counts", "variant": "return" },
+    { "id": "persist-rows", "from": "worker", "to": "pg", "y": 578, "label": "extractions + usage_events", "variant": "emphasis" },
+    { "id": "sse-complete", "from": "api", "to": "web", "y": 625, "label": "SSE: completed", "variant": "return" },
+    { "id": "render-ready", "from": "web", "to": "user", "y": 660, "label": "contract ready", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "web", "from": 220, "to": 665, "type": "frontend" },
+    { "participant": "api", "from": 225, "to": 630, "type": "backend" },
+    { "participant": "guard", "from": 260, "to": 305, "type": "security" },
+    { "participant": "worker", "from": 463, "to": 583, "type": "backend" },
+    { "participant": "pg", "from": 335, "to": 583, "type": "database" },
+    { "participant": "llm", "from": 500, "to": 547, "type": "external" }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Guarded Entry",
+      "items": [
+        "Login and uploads are rate limited; viewer roles cannot upload",
+        "The tenant is taken from the JWT, never from the request body",
+        "Files land under a per-batch directory with sanitized names"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Async by Design",
+      "items": [
+        "The API responds before extraction starts — no request-time LLM wait",
+        "Stage-by-stage progress streams over SSE (nginx buffering off)",
+        "Failure marks the contract failed instead of silently completing"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Billing Evidence",
+      "items": [
+        "Every LLM call writes usage_events with tokens and page counts",
+        "Re-processing meters again by decision — evidence over rollups",
+        "Usage thresholds alert tenant admins at 80% and 100%"
+      ]
+    }
+  ]
+}

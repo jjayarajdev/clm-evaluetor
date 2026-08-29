@@ -1,0 +1,269 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Evaluetor \u2014 Ask AI Query Routing",
+    "output": "docs/diagrams/evaluetor-askai.html",
+    "viewBox": [
+      720,
+      900
+    ],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "rag-path",
+        "label": "Grounded answer",
+        "focus": [
+          "user",
+          "askai",
+          "router",
+          "qa",
+          "chroma",
+          "answer"
+        ],
+        "note": "The RAG path: intent classification, vector retrieval, and a cited answer."
+      },
+      {
+        "id": "structured-path",
+        "label": "Structured lookup",
+        "focus": [
+          "router",
+          "direct"
+        ],
+        "note": "Metadata and analytics intents skip RAG and query rows directly."
+      },
+      {
+        "id": "metering",
+        "label": "Metering",
+        "focus": [
+          "qa",
+          "meter"
+        ],
+        "note": "Both the router and the Q&A agent meter their LLM calls."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "User Interface"
+    },
+    {
+      "id": "routing",
+      "label": "Intent Routing"
+    },
+    {
+      "id": "grounding",
+      "label": "Grounding"
+    },
+    {
+      "id": "billing",
+      "label": "Metering"
+    }
+  ],
+  "phases": [
+    {
+      "id": "ask",
+      "label": "Ask",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "route",
+      "label": "Classify + route",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "answer-phase",
+      "label": "Ground + answer",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "user",
+    "askai",
+    "router",
+    "qa",
+    "chroma",
+    "answer"
+  ],
+  "nodes": [
+    {
+      "id": "user",
+      "lane": "ui",
+      "col": 0,
+      "type": "external",
+      "label": "User",
+      "sublabel": "asks a question"
+    },
+    {
+      "id": "askai",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Ask AI Page",
+      "sublabel": "chat thread"
+    },
+    {
+      "id": "answer",
+      "lane": "ui",
+      "col": 5,
+      "type": "backend",
+      "label": "Answer",
+      "sublabel": "citations + intent"
+    },
+    {
+      "id": "router",
+      "lane": "routing",
+      "col": 2,
+      "type": "backend",
+      "label": "Intent Router",
+      "sublabel": "classify query",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "direct",
+      "lane": "routing",
+      "col": 4,
+      "type": "backend",
+      "label": "Direct Lookup",
+      "sublabel": "metadata \u00b7 analytics"
+    },
+    {
+      "id": "qa",
+      "lane": "grounding",
+      "col": 3,
+      "type": "backend",
+      "label": "Contract Q&A",
+      "sublabel": "RAG agent",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "chroma",
+      "lane": "grounding",
+      "col": 5,
+      "type": "database",
+      "label": "ChromaDB",
+      "sublabel": "top-k chunks"
+    },
+    {
+      "id": "meter",
+      "lane": "billing",
+      "col": 3,
+      "type": "database",
+      "label": "Usage Meter",
+      "sublabel": "tokens \u00b7 AI actions"
+    }
+  ],
+  "edges": [
+    {
+      "id": "ask-question",
+      "from": "user",
+      "to": "askai",
+      "variant": "default"
+    },
+    {
+      "id": "post-query",
+      "from": "askai",
+      "to": "router",
+      "label": "POST /query",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1
+    },
+    {
+      "id": "rag-intent",
+      "from": "router",
+      "to": "qa",
+      "label": "rag intent",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1,
+      "labelDx": 48,
+      "labelDy": 14
+    },
+    {
+      "id": "structured-intent",
+      "from": "router",
+      "to": "direct",
+      "label": "structured intent",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "vector-search",
+      "from": "qa",
+      "to": "chroma",
+      "variant": "default"
+    },
+    {
+      "id": "cited-answer",
+      "from": "chroma",
+      "to": "answer",
+      "label": "answer + citations",
+      "variant": "emphasis",
+      "role": "return",
+      "fromSide": "right",
+      "toSide": "right",
+      "route": "outside-right",
+      "width": 1.2
+    },
+    {
+      "id": "meter-tokens",
+      "from": "qa",
+      "to": "meter",
+      "label": "token usage",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1,
+      "labelDy": 18
+    },
+    {
+      "id": "tabular-result",
+      "from": "direct",
+      "to": "answer",
+      "label": "tabular result",
+      "variant": "dashed",
+      "role": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Intent First",
+      "items": [
+        "The router classifies each question before any retrieval happens",
+        "Structured questions query tenant rows directly, skipping RAG",
+        "The chosen route is visualized back to the user with the answer"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Grounded Answers",
+      "items": [
+        "Retrieval is scoped to the tenant's own contract chunks",
+        "Citations point at real source text, never invented passages",
+        "French contracts are answered from French source chunks"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Metered",
+      "items": [
+        "Router and Q&A calls both count as AI actions",
+        "Token usage lands in usage_events per tenant",
+        "Fleet usage and threshold alerts read the same meter"
+      ]
+    }
+  ]
+}
