@@ -1,0 +1,357 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Evaluetor \u2014 Runtime Architecture",
+    "output": "docs/diagrams/evaluetor-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/jjayarajdev/clm-evaluetor",
+      "revision": "e6a6a2f24f99aee464de9274f99eaf80025e8bd5"
+    },
+    "views": [
+      {
+        "id": "request-path",
+        "label": "Request path",
+        "focus": [
+          "users",
+          "nginx",
+          "api",
+          "postgres"
+        ],
+        "note": "Browser to nginx to FastAPI; every query is tenant-scoped in PostgreSQL."
+      },
+      {
+        "id": "ai-pipeline",
+        "label": "AI extraction",
+        "focus": [
+          "api",
+          "agents",
+          "openai",
+          "chroma"
+        ],
+        "note": "Nine agents extract metadata, clauses, obligations, risks and SLAs via GPT-4o."
+      },
+      {
+        "id": "background-ops",
+        "label": "Background operations",
+        "focus": [
+          "scheduler",
+          "postgres",
+          "snow",
+          "langfuse"
+        ],
+        "note": "In-process scheduler reconciles groups, checks usage limits, imports SLA data."
+      }
+    ],
+    "viewBox": [
+      1340,
+      800
+    ]
+  },
+  "components": [
+    {
+      "id": "users",
+      "type": "external",
+      "label": "Users",
+      "sublabel": "web clients",
+      "pos": [
+        38,
+        330
+      ],
+      "size": [
+        126,
+        62
+      ]
+    },
+    {
+      "id": "nginx",
+      "type": "frontend",
+      "label": "React SPA + nginx",
+      "sublabel": "assets + /api proxy",
+      "tag": "frontend",
+      "sources": [
+        {
+          "path": "frontend/nginx.conf",
+          "label": "nginx.conf"
+        }
+      ],
+      "pos": [
+        240,
+        330
+      ],
+      "size": [
+        138,
+        64
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI Backend",
+      "sublabel": "41 routers",
+      "tag": "core",
+      "sources": [
+        {
+          "path": "backend/app/main.py",
+          "label": "main.py"
+        }
+      ],
+      "pos": [
+        470,
+        330
+      ],
+      "size": [
+        142,
+        64
+      ]
+    },
+    {
+      "id": "agents",
+      "type": "backend",
+      "label": "AI Agents",
+      "sublabel": "9 extraction agents",
+      "tag": "ai",
+      "sources": [
+        {
+          "path": "backend/app/services/orchestrator.py",
+          "label": "orchestrator.py"
+        }
+      ],
+      "pos": [
+        700,
+        170
+      ],
+      "size": [
+        140,
+        62
+      ]
+    },
+    {
+      "id": "scheduler",
+      "type": "backend",
+      "label": "Scheduler",
+      "sublabel": "hourly + nightly jobs",
+      "tag": "ops",
+      "sources": [
+        {
+          "path": "backend/app/services/scheduler_service.py",
+          "label": "scheduler_service.py"
+        }
+      ],
+      "pos": [
+        470,
+        560
+      ],
+      "size": [
+        140,
+        62
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "multi-tenant tables",
+      "sources": [
+        {
+          "path": "backend/app/database.py",
+          "label": "database.py"
+        }
+      ],
+      "pos": [
+        940,
+        330
+      ],
+      "size": [
+        134,
+        62
+      ]
+    },
+    {
+      "id": "chroma",
+      "type": "database",
+      "label": "ChromaDB",
+      "sublabel": "chunk vectors",
+      "sources": [
+        {
+          "path": "backend/app/services/vector_store.py",
+          "label": "vector_store.py"
+        }
+      ],
+      "pos": [
+        700,
+        460
+      ],
+      "size": [
+        134,
+        62
+      ]
+    },
+    {
+      "id": "openai",
+      "type": "external",
+      "label": "OpenAI GPT-4o",
+      "sublabel": "regional endpoint",
+      "pos": [
+        1140,
+        170
+      ],
+      "size": [
+        140,
+        62
+      ]
+    },
+    {
+      "id": "snow",
+      "type": "external",
+      "label": "ServiceNow",
+      "sublabel": "SLA source",
+      "pos": [
+        1140,
+        560
+      ],
+      "size": [
+        134,
+        62
+      ]
+    },
+    {
+      "id": "langfuse",
+      "type": "external",
+      "label": "Langfuse",
+      "sublabel": "LLM traces",
+      "pos": [
+        38,
+        560
+      ],
+      "size": [
+        126,
+        62
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "AWS EC2 \u00b7 US cell (docker compose)",
+      "wraps": [
+        "nginx",
+        "api",
+        "agents",
+        "scheduler",
+        "postgres",
+        "chroma"
+      ],
+      "pad": 22
+    },
+    {
+      "kind": "security-group",
+      "label": "docker private network",
+      "wraps": [
+        "api",
+        "agents",
+        "scheduler",
+        "postgres",
+        "chroma"
+      ],
+      "pad": 14
+    }
+  ],
+  "connections": [
+    {
+      "from": "users",
+      "to": "nginx",
+      "label": "HTTP :80",
+      "variant": "emphasis"
+    },
+    {
+      "from": "nginx",
+      "to": "api",
+      "label": "REST /api",
+      "variant": "emphasis"
+    },
+    {
+      "from": "api",
+      "to": "agents",
+      "label": "extraction \u00b7 Q&A",
+      "variant": "emphasis"
+    },
+    {
+      "from": "agents",
+      "to": "openai",
+      "label": "chat + embeddings",
+      "variant": "emphasis"
+    },
+    {
+      "from": "api",
+      "to": "postgres",
+      "label": "asyncpg",
+      "variant": "emphasis",
+      "labelDx": 60
+    },
+    {
+      "from": "api",
+      "to": "chroma",
+      "label": "RAG retrieval"
+    },
+    {
+      "from": "api",
+      "to": "scheduler",
+      "label": "in-process loop",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 50
+    },
+    {
+      "from": "scheduler",
+      "to": "postgres",
+      "label": "reconcile \u00b7 usage alerts"
+    },
+    {
+      "from": "scheduler",
+      "to": "snow",
+      "label": "SLA measurements",
+      "variant": "dashed",
+      "labelDx": 140
+    },
+    {
+      "from": "api",
+      "to": "langfuse",
+      "label": "OTLP traces",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "right"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Multi-Tenant Isolation",
+      "items": [
+        "Every query filters by tenant_id; business-unit visibility is derived",
+        "DB-driven RBAC feeds backend guards and the frontend permission map",
+        "JWT hardened: pinned algorithm, required claims, rate-limited login"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "AI Pipeline",
+      "items": [
+        "Upload \u2192 parse \u2192 chunk \u2192 embed \u2192 extract metadata, clauses, obligations, risks, SLAs",
+        "Language-aware extraction: French contracts produce French output",
+        "Every LLM call is metered into usage_events for billing evidence"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Data Residency Cells",
+      "items": [
+        "Each cell is a full stack on its own box; US cell live, EU cell prepped",
+        "Cell-level OpenAI/Azure endpoint overrides route AI traffic in-region",
+        "Integration credentials are Fernet-encrypted at rest"
+      ]
+    }
+  ]
+}

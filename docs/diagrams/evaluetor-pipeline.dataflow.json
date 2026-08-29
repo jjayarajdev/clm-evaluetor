@@ -1,0 +1,271 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Evaluetor \u2014 Contract AI Pipeline",
+    "output": "docs/diagrams/evaluetor-pipeline.html",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      780
+    ],
+    "views": [
+      {
+        "id": "happy-path",
+        "label": "Extraction path",
+        "focus": [
+          "upload",
+          "parser",
+          "metadata",
+          "deep",
+          "postgres"
+        ],
+        "note": "A contract flows from upload through language-aware AI extraction into tenant-scoped storage."
+      },
+      {
+        "id": "vector-path",
+        "label": "Vector index",
+        "focus": [
+          "parser",
+          "embed",
+          "chroma"
+        ],
+        "note": "Normalized text is chunked and embedded for RAG answers and source highlighting."
+      },
+      {
+        "id": "billing-links",
+        "label": "Metering and linking",
+        "focus": [
+          "meter",
+          "linker",
+          "dashboards"
+        ],
+        "note": "Every LLM call is metered; extraction facts drive automatic contract families."
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "Upload"
+    },
+    {
+      "label": "Parse"
+    },
+    {
+      "label": "AI Extraction"
+    },
+    {
+      "label": "Persist"
+    },
+    {
+      "label": "Consume"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "upload",
+      "type": "frontend",
+      "label": "Upload",
+      "sublabel": "PDF \u00b7 DOCX \u00b7 ZIP",
+      "stage": 0,
+      "row": 2,
+      "tag": "rate-limited"
+    },
+    {
+      "id": "parser",
+      "type": "backend",
+      "label": "Parser",
+      "sublabel": "OCR \u00b7 language detect",
+      "stage": 1,
+      "row": 1
+    },
+    {
+      "id": "embed",
+      "type": "backend",
+      "label": "Indexer",
+      "sublabel": "chunk + embed",
+      "stage": 1,
+      "row": 3
+    },
+    {
+      "id": "metadata",
+      "type": "backend",
+      "label": "Metadata Agent",
+      "sublabel": "parties \u00b7 dates",
+      "stage": 2,
+      "row": 0,
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "deep",
+      "type": "backend",
+      "label": "Deep Analysis",
+      "sublabel": "clauses \u00b7 obligations",
+      "stage": 2,
+      "row": 2,
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "chroma",
+      "type": "database",
+      "label": "ChromaDB",
+      "sublabel": "chunk vectors",
+      "stage": 2,
+      "row": 4
+    },
+    {
+      "id": "meter",
+      "type": "backend",
+      "label": "Usage Meter",
+      "sublabel": "per-call events",
+      "stage": 3,
+      "row": 4,
+      "tag": "billing"
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "tenant-scoped rows",
+      "stage": 3,
+      "row": 2
+    },
+    {
+      "id": "linker",
+      "type": "backend",
+      "label": "Family Linker",
+      "sublabel": "auto groups \u00b7 dedup",
+      "stage": 4,
+      "row": 0
+    },
+    {
+      "id": "dashboards",
+      "type": "frontend",
+      "label": "Dashboards",
+      "sublabel": "cockpit \u00b7 alerts",
+      "stage": 4,
+      "row": 2
+    }
+  ],
+  "flows": [
+    {
+      "from": "upload",
+      "to": "parser",
+      "label": "raw file",
+      "classification": "customer document",
+      "variant": "emphasis"
+    },
+    {
+      "from": "parser",
+      "to": "metadata",
+      "label": "text + language hint",
+      "classification": "normalized text",
+      "variant": "emphasis"
+    },
+    {
+      "from": "parser",
+      "to": "embed",
+      "label": "normalized text",
+      "classification": "normalized text"
+    },
+    {
+      "from": "embed",
+      "to": "chroma",
+      "label": "chunk vectors",
+      "classification": "embeddings"
+    },
+    {
+      "from": "metadata",
+      "to": "deep",
+      "label": "metadata context",
+      "classification": "extraction context",
+      "variant": "emphasis"
+    },
+    {
+      "from": "metadata",
+      "to": "postgres",
+      "label": "parties \u00b7 dates",
+      "classification": "extracted facts"
+    },
+    {
+      "from": "deep",
+      "to": "postgres",
+      "label": "extractions",
+      "classification": "extracted facts",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        692,
+        430
+      ]
+    },
+    {
+      "from": "deep",
+      "to": "meter",
+      "label": "token usage",
+      "classification": "billing evidence",
+      "variant": "dashed"
+    },
+    {
+      "from": "meter",
+      "to": "postgres",
+      "label": "usage_events",
+      "classification": "billing evidence",
+      "variant": "dashed"
+    },
+    {
+      "from": "postgres",
+      "to": "linker",
+      "label": "extraction facts",
+      "classification": "derived"
+    },
+    {
+      "from": "linker",
+      "to": "dashboards",
+      "label": "families \u00b7 suggestions",
+      "classification": "derived",
+      "variant": "dashed"
+    },
+    {
+      "from": "postgres",
+      "to": "dashboards",
+      "label": "contracts \u00b7 alerts",
+      "classification": "tenant reads",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        858,
+        432
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Language-Aware Extraction",
+      "items": [
+        "Detected language steers every agent: French contracts yield French output",
+        "Multi-language OCR and mojibake repair happen before any AI call",
+        "Source highlights carry exact page rectangles for View Source"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Metered by Construction",
+      "items": [
+        "Both agents' LLM calls emit usage_events (pages, tokens, AI actions)",
+        "Raw events are kept as billing and dispute evidence, never rolled up",
+        "Threshold alerts fire at 80% and 100% of configured monthly limits"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Downstream Intelligence",
+      "items": [
+        "Auto-family linking builds contract trees from declared references",
+        "ChromaDB vectors power RAG answers with grounded citations",
+        "Renewal, SLA and obligation alerts route from the same extracted rows"
+      ]
+    }
+  ]
+}
