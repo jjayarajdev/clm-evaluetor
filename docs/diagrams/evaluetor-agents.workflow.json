@@ -1,0 +1,324 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Evaluetor \u2014 AI Agent Orchestration",
+    "output": "docs/diagrams/evaluetor-agents.html",
+    "viewBox": [
+      820,
+      1150
+    ],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "index-agents",
+        "label": "Per-upload indexing",
+        "focus": [
+          "upload",
+          "parser",
+          "metadata",
+          "risk",
+          "reference"
+        ],
+        "note": "Metadata, risk and reference agents run inline while a contract is indexed."
+      },
+      {
+        "id": "deep-agents",
+        "label": "Deep analysis chain",
+        "focus": [
+          "clause",
+          "obligation",
+          "sla",
+          "renewal",
+          "schema",
+          "hints"
+        ],
+        "note": "Five agents run in sequence in the background, steered by golden-set few-shot and industry hints."
+      },
+      {
+        "id": "interactive-agents",
+        "label": "Ask AI",
+        "focus": [
+          "intent",
+          "qa",
+          "chroma"
+        ],
+        "note": "The intent router picks structured handlers or the RAG agent for each question."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "intake",
+      "label": "Parse (per upload)"
+    },
+    {
+      "id": "indexagents",
+      "label": "Indexing Agents (inline)"
+    },
+    {
+      "id": "deepextract",
+      "label": "Deep Analysis \u2014 Extraction"
+    },
+    {
+      "id": "deepenrich",
+      "label": "Deep Analysis \u2014 Enrichment"
+    },
+    {
+      "id": "interactive",
+      "label": "Ask AI (on demand)"
+    }
+  ],
+  "mainPath": [
+    "metadata",
+    "risk",
+    "reference"
+  ],
+  "nodes": [
+    {
+      "id": "upload",
+      "lane": "intake",
+      "col": 0,
+      "type": "frontend",
+      "label": "Upload",
+      "sublabel": "PDF \u00b7 DOCX \u00b7 ZIP"
+    },
+    {
+      "id": "parser",
+      "lane": "intake",
+      "col": 2,
+      "type": "backend",
+      "label": "Parser",
+      "sublabel": "OCR \u00b7 language"
+    },
+    {
+      "id": "metadata",
+      "lane": "indexagents",
+      "col": 1,
+      "type": "backend",
+      "label": "Metadata",
+      "sublabel": "parties \u00b7 dates \u00b7 value",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "risk",
+      "lane": "indexagents",
+      "col": 3,
+      "type": "backend",
+      "label": "Risk",
+      "sublabel": "10 risk categories",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "reference",
+      "lane": "indexagents",
+      "col": 5,
+      "type": "backend",
+      "label": "References",
+      "sublabel": "declared parent/child",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "clause",
+      "lane": "deepextract",
+      "col": 0,
+      "type": "backend",
+      "label": "Clauses",
+      "sublabel": "17 clause types",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "obligation",
+      "lane": "deepextract",
+      "col": 2,
+      "type": "backend",
+      "label": "Obligations",
+      "sublabel": "deadlines \u00b7 parties",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "sla",
+      "lane": "deepextract",
+      "col": 4,
+      "type": "backend",
+      "label": "SLAs",
+      "sublabel": "metrics \u00b7 penalties",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "renewal",
+      "lane": "deepenrich",
+      "col": 1,
+      "type": "backend",
+      "label": "Renewal",
+      "sublabel": "auto-renew \u00b7 notice",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "schema",
+      "lane": "deepenrich",
+      "col": 3,
+      "type": "backend",
+      "label": "Schema",
+      "sublabel": "15 types \u00b7 1,235 fields",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "chroma",
+      "lane": "intake",
+      "col": 4,
+      "type": "database",
+      "label": "ChromaDB",
+      "sublabel": "chunk vectors"
+    },
+    {
+      "id": "hints",
+      "lane": "deepenrich",
+      "col": 5,
+      "type": "database",
+      "label": "Golden Set",
+      "sublabel": "few-shot \u00b7 industry"
+    },
+    {
+      "id": "intent",
+      "lane": "interactive",
+      "col": 1,
+      "type": "backend",
+      "label": "Intent Router",
+      "sublabel": "structured vs RAG",
+      "tag": "GPT-4o"
+    },
+    {
+      "id": "qa",
+      "lane": "interactive",
+      "col": 3,
+      "type": "backend",
+      "label": "Contract Q&A",
+      "sublabel": "cited answers",
+      "tag": "GPT-4o"
+    }
+  ],
+  "edges": [
+    {
+      "id": "upload-parser",
+      "from": "upload",
+      "to": "parser",
+      "variant": "emphasis"
+    },
+    {
+      "id": "parser-chroma",
+      "from": "parser",
+      "to": "chroma",
+      "label": "chunks + embeddings",
+      "variant": "dashed"
+    },
+    {
+      "id": "parser-metadata",
+      "from": "parser",
+      "to": "metadata",
+      "label": "text + language",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1
+    },
+    {
+      "id": "metadata-risk",
+      "from": "metadata",
+      "to": "risk",
+      "variant": "emphasis"
+    },
+    {
+      "id": "risk-reference",
+      "from": "risk",
+      "to": "reference",
+      "variant": "default",
+      "route": "straight"
+    },
+    {
+      "id": "index-then-deep",
+      "from": "reference",
+      "to": "clause",
+      "label": "then deep analysis",
+      "variant": "dashed",
+      "role": "branch",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelSegment": 1,
+      "labelDy": 26
+    },
+    {
+      "id": "clause-obligation",
+      "from": "clause",
+      "to": "obligation",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "obligation-sla",
+      "from": "obligation",
+      "to": "sla",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "sla-renewal",
+      "from": "sla",
+      "to": "renewal",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "renewal-schema",
+      "from": "renewal",
+      "to": "schema",
+      "variant": "default",
+      "route": "straight"
+    },
+    {
+      "id": "hints-sla",
+      "from": "hints",
+      "to": "sla",
+      "label": "few-shot + hints",
+      "variant": "dashed"
+    },
+    {
+      "id": "intent-qa",
+      "from": "intent",
+      "to": "qa",
+      "label": "rag intent",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Two Trigger Paths",
+      "items": [
+        "Indexing agents run inline per upload; deep analysis runs in the background after indexing completes",
+        "Each deep stage uses its own DB session \u2014 one failure never rolls back earlier stages",
+        "Ask AI runs on demand: the intent router picks structured handlers or RAG over ChromaDB"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Steered Extraction",
+      "items": [
+        "Detected language is injected into every agent prompt \u2014 French in, French out",
+        "Tenant golden-set examples become few-shot context for clause, obligation and SLA agents",
+        "Industry profiles add per-contract-type extraction hints"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Robust by Contract",
+      "items": [
+        "Truncated JSON raises LLMTruncationError instead of reporting an empty result",
+        "Clients carry timeout and retry budgets; every call is metered to usage_events",
+        "Hierarchy suggestions run batch-scoped with content-hash-cached document cards"
+      ]
+    }
+  ]
+}
