@@ -1,8 +1,9 @@
 /**
  * POST /api/contact — backend for the marketing site's contact form.
  *
- * Runs as a Cloudflare Pages Function on evaluetor.com (the Pages project
- * builds from the repo root, so this directory is picked up automatically).
+ * Runs as a Cloudflare Pages Function on evaluetor.com. Lives under website/
+ * with the rest of the marketing site; the Pages project's root directory
+ * must be `website` for this folder to be picked up.
  *
  * Flow: validate → drop bots (honeypot + timing) → email the enquiry to the
  * inbox via Resend, with Reply-To set to the visitor so replying just works.
