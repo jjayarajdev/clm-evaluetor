@@ -37,7 +37,13 @@ import MarketingLayout from '../layouts/MarketingLayout.astro';
         <div class="label label-ink" style="margin-bottom: 10px;">Get in touch</div>
         <h2 class="display display-md" style="margin-bottom: 28px;">Drop us a note.</h2>
 
-        <form action="mailto:info@evaluetor.com" method="post" enctype="text/plain" style="display: grid; gap: 18px;">
+        <form id="contact-form" action="/api/contact" method="post" novalidate style="display: grid; gap: 18px;">
+          <!-- Honeypot: hidden from people, filled by bots. Any value = discarded server-side. -->
+          <div class="hp" aria-hidden="true">
+            <label for="website">Website</label>
+            <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+          </div>
+          <input type="hidden" name="ts" id="ts" value="" />
           <div class="grid grid-cols-1 md:grid-cols-2" style="gap: 18px;">
             <div>
               <label class="label" for="name">Your name</label>
@@ -65,11 +71,19 @@ import MarketingLayout from '../layouts/MarketingLayout.astro';
             <textarea id="message" name="message" rows="5" placeholder="A few sentences about your portfolio, where you suspect leakage, or just what you want to see." class="fld"></textarea>
           </div>
 
+          <p id="contact-error" class="form-msg error" role="alert" hidden></p>
+
           <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 6px;">
-            <button type="submit" class="cta-btn">Send <span class="arr">→</span></button>
+            <button type="submit" class="cta-btn" id="contact-submit">Send <span class="arr">→</span></button>
             <span class="ink-3" style="font-size: 13px;">Or email <a href="mailto:info@evaluetor.com" class="a-orange" style="font-size: 13px;">info@evaluetor.com</a> directly.</span>
           </div>
         </form>
+
+        <div id="contact-success" class="form-msg success" role="status" hidden>
+          <div class="label label-ink" style="margin-bottom: 8px;">Sent</div>
+          <p style="font-size: 16px; margin: 0 0 6px;">Thanks — your note is with the Evaluetor team.</p>
+          <p class="ink-3" style="font-size: 14px; margin: 0;">We reply from a real inbox, usually within one working day.</p>
+        </div>
       </div>
 
       <!-- Info column -->
@@ -119,6 +133,78 @@ import MarketingLayout from '../layouts/MarketingLayout.astro';
   }
   .fld::placeholder { color: var(--ink-4); }
   textarea.fld { resize: vertical; }
+  .hp { position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .form-msg { font-size: 14px; margin: 0; }
+  .form-msg.error { color: var(--red); }
+  .form-msg.success { border: 1px solid var(--rule-2); background: var(--paper); padding: 28px; }
+  .cta-btn[disabled] { opacity: .6; cursor: default; }
 </style>
+
+<script>
+  const form = document.getElementById('contact-form') as HTMLFormElement | null;
+  const ts = document.getElementById('ts') as HTMLInputElement | null;
+  const errorBox = document.getElementById('contact-error') as HTMLElement | null;
+  const successBox = document.getElementById('contact-success') as HTMLElement | null;
+  const submit = document.getElementById('contact-submit') as HTMLButtonElement | null;
+
+  if (ts) ts.value = String(Date.now());
+
+  const fallbackMailto = (data: Record<string, string>) => {
+    const subject = encodeURIComponent(`Website enquiry — ${data.company} (${data.name})`);
+    const body = encodeURIComponent(
+      `Name: ${data.name}\nEmail: ${data.email}\nCompany: ${data.company}\nRole: ${data.role || '—'}\n\n${data.message || ''}`
+    );
+    return `mailto:info@evaluetor.com?subject=${subject}&body=${body}`;
+  };
+
+  const showError = (html: string) => {
+    if (!errorBox) return;
+    errorBox.innerHTML = html;
+    errorBox.hidden = false;
+  };
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!submit) return;
+    if (errorBox) errorBox.hidden = true;
+
+    const data: Record<string, string> = {};
+    new FormData(form).forEach((v, k) => { data[k] = String(v); });
+
+    submit.disabled = true;
+    const label = submit.innerHTML;
+    submit.textContent = 'Sending…';
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const out = await res.json().catch(() => ({}));
+
+      if (res.ok && out.ok) {
+        form.hidden = true;
+        form.style.display = 'none'; // inline grid display would otherwise override [hidden]
+        if (successBox) successBox.hidden = false;
+        return;
+      }
+      if (res.status === 400 && out.error) {
+        showError(out.error);
+      } else {
+        showError(
+          `We couldn't send that just now. <a class="a-orange" href="${fallbackMailto(data)}">Send it from your mail client instead →</a>`
+        );
+      }
+    } catch {
+      showError(
+        `We couldn't reach the server. <a class="a-orange" href="${fallbackMailto(data)}">Send it from your mail client instead →</a>`
+      );
+    } finally {
+      submit.disabled = false;
+      submit.innerHTML = label;
+    }
+  });
+</script>
 
 </MarketingLayout>

@@ -158,3 +158,6 @@ eval-redesign/
 feedback/
 sales/*copy.pptx
 db_dumps/
+
+# wrangler local state (pages dev)
+.wrangler/
