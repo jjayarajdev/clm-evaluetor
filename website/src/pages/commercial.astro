@@ -130,7 +130,7 @@ const metrics = [
   { v: '90%',  l: 'Target reduction in contract review time',          w: 'Legal' },
   { v: '3–5×', l: 'Service credits identifiable, vs current claiming', w: 'Procurement' },
   { v: '95%',  l: 'Target reduction in missed deadlines',              w: 'Operations' },
-  { v: '1 score', l: 'Composite contract health — Risk · SLA · Obligations rolled up',  w: 'Finance' },
+  { v: '1', u: 'score', l: 'Composite contract health — Risk · SLA · Obligations rolled up',  w: 'Finance' },
 ];
 
 const compare = {
@@ -1265,7 +1265,7 @@ const deploy = [
           <div class={`col-span-12 sm:col-span-6 lg:col-span-3 py-6 ${i > 0 ? 'lg:border-l' : ''}`} style="border-color: rgba(247,246,243,0.18);">
             <div class={`${i > 0 ? 'lg:pl-6' : ''}`}>
               <div class="label tnum" style="color: var(--orange);">{m.w}</div>
-              <div class="display tnum mt-4" style="font-size: clamp(56px, 7vw, 108px); line-height: 0.88; letter-spacing: -0.025em; color: var(--paper);">{m.v}</div>
+              <div class="display tnum mt-4" style="font-size: clamp(56px, 7vw, 108px); line-height: 0.88; letter-spacing: -0.025em; color: var(--paper); white-space: nowrap;">{m.v}{m.u && <span class="emph" style="font-size: 0.36em; letter-spacing: 0; margin-left: 0.18em; color: rgba(247,246,243,0.85);">{m.u}</span>}</div>
               <div class="text-[15px] mt-4" style="color: rgba(247,246,243,0.78); line-height: 1.45;">{m.l}</div>
             </div>
           </div>
