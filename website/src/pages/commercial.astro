@@ -134,15 +134,14 @@ const metrics = [
 ];
 
 const compare = {
-  cols: ['Evaluetor', 'DocuSign CLM', 'Icertis', 'Ironclad'],
+  cols: ['Evaluetor', 'Typical legacy CLM'],
   rows: [
-    ['Time to first outcome',   ['Within weeks',  '6–12 months',  '12–18 months', '3–6 months']],
-    ['Native AI agents',        ['Nine',          'Limited',      'Add-on',       'Limited']],
-    ['SLA monitoring',          ['Built-in',      'Not standard', 'Add-on',       'Not standard']],
-    ['Obligation tracking',     ['AI-extracted',  'Manual',       'Manual',       'Limited']],
-    ['Relationship governance', ['Built-in',      'Not standard', 'Not standard', 'Not standard']],
-    ['Unlimited users',         ['Yes',           'Per-seat',     'Per-seat',     'Per-seat']],
-    ['LLM observability',       ['Langfuse',      'Not standard', 'Not standard', 'Not standard']],
+    ['Time to first outcome',   ['Within weeks',                                        'Quarters, after a full implementation']],
+    ['Post-signature AI',       ['Nine specialised agents, in the box',                 'Drafting and clause AI; execution sold as add-ons']],
+    ['SLA monitoring',          ['Terms extracted, actuals compared, credits calculated', 'Not standard: spreadsheets or a separate tool']],
+    ['Obligation tracking',     ['AI-extracted, with owners and RAG status',            'Manual entry, where tracked at all']],
+    ['Relationship governance', ['Built-in, scored from both sides',                    'Not part of the category']],
+    ['Licensing',               ['Portfolio-based, unlimited users',                    'Per-seat']],
   ],
 };
 
@@ -1288,14 +1287,14 @@ const deploy = [
         <h2 class="sechead-h display display-lg">What the legacy CLM tools <span class="emph">do not do</span>.</h2>
       </header>
 
-      <p class="lead mt-6 max-w-3xl">The other vendors bolted AI onto products designed in the document-management era. Evaluetor was built model-first. The difference is visible in the cells of this table.</p>
+      <p class="lead mt-6 max-w-3xl">Legacy CLM tools were built in the document-management era and had AI bolted on later. Evaluetor was built model-first. The difference shows in what ships in the box.</p>
 
       <!-- Capability table, full width -->
       <div class="mt-10 overflow-x-auto">
         <table class="ctable">
           <thead>
             <tr>
-              <th style="min-width: 200px;">Capability</th>
+              <th style="min-width: 200px; width: 26%;">Capability</th>
               <th class="us">{compare.cols[0]}</th>
               {compare.cols.slice(1).map((c) => (<th>{c}</th>))}
             </tr>
@@ -1314,14 +1313,14 @@ const deploy = [
       </div>
 
       <p class="text-[11px] mono ink-3 mt-4 leading-snug max-w-4xl">
-        Comparison reflects publicly documented capabilities of each platform at time of writing. Vendor pricing and packaging vary by region and customer size; figures in the &ldquo;time to first outcome&rdquo; row refer to median customer reports.
+        &ldquo;Typical legacy CLM&rdquo; describes the document-management-era platforms most mid-market buyers run today. It is a description of the category, not a claim about any named product. Evaluetor figures are what we commit to per engagement.
       </p>
 
       <!-- Honest framing instead of a verdict tagline -->
       <div class="grid grid-cols-12 gap-x-6 gap-y-3 items-baseline pt-8 mt-10 rule">
         <div class="col-span-12 md:col-span-3 label label-ink">What it means in practice</div>
         <p class="col-span-12 md:col-span-9 text-[16px] ink-2 leading-relaxed max-w-3xl">
-          The legacy CLM tools bolted AI onto products designed in the document-management era. Evaluetor was built model-first, which is why obligations, SLAs, risks and relationship governance ship in the box rather than as add-ons. We do not promise instant outcomes — we promise that the first ones land in weeks, not quarters.
+          Obligations, SLAs, risks and relationship governance ship in the box rather than as add-ons, and they share one data model. We do not promise instant outcomes &mdash; we promise that the first ones land in weeks, not quarters.
         </p>
       </div>
     </div>
