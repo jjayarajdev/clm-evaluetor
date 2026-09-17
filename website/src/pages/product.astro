@@ -41,16 +41,15 @@ const capabilities = [
 ];
 
 const compare = {
-  cols: ['Evaluetor', 'DocuSign CLM', 'Icertis', 'Ironclad'],
+  cols: ['Evaluetor', 'Typical legacy CLM'],
   rows: [
-    ['Time to first outcome',           ['Within weeks',  '6–12 months', '12–18 months', '3–6 months']],
-    ['Native AI agents',                ['9',             'Limited add-on', 'Limited',    'Limited add-on']],
-    ['Built-in SLA monitoring',         ['Yes',           'No',           'No',           'No']],
-    ['AI-extracted obligations',        ['Yes — 7 types', 'Manual',       'Limited',      'Manual']],
-    ['Relationship governance',         ['Yes — built-in', '—',           '—',            '—']],
-    ['Composite contract health score', ['Yes',           '—',            '—',            '—']],
-    ['User licensing',                  ['Unlimited',     'Per seat',     'Per seat',     'Per seat']],
-    ['LLM observability (traceable)',   ['Yes — Langfuse', '—',            '—',            '—']],
+    ['Time to first outcome',           ['Within weeks',                                          'Quarters, after a full implementation']],
+    ['Post-signature AI',               ['Nine specialised agents, in the box',                   'Drafting and clause AI; execution sold as add-ons']],
+    ['SLA monitoring',                  ['Terms extracted, actuals compared, credits calculated', 'Not standard: spreadsheets or a separate tool']],
+    ['Obligation tracking',             ['AI-extracted, seven types, with owners and RAG status', 'Manual entry, where tracked at all']],
+    ['Relationship governance',         ['Built-in, scored from both sides',                      'Not part of the category']],
+    ['Composite contract health score', ['Risk, SLA and obligations rolled up per contract',      'Not standard']],
+    ['Licensing',                       ['Portfolio-based, unlimited users',                      'Per-seat']],
   ],
 };
 ---
@@ -118,7 +117,7 @@ const compare = {
       <table class="ctable">
         <thead>
           <tr>
-            <th></th>
+            <th style="width: 26%;"></th>
             {compare.cols.map((c, i) => (
               <th class={i === 0 ? 'us' : ''}>{c}</th>
             ))}
@@ -138,7 +137,7 @@ const compare = {
     </div>
 
     <p class="mono ink-3" style="font-size: 11px; line-height: 1.6; margin-top: 16px; max-width: 760px;">
-      Comparison reflects publicly documented capabilities of each platform at time of writing. Vendor pricing and packaging vary by region and customer size; figures in the "time to first outcome" row refer to median customer reports.
+      &ldquo;Typical legacy CLM&rdquo; describes the document-management-era platforms most mid-market buyers run today. It is a description of the category, not a claim about any named product. Evaluetor figures are what we commit to per engagement.
     </p>
   </div>
 </section>
